@@ -1,0 +1,18 @@
+{
+  "name": "@web-city/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SimCity 4 Rush Hour simulation engine: pure TypeScript, no DOM or Node APIs (runs in browsers, Cloudflare Workers and Node).",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "vitest run",
+    "build": "vite build",
+    "smoke": "tsx scripts/smoke.ts",
+    "fuzz": "tsx scripts/fuzz.ts",
+    "docs": "tsx scripts/api-doc.ts"
+  }
+}

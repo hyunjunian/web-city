@@ -1,0 +1,161 @@
+// Minimap: the whole city at one pixel per tile, with the view outlined; click or drag on it to move.
+
+import { Net, Terrain } from '@web-city/engine';
+import { TYPE_COLOR } from './render';
+import { cam, city, redraw, renderer } from './state';
+
+const canvas = document.querySelector<HTMLCanvasElement>('#minimap');
+const ctx = canvas?.getContext('2d');
+/** The minimap's CSS width, 0 while hidden: kept by an observer (reading it each frame forced a layout after every panel update). */
+let shown = 0;
+if (canvas && typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(([e]) => {
+    shown = e!.contentRect.width;
+    if (shown && city) drawMinimap(true);
+  }).observe(canvas);
+}
+let base: HTMLCanvasElement | null = null;
+let baseAt = -Infinity;
+let baseCity: unknown = null;
+let trailing: number | null = null;
+
+const rgb = (hex: string): [number, number, number] => {
+  const v = parseInt(hex.slice(1), 16);
+  return [(v >> 16) & 255, (v >> 8) & 255, v & 255];
+};
+const BUILDING: Record<string, [number, number, number]> = Object.fromEntries(
+  Object.entries(TYPE_COLOR).map(([k, v]) => [k, rgb(v)]),
+);
+// Zone tints by zone code (light R, medium R, high R, C ×3, I ×2, farm, landfill).
+const ZONE: ([number, number, number] | null)[] = [
+  null, [176, 214, 150], [160, 206, 140], [140, 196, 130], [170, 196, 226], [150, 182, 222], [130, 166, 214],
+  [226, 206, 150], [222, 190, 130], [214, 200, 150], [150, 130, 90],
+];
+
+/** Repaints the tile image (at most twice a second unless forced). */
+function paintBase(force: boolean): void {
+  const s = city.state;
+  const n = s.size;
+  const now = performance.now();
+  // A big map's repaint is costly: less often (the view box still moves every frame).
+  const every = n > 160 ? 2000 : 500;
+  if (!force && base && baseCity === city && now - baseAt < every) {
+    // Catch up shortly so a paused city still shows the latest edit.
+    trailing ??= window.setTimeout(() => {
+      trailing = null;
+      drawMinimap(true);
+    }, every - (now - baseAt));
+    return;
+  }
+  baseAt = now;
+  baseCity = city;
+  if (!base || base.width !== n) {
+    base = document.createElement('canvas');
+    base.width = n;
+    base.height = n;
+  }
+  const bctx = base.getContext('2d')!;
+  const img = bctx.createImageData(n, n);
+  const d = img.data;
+  for (let i = 0; i < n * n; i++) {
+    let c: [number, number, number];
+    const occ = s.occupant[i]!;
+    if (s.terrain[i] === Terrain.Water && !s.net[i]) c = [93, 143, 199];
+    else if (s.net[i] && s.net[i] !== Net.None) c = [86, 87, 92];
+    else if (occ > 0) {
+      const b = s.buildings.get(occ);
+      c = b?.type ? BUILDING[b.type]! : [91, 85, 80];
+    } else if (occ < 0) c = [120, 120, 130];
+    else {
+      const z = ZONE[s.zone[i]!];
+      if (z) c = z;
+      else {
+        const t = Math.min(1, s.height[i]! / 120);
+        c = [207 - 40 * t, 216 - 30 * t, 184 - 50 * t];
+      }
+    }
+    d[i * 4] = c[0];
+    d[i * 4 + 1] = c[1];
+    d[i * 4 + 2] = c[2];
+    d[i * 4 + 3] = 255;
+  }
+  bctx.putImageData(img, 0, 0);
+}
+
+/** The whole city as a small PNG data URL (for the save list). */
+export function thumbnail(): string {
+  paintBase(true);
+  try {
+    return base!.toDataURL('image/png');
+  } catch {
+    return '';
+  }
+}
+
+/** Draws the minimap; `force` repaints the tiles now (after an edit or a new city). */
+export function drawMinimap(force = false): void {
+  if (!canvas || !ctx || !shown) return;
+  paintBase(force);
+  const n = city.size;
+  const size = shown;
+  const dpr = window.devicePixelRatio || 1;
+  if (canvas.width !== Math.round(size * dpr)) {
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+  }
+  const k = canvas.width / n;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(base!, 0, 0, canvas.width, canvas.height);
+  // The part of the city on screen.
+  const view = { width: renderer.canvas.width / renderer.dpr, height: renderer.canvas.height / renderer.dpr };
+  const x = Math.round(cam.x * k);
+  const y = Math.round(cam.y * k);
+  const w = Math.max(4, Math.round((view.width / cam.scale) * k));
+  const h = Math.max(4, Math.round((view.height / cam.scale) * k));
+
+  ctx.fillStyle = 'rgba(77,163,255,0.18)';
+  ctx.fillRect(x, y, w, h);
+  ctx.lineWidth = 2 * dpr;
+  ctx.strokeStyle = '#1d6fd1';
+  ctx.strokeRect(x, y, w, h);
+  // An open goal's marks: its troubled facilities as dots, the suggested spot as a ring (found from anywhere).
+  for (const m of renderer.marks) {
+    if (m.tone === '') continue;
+    const mx = (m.x + m.w / 2) * k;
+    const my = (m.y + m.h / 2) * k;
+    ctx.beginPath();
+    if (m.tone === 'spot') {
+      ctx.arc(mx, my, 5 * dpr, 0, Math.PI * 2);
+      ctx.lineWidth = 3 * dpr;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+      ctx.lineWidth = 1.5 * dpr;
+      ctx.strokeStyle = '#2f6fe0';
+      ctx.stroke();
+    } else {
+      ctx.arc(mx, my, 2.5 * dpr, 0, Math.PI * 2);
+      ctx.fillStyle = m.tone === 'bad' ? '#ff4d4f' : '#f5a524';
+      ctx.fill();
+    }
+  }
+}
+
+export function setupMinimap(): void {
+  if (!canvas) return;
+  const move = (e: PointerEvent) => {
+    const r = canvas.getBoundingClientRect();
+    const tx = ((e.clientX - r.left) / r.width) * city.size;
+    const ty = ((e.clientY - r.top) / r.height) * city.size;
+    const view = renderer.canvas.getBoundingClientRect();
+    cam.x = tx - view.width / cam.scale / 2;
+    cam.y = ty - view.height / cam.scale / 2;
+    redraw();
+  };
+  canvas.addEventListener('pointerdown', (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    move(e);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (e.buttons) move(e);
+  });
+}

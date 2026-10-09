@@ -1,0 +1,12 @@
+name = "web-city-sim"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+
+# Long-lived cities (src/room.ts): one Durable Object per city name.
+[[durable_objects.bindings]]
+name = "CITY"
+class_name = "CityRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["CityRoom"]

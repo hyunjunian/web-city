@@ -1,0 +1,10 @@
+{
+  // The engine must run anywhere (browser, Cloudflare Workers, Node):
+  // only ES2022 built-ins are visible — no DOM, no Node types.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022"],
+    "types": []
+  },
+  "include": ["src"]
+}

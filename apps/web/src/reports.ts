@@ -1,0 +1,107 @@
+// Monthly reports: opinion polls, age bar graphs and reward progress.
+
+import { type DevType, type PollTopic, type StructureKind, type UnlockCheck } from '@web-city/engine';
+import { CHECK_NAME, POLL_NAME, STRUCTURE_NAME, TYPE_NAME } from './names';
+import { city } from './state';
+import { $, fmt } from './util';
+
+export let pollMonth = -1;
+
+/** City Opinion Polls: share of residents approving each topic, refreshed monthly. */
+export function renderPolls(): void {
+  const month = Math.floor(city.state.day / 30);
+  if (month === pollMonth) return;
+  pollMonth = month;
+  const polls = city.opinionPolls();
+  const people = city.stats().population;
+  $('#polls').innerHTML = people ? `${(Object.keys(POLL_NAME) as PollTopic[]).map((t) => {
+    const p = Math.round(polls[t].approve * 100);
+    // Neutral bars; a topic most residents are unhappy about stands out.
+    return `<div class="poll-row${p < 25 ? ' bad' : p < 50 ? ' warn' : ''}" title="평균 시장 평점 요인 ${polls[t].score.toFixed(1)}">
+      <span class="label">${POLL_NAME[t]}</span>
+      <div class="bar"><div class="fill" style="width:${p}%"></div></div>
+      <span class="value">${p}%</span></div>`;
+  }).join('')}<p class="legend">각 주제에 불만이 없는 주민 비율(시장 평점 요인이 0 이상인 가구, 인구 가중). 정밀하지 않은 여론의 흐름입니다.</p>`
+    : '<p class="muted">주민이 생기면 조사합니다.</p>';
+}
+
+export let ageMonth = -1;
+
+/** Population by Age and Education by Age (bar graphs), by 10-year group. */
+export function renderAges(): void {
+  const month = Math.floor(city.state.day / 30);
+  if (month === ageMonth) return;
+  ageMonth = month;
+  const groups = city.ageProfile();
+  if (!groups.length) {
+    $('#ages').innerHTML = '';
+    return;
+  }
+  const top = Math.max(...groups.map((g) => g.residents));
+  const bars = (value: (g: (typeof groups)[number]) => number, max: number, text: (g: (typeof groups)[number]) => string) => groups.map((g) => `
+    <div class="poll-row wide"><span class="label">${g.from}대</span>
+      <div class="bar"><div class="fill" style="width:${Math.round((100 * value(g)) / max)}%"></div></div>
+      <span class="value">${text(g)}</span></div>`).join('');
+  $('#ages').innerHTML = `<h3 class="sub">나이별 인구 (막대 끝 = 가장 많은 나이대)</h3>${bars((g) => g.residents, top, (g) => fmt(g.residents))}
+    <h3 class="sub">나이별 교육 (EQ, 막대 끝 = 200)</h3>${bars((g) => g.eq, 200, (g) => String(g.eq))}
+    <p class="legend">가구 평균 나이 기준 10년 단위. 학교마다 효과가 큰 나이대가 다릅니다.</p>`;
+}
+
+export let rewardMonth = -1;
+
+/** One condition, e.g. "시장 평점 32/40" or "등급 85 넘는 도서관 3/5". */
+export function checkText(c: UnlockCheck): string {
+  const [field, sub] = c.key.startsWith('regional.') ? [c.key, undefined] : c.key.split('.') as [string, string | undefined];
+  const subName = sub ? (STRUCTURE_NAME[sub as StructureKind] ?? TYPE_NAME[sub as DevType] ?? sub) : '';
+  // A type's population is its residents (R) or its jobs (businesses): "주거 저소득 인구", "농업 일자리".
+  const what = field === 'typePopulation' && sub ? `${subName} ${sub[0] === 'R' ? '인구' : '일자리'}`
+    : sub ? `${CHECK_NAME[field] ?? field} ${subName}` : CHECK_NAME[field] ?? field;
+  if (field === 'wellFunded' || field === 'difficulty' || field === 'anyOf' || field === 'requires') return what;
+  const v = (x: number) => (field === 'waterShare' || field === 'busyStation' ? `${Math.round(x * 100)}%` : fmt(Math.round(x)));
+  return `${what} ${v(c.have)}${c.below ? ' (< ' : '/'}${v(c.need)}${c.below ? ')' : ''}`;
+}
+
+/** What a condition still wants, as an amount to go: "총인구 3,816 더", "범죄 40 아래로". */
+export function checkLeft(c: UnlockCheck): string {
+  const [field, sub] = c.key.startsWith('regional.') ? [c.key, undefined] : c.key.split('.') as [string, string | undefined];
+  const subName = sub ? (STRUCTURE_NAME[sub as StructureKind] ?? TYPE_NAME[sub as DevType] ?? sub) : '';
+  const what = field === 'typePopulation' && sub ? `${subName} ${sub[0] === 'R' ? '인구' : '일자리'}`
+    : sub ? `${CHECK_NAME[field] ?? field} ${subName}` : CHECK_NAME[field] ?? field;
+  if (field === 'wellFunded' || field === 'difficulty' || field === 'anyOf' || field === 'requires') return what;
+  const v = (x: number) => (field === 'waterShare' || field === 'busyStation' ? `${Math.round(x * 100)}%p` : fmt(Math.round(x)));
+  return c.below ? `${what} ${v(c.need)} 아래로` : `${what} ${v(Math.max(0, c.need - c.have))} 더`;
+}
+
+export function renderRewards(): void {
+  const month = Math.floor(city.state.day / 30);
+  if (month === rewardMonth) return;
+  rewardMonth = month;
+  const rows = city.rewardProgress()
+    .filter((r) => r.checks.length)
+    .map((r) => ({ ...r, share: r.checks.filter((c) => c.met).length / r.checks.length }))
+    .sort((a, b) => b.share - a.share)
+    .slice(0, 12);
+  $('#rewards').innerHTML = rows.length ? rows.map((r) => {
+    const missing = r.checks.filter((c) => !c.met).map(checkText).join(' · ');
+    // One earned in tiers (already in the tray): this row is its next tier.
+    const name = city.isUnlocked(r.kind) ? `${STRUCTURE_NAME[r.kind]} (다음 단계)` : STRUCTURE_NAME[r.kind];
+    return `<div class="poll-row reward" title="${name}: ${r.description}">
+      <span class="label">${name}</span>
+      <div class="bar"><div class="fill" style="width:${Math.round(r.share * 100)}%"></div></div>
+      <span class="value">${r.checks.filter((c) => c.met).length}/${r.checks.length}</span></div>
+      <p class="legend" style="margin:0 0 6px">${missing || '이번 달에 열립니다'}</p>`;
+  }).join('') + '<p class="legend">아직 얻지 못한 보상 중 조건을 많이 채운 순서(매달 갱신).</p>'
+    : '<p class="muted">남은 보상이 없습니다.</p>';
+}
+
+export function setAgeMonth(v: typeof ageMonth): void {
+  ageMonth = v;
+}
+
+export function setPollMonth(v: typeof pollMonth): void {
+  pollMonth = v;
+}
+
+export function setRewardMonth(v: typeof rewardMonth): void {
+  rewardMonth = v;
+}

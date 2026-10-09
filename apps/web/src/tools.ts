@@ -1,0 +1,1140 @@
+// The tool palette: tool definitions, the dock's tool categories, the tool tray
+// (facility pickers and extras included) and keyboard shortcuts.
+
+import { DEFAULT_CONFIG, DEV_TYPES, DISASTER_KINDS, type DisasterKind, type NetworkKind, type StructureKind, STRUCTURES, type ZoneKind } from '@web-city/engine';
+import { icon, type IconName } from './icons';
+import { hoverUnderMouse, setPreview, updatePreview } from './input';
+import { goalTools, nextStep, suggestedKinds } from './manage';
+import { firstStepTool } from './onboarding';
+import { DISASTER_NAME, STRUCTURE_NAME } from './names';
+import { holdForBuilding, isHeld, releaseHold, showOverlay } from './controls';
+import { structureColor } from './render';
+import { city, overlay, redraw, renderer, setDrag } from './state';
+import { closeInfo, closePane, closeSheet } from './tabs';
+import { cancelMySimAction } from './mysims';
+import { $, endFlash, flash, fmt, touchFirst } from './util';
+
+export type Category = 'power' | 'water' | 'garbage' | 'safety' | 'health' | 'education' | 'park' | 'transport' | 'reward' | 'deal' | 'landmark';
+
+export type Tool =
+  | { id: string; label: string; kind: 'query' | 'route' | 'bulldoze' | 'powerline' | 'pipe' | 'unpipe' | 'subway' | 'unsubway' | 'toll' | 'cloverleaf' | 'transition' | 'mic' | 'level' | 'throw' | 'trees' }
+  | { id: string; label: string; kind: 'disaster'; disaster: DisasterKind }
+  | { id: string; label: string; kind: 'dispatch'; unit: 'fire' | 'police' }
+  | { id: string; label: string; kind: 'terraform'; to: 'water' | 'land' | 'raise' | 'lower' }
+  | { id: string; label: string; kind: 'elevated'; track: 'elrail' | 'monorail' | 'highway' }
+  | { id: string; label: string; kind: 'network'; network: NetworkKind }
+  | { id: string; label: string; kind: 'zone'; zone: ZoneKind; color: string }
+  /** A facility; `only` narrows the engine's category to the kinds that police or fight fires. */
+  | { id: string; label: string; kind: 'structure'; category: Category; only?: 'police' | 'fire' };
+
+/** The dock's tool categories: each opens a tray with its groups' tools. */
+export const CATEGORIES = [
+  { id: 'inspect', label: '살펴보기', icon: 'search' },
+  { id: 'bulldoze', label: '철거', icon: 'eraser' },
+  { id: 'transport', label: '교통', icon: 'road', short: '교통' },
+  { id: 'zones', label: '구역', icon: 'zones', short: '구역' },
+  { id: 'utilities', label: '공공시설', icon: 'zap', short: '공공시설' },
+  { id: 'services', label: '시민 서비스', icon: 'civic', short: '서비스' },
+  { id: 'special', label: '보상·거래', icon: 'award', short: '보상' },
+  { id: 'terrain', label: '지형·재해', icon: 'terrain', short: '지형' },
+] as const satisfies readonly { id: string; label: string; icon: IconName; short?: string }[];
+
+export type CategoryId = (typeof CATEGORIES)[number]['id'];
+
+/** The categories that build (phones gather them behind one 짓기 button). */
+const BUILD_CATS: CategoryId[] = ['transport', 'zones', 'utilities', 'services', 'special', 'terrain'];
+
+export const TOOL_GROUPS: { title: string; cat: CategoryId; tools: Tool[] }[] = [
+  {
+    title: '살펴보기',
+    cat: 'inspect',
+    tools: [
+      // (Looking is what the map does with nothing in hand: no tool to pick; routes and a passer-by's word are on the info card.)
+      { id: 'query', label: '조회', kind: 'query' },
+    ],
+  },
+  {
+    title: '철거',
+    cat: 'bulldoze',
+    tools: [
+      { id: 'bulldoze', label: '철거', kind: 'bulldoze' },
+      { id: 'dezone', label: '구역 해제', kind: 'zone', zone: 'none', color: '#888' },
+    ],
+  },
+  {
+    title: '도로',
+    cat: 'transport',
+    tools: [
+      { id: 'road', label: '도로', kind: 'network', network: 'road' },
+      { id: 'street', label: '골목', kind: 'network', network: 'street' },
+      { id: 'avenue', label: '대로', kind: 'network', network: 'avenue' },
+      { id: 'oneway', label: '일방통행', kind: 'network', network: 'oneway' },
+      { id: 'highway', label: '고속도로', kind: 'network', network: 'highway' },
+      { id: 'elhighway', label: '고가 고속도로', kind: 'elevated', track: 'highway' },
+      { id: 'onramp', label: '진입로', kind: 'network', network: 'onramp' },
+      { id: 'cloverleaf', label: '클로버형 교차로', kind: 'cloverleaf' },
+      { id: 'toll', label: '톨게이트', kind: 'toll' },
+    ],
+  },
+  {
+    title: '선로',
+    cat: 'transport',
+    tools: [
+      { id: 'rail', label: '철도', kind: 'network', network: 'rail' },
+      { id: 'elrail', label: '고가 철도', kind: 'elevated', track: 'elrail' },
+      { id: 'monorail', label: '모노레일', kind: 'elevated', track: 'monorail' },
+      { id: 'subway', label: '지하철', kind: 'subway' },
+      { id: 'transition', label: '지하철↔고가 전환', kind: 'transition' },
+      { id: 'unsubway', label: '지하철 철거', kind: 'unsubway' },
+    ],
+  },
+  { title: '정류장·역', cat: 'transport', tools: [{ id: 'transport', label: '정류장·역', kind: 'structure', category: 'transport' }] },
+  {
+    title: '주거',
+    cat: 'zones',
+    tools: [
+      { id: 'R-low', label: '저밀도', kind: 'zone', zone: 'R-low', color: '#7cc76a' },
+      { id: 'R-medium', label: '중밀도', kind: 'zone', zone: 'R-medium', color: '#3fa34d' },
+      { id: 'R-high', label: '고밀도', kind: 'zone', zone: 'R-high', color: '#1f7a3a' },
+    ],
+  },
+  {
+    title: '상업',
+    cat: 'zones',
+    tools: [
+      { id: 'C-low', label: '저밀도', kind: 'zone', zone: 'C-low', color: '#6bb5e8' },
+      { id: 'C-medium', label: '중밀도', kind: 'zone', zone: 'C-medium', color: '#3b86d1' },
+      { id: 'C-high', label: '고밀도', kind: 'zone', zone: 'C-high', color: '#2457a8' },
+    ],
+  },
+  {
+    title: '산업',
+    cat: 'zones',
+    tools: [
+      { id: 'A', label: '농업', kind: 'zone', zone: 'A', color: '#c9b458' },
+      { id: 'I-medium', label: '중밀도', kind: 'zone', zone: 'I-medium', color: '#d9822b' },
+      { id: 'I-high', label: '고밀도', kind: 'zone', zone: 'I-high', color: '#b5651d' },
+    ],
+  },
+  {
+    title: '전력',
+    cat: 'utilities',
+    tools: [
+      { id: 'powerline', label: '송전선', kind: 'powerline' },
+      { id: 'power', label: '발전소', kind: 'structure', category: 'power' },
+    ],
+  },
+  {
+    title: '수도',
+    cat: 'utilities',
+    tools: [
+      { id: 'pipe', label: '수도관', kind: 'pipe' },
+      { id: 'unpipe', label: '수도관 철거', kind: 'unpipe' },
+      { id: 'water', label: '수도 시설', kind: 'structure', category: 'water' },
+    ],
+  },
+  {
+    title: '쓰레기',
+    cat: 'utilities',
+    tools: [
+      { id: 'landfill', label: '매립지', kind: 'zone', zone: 'landfill', color: '#8a7650' },
+      { id: 'garbage', label: '처리 시설', kind: 'structure', category: 'garbage' },
+    ],
+  },
+  {
+    title: '경찰',
+    cat: 'services',
+    tools: [
+      { id: 'police', label: '경찰서', kind: 'structure', category: 'safety', only: 'police' },
+      { id: 'send-police', label: '경찰 출동', kind: 'dispatch', unit: 'police' },
+    ],
+  },
+  {
+    title: '소방',
+    cat: 'services',
+    tools: [
+      { id: 'fire', label: '소방서', kind: 'structure', category: 'safety', only: 'fire' },
+      { id: 'send-fire', label: '소방 출동', kind: 'dispatch', unit: 'fire' },
+    ],
+  },
+  { title: '보건', cat: 'services', tools: [{ id: 'health', label: '병원', kind: 'structure', category: 'health' }] },
+  { title: '교육', cat: 'services', tools: [{ id: 'education', label: '학교', kind: 'structure', category: 'education' }] },
+  {
+    title: '공원',
+    cat: 'services',
+    tools: [
+      { id: 'park', label: '공원', kind: 'structure', category: 'park' },
+      { id: 'trees', label: '나무 심기', kind: 'trees' },
+    ],
+  },
+  {
+    title: '보상',
+    cat: 'special',
+    tools: [
+      { id: 'reward', label: '보상 건물', kind: 'structure', category: 'reward' },
+      { id: 'throw', label: '돈 뿌리기', kind: 'throw' },
+    ],
+  },
+  { title: '사업 거래', cat: 'special', tools: [{ id: 'deal', label: '거래 시설', kind: 'structure', category: 'deal' }] },
+  { title: '랜드마크', cat: 'special', tools: [{ id: 'landmark', label: '랜드마크', kind: 'structure', category: 'landmark' }] },
+  // Terrain first: opening the category picks a harmless tool, not a disaster.
+  {
+    title: '지형',
+    cat: 'terrain',
+    tools: [
+      { id: 'level', label: '화산 지형 정리', kind: 'level' },
+      { id: 'dig', label: '물 파기', kind: 'terraform', to: 'water' },
+      { id: 'fill', label: '메우기', kind: 'terraform', to: 'land' },
+      { id: 'raise', label: '높이기', kind: 'terraform', to: 'raise' },
+      { id: 'lower', label: '낮추기', kind: 'terraform', to: 'lower' },
+    ],
+  },
+  {
+    title: '재해',
+    cat: 'terrain',
+    tools: DISASTER_KINDS.map((k) => ({ id: `disaster-${k}`, label: DISASTER_NAME[k], kind: 'disaster' as const, disaster: k })),
+  },
+];
+
+/** Tools for the finer work, folded under 더 보기 in their group (the everyday ones lead). */
+const MORE = new Set(['oneway', 'elhighway', 'onramp', 'cloverleaf', 'toll', 'elrail', 'monorail', 'transition', 'unsubway', 'unpipe', 'level']);
+/** A facility tool's everyday kinds; its others fold under 더 보기 (airports and ferries are not where a town starts). */
+const LEAD_KINDS: Record<string, StructureKind[]> = {
+  transport: ['busStop', 'subwayStation', 'trainStation', 'freightStation'],
+  // (Twenty-two kinds of park: a green, a plaza and a playground in three sizes say what parks do.)
+  park: ['smallParkGreen', 'mediumParkGreen', 'largeParkGreen', 'smallPlaza', 'playground', 'communityGarden'],
+  // (Fifty landmarks: the best known lead, the rest a click away.)
+  landmark: ['bigBen', 'statueOfLiberty', 'empireStateBuilding', 'tajMahal', 'greatPyramid', 'tokyoTower'],
+};
+/** Tools that act on the city as it runs (send a unit, throw money): a small button by their group's name, not a tile among the buildings. */
+const ACTIONS = new Set(['dispatch', 'throw']);
+
+export const STATION_HINT = {
+  bus: '도로 옆에 두고 집과 일터 양쪽에 필요',
+  subway: '지하철·고가 철도 선로 위나 옆, 도로 옆에',
+  monorail: '모노레일 선로 옆, 도로 옆에',
+  ferry: '물가에 · 걸어서 타는 배 (같은 종류 터미널 2곳 이상)',
+  carFerry: '물가에 · 차와 사람을 함께 실어 나름',
+  rail: '철도와 도로에 모두 닿게',
+  freight: '철도와 도로에 모두 닿게 · 화물을 철도로 연결',
+} as const;
+
+export const kindsOf = (c: Category) => (Object.keys(STRUCTURES) as StructureKind[]).filter((k) => STRUCTURES[k].category === c);
+
+type StructureTool = Extract<Tool, { kind: 'structure' }>;
+
+/** The kinds a facility tool offers. */
+const kindsMemo = new Map<string, StructureKind[]>();
+export const kindsFor = (t: StructureTool): StructureKind[] => {
+  let v = kindsMemo.get(t.id);
+  if (!v) kindsMemo.set(t.id, (v = kindsOf(t.category).filter((k) => !t.only || !!STRUCTURES[k][t.only])));
+  return v;
+};
+
+export const TOOLS = TOOL_GROUPS.flatMap((g) => g.tools);
+
+/** A tool that can do something now: facility tools need an unlocked kind. */
+const usable = (t: Tool | undefined): boolean => !!t && (t.kind !== 'structure' || kindsFor(t).some((k) => city.isUnlocked(k)));
+
+/** Simulation speeds, shown like a player's buttons: pause, then one, two or three play arrows. */
+export const SPEEDS: { icon: IconName; days: number; title: string }[] = [
+  { icon: 'pause', days: 0, title: '일시정지 (0 · Space)' },
+  { icon: 'play', days: 2, title: '느리게 (1)' },
+  { icon: 'play2', days: 8, title: '보통 (2)' },
+  { icon: 'play3', days: 30, title: '빠르게 (3)' },
+];
+
+export let tool: Tool = TOOLS[0]!;
+
+/** The kind each facility tool places (by tool id). */
+export const chosen: Record<string, StructureKind> = {
+  power: 'coalPlant', water: 'waterPump', garbage: 'wasteToEnergyPlant', police: 'smallPoliceStation', fire: 'smallFireStation', health: 'medicalClinic', education: 'elementarySchool',
+  park: 'smallParkGreen', transport: 'busStop', reward: 'mayorsHouse', deal: 'casino', landmark: 'bigBen',
+};
+
+/** An icon for each tool (zones use their colour swatch instead). */
+const TOOL_ICON: Record<string, IconName> = {
+  query: 'search', route: 'route', mic: 'mic', bulldoze: 'eraser', dezone: 'dezone',
+  road: 'road', street: 'street', avenue: 'avenue', oneway: 'oneway', highway: 'highway', elhighway: 'elevated', onramp: 'onramp', cloverleaf: 'clover',
+  rail: 'rail', subway: 'subway', unsubway: 'scissors', elrail: 'train', transition: 'transition', monorail: 'monorail', toll: 'ticket', transport: 'bus',
+  powerline: 'cable', power: 'factory', pipe: 'pipe', unpipe: 'scissors', water: 'droplet', landfill: 'trash', garbage: 'recycle',
+  police: 'shield', fire: 'flame', 'send-fire': 'flame', 'send-police': 'siren', health: 'health', education: 'school', park: 'trees', trees: 'tree',
+  reward: 'trophy', throw: 'coins', deal: 'handshake', landmark: 'landmark', level: 'tractor',
+  'disaster-fire': 'flameKindling', 'disaster-lightning': 'lightning', 'disaster-meteor': 'sparkles', 'disaster-tornado': 'tornado', 'disaster-earthquake': 'quake',
+  'disaster-volcano': 'volcano', 'disaster-robot': 'bot', 'disaster-autosaurus': 'bug', 'disaster-ufo': 'ufo', dig: 'waves', fill: 'shovel', raise: 'raise', lower: 'lower',
+};
+
+/** The tool's look: its icon, or a zone's colour. */
+export function toolGlyph(t: Tool): string {
+  // Zones show their colour; dezoning is an action, not a zone, so it keeps its icon.
+  return t.kind === 'zone' && t.zone !== 'none' ? `<span class="swatch" style="background:${t.color}"></span>` : icon(TOOL_ICON[t.id] ?? 'search');
+}
+
+/** The tool's full name (zones say which: 주거 저밀도). */
+export function toolName(t: Tool): string {
+  const g = TOOL_GROUPS.find((x) => x.tools.includes(t));
+  return t.kind === 'zone' && t.zone !== 'none' && t.zone !== 'A' && t.zone !== 'landfill' && g ? `${g.title} ${t.label}` : t.label;
+}
+
+export const categoryOf = (id: string): CategoryId => TOOL_GROUPS.find((g) => g.tools.some((t) => t.id === id))?.cat ?? 'inspect';
+
+/** The tool each category comes back to (the last one used there). */
+const lastTool: Partial<Record<CategoryId, string>> = {};
+
+/** The open tray's category, if any. */
+let openCat: CategoryId | null = null;
+
+/** The build category 짓기 opens (the last one used). */
+let lastBuildCat: CategoryId = 'transport';
+
+/** What a tool costs per tile, for its tooltip ('' when it varies). */
+function toolPrice(t: Tool): string {
+  // Built before any city is open: prices come from the default config (every city uses it).
+  const cfg = DEFAULT_CONFIG;
+  const ec = cfg.economy;
+  const per = (v: number) => `§${fmt(v)}/칸`;
+  switch (t.kind) {
+    case 'network': return per(ec.networkCost[t.network].build);
+    case 'elevated': return per(ec.networkCost[t.track === 'highway' ? 'elevatedHighway' : t.track].build);
+    case 'subway': return per(ec.networkCost.subway.build);
+    case 'powerline': return per(cfg.services.powerLineCost.build);
+    case 'pipe': return per(cfg.services.pipeCost.build);
+    case 'zone': {
+      if (t.zone === 'none') return '';
+      if (t.zone === 'landfill') return per(cfg.garbage.landfill.zoneCost);
+      const density = t.zone === 'A' ? 'low' : t.zone.endsWith('low') ? 'low' : t.zone.endsWith('medium') ? 'medium' : 'high';
+      return per(ec.zoningCost[density]);
+    }
+    case 'terraform': return per(t.to === 'raise' || t.to === 'lower' ? cfg.terrain.terraform.cost : cfg.disasters.terraformCost);
+    case 'trees': return `§${fmt(cfg.flora.saplingCost)}/그루`;
+    case 'toll': return `§${fmt(cfg.transport.toll.cost)}`;
+    case 'cloverleaf': return `§${fmt(cfg.transport.cloverleaf.cost)}`;
+    case 'transition': return `§${fmt(cfg.transport.subwayTransition.cost)}`;
+    default: return '';
+  }
+}
+
+export function buildTools(): void {
+  // The dock: one button per category.
+  const dock = $('#dock-tools');
+  const catButton = (c: (typeof CATEGORIES)[number], cls: string, label: string = c.label) => {
+    const keys = Object.entries(TOOL_KEYS).filter(([, id]) => categoryOf(id) === c.id).map(([k]) => k.toUpperCase());
+    return `<button class="${cls}" data-cat="${c.id}" aria-expanded="false" aria-controls="tray" title="${c.label}${keys.length ? ` (${keys.join('·')})` : ''}">${icon(c.icon)}<span class="dock-label">${label}</span></button>`;
+  };
+  // In three groups: looking and removing; building the city; rewards and the land.
+  const SEP_BEFORE: CategoryId[] = ['transport', 'special'];
+  // (Not 살펴보기: with nothing in hand the map looks by itself.)
+  dock.innerHTML = CATEGORIES.filter((c) => c.id !== 'inspect').map((c) => (SEP_BEFORE.includes(c.id) ? '<span class="dock-sep" aria-hidden="true"></span>' : '')
+    + catButton(c, `dock-btn${BUILD_CATS.includes(c.id) ? ' dock-build-cat' : ''}`, 'short' in c ? c.short : c.label)).join('')
+    + `<button class="dock-btn dock-build" data-cat="build" aria-expanded="false" aria-controls="tray" title="짓기: 교통·구역·공공시설·서비스·보상·지형">${icon('hammer')}<span class="dock-label">짓기</span></button>`;
+  // Phones: the build categories as a row at the top of the tray.
+  $('#tray-cats').innerHTML = BUILD_CATS.map((id) => {
+    const c = CATEGORIES.find((x) => x.id === id)!;
+    return catButton(c, 'tray-cat', 'short' in c ? c.short : c.label);
+  }).join('');
+  document.querySelectorAll<HTMLButtonElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) => {
+    b.onclick = (e) => {
+      const inTray = !!b.closest('#tray-cats');
+      const cat = b.dataset.cat === 'build' ? lastBuildCat : b.dataset.cat as CategoryId;
+      const same = b.dataset.cat === 'build' ? !!openCat && BUILD_CATS.includes(openCat) : openCat === cat;
+      if (same && !inTray) {
+        closeTray(true);
+        return;
+      }
+      // One tap picks the category's tool (the last one used there) and shows the others.
+      // (Not a locked one: rewards and deals start out all locked.)
+      const tools = TOOL_GROUPS.find((g) => g.cat === cat)!.tools;
+      const pick = [TOOLS.find((t) => t.id === lastTool[cat]), ...tools].find(usable);
+      // A build category only opens: a tool armed unseen (a reward's §1,800, a
+      // disaster) would act at the next drag; picking one closes the tray.
+      // A drawing tool is the exception with a mouse: roads, zones, lines and pipes cost by the tile, show it
+      // while dragged and undo, so 교통 then a drag lays a road (it only panned: the tray wanted a second pick).
+      // (Not on a touch screen: a tap on the map to put the tray away would lay a tile.)
+      const draw = BUILD_CATS.includes(cat) && DRAW_KINDS.includes(pick?.kind ?? '') && !touchFirst();
+      const had = tool.id;
+      if (pick && (!BUILD_CATS.includes(cat) || draw)) selectTool(pick.id);
+      armedByDock = draw;
+      if (draw) armedUnasked = tool.id !== had; // (another category with nothing to arm leaves the flag as it was) // (already in hand, it was the player's pick: it stays when the tray is put away)
+      openTray(cat, true);
+      // From the keyboard, carry on in the tray at the tool in hand, or its first (arrows move from there).
+      if (e.detail === 0) {
+        const section = '#tools .tray-section:not([hidden])';
+        (document.querySelector<HTMLElement>(`${section} :is(.tile.active:not([hidden]), .pick.active)`) ?? document.querySelector<HTMLElement>(`${section} :is(.tile, .pick:not([disabled]))`))?.focus();
+      }
+    };
+  });
+  $('#tray-close').onclick = () => closeTray(true);
+  wireFind();
+  // Arrow keys move between the tray's tiles and cards: left/right in reading
+  // order, up/down to the nearest button above or below.
+  $('#tools').addEventListener('keydown', (e) => {
+    const k = (e as KeyboardEvent).key;
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(k)) return;
+    const from = document.activeElement as HTMLElement | null;
+    const items = [...document.querySelectorAll<HTMLButtonElement>('#tools .tray-section:not([hidden]) button:not([hidden]):not([disabled])')]
+      .filter((b) => b.offsetParent);
+    const at = from ? items.indexOf(from as HTMLButtonElement) : -1;
+    if (at < 0) return;
+    let to: HTMLButtonElement | undefined;
+    if (k === 'ArrowLeft' || k === 'ArrowRight') to = items[at + (k === 'ArrowRight' ? 1 : -1)];
+    else {
+      const r = from!.getBoundingClientRect();
+      const cx = r.left + r.width / 2;
+      const down = k === 'ArrowDown';
+      let best = Infinity;
+      for (const b of items) {
+        const q = b.getBoundingClientRect();
+        const dy = down ? q.top - r.bottom : r.top - q.bottom;
+        if (dy < -2) continue; // not below (or above)
+        const d = dy * 4 + Math.abs(q.left + q.width / 2 - cx);
+        if (b !== from && d < best) {
+          best = d;
+          to = b;
+        }
+      }
+    }
+    if (to) {
+      to.focus();
+      to.scrollIntoView({ block: 'nearest' });
+      e.preventDefault();
+      e.stopPropagation(); // not the map's arrow-key panning
+    }
+  });
+  $('#tool-chip-close').onclick = () => selectTool('query');
+  // The chip's name opens the tray at its category (another kind, another tool).
+  const chipLabel = $('#tool-chip-label');
+  chipLabel.title = '다른 종류 고르기';
+  chipLabel.onclick = (e) => {
+    // (After a mouse press, Space is the game's pause again, not this button's.)
+    if (e.detail > 0) chipLabel.blur();
+    // (멈춤 on it lets time run on while building; the rest of the name opens the card.)
+    if ((e.target as HTMLElement).closest('.chip-held')) releaseHold();
+    else openTray(categoryOf(tool.id));
+  };
+  $('#tool-alts').addEventListener('scroll', edgeAlts, { passive: true });
+  new ResizeObserver(edgeAlts).observe($('#tool-alts')); // (shown again after the tray, or a narrower window)
+  $('#tool-alts').addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
+    if (!b) return;
+    if (b.dataset.altKind && tool.kind === 'structure') {
+      chosen[tool.id] = b.dataset.altKind as StructureKind;
+      selectTool(tool.id);
+    } else if (b.dataset.altTool) selectTool(b.dataset.altTool);
+  });
+
+  // The tray: every group's tiles, shown by category.
+  const nav = $('#tools');
+  nav.innerHTML = '';
+  for (const g of TOOL_GROUPS) {
+    const wrap = document.createElement('div');
+    wrap.className = 'tray-section';
+    wrap.dataset.cat = g.cat;
+    // Zone groups say how much their class is wanted right now (filled by refreshZoneDemand).
+    const demandOf = g.cat === 'zones' ? ({ 주거: 'R', 상업: 'C', 산업: 'I' } as Record<string, string>)[g.title] : undefined;
+    if (demandOf) wrap.dataset.demand = demandOf;
+    wrap.innerHTML = `<h3>${g.title}${demandOf ? '<span class="zone-demand"></span>' : ''}</h3>`;
+    const group = document.createElement('div');
+    group.className = 'group';
+    const head = wrap.querySelector('h3')!;
+    for (const t of g.tools) {
+      if (ACTIONS.has(t.kind)) {
+        const a = document.createElement('button');
+        a.type = 'button';
+        a.className = 'sec-act';
+        a.dataset.tool = t.id;
+        a.innerHTML = `${toolGlyph(t)}${t.label}`;
+        a.title = toolName(t);
+        a.onclick = (e) => pickTool(t.id, e.detail === 0);
+        head.append(a);
+        continue;
+      }
+      const b = document.createElement('button');
+      b.className = MORE.has(t.id) ? 'tile more' : 'tile';
+      b.dataset.tool = t.id;
+      const key = Object.entries(TOOL_KEYS).find(([, id]) => id === t.id)?.[0];
+      const price = toolPrice(t);
+      b.innerHTML = `<span class="tile-icon">${toolGlyph(t)}</span><span class="tile-label">${t.label}</span>`
+        + (price || key ? `<span class="tile-sub">${price}${key ? `<kbd>${key.toUpperCase()}</kbd>` : ''}</span>` : '');
+      b.title = `${toolName(t)}${key ? ` (${key.toUpperCase()})` : ''}${price ? ` · ${price}` : ''}`;
+      b.onclick = (e) => pickTool(t.id, e.detail === 0);
+      // A facility tool is picked with its kind's card below, not with a tile of its own.
+      if (t.kind === 'structure') b.hidden = true;
+      group.append(b);
+    }
+    // The finer tools behind one tile at the group's end.
+    const extra = g.tools.filter((t) => MORE.has(t.id)).length;
+    if (extra) {
+      const more = document.createElement('button');
+      more.type = 'button';
+      more.className = 'tile tile-more';
+      more.innerHTML = `<span class="tile-icon">${icon('more')}</span><span class="tile-label">더 보기</span><span class="tile-sub">${extra}개</span>`;
+      more.title = g.tools.filter((t) => MORE.has(t.id)).map((t) => t.label).join(' · ');
+      more.onclick = () => {
+        const open = wrap.classList.toggle('show-more');
+        more.querySelector('.tile-label')!.textContent = open ? '접기' : '더 보기';
+        more.querySelector('.tile-sub')!.textContent = open ? '' : `${extra}개`;
+      };
+      group.append(more);
+    }
+    if (g.tools.some((t) => t.kind !== 'structure' && !ACTIONS.has(t.kind))) wrap.append(group);
+    const civic = g.tools.find((t): t is StructureTool => t.kind === 'structure');
+    if (civic) {
+      // The facility kinds as cards (filled by refreshStructureLists as unlocks change).
+      const picker = document.createElement('div');
+      picker.className = 'picker';
+      picker.setAttribute('role', 'listbox'); // its kinds are options
+      picker.dataset.tool = civic.id;
+      picker.setAttribute('role', 'listbox');
+      picker.setAttribute('aria-label', `${g.title} 시설 종류`);
+      picker.addEventListener('click', (e) => {
+        const fold = (e.target as HTMLElement).closest<HTMLElement>('[data-fold]');
+        if (fold) {
+          const open = wrap.classList.toggle('show-more');
+          fold.setAttribute('aria-expanded', String(open));
+          fold.innerHTML = `${icon(open ? 'chevronDown' : 'more')}${open ? '접기' : `${fold.dataset.count}개 더 보기`}`;
+          return;
+        }
+        if ((e.target as HTMLElement).closest('[data-more]')) {
+          picker.classList.toggle('show-locked');
+          lockedLabel(picker);
+          return;
+        }
+        const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-kind]');
+        if (!b || b.disabled) return;
+        chosen[civic.id] = b.dataset.kind as StructureKind;
+        pickTool(civic.id, e.detail === 0);
+      });
+      wrap.append(picker);
+    }
+    if (g.tools.some((t) => t.kind === 'network' && t.network === 'road')) {
+      // Bridges: tall enough for ferries by default; a low one is cheaper but blocks them (Rush Hour).
+      const low = document.createElement('label');
+      low.className = 'check more-only';
+      low.title = '물 위에 놓는 다리를 낮게: 40% 싸지만 페리가 밑으로 지나가지 못합니다';
+      low.innerHTML = '<input id="low-bridge" type="checkbox"> 낮은 다리 (40% 싸지만 페리를 막음)';
+      wrap.append(low);
+    }
+    if (g.tools.some((t) => t.kind === 'disaster')) {
+      const power = document.createElement('label');
+      power.className = 'funding dept';
+      power.innerHTML = '세기 <input id="disaster-intensity" type="range" min="0" max="100" step="10" value="50"><span>50%</span>';
+      const input = power.querySelector('input')!;
+      input.oninput = () => ((input.nextElementSibling as HTMLElement).textContent = `${input.value}%`);
+      const extras = document.createElement('div');
+      extras.className = 'extras';
+      extras.append(power);
+      wrap.append(extras);
+    }
+    nav.append(wrap);
+  }
+  selectTool('query');
+}
+
+/** Opens the tray under the dock (at the map's top) with a category's tools. */
+/** Whether the tool in hand was armed by a dock category's press (not picked in the card or by a key). */
+let armedByDock = false;
+/** …and was not in hand before (put away unused, the tray takes it back down). */
+let armedUnasked = false;
+export const dockArmed = (): boolean => armedByDock;
+/** The tool armed by the dock has built something: it is the player's now (the tray put away leaves it). */
+export function toolUsed(): void {
+  armedUnasked = false;
+}
+
+/** Tools drawn tile by tile, cheap and shown as they're dragged: armed straight from the dock. */
+// (Not lines and pipes: their tool turns the map to its own view, which a look at the card shouldn't.)
+const DRAW_KINDS: string[] = ['network', 'zone'];
+
+export function openTray(cat: CategoryId, fromDock = false): void {
+  openCat = cat;
+  // With a tool in hand the menu is away and the tool's bar stands in its place: its card covers that bar.
+  $('#tray').classList.toggle('at-top', !fromDock && tool.id !== 'query');
+  // One card at a time where they share the space: the app sheet and info card (the tray
+  // reaches across under it on wide screens too), and on phones the pane.
+  closeSheet();
+  closePane();
+  closeInfo();
+  const c = CATEGORIES.find((x) => x.id === cat)!;
+  $('#tray-title').innerHTML = `${icon(c.icon)}${c.label}`;
+  document.querySelectorAll<HTMLElement>('#tools .tray-section').forEach((s) => (s.hidden = s.dataset.cat !== cat));
+  // One group: its title would only repeat the category's.
+  $('#tray').classList.toggle('single', TOOL_GROUPS.filter((g) => g.cat === cat).length === 1);
+  $('#tray').classList.toggle('build', BUILD_CATS.includes(cat));
+  $('#tray').dataset.cat = cat;
+  if (BUILD_CATS.includes(cat)) lastBuildCat = cat;
+  $('#tray').hidden = false;
+  refreshStructureLists(); // its cards were left alone while shut
+  clearFind();
+  $('#tools').scrollTop = 0;
+  // Reopened, it shows the tool in hand (a landfill or a pump sat a scroll down every time).
+  // (A facility's hidden tile is 'active' too: its card in the list is the one to show.)
+  document.querySelector<HTMLElement>('#tools .tray-section:not([hidden]) :is(.tile.active:not([hidden]), .pick.active)')?.scrollIntoView({ block: 'nearest' });
+  document.querySelectorAll<HTMLButtonElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) => {
+    const on = b.dataset.cat === cat || (b.dataset.cat === 'build' && BUILD_CATS.includes(cat));
+    b.classList.toggle('open', on);
+    b.setAttribute('aria-expanded', String(on));
+  });
+}
+
+/**
+ * Closes the tray (the tool stays picked). Returns whether it was open. Put away by the player
+ * (its ×, Esc, its dock button again) with nothing picked, a tool the dock armed goes down with it:
+ * only looked through, nothing was chosen (and the clock held for it runs on).
+ */
+export function closeTray(byPlayer = false): boolean {
+  if (!openCat) return false;
+  const cat = openCat;
+  openCat = null;
+  if (byPlayer && armedUnasked && tool.id !== 'query') selectTool('query');
+  armedUnasked = false; // (closed another way — a press on the map — the tool is kept: the player's now)
+  // Keyboard focus inside the tray goes back to the dock button that opened it, not to the page.
+  // (After a mouse pick it goes nowhere: on the dock button, Space would open the tray again instead of pausing.)
+  const active = document.activeElement as HTMLElement | null;
+  const hadFocus = !!active && $('#tray').contains(active) && active.matches(':focus-visible');
+  if (!hadFocus && active && $('#tray').contains(active)) active.blur();
+  $('#tray').hidden = true;
+  if (hadFocus) {
+    const back = [...document.querySelectorAll<HTMLButtonElement>(`#dock-tools [data-cat="${cat}"], #dock-tools .dock-build`)].find((b) => b.offsetParent);
+    // (With a tool in hand the menu is away: back to the tool bar's name.)
+    (back ?? (tool.id !== 'query' ? $('#tool-chip-label') : null))?.focus();
+  }
+  document.querySelectorAll<HTMLButtonElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) => {
+    b.classList.remove('open');
+    b.setAttribute('aria-expanded', 'false');
+  });
+  return true;
+}
+
+/** Marks the facility card in hand (none while another tool is). */
+function markPicked(picker: HTMLElement): void {
+  const id = picker.dataset.tool!;
+  picker.querySelectorAll<HTMLButtonElement>('[data-kind]').forEach((b) => {
+    const on = tool.id === id && b.dataset.kind === chosen[id];
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+}
+
+const attr = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+
+/** The fold button's label: how many locked kinds it hides, or that it hides them. */
+function lockedLabel(picker: HTMLElement): void {
+  const more = picker.querySelector<HTMLButtonElement>('[data-more]');
+  if (!more) return;
+  const shown = picker.classList.contains('show-locked');
+  more.setAttribute('aria-expanded', String(shown));
+  more.innerHTML = `${icon('lock')}${shown ? '잠긴 시설 숨기기' : `잠긴 시설 ${more.dataset.count}개 보기`}`;
+}
+
+/** A facility's headline figure for its card (the hover hint spells out more). */
+export function structureStat(k: StructureKind): string {
+  const d = STRUCTURES[k];
+  if (d.plant) return `${fmt(d.plant.output)} MWh`;
+  if (d.pump) return `급수 ${fmt(d.pump.output)} m³`;
+  if (d.treatment) return `반경 ${d.treatment.radius}칸 수질 정화`;
+  if (d.incinerator) return `월 ${fmt(d.incinerator.capacity)} t 소각`;
+  if (d.recycling) return `쓰레기 −${Math.round(d.recycling.reduction * 100)}%`;
+  if (d.police) return d.police.radius ? `반경 ${Math.round(d.police.radius)}칸${d.police.cells ? ` · 감방 ${fmt(d.police.cells)}명` : ''}` : `수감 ${fmt(d.police.cells)}명${d.income ? ` · 월 +§${fmt(d.income)}` : ''}`;
+  if (d.fire) return `반경 ${Math.round(d.fire.radius)}칸`;
+  if (d.health) return `반경 ${d.health.radius}칸 · 환자 ${fmt(d.health.capacity)}명`;
+  if (d.school) return `${d.school.radius >= 300 ? '도시 전체' : `반경 ${d.school.radius}칸`} · 학생 ${fmt(d.school.capacity)}명`;
+  if (d.station) return `월 ${fmt(d.station.capacity)}명`;
+  if (d.parking) return `월 ${fmt(d.parking.capacity)}대`;
+  if (d.airport) return `오피스 상한 최대 +${fmt(d.airport.capacity)}`;
+  if (d.seaport) return `산업 상한 최대 +${fmt(d.seaport.relief)}`;
+  if (d.income) return `월 +§${fmt(d.income)}`;
+  if (d.category === 'landmark' || d.category === 'reward') return d.mayor?.[0] ? `시장 평점 ${d.mayor[0] > 0 ? '+' : ''}${d.mayor[0]}` : '';
+  return d.relief[0] ? `주거 상한 +${fmt(d.relief[0])}` : '';
+}
+
+/** The zone groups' demand: the class's strongest, or that its cap holds it, or none. */
+function refreshZoneDemand(): void {
+  const dem = city.demand;
+  document.querySelectorAll<HTMLElement>('#tools .tray-section[data-demand]').forEach((sec) => {
+    const k = sec.dataset.demand!;
+    const types = DEV_TYPES.filter((t) => t[0] === k);
+    const top = types.reduce((a, b) => (dem.demand[b] > dem.demand[a] ? b : a));
+    const v = dem.demand[top];
+    const capped = types.some((t) => t !== 'IA' && dem.raw[t] > 0 && Number.isFinite(dem.cap[t]) && dem.capPopulation[t] >= 0.95 * dem.cap[t]);
+    // Farms share the industry group: say so when it's them that are wanted.
+    // (A trickle beside a cap is the cap: "수요 +1" read as wanted when the class was held at its limit.)
+    const html = v >= 10 ? `${top === 'IA' ? '농업 ' : ''}수요 +${fmt(v)}` : capped ? `${icon('lock')}수요 상한` : v >= 1 ? '수요 적음' : '수요 없음';
+    const tone = v >= 100 ? 'up' : v < 10 && capped ? 'cap' : ''; // a trickle of demand isn't news
+    const el = sec.querySelector<HTMLElement>('.zone-demand')!;
+    if (el.innerHTML !== html) el.innerHTML = html;
+    el.className = `zone-demand ${tone}`;
+  });
+}
+
+/** A zone tool's class demand for the chip: whether zoning more of it will fill now. */
+function zoneDemandChip(zone: ZoneKind): string {
+  if (zone === 'none' || zone === 'landfill') return '';
+  const cls = zone === 'A' ? 'IA' : zone[0];
+  const types = DEV_TYPES.filter((t) => (cls === 'IA' ? t === 'IA' : cls === 'I' ? t[0] === 'I' && t !== 'IA' : t[0] === cls));
+  const dem = city.demand;
+  const top = Math.max(...types.map((t) => dem.demand[t]));
+  const capped = types.some((t) => t !== 'IA' && dem.raw[t] > 0 && Number.isFinite(dem.cap[t]) && dem.capPopulation[t] >= 0.95 * dem.cap[t]);
+  return top >= 10 ? `<span class="zone-demand${top >= 100 ? ' up' : ''}">수요 +${fmt(Math.round(top))}</span>`
+    : `<span class="zone-demand${capped ? ' cap' : ''}">${capped ? '수요 상한' : top >= 1 ? '수요 적음' : '수요 없음'}</span>`;
+}
+
+/** Fills the facility cards: ones that can be built first, then built-once rewards, then locked ones with their condition. */
+export function refreshStructureLists(): void {
+  // With the tray shut only the tool in hand needs checking (opening the tray brings the cards up to date).
+  if ($('#tray').hidden) {
+    if (tool.kind === 'structure') {
+      const id = tool.id;
+      const buildable = (k: StructureKind) => city.isUnlocked(k) && city.placementsLeft(k) > 0;
+      if (!buildable(chosen[id]!)) chosen[id] = kindsFor(tool).find(buildable) ?? chosen[id]!;
+      if (!buildable(chosen[id]!)) selectTool('query');
+    }
+    markSuggested();
+    refreshToolChip();
+    return;
+  }
+  refreshZoneDemand();
+  document.querySelectorAll<HTMLElement>('#tools .picker[data-tool]').forEach((picker) => {
+    const id = picker.dataset.tool!;
+    const kinds = kindsFor(TOOLS.find((t) => t.id === id) as StructureTool);
+    // (Affordable or not too: a card the funds can't cover says so before the map does.)
+    const signature = kinds.map((k) => `${+city.isUnlocked(k)}${+(city.placementsLeft(k) > 0)}${+(STRUCTURES[k].cost <= city.state.funds)}`).join('');
+    if (picker.dataset.signature !== signature) {
+      picker.dataset.signature = signature;
+      const rank = (k: StructureKind) => (!city.isUnlocked(k) ? 2 : city.placementsLeft(k) <= 0 ? 1 : 0);
+      const locked = kinds.filter((k) => !city.isUnlocked(k)).length;
+      picker.innerHTML = kinds.map((k, i) => [k, i] as const).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([k]) => {
+        const def = STRUCTURES[k];
+        const open = city.isUnlocked(k);
+        const placed = open && city.placementsLeft(k) <= 0;
+        const earned = city.state.unlocked.filter((u) => u === k).length;
+        const why = def.unlock?.description ?? def.unlockTiers?.[earned]?.description ?? def.offer?.description ?? '';
+        const short = open && !placed && def.cost > city.state.funds;
+        const sub = !open ? why : placed ? '이미 지음' : def.cost || def.upkeep ? `${short ? '<b class="short">자금 부족</b> ' : ''}§${fmt(def.cost)} · 월 §${fmt(def.upkeep)}` : '무료';
+        const stat = structureStat(k);
+        const folded = open && !!LEAD_KINDS[id] && !LEAD_KINDS[id]!.includes(k);
+        return `<button class="pick${!open ? ' locked' : placed ? ' placed' : ''}${folded ? ' more' : ''}" role="option" data-kind="${k}" ${!open || placed ? 'disabled' : ''}
+          title="${attr(`${STRUCTURE_NAME[k]} · ${def.w}×${def.h}칸 · 건설 §${fmt(def.cost)} · 유지 월 §${fmt(def.upkeep)}${!open ? ` — ${why}` : ''}`)}">
+          <span class="pick-name">${!open ? icon('lock') : placed ? icon('check') : `<span class="pick-swatch" style="background:${structureColor(k)}" title="${def.w}×${def.h}칸"></span>`}<span class="pick-title">${STRUCTURE_NAME[k]}</span>${open && !placed ? `<span class="pick-cost${short ? ' short' : ''}"${short ? ' title="자금이 모자랍니다"' : ''}>${def.cost ? `§${fmt(def.cost)}` : '무료'}</span>` : ''}</span>${open && !placed ? (stat ? `<span class="pick-stat">${stat}</span>` : '') : `<span class="pick-sub">${sub}</span>`}</button>`;
+  // (Its price on the name's line, its use under it; the upkeep is in its tooltip and where it is placed.)
+      }).join('')
+        // The less usual kinds fold behind 더 보기; locked ones behind one button of their own (many for rewards and landmarks).
+        + (LEAD_KINDS[id] ? (() => {
+          const n = kinds.filter((k) => city.isUnlocked(k) && !LEAD_KINDS[id]!.includes(k)).length;
+          const shown = !!picker.closest('.show-more');
+          return n ? `<button type="button" class="pick-more" data-fold data-count="${n}" aria-expanded="${shown}">${icon(shown ? 'chevronDown' : 'more')}${shown ? '접기' : `${n}개 더 보기`}</button>` : '';
+        })() : '')
+        + (locked ? `<button type="button" class="pick-more" data-more aria-expanded="false" data-count="${locked}"></button>` : '');
+      lockedLabel(picker);
+    }
+    // A service short where it counts: the kind its goal would build marked 추천 (the same pick as its screen's).
+    const suggested = suggestedKinds().get(id);
+    picker.querySelectorAll<HTMLElement>('.pick[data-kind]').forEach((b) => b.classList.toggle('suggested', b.dataset.kind === suggested));
+    // A kind that can't be built (locked here, or a built-once reward now standing) gives way to one that can.
+    const buildable = (k: StructureKind) => city.isUnlocked(k) && city.placementsLeft(k) > 0;
+    if (!buildable(chosen[id]!)) chosen[id] = kinds.find(buildable) ?? kinds.find((k) => city.isUnlocked(k)) ?? chosen[id]!;
+    // Nothing of this tool can be built (another city opened, the last reward placed): put it down.
+    if (tool.id === id && !buildable(chosen[id]!)) selectTool('query');
+    markPicked(picker);
+  });
+  markSuggested();
+  refreshToolChip(); // a kind unlocked or built (a built-once reward) joins or leaves the row; the funds move
+}
+
+/** Keyboard shortcuts for the most used tools (shown in their tooltips). */
+export const TOOL_KEYS: Record<string, string> = {
+  q: 'query', x: 'bulldoze', r: 'road', t: 'street', v: 'avenue', h: 'highway',
+  z: 'R-low', c: 'C-low', i: 'I-medium', l: 'powerline', p: 'pipe',
+};
+
+/**
+ * A tool picked in the tray: the tray steps aside for the map it covers (the
+ * chip on the map reopens it). Picked from the keyboard, it stays for the
+ * arrow keys.
+ */
+function pickTool(id: string, keyboard = false): void {
+  selectTool(id);
+  if (!keyboard) {
+    closeTray();
+    hoverUnderMouse();
+  }
+}
+
+/** The tool held before the current one (` swaps back to it). */
+export let previousTool = 'query';
+
+/** Another city: no tool of the last one to swap back to (an armed disaster, a reward locked here). */
+export function forgetPreviousTool(): void {
+  previousTool = 'query';
+}
+
+/** The chip on the map naming the tool in hand (none for 조회), with its price or, for dispatch, the units free. */
+export function refreshToolChip(): void {
+  const chip = $('#tool-chip');
+  chip.hidden = tool.id === 'query';
+  if (chip.hidden) {
+    $('#tool-alts').hidden = true; // (and , . have no siblings to step through)
+    return;
+  }
+  $('#tool-chip-icon').innerHTML = toolGlyph(tool);
+  // Facilities: the kind picked in the tray, with its price.
+  const kind = tool.kind === 'structure' ? chosen[tool.id]! : null;
+  const price = kind ? `§${fmt(STRUCTURES[kind].cost)} · 월 §${fmt(STRUCTURES[kind].upkeep)}`
+    : tool.kind === 'dispatch' ? `출동 가능 ${city.freeUnits(tool.unit)}대` : toolPrice(tool);
+  const short = !!kind && STRUCTURES[kind].cost > city.state.funds;
+  const demand = tool.kind === 'zone' ? zoneDemandChip(tool.zone) : '';
+  // (The clock held for building says so here, where the eye is, not up in the status bar.)
+  const held = isHeld() ? `<span class="chip-held" title="짓는 동안 시간이 잠시 멈춥니다 · 도구를 내려놓으면 다시 흐릅니다 · 누르면 지금 흐르게">${icon('pause')}멈춤</span>` : '';
+  const html = `<b>${kind ? STRUCTURE_NAME[kind] : toolName(tool)}</b>${price ? `<span${short ? ' class="short" title="자금이 모자랍니다"' : ''}>${price}</span>` : ''}${demand}${icon('chevronDown', 'chip-more')}${held}`;
+  if ($('#tool-chip-label').innerHTML !== html) $('#tool-chip-label').innerHTML = html;
+  refreshToolAlts();
+}
+
+/**
+ * Under the chip, the tool's siblings — the other roads, densities, kinds of
+ * plant — one click away, without the tray (it covers the map being built on).
+ */
+function refreshToolAlts(): void {
+  const row = $('#tool-alts');
+  let html = '';
+  if (tool.kind === 'structure') {
+    const t = tool;
+    // (The everyday kinds where there are many — the bar would scroll through 22 parks — and the one in hand.)
+    const kinds = kindsFor(t).filter((k) => city.isUnlocked(k) && city.placementsLeft(k) > 0 && (!LEAD_KINDS[t.id] || LEAD_KINDS[t.id]!.includes(k) || k === chosen[t.id]));
+    // A plant or a pump is half the job: its line or pipe is one click away too.
+    const line = ({ power: 'powerline', water: 'pipe' } as Record<string, string>)[t.id];
+    const lineTool = line ? TOOLS.find((x) => x.id === line) : undefined;
+    if (kinds.length > 1 || lineTool) {
+      html = kinds.map((k) => `<button type="button" class="${chosen[t.id] === k ? 'active' : ''}" data-alt-kind="${k}" aria-pressed="${chosen[t.id] === k}"
+        title="${attr(`${STRUCTURES[k].w}×${STRUCTURES[k].h}칸 · §${fmt(STRUCTURES[k].cost)} · 월 §${fmt(STRUCTURES[k].upkeep)}`)}"><span class="pick-swatch" style="background:${structureColor(k)}"></span>${STRUCTURE_NAME[k]}</button>`).join('')
+        + (lineTool ? `<button type="button" data-alt-tool="${lineTool.id}" title="${attr(`${toolName(lineTool)} · ${toolPrice(lineTool)}`)}">${toolGlyph(lineTool)}${lineTool.label}</button>` : '');
+    }
+  } else if (tool.id !== 'query') {
+    const g = TOOL_GROUPS.find((x) => x.tools.includes(tool));
+    // Removal tools stay in the tray: one stray click there undoes a whole line.
+    const sibs = g && g.cat !== 'inspect' ? g.tools.filter((t) => t.kind !== 'structure' && usable(t) && t.kind !== 'unpipe' && t.kind !== 'unsubway' && (!MORE.has(t.id) || t.id === tool.id)) : []; // (the tray's folded ones stay there, as the tray shows them)
+    if (sibs.length > 1) {
+      html = sibs.map((t) => {
+        const key = Object.entries(TOOL_KEYS).find(([, id]) => id === t.id)?.[0];
+        return `<button type="button" class="${t.id === tool.id ? 'active' : ''}" data-alt-tool="${t.id}" aria-pressed="${t.id === tool.id}"
+          title="${attr(`${toolName(t)}${key ? ` (${key.toUpperCase()})` : ''}${toolPrice(t) ? ` · ${toolPrice(t)}` : ''}`)}">${toolGlyph(t)}${t.label}</button>`;
+      }).join('');
+    }
+    // A line or pipe leads back to the plant or pump it serves (the kind last chosen).
+    const back = ({ powerline: 'power', pipe: 'water' } as Record<string, string>)[tool.id];
+    if (back && city.isUnlocked(chosen[back]!)) {
+      const k = chosen[back]!;
+      html = (html || `<button type="button" class="active" data-alt-tool="${tool.id}" aria-pressed="true">${toolGlyph(tool)}${tool.label}</button>`)
+        + `<button type="button" data-alt-tool="${back}" title="${attr(`${STRUCTURE_NAME[k]} · §${fmt(STRUCTURES[k].cost)}`)}"><span class="pick-swatch" style="background:${structureColor(k)}"></span>${STRUCTURE_NAME[k]}</button>`;
+    }
+  }
+  if (row.dataset.html !== html) {
+    row.dataset.html = html;
+    row.innerHTML = html;
+    row.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+  row.hidden = !html;
+  edgeAlts();
+}
+
+/** A row cut off at an edge fades there (a narrow screen scrolls the rest into view). */
+function edgeAlts(): void {
+  const row = $('#tool-alts');
+  row.classList.toggle('more-right', row.scrollLeft + row.clientWidth < row.scrollWidth - 2);
+  row.classList.toggle('more-left', row.scrollLeft > 2);
+}
+
+/** Tools that look or act on the running city (time keeps going for them); the rest build or clear. */
+const WATCHING = new Set(['query', 'route', 'mic', 'dispatch', 'disaster', 'throw']);
+
+/** Counts tool picks (a tool handed out by a suggestion is its job only until another is picked). */
+export let toolPicks = 0;
+
+export function selectTool(id: string): void {
+  toolPicks++;
+  armedByDock = false;
+  armedUnasked = false;
+  cancelMySimAction(); // the map click goes to the new tool
+  endFlash(); // the last tool's message gives way to this one's hints
+  const before = tool;
+  tool = TOOLS.find((t) => t.id === id) ?? TOOLS[0]!;
+  if (before && before.id !== tool.id) {
+    previousTool = before.id;
+    setDrag(null); // a start set with the old tool (a keyboard build's) isn't the new one's
+    renderer.cursor = null;
+  }
+  // A drawing tool needs the map: the info card (a third of it on desktop) steps aside.
+  if (tool.kind !== 'query' && tool.kind !== 'route' && tool.kind !== 'mic') closeInfo();
+  document.getElementById('view')?.classList.toggle('holding', tool.kind !== 'query' && tool.kind !== 'route' && tool.kind !== 'mic');
+  const cat = categoryOf(tool.id);
+  // A tool of another category (a key, a goal's button) puts away a card that shows something else.
+  if (openCat && ((openCat !== cat && tool.id !== 'query') || (tool.id === 'query' && $('#tray').classList.contains('at-top')))) closeTray(); // (the bar's card goes with the tool put down)
+  lastTool[cat] = tool.id;
+  noteRecent();
+  if (BUILD_CATS.includes(cat)) lastBuildCat = cat;
+  document.querySelectorAll<HTMLElement>('#tools .picker[data-tool]').forEach((p) => markPicked(p));
+  document.querySelectorAll<HTMLButtonElement>('#tools button[data-tool]').forEach((b) => {
+    b.classList.toggle('active', b.dataset.tool === tool.id);
+    b.setAttribute('aria-pressed', String(b.dataset.tool === tool.id));
+  });
+  // The dock marks the category in use; the chip on the map names the tool (none for 조회).
+  document.querySelectorAll<HTMLButtonElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) =>
+    b.classList.toggle('current', b.dataset.cat === cat || (b.dataset.cat === 'build' && BUILD_CATS.includes(cat))));
+  // Building or clearing: time waits while it is planned (and runs on when the tool is put down).
+  holdForBuilding(!WATCHING.has(tool.kind));
+  refreshToolChip();
+  renderer.canvas.style.cursor = 'crosshair';
+  setPreview(null);
+  updatePreview(); // the new tool's hint and preview where the pointer already is
+  if (tool.kind !== 'query' && tool.kind !== 'route') renderer.routes = null; // (looking: the open card's routes stay drawn)
+  refreshEdgeHint();
+  // Pipes, track underground and power lines are laid where the map doesn't
+  // show them, and a facility where its service is missing: their view comes on
+  // with the tool and goes with it.
+  // Touch: once, how to look around while a drawing tool is in hand (one finger draws).
+  if (touchFirst() && DRAWING.has(tool.kind)) {
+    try {
+      if (!localStorage.getItem(PAN_TIP_KEY)) {
+        localStorage.setItem(PAN_TIP_KEY, '1');
+        flash(`도구를 든 동안 한 손가락은 그립니다 · 지도 이동은 두 손가락으로${isHeld() ? ' · 짓는 동안 시간은 잠시 멈춥니다' : ''}`, 'info'); // (it takes the hold's own tip's place)
+      }
+    } catch { /* storage unavailable */ }
+  }
+  const view = UNDERGROUND_VIEW[tool.kind] ?? PLACING_VIEW[tool.id] ?? null;
+  const current = overlay.kind === 'none' ? 'none' : overlay.kind;
+  // Underground work is seen in its view whatever view was on (laid under the
+  // traffic view, pipes stayed unseen); the view before comes back after.
+  if (view && current !== view) {
+    if (current !== autoView) viewBefore = current; // (a view picked by hand meanwhile is the one to come back to)
+    showOverlay(view);
+    autoView = view;
+  } else if (autoView && autoView !== view && current === autoView) {
+    showOverlay(viewBefore);
+    autoView = null;
+  } else if (!view) autoView = null;
+  redraw();
+}
+
+const PAN_TIP_KEY = 'web-city:pan-tip';
+/** Tools a one-finger drag draws with (so it doesn't pan the map). */
+const DRAWING = new Set<Tool['kind']>(['network', 'zone', 'bulldoze', 'powerline', 'pipe', 'unpipe', 'subway', 'unsubway', 'elevated', 'trees', 'terraform', 'level']);
+
+/** The data view a tool turns on while it is in hand (what it builds is otherwise hidden). */
+const UNDERGROUND_VIEW: Partial<Record<Tool['kind'], string>> = {
+  pipe: 'waterService', unpipe: 'waterService', subway: 'subway', unsubway: 'subway', transition: 'subway', powerline: 'power',
+};
+/** A facility is placed where it is missing: its reach comes on with it (the gaps show where to put it). */
+const PLACING_VIEW: Record<string, string> = {
+  police: 'police', fire: 'fire', health: 'health', education: 'school', power: 'power', water: 'waterService', garbage: 'garbage', landfill: 'garbage',
+};
+/** The view a tool turned on itself (turned off again when another tool is picked). */
+let autoView: string | null = null;
+/** The view showing before the tool turned its own on. */
+let viewBefore = 'none';
+
+// ------------------------------------------------------------------ finding a tool
+
+/** What the search box can find: every tool, and every kind of facility (by its own name). */
+type Found = { key: string; name: string; where: string; glyph: string; sub: string; locked: string; pick: () => void };
+
+function findables(): Found[] {
+  const out: Found[] = [];
+  for (const g of TOOL_GROUPS) {
+    const cat = CATEGORIES.find((c) => c.id === g.cat)!;
+    for (const t of g.tools) {
+      if (t.kind === 'structure') {
+        for (const k of kindsFor(t)) {
+          const d = STRUCTURES[k];
+          const open = city.isUnlocked(k);
+          const placed = open && city.placementsLeft(k) <= 0;
+          const earned = city.state.unlocked.filter((u) => u === k).length;
+          const why = d.unlock?.description ?? d.unlockTiers?.[earned]?.description ?? d.offer?.description ?? '잠김';
+          out.push({
+            key: `${t.id}:${k}`, name: STRUCTURE_NAME[k], where: `${cat.label} · ${g.title}`,
+            glyph: `<span class="pick-swatch" style="background:${structureColor(k)}"></span>`,
+            sub: d.cost || d.upkeep ? `§${fmt(d.cost)} · 월 §${fmt(d.upkeep)}` : '무료',
+            locked: !open ? why : placed ? '이미 지음' : '',
+            pick: () => {
+              chosen[t.id] = k;
+              selectTool(t.id);
+            },
+          });
+        }
+      } else {
+        out.push({ key: t.id, name: toolName(t), where: `${cat.label} · ${g.title}`, glyph: toolGlyph(t), sub: toolPrice(t), locked: usable(t) ? '' : '잠김', pick: () => selectTool(t.id) });
+      }
+    }
+  }
+  return out;
+}
+
+/** The tools and kinds picked lately, newest first (a few, kept for the next visit). */
+const RECENT_KEY = 'web-city:recent-tools';
+let recent: string[] = (() => {
+  try {
+    return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]') as string[];
+  } catch {
+    return [];
+  }
+})();
+
+function noteRecent(): void {
+  if (tool.kind === 'query' || tool.kind === 'route' || tool.kind === 'mic' || tool.kind === 'disaster') return;
+  const key = tool.kind === 'structure' ? `${tool.id}:${chosen[tool.id]}` : tool.id;
+  if (recent[0] === key) return;
+  recent = [key, ...recent.filter((k) => k !== key)].slice(0, 6);
+  try {
+    localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
+  } catch { /* storage unavailable */ }
+  if (!$('#tray').hidden) renderRecent();
+}
+
+/** The current pick's key, to mark it among the found and the recent. */
+const currentKey = () => (tool.kind === 'structure' ? `${tool.id}:${chosen[tool.id]}` : tool.id);
+
+function renderRecent(): void {
+  const all = new Map(findables().map((f) => [f.key, f]));
+  const chips = (list: Found[]) => list.map((f) => `<button type="button" data-find="${attr(f.key)}" class="${f.key === currentKey() ? 'active' : ''}" title="${attr(`${f.name} · ${f.where}${f.sub ? ` · ${f.sub}` : ''}`)}">${f.glyph}${f.name}</button>`).join('');
+  // (Not the tool in hand, nor those already on the open card: a row of 최근 [도로] above 도로 said nothing.)
+  const items = recent.map((k) => all.get(k)).filter((f): f is Found => !!f && !f.locked && f.key !== currentKey() && categoryOf(f.key.split(':')[0]!) !== openCat);
+  // While a goal's screen is open, its tools lead (whatever category the tray shows).
+  const goal = goalTools();
+  const mine = goal ? goal.keys.flatMap((k) => (k.includes(':') ? [k] : [...all.keys()].filter((x) => x === k || x.startsWith(`${k}:`))))
+    .map((k) => all.get(k)).filter((f): f is Found => !!f && !f.locked) : [];
+  const row = $('#tray-recent');
+  row.hidden = items.length + mine.length === 0;
+  row.innerHTML = (mine.length ? `<span class="recent-label goal-label">${goal!.name}</span>${chips(mine)}${items.length ? '<i class="recent-sep"></i>' : ''}` : '')
+    + (items.length ? `<span class="recent-label">최근</span>${chips(items)}` : '');
+}
+
+let found: Found[] = [];
+
+function renderFound(q: string): void {
+  const res = $('#tray-results');
+  const query = q.trim().toLowerCase().replace(/\s+/g, '');
+  $('#tools').hidden = !!query;
+  res.hidden = !query;
+  // The title says what the tray now shows: the search, or the category again.
+  const c = CATEGORIES.find((x) => x.id === openCat);
+  if (!query) {
+    if (c) $('#tray-title').innerHTML = `${icon(c.icon)}${c.label}`;
+    return;
+  }
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, '');
+  // Typed as initial consonants only (ㅅㅂㅅ), it matches names by theirs (소방서).
+  const initials = /^[ㄱ-ㅎ]+$/.test(query);
+  const key = (v: string) => (initials ? chosung(norm(v)) : norm(v));
+  // Its own name first, then where it sits (발전 finds the plants; 서비스 finds the services).
+  found = findables()
+    .map((f) => ({ f, at: key(f.name).indexOf(query), inWhere: !initials && key(f.where).includes(query) }))
+    .filter((x) => x.at >= 0 || x.inWhere)
+    .sort((a, b) => (a.at < 0 ? 99 : a.at) - (b.at < 0 ? 99 : b.at) || +!!a.f.locked - +!!b.f.locked)
+    .map((x) => x.f);
+  $('#tray-title').innerHTML = `${icon('search')}찾기 · ${found.length}개`;
+  res.innerHTML = found.length
+    ? found.map((f, i) => `<button type="button" class="pick${f.locked ? ' locked' : ''}${i === 0 && !f.locked ? ' first' : ''}" role="option" data-find="${attr(f.key)}" ${f.locked ? 'disabled' : ''} title="${attr(`${f.name} · ${f.where}${f.locked ? ` — ${f.locked}` : ''}`)}">
+        <span class="pick-name">${f.locked ? icon('lock') : f.glyph}${f.name}</span><span class="pick-sub">${f.locked || f.where}</span>${!f.locked && f.sub ? `<span class="pick-stat">${f.sub}</span>` : ''}</button>`).join('')
+    : `<p class="legend find-none">'${q.trim().replace(/[<&]/g, '')}'${'에 맞는 도구가 없습니다'}</p>`;
+}
+
+const CHOSUNG = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+
+/** A word's initial consonants (소방서 → ㅅㅂㅅ); other characters stay as they are. */
+function chosung(v: string): string {
+  return [...v].map((ch) => {
+    const c = ch.charCodeAt(0) - 0xac00;
+    return c >= 0 && c < 11172 ? CHOSUNG[Math.floor(c / 588)]! : ch;
+  }).join('');
+}
+
+function clearFind(): void {
+  const input = $<HTMLInputElement>('#tray-search');
+  input.value = '';
+  renderFound('');
+  renderRecent();
+}
+
+function pickFound(key: string): void {
+  const f = findables().find((x) => x.key === key);
+  if (!f || f.locked) return;
+  f.pick();
+  closeTray();
+  hoverUnderMouse();
+}
+
+function wireFind(): void {
+  const input = $<HTMLInputElement>('#tray-search');
+  input.addEventListener('input', () => renderFound(input.value));
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const first = found.find((f) => !f.locked);
+      if (input.value.trim() && first) pickFound(first.key);
+      e.preventDefault();
+    } else if (e.key === 'ArrowDown' && input.value.trim()) {
+      document.querySelector<HTMLButtonElement>('#tray-results .pick:not([disabled])')?.focus();
+      e.preventDefault();
+    } else if (e.key === 'Escape') {
+      // The first Esc empties the box; the next closes the tray (the page's own keys skip a text box).
+      if (input.value) clearFind();
+      else closeTray(true);
+      e.stopPropagation();
+    }
+  });
+  // Arrows step through what was found; up from the first goes back to the box.
+  $('#tray-results').addEventListener('keydown', (e) => {
+    const k = e.key;
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(k)) return;
+    const items = [...document.querySelectorAll<HTMLButtonElement>('#tray-results .pick:not([disabled])')];
+    const at = items.indexOf(document.activeElement as HTMLButtonElement);
+    const to = at + (k === 'ArrowRight' || k === 'ArrowDown' ? 1 : -1);
+    if (to < 0) input.focus();
+    else items[Math.min(to, items.length - 1)]?.focus();
+    e.preventDefault();
+    e.stopPropagation();
+  });
+  for (const id of ['#tray-results', '#tray-recent']) {
+    $(id).addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement).closest<HTMLButtonElement>('[data-find]');
+      if (b && !b.disabled) pickFound(b.dataset.find!);
+    });
+  }
+}
+
+/** The / key: the tray opens with the search box ready. */
+export function openFind(): void {
+  if (!openCat) openTray(lastBuildCat);
+  $<HTMLInputElement>('#tray-search').focus();
+}
+
+/** , and .: the previous or next of the tool's siblings under the chip (another road, density, kind). */
+export function stepAlt(dir: 1 | -1): void {
+  const items = [...document.querySelectorAll<HTMLButtonElement>('#tool-alts button')];
+  if ($('#tool-alts').hidden || items.length < 2) return;
+  const at = items.findIndex((b) => b.classList.contains('active'));
+  // (A kind not in the row — a built-once reward just built — steps to either end.)
+  items[at < 0 ? (dir > 0 ? 0 : items.length - 1) : (at + dir + items.length) % items.length]!.click();
+  hoverUnderMouse();
+}
+
+/** The dock's categories holding a 추천: a small dot (where a short service's answer is, without saying more). */
+export function markSuggested(): void {
+  // One dot at a time: the category of the one next step (what the most troubled goal's screen recommends) (more dots said nothing).
+  const act = firstStepTool ?? (city ? nextStep().act : '');
+  const cats = new Set(act && categoryOf(act) !== 'inspect' ? [categoryOf(act)] : []);
+  document.querySelectorAll<HTMLElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) => {
+    const on = cats.has(b.dataset.cat as CategoryId) || (b.dataset.cat === 'build' && cats.size > 0);
+    if (b.classList.contains('suggest') === on) return;
+    b.classList.toggle('suggest', on);
+    // (Said in words too, for a tooltip and a screen reader.)
+    b.dataset.title0 ??= b.title;
+    b.title = on ? `${b.dataset.title0} · 지금 지을 만한 시설 있음` : b.dataset.title0;
+  });
+}
+
+/** A road in hand on a town with no way to its neighbours yet: the map's edge is outlined (see renderer.edgeHint). */
+export function refreshEdgeHint(): void {
+  const on = tool.kind === 'network' && tool.network !== 'onramp' && !city.fields.connections.length;
+  if (on !== renderer.edgeHint) {
+    renderer.edgeHint = on;
+    redraw();
+  }
+}

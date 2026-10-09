@@ -1,0 +1,113 @@
+// Korean wording for the engine's tool messages (the engine speaks English so
+// any client can word them its own way).
+
+import type { OrdinanceId } from '@web-city/engine';
+import { ORDINANCE_NAME } from './names';
+import { fmt } from './util';
+
+const EXACT: Record<string, string> = {
+  'Nuclear Free Zone is in effect': '비핵 지대 조례가 시행 중입니다',
+  'already a cloverleaf': '이미 클로버형 교차로가 있습니다',
+  'a road passes over this highway': '이 고속도로 위로 도로가 지나갑니다',
+  'unknown cheat': '모르는 치트 코드입니다',
+  'one-way roads cannot pass over highways': '일방통행로는 고속도로 위로 지나갈 수 없습니다',
+  'already a toll booth': '이미 톨게이트가 있습니다',
+  'a toll booth needs two straight tiles without junctions on each side': '톨게이트 양쪽으로 교차로 없는 곧은 길이 2칸씩 있어야 합니다',
+  'already in effect': '이미 시행 중입니다',
+  'already a deal with this neighbour': '이 이웃과 이미 같은 거래를 하고 있습니다',
+  'building is on fire': '불타는 건물은 철거할 수 없습니다',
+  'cloverleafs go on ground highways': '클로버형 교차로는 지상 고속도로 위에만 놓을 수 있습니다',
+  'highways pass over each other; place a Cloverleaf to join them': '고속도로가 입체로 엇갈립니다 · 클로버형 교차로를 놓으면 이어집니다',
+  'landfills need at least 2×2 tiles': '매립지는 2×2칸 이상이어야 합니다',
+  'farm zones need at least 4×4 tiles': '농업 구역은 4×4칸 이상이어야 합니다',
+  'no crossings on bridges': '다리 위에서는 건널목을 만들 수 없습니다',
+  'no jobs here for this wealth level': '이 주민의 소득 수준에 맞는 일자리가 없습니다',
+  'no more of these allowed': '더는 지을 수 없습니다',
+  'no such My Sim': '그런 My Sim이 없습니다',
+  'no such loan': '그런 대출이 없습니다',
+  'not a home for this wealth level': '이 주민의 소득 수준에 맞는 집이 아닙니다',
+  'not available yet': '아직 쓸 수 없습니다',
+  'not enough funds': '자금이 부족합니다',
+  'no rubble': '치울 잔해가 없습니다',
+  'not in effect': '시행 중이 아닙니다',
+  'one-way roads cannot build bridges': '일방통행로는 다리를 놓을 수 없습니다',
+  'out of bounds': '맵 밖입니다',
+  'vehicle not available': '이 탈것을 쓸 수 없습니다',
+  'locked': '아직 잠겨 있습니다',
+  "needs the Mayor's House": '시장 관저가 있어야 합니다',
+  'no mission with this vehicle': '이 탈것으로 하는 임무 중이 아닙니다',
+  'no such deal': '그런 거래는 할 수 없습니다',
+  "our connection does not meet the neighbour's": '이 도시의 연결이 이웃 도시의 연결과 맞닿지 않습니다 (두 도시가 맞닿은 구간에서 마주 보게 이으세요)',
+  'this vehicle has no water': '물을 뿌릴 수 없는 탈것입니다',
+  'nothing to put out here': '여기에는 끌 불이나 유독물이 없습니다',
+  'only the tank can fire': '탱크만 쏠 수 있습니다',
+  'nothing to hit here': '여기에는 맞힐 것이 없습니다',
+  'transitions go on subway track': '전환 구간은 지하철 선로 위에 놓습니다',
+  'already a transition': '이미 전환 구간이 있습니다',
+  'a transition needs elevated rail beside it': '옆에 고가 철도가 있어야 합니다',
+  'no building here': '여기에는 건물이 없습니다',
+  'name is empty': '이름이 비어 있습니다',
+  'path crosses a volcano': '경로가 화산을 지납니다',
+  'path crosses another network': '경로가 다른 교통망과 교차합니다(고속도로는 진입로로 잇습니다)',
+  'path crosses other elevated track': '경로가 다른 고가 선로와 겹칩니다',
+  'path is blocked by a building or zone': '건물이나 구역이 경로를 막고 있습니다 (철거·구역 해제 후 놓으세요)',
+  'path is blocked by a building': '건물이 경로를 막고 있습니다 (철거 후 놓으세요)',
+  'pick a lived-in home': '사람이 사는 집을 고르세요',
+  'nothing burns here': '여기는 불타고 있지 않습니다 (소방차를 보내지 않음)',
+  'pipes cannot cross open water': '수도관은 물을 건널 수 없습니다',
+  'site is on water': '물 위에는 지을 수 없습니다',
+  'site has a building on it': '자리에 건물이 있습니다 (철거 후 지으세요)',
+  'site has a road or track on it': '자리에 도로·선로가 지납니다',
+  'site has rubble on it': '자리에 잔해가 있습니다 (철거로 치우세요)',
+  'site is on a volcano': '화산 위에는 지을 수 없습니다',
+  'must be built on the shore': '물가에 걸쳐 지어야 합니다',
+  'the mayor has been impeached': '시장이 탄핵되었습니다',
+  'toll booths go on roads, avenues or highways': '톨게이트는 도로·대로·고속도로에만 놓을 수 있습니다',
+  'too much debt outstanding': '빚이 너무 많습니다',
+  'needs a power line to the edge': '맵 가장자리까지 송전선이 필요합니다',
+  'the neighbour has no power line to the border': '이웃 도시가 경계까지 송전선을 잇지 않았습니다',
+  'the neighbour has no water pipe to the border': '이웃 도시가 경계까지 수도관을 잇지 않았습니다',
+  'the neighbour has no road to the border': '이웃 도시가 경계까지 도로를 잇지 않았습니다',
+  'needs a water pipe to the edge': '맵 가장자리까지 수도관이 필요합니다',
+  'needs a road or highway to the edge': '맵 가장자리까지 도로나 고속도로가 필요합니다',
+  'neighbour has no surplus': '이웃에게 남는 것이 없습니다',
+  'several cities share this border': '이 경계에는 여러 도시가 맞닿아 있어 거래할 수 없습니다',
+  'neighbour has no utilities to trade': '이 이웃과는 거래할 수 없습니다(개발된 이웃만)',
+  'neighbour lacks the cash': '이웃이 1년 치 대금을 낼 돈이 없습니다',
+  'neighbour needs no more': '이웃에게 더 필요하지 않습니다',
+  'no surplus to sell': '팔 만큼 남는 것이 없습니다',
+  'not enough cash for a year': '1년 치 대금을 낼 돈이 없습니다',
+  'less than the minimum deal': '최소 거래량(1,000)보다 적습니다',
+  'no free units': '출동할 수 있는 차량이 없습니다',
+  'no road to get there': '그곳까지 이어진 도로가 없습니다',
+  'too far from a road for fire trucks': '소방차가 닿는 도로에서 너무 멉니다',
+  'too far from any fire station': '소방서에서 너무 멀어 소방차가 제때 닿지 못합니다(도로로 64칸 넘음)',
+  'too steep for this network': '이 교통망으로는 오를 수 없는 경사입니다(도로·철도·고속도로는 터널로 통과)',
+  'too steep: build up the slope from the bottom': '너무 가파릅니다: 아래쪽부터 차례로 높이세요',
+  'too steep: a bridge has to reach the other side': '너무 가파릅니다: 다리가 반대편에 닿아야 합니다',
+  'too steep: a tunnel needs a way in on both sides': '너무 가파릅니다: 터널은 양쪽 입구가 있어야 합니다',
+  'a tunnel has to come out on the other side': '터널은 반대편으로 나와야 합니다',
+  'mission not available': '지금은 이 임무를 할 수 없습니다',
+  'nowhere to drive': '이 탈것이 다닐 곳이 없습니다',
+  'nowhere to go: build more road, track or water for this vehicle': '이 탈것으로 갈 곳이 없습니다(도로·선로·물을 더 놓으세요)',
+};
+
+const PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
+  [/^locked: (.+)$/, (m) => `아직 잠겨 있습니다: ${m[1]}`],
+  [/^needs the (.+) ordinance$/, (m) => `${ORDINANCE_NAME[m[1] as OrdinanceId] ?? m[1]} 조례가 먼저 필요합니다`],
+  [/^at most (\d+) loans$/, (m) => `대출은 ${m[1]}건까지입니다`],
+  [/^at most (\d+) My Sims$/, (m) => `My Sim은 ${m[1]}명까지입니다`],
+  [/^loans are §(\d+)–§(\d+)$/, (m) => `대출 금액은 §${fmt(+m[1]!)}~§${fmt(+m[2]!)} (§${fmt(+m[1]!)} 단위)입니다`],
+  [/^amount must be (\d+)–(\d+)$/, (m) => `거래량은 ${fmt(+m[1]!)}~${fmt(+m[2]!)} 사이여야 합니다`],
+];
+
+/** The Korean for an engine message (or the message itself if unknown). */
+export function ko(message: string): string {
+  const exact = EXACT[message];
+  if (exact) return exact;
+  for (const [re, f] of PATTERNS) {
+    const m = message.match(re);
+    if (m) return f(m);
+  }
+  return message;
+}

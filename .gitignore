@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.wrangler/
+
+# Screenshots taken while working
+/*.png
+
+# Local reference material, never committed.
+/reference/

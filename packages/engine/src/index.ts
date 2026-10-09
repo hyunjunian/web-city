@@ -1,0 +1,44 @@
+// web-city engine: SimCity 4 Rush Hour–style RCI simulation.
+export { City, linePath } from './city';
+export { sampleCity } from './sample';
+export type { CityOptions, CityStats, MySimNews, NetworkKind, TileInfo, ToolResult } from './city';
+export type { Thought, ThoughtSubject } from './sim/mysims';
+export type { UnlockCheck } from './sim/rewards';
+export { MISSIONS } from './data/missions';
+export type { MissionId } from './data/missions';
+export { PARTIAL_UNLOCKS, VEHICLES } from './data/udi';
+export type { MissionDef, VehicleId } from './data/udi';
+export type { ActiveMission } from './sim/udi';
+export type { RouteQuery, RouteTrip, TripMeans } from './sim/routes';
+export type { Advice, AdvisorId } from './sim/advisors';
+export type { GrowthBlocker } from './sim/development';
+export { VOLUME_KINDS } from './sim/transport';
+export { GROWTH_CODES } from './sim/development';
+export type { VolumeKind } from './sim/transport';
+export { saveCity, saveCitySteps, loadCity } from './save';
+export { Region } from './regionmap';
+export type { SavedRegion, CitySpan } from './regionmap';
+export type { CitySnapshot } from './sim/region';
+export type { SavedCity } from './save';
+export { DEFAULT_CONFIG, makeConfig } from './config';
+export type { SimConfig, ConfigOverrides } from './config';
+export type { Difficulty } from './data/difficulty';
+export { STRUCTURES } from './data/structures';
+export { ORDINANCES } from './data/ordinances';
+export type { OrdinanceId } from './data/ordinances';
+export type { MayorFactors, PollTopic } from './sim/mayor';
+export { POLL_TOPICS } from './sim/mayor';
+export type { StructureKind } from './data/structures';
+export { ZONES, Net, NETWORK_KINDS, INTERCHANGE, Terrain, zoneInfo, isRail, isLocalNet } from './sim/state';
+export type {
+  AbandonReason, Building, Structure, BudgetReport, MySim, ZoneKind, Rect, GarbageStats, SafetyStats, HistoryPoint,
+} from './sim/state';
+export type { DemandReport, Census } from './sim/demand';
+export { serviceRadius } from './sim/services';
+export { terrainFromHeightmap } from './sim/terrain';
+export type { Heightmap } from './sim/terrain';
+export { DISASTER_KINDS } from './sim/disasters';
+export type { DamageReport, DisasterKind, LiveDisaster } from './sim/disasters';
+export { LIVE_KINDS } from './sim/disasters';
+export type { DispatchKind } from './sim/dispatch';
+export * from './types';

@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Web City</title>
+    <meta name="description" content="SimCity 4 Rush Hour를 재현한 도시 시뮬레이션 — 브라우저에서 바로 플레이" />
+    <meta name="theme-color" content="#0b0b0d" />
+    <link rel="icon" href="icon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <script>
+      // Theme before first paint (see src/theme.ts): saved choice, else the system's.
+      try {
+        const m = localStorage.getItem('web-city:theme');
+        const light = m === 'light' || (m !== 'dark' && matchMedia('(prefers-color-scheme: light)').matches);
+        document.documentElement.dataset.theme = light ? 'light' : 'dark';
+      } catch (e) { /* storage unavailable: dark */ }
+    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Status bar: the city, the date and the few always-there controls. -->
+      <header id="statusbar">
+        <div class="sb-left">
+          <span class="logo" aria-hidden="true"><span data-icon="zones"></span></span>
+          <button id="city-title" type="button" title="눌러서 도시 이름 바꾸기"></button>
+        </div>
+        <div class="sb-center">
+          <span id="sb-date" class="sb-date"></span>
+          <div id="speed" class="gear gear-compact" role="group" aria-label="시뮬레이션 속도"></div>
+          <span id="sb-kpis" class="sb-kpis"></span>
+          <span id="sb-wind" class="sb-wind" title="바람 (불이 번지는 방향)"></span>
+        </div>
+        <div class="sb-right">
+          <button id="btn-undo" class="icon-btn" title="되돌리기 (Ctrl+Z)" aria-label="되돌리기" disabled><span data-icon="undo"></span></button>
+          <button id="btn-redo" class="icon-btn" title="다시 하기 (Ctrl+Shift+Z)" aria-label="다시 하기" hidden><span data-icon="redo"></span></button>
+          <button id="btn-sims" class="sb-policy" data-sheet-btn="sims" title="주민: My Sim · 직접 운전 (U)" aria-pressed="false"><span data-icon="users"></span><span class="sb-policy-label">주민</span></button>
+          <button id="btn-region" class="sb-policy" data-sheet-btn="region" title="지역: 이웃 도시·거래 (J)" aria-pressed="false"><span data-icon="globe"></span><span class="sb-policy-label">지역</span></button>
+          <button id="btn-help" class="icon-btn" title="조작법 (?)" aria-label="조작법"><span data-icon="help"></span></button>
+          <button id="btn-focus" class="icon-btn" title="지도만 크게 보기 (F)" aria-label="지도만 크게 보기" aria-pressed="false"><span data-icon="maximize"></span></button>
+          <details class="dropdown">
+            <summary class="icon-btn" title="도시 메뉴" aria-label="도시 메뉴"><span data-icon="more"></span></summary>
+            <div class="dropdown-menu">
+              <button id="btn-new"><span data-icon="filePlus"></span>새 도시…</button>
+              <button id="btn-save" title="브라우저에 저장"><span data-icon="save"></span>저장</button>
+              <button id="btn-load" title="브라우저에 저장된 도시 목록"><span data-icon="folder"></span>불러오기…</button>
+              <hr />
+              <button id="btn-export" title="JSON 파일로 내보내기"><span data-icon="download"></span>파일로 내보내기</button>
+              <label class="button" title="JSON 파일 가져오기" tabindex="0" data-file-key><span data-icon="upload"></span>파일 가져오기<input id="file-import" type="file" accept="application/json" hidden /></label>
+              <button id="btn-photo" title="지금 보이는 지도를 PNG로 저장"><span data-icon="camera"></span>지도 사진 저장</button>
+              <button id="btn-csv" title="월별 인구·자금·평점 등 기록을 CSV로 저장 (스프레드시트용)"><span data-icon="sheet"></span>기록 CSV로 내보내기</button>
+              <hr />
+              <button id="btn-rename"><span data-icon="pencil"></span>도시 이름 바꾸기…</button>
+              <button id="btn-help-menu"><span data-icon="help"></span>조작법</button>
+              <button id="btn-autopause" title="어느 항목이 '조치 필요'로 바뀌면 시간을 멈추고 알립니다" aria-pressed="true"><span data-icon="pause"></span><span class="menu-label">문제가 생기면 멈춤: 켬</span></button>
+              <button id="btn-theme" title="화면 테마: 시스템 · 밝게 · 어둡게"><span data-icon="theme"></span><span class="menu-label">테마: 시스템</span></button>
+              <button id="btn-night" title="밤 풍경으로 (N)" aria-pressed="false"><span data-icon="moonStar"></span><span class="menu-label">밤 풍경</span></button>
+              <p id="autosave-note" class="menu-note"></p>
+            </div>
+          </details>
+        </div>
+      </header>
+
+      <!-- City pane: like a car's instrument view — the numbers that matter, at a glance. -->
+      <aside id="pane" aria-label="도시 현황">
+        <div class="pane-grip" aria-hidden="true"></div>
+        <button id="pane-close" class="icon-btn pane-close" aria-label="도시 현황 닫기"><span data-icon="close"></span></button>
+        <section id="manage" aria-label="목적별 관리" aria-live="off">
+        <div id="mg-body"></div>
+        <!-- 재정·정책's actions: what the mayor changes (kept, not redrawn with the screen: a slider in hand stays). -->
+        <section id="policy" hidden>
+          <section class="mg-sec"><h3><span data-icon="coins"></span>세율</h3><div id="taxes"></div><p class="legend" id="tax-mood" hidden></p></section>
+          <section class="mg-sec"><h3><span data-icon="wallet"></span>부서 예산 · 대출</h3><div id="departments"></div><div id="loans"></div></section>
+          <section class="mg-sec"><h3><span data-icon="civic"></span>조례 <span id="ord-count" class="muted"></span></h3><details class="acts-more ord-more" id="ord-fold"><summary>조례 목록 펼치기</summary><div id="ordinances"></div></details></section>
+        </section>
+        <!-- A goal's figures over time and the reports that go with it, under its screen (kept, not redrawn with it: the graphs hold their hover). -->
+        <section id="goal-stats" class="mg-sec" aria-label="통계" hidden>
+          <h3><span data-icon="chart"></span>통계</h3>
+          <div class="gs" data-goals="finance"><h4>지난달 재정</h4><div id="budget"></div></div>
+          <div id="graphs"></div>
+          <div class="gs" data-goals="growth"><h4>건물 현황</h4><div id="buildings"></div></div>
+          <div class="gs" data-goals="growth education"><div id="ages"></div></div>
+          <div class="gs" data-goals="wealth"><h4>소득별 인구와 일자리</h4><div id="wealth"></div></div>
+          <div class="gs" data-goals="environment"><h4>여론 조사</h4><div id="polls"></div></div>
+          <div class="gs" data-goals="wealth"><h4>보상 진행</h4><div id="rewards"></div></div>
+        </section>
+        </section>
+        <div id="status"></div>
+        <section id="onboarding" class="card" hidden>
+          <h2>시작하기</h2>
+          <div id="onboarding-steps"></div>
+        </section>
+        <section class="card" id="rci-card" hidden>
+          <h2>RCI 수요</h2>
+          <div id="demand"></div>
+        </section>
+        <section id="advice-card" class="card" hidden>
+          <h2>소식</h2>
+          <div id="advice"></div>
+        </section>
+      </aside>
+
+      <main id="view">
+        <canvas id="map"></canvas>
+
+        <div id="map-layer" class="floating">
+          <button type="button" class="layer-title" id="layer-title" aria-expanded="false" title="범례 펼치기·접기"><span data-icon="info"></span><span>지도 보기</span><span class="legend-toggle" aria-hidden="true"><span data-icon="chevronDown"></span></span></button>
+          <div id="overlay"></div>
+        </div>
+
+        <div id="manage-chip" class="floating" hidden>
+          <button type="button" id="manage-chip-label" title="관리 화면 열기"></button>
+          <button type="button" id="manage-chip-close" class="icon-btn" title="관리 끝내기" aria-label="관리 끝내기"><span data-icon="close"></span></button>
+        </div>
+        <div id="goal-strip" class="floating" hidden aria-label="살펴볼 목적"></div>
+        <div id="tool-chip" class="floating" hidden>
+          <span id="tool-chip-icon"></span><button type="button" id="tool-chip-label"></button>
+          <!-- The tool's siblings on the same bar: another road, density or kind in one click. -->
+          <div id="tool-alts" role="toolbar" aria-label="같은 종류의 다른 도구" title="같은 묶음의 다른 도구 (, . 키로 이전·다음)" hidden></div>
+          <button id="tool-chip-close" class="icon-btn" title="도구 내려놓기 (Esc)" aria-label="도구 해제"><span data-icon="close"></span></button>
+        </div>
+
+        <div id="map-controls">
+          <div id="map-zoom" class="floating" role="group" aria-label="확대·축소">
+            <button id="zoom-in" class="icon-btn" title="확대 (+)" aria-label="확대"><span data-icon="plus"></span></button>
+            <button id="zoom-out" class="icon-btn" title="축소 (−)" aria-label="축소"><span data-icon="minus"></span></button>
+            <button id="zoom-fit" class="icon-btn" title="전체 보기 (Home)" aria-label="전체 보기"><span data-icon="fit"></span></button>
+          </div>
+          <canvas id="minimap" class="floating" aria-label="미니맵: 눌러서 이동" title="미니맵: 누르거나 끌어서 이동"></canvas>
+        </div>
+
+        <!-- The build menu, floating on the map: looking and removing, then the build categories. -->
+        <nav id="dock" class="floating" aria-label="도구">
+          <button class="dock-btn dock-city" data-app="city" aria-label="도시 현황" title="도시 현황"><span data-icon="gauge"></span><span class="dock-label">도시</span></button>
+          <div id="dock-tools" role="toolbar" aria-label="도구"></div>
+        </nav>
+
+        <div id="toasts" aria-live="polite"></div>
+        <div id="hint"></div>
+        <div id="sr-status" class="sr-only" role="status" aria-live="polite"></div>
+        <div id="cursor-tag" hidden aria-hidden="true"></div>
+        <div id="confirm-bar" class="floating" hidden>
+          <p id="confirm-text"></p>
+          <div class="confirm-actions"><button id="confirm-cancel" type="button">취소</button><button id="confirm-build" type="button" class="primary">짓기</button></div>
+        </div>
+
+        <div id="drive-hud" hidden>
+          <div class="drive-side">
+            <div id="drive-info"></div>
+            <div class="drive-actions">
+              <button id="drive-special" hidden></button>
+              <button id="drive-quit"><span data-icon="close"></span>포기</button>
+            </div>
+          </div>
+          <div id="drive-pad">
+            <button data-dir="up" aria-label="위">▲</button>
+            <button data-dir="left" aria-label="왼쪽">◀</button>
+            <button data-dir="right" aria-label="오른쪽">▶</button>
+            <button data-dir="down" aria-label="아래">▼</button>
+          </div>
+        </div>
+
+        <!-- The tool tray: the tools of the dock category that is open. -->
+        <section id="tray" class="sheet-card" aria-label="도구" hidden>
+          <header class="card-head">
+            <h2 id="tray-title"></h2>
+            <nav id="tray-cats" aria-label="짓기 종류"></nav>
+            <label class="find-box"><span data-icon="search"></span><input id="tray-search" type="search" placeholder="도구·시설 찾기" aria-label="도구·시설 찾기" autocomplete="off" enterkeyhint="go"><kbd class="find-key">/</kbd></label>
+            <button id="tray-close" class="icon-btn" aria-label="도구 닫기"><span data-icon="close"></span></button>
+          </header>
+          <div id="tray-find">
+            <div id="tray-recent" role="toolbar" aria-label="최근 쓴 도구"></div>
+          </div>
+          <div id="tray-results" class="picker" role="listbox" aria-label="찾은 도구" hidden></div>
+          <div id="tools"></div>
+        </section>
+
+        <!-- What the query tool found. -->
+        <section id="info-card" class="sheet-card" aria-label="정보" hidden>
+          <header class="card-head">
+            <h2><span data-icon="info"></span>정보</h2>
+            <button id="info-close" class="icon-btn" aria-label="정보 닫기"><span data-icon="close"></span></button>
+          </header>
+          <div id="info"><p class="muted">지도를 눌러 보세요. 건물·길을 오가는 경로와 주민 생각도 함께 나옵니다.</p></div>
+        </section>
+
+        <!-- The status bar's sheets: 주민 (My Sim, U-Drive-It) and 지역 (neighbours, deals). -->
+        <section id="sheet" class="sheet-card" aria-labelledby="sheet-title" hidden>
+          <div class="sheet-body">
+            <header class="card-head">
+              <h2 id="sheet-title"></h2>
+              <button id="sheet-close" class="icon-btn" aria-label="닫기"><span data-icon="close"></span></button>
+            </header>
+            <div class="panes">
+              <div data-pane="sims" role="region" aria-label="주민">
+                <section class="card">
+                  <h2>주민 따라가기 <span class="muted">My Sim</span></h2>
+                  <div id="mysims"></div>
+                </section>
+                <section class="card">
+                  <h2>직접 운전 <span class="muted">U-Drive-It</span></h2>
+                  <div id="udi"></div>
+                </section>
+              </div>
+              <div data-pane="region" role="region" aria-label="지역" hidden>
+                <section class="card">
+                  <h2>이웃 도시와 지역</h2>
+                  <div id="neighbours"></div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+    </div>
+
+    <dialog id="help-dialog" aria-labelledby="help-title">
+      <form method="dialog">
+        <h2 id="help-title">조작법</h2>
+        <div id="help-body"></div>
+        <menu><button value="close" class="primary">닫기</button></menu>
+      </form>
+    </dialog>
+    <dialog id="saves-dialog" aria-labelledby="saves-title">
+      <form method="dialog">
+        <h2 id="saves-title">저장된 도시</h2>
+        <div id="saves-body"></div>
+        <menu><button value="close">닫기</button></menu>
+      </form>
+    </dialog>
+    <dialog id="new-dialog" aria-labelledby="new-title">
+      <form method="dialog">
+        <h2 id="new-title">새 도시</h2>
+        <label>이름 <input name="name" value="새 도시" /></label>
+        <label>크기
+          <select name="size">
+            <option value="64">작음 (64×64)</option>
+            <option value="128" selected>중간 (128×128)</option>
+            <option value="256">큼 (256×256)</option>
+          </select>
+        </label>
+        <label>난이도
+          <select name="difficulty">
+            <option value="easy">쉬움 (§500,000)</option>
+            <option value="medium" selected>보통 (§200,000)</option>
+            <option value="hard">어려움 (§100,000)</option>
+          </select>
+        </label>
+        <details class="new-more"><summary>고급 설정 (시드·강·높이 지도)</summary>
+        <label>시드 (같은 시드는 같은 지형)
+          <span class="seed-row"><input name="seed" type="number" value="1" /><button type="button" id="seed-random" title="무작위 시드" aria-label="무작위 시드"><span data-icon="dice"></span></button></span>
+        </label>
+        <label class="check"><input name="water" type="checkbox" checked /> 강과 호수</label>
+        <label>높이 지도
+          <span class="file-row"><span class="button" tabindex="0" role="button" data-file-key>이미지 고르기<input name="heightmap" type="file" accept="image/*" hidden /></span><span id="heightmap-name" class="muted">선택 안 함</span></span>
+        </label>
+        <p class="legend">흑백 이미지(선택): 검정 0은 바다 밑, 83이 해수면, 흰색 255가 가장 높은 땅. 고르면 강·호수 대신 이 지형을 씁니다.</p>
+        </details>
+        <menu>
+          <button value="cancel">취소</button>
+          <button value="sample" type="submit" title="길·구역·공공시설을 갖춘 128×128 도시를 9개월 키워서 엽니다">예시 도시</button>
+          <button value="ok" class="primary">만들기</button>
+        </menu>
+      </form>
+    </dialog>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

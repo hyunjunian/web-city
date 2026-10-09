@@ -1,0 +1,25 @@
+{
+  "name": "web-city",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "workspaces": ["packages/engine", "apps/web"],
+  "scripts": {
+    "dev": "npm run dev -w @web-city/web --",
+    "build": "npm run typecheck && npm run build -w @web-city/web",
+    "build:engine": "npm run build -w @web-city/engine",
+    "preview": "npm run preview -w @web-city/web --",
+    "typecheck": "npm run typecheck --workspaces && tsc -p examples/worker/tsconfig.json --noEmit",
+    "test": "npm test --workspaces",
+    "smoke": "npm run smoke -w @web-city/engine --",
+    "fuzz": "npm run fuzz -w @web-city/engine --",
+    "docs": "npm run docs -w @web-city/engine"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261002.1",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.2",
+    "vitest": "^5.0.3"
+  }
+}

@@ -1,0 +1,2349 @@
+/* Web City viewer — a car-touchscreen-style shell around the map: a status bar,
+   an instrument pane, and the full-bleed map with floating cards and the build menu.
+   Design tokens first (dark, then light); components after; small screens last. */
+
+:root {
+  --font: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', system-ui, sans-serif; /* Korean faces before system-ui, which picked a Latin-only face for the digits when the web font was blocked */
+  --bar-h: 52px;
+  --dock-h: 0px; /* (no bottom bar: the build menu floats on the map) */
+  --bb: 80px; /* room the floating build menu takes at the map's foot */
+  --pane-w: 340px;
+  --info-w: 380px;
+  --r-xl: 22px;
+  --r-lg: 16px;
+  --r-md: 12px;
+  --r-sm: 10px;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  --chrome: #0a0a0b;
+  --bg: #000000;
+  --pane: #101012;
+  --surface: #18181b;
+  --surface-2: #242428;
+  --surface-3: #303036;
+  --line: rgba(255, 255, 255, 0.07);
+  --line-strong: rgba(255, 255, 255, 0.15);
+  --border: var(--line);
+  --border-strong: var(--line-strong);
+  --text: #f5f5f7;
+  --muted: #a1a1a9;
+  --faint: #6c6c74;
+  --accent: #3e6ae1;
+  --accent-hi: #7b9cf5;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(62, 106, 225, 0.2);
+  --danger: #ff5a5f;
+  --danger-soft: rgba(232, 33, 39, 0.16);
+  --warn: #f5a524;
+  --warn-soft: rgba(245, 165, 36, 0.14);
+  --good: #34c77b;
+  --good-soft: rgba(52, 199, 123, 0.14);
+  --float: rgba(24, 24, 27, 0.84);
+  --float-solid: #18181b;
+  --shadow: 0 14px 36px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --view-bg: #0c0d10;
+  --active-ink: #dbe6ff;
+  --warn-ink: #ffd08a;
+  --good-ink: #a4ebc4;
+  --danger-ink: #ffb6b8;
+  --gold-ink: #f0d07a;
+  --gold-soft: rgba(224, 184, 74, 0.15);
+  --gold: #e0b84a;
+  /* Data marks that carry no status: neutral, so colour is left for what needs attention. */
+  --data: #c9c9cf;
+  /* Zone identity (the map's medium-density colours): R · C · I. */
+  --zone-r: #3fa34d;
+  --zone-c: #3b86d1;
+  --zone-i: #d9822b;
+  --backdrop: rgba(0, 0, 0, 0.55);
+  --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e96' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  color-scheme: dark;
+}
+
+/* Light theme: chosen in the ⋯ menu, or following the system when set to 시스템. */
+:root[data-theme='light'] {
+  --chrome: #ffffff;
+  --bg: #eceef1;
+  --pane: #f6f7f9;
+  --surface: #ffffff;
+  --surface-2: #eff1f4;
+  --surface-3: #e2e5ea;
+  --line: rgba(23, 26, 32, 0.08);
+  --line-strong: rgba(23, 26, 32, 0.16);
+  --text: #171a20;
+  --muted: #5c5e62;
+  --faint: #9a9da3;
+  --accent: #3e6ae1;
+  --accent-hi: #2f58cc;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(62, 106, 225, 0.12);
+  --danger: #d4262c;
+  --danger-soft: rgba(212, 38, 44, 0.1);
+  --warn: #b37400;
+  --warn-soft: rgba(214, 150, 40, 0.15);
+  --good: #12894a;
+  --good-soft: rgba(18, 137, 74, 0.1);
+  --float: rgba(255, 255, 255, 0.86);
+  --float-solid: #ffffff;
+  --shadow: 0 12px 32px rgba(23, 26, 32, 0.1), 0 1px 3px rgba(23, 26, 32, 0.06);
+  --shadow-sm: 0 2px 10px rgba(23, 26, 32, 0.07), 0 0 0 1px rgba(23, 26, 32, 0.05);
+  --view-bg: #dde1e6;
+  --active-ink: #1f3f99;
+  --warn-ink: #774800;
+  --good-ink: #0d6b39;
+  --danger-ink: #a5161b;
+  --gold-ink: #8a6400;
+  --gold-soft: rgba(196, 150, 30, 0.14);
+  --gold: #c4961e;
+  --data: #4a4d54;
+  --backdrop: rgba(23, 26, 32, 0.3);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--surface-3) transparent; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.5 var(--font);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  /* Korean breaks between words, not inside them ("저/장"); a long unbroken run may still wrap. */
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+:focus-visible { outline: 2px solid var(--accent-hi); outline-offset: 2px; }
+
+/* The hidden attribute always wins over a display rule. */
+[hidden] { display: none !important; }
+
+.i { width: 22px; height: 22px; stroke-width: 1.8; flex: none; }
+
+/* ------------------------------------------------------------------ layout */
+
+#app {
+  display: grid;
+  height: 100vh;
+  height: 100dvh;
+  grid-template-columns: var(--pane-w) minmax(0, 1fr);
+  grid-template-rows: var(--bar-h) minmax(0, 1fr);
+  grid-template-areas: 'bar bar' 'pane view';
+}
+
+/* Map-only view: the instrument pane steps aside. */
+#app.focus { grid-template-columns: 0 minmax(0, 1fr); }
+#app.focus #pane { display: none; }
+
+/* ------------------------------------------------------------------ controls */
+
+button, .button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 7px 14px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 0;
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-weight: 550;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s, transform 0.08s;
+}
+/* Hover looks only where there is a pointer that hovers (a tap would leave them stuck on touch screens). */
+@media (hover: hover) { button:hover, .button:hover { background: var(--surface-3); } }
+button:active { transform: scale(0.97); }
+button:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+#onboarding-sample:disabled { opacity: 1; background: var(--accent-soft); color: var(--accent-hi); cursor: progress; } /* making the town: progress, not "unavailable" */
+.icon-btn:disabled { opacity: 0.28; } /* an icon alone needs a plainer "off" (undo looked live) */
+button.active { background: var(--accent-soft); color: var(--active-ink); box-shadow: inset 0 0 0 1.5px var(--accent); }
+button.primary { background: var(--accent); color: var(--accent-ink); font-weight: 650; }
+@media (hover: hover) { button.primary:hover { background: var(--accent-hi); } }
+button.link { background: none; min-height: 0; padding: 0; color: var(--accent-hi); text-decoration: underline; text-underline-offset: 3px; font-weight: 500; }
+button.link:active { transform: none; }
+
+.icon-btn {
+  width: 40px; height: 40px; min-height: 0; padding: 0; border-radius: 12px;
+  background: transparent; color: var(--muted);
+}
+@media (hover: hover) { .icon-btn:hover { background: var(--surface-2); color: var(--text); } }
+.icon-btn .i { width: 21px; height: 21px; }
+.icon-btn[aria-pressed='true'] { color: var(--accent-hi); }
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  min-height: 40px;
+  padding: 8px 36px 8px 12px;
+  background: var(--surface-2) var(--chevron) no-repeat right 12px center / 15px;
+  color: var(--text);
+  border: 0;
+  border-radius: var(--r-sm);
+  font: inherit;
+  cursor: pointer;
+  max-width: 100%;
+}
+@media (hover: hover) { select:hover { background-color: var(--surface-3); } }
+select option, select optgroup { background: var(--surface); color: var(--text); }
+
+input[type='number'], input:not([type]), input[type='text'] {
+  min-height: 40px;
+  padding: 8px 12px;
+  background: var(--surface-2);
+  color: var(--text);
+  border: 1.5px solid transparent;
+  border-radius: var(--r-sm);
+  font: inherit;
+}
+input[type='number']:focus, input:not([type]):focus, input[type='text']:focus { border-color: var(--accent); outline: none; }
+
+/* Sliders: a thick track filled up to a round thumb (fill set by widgets.ts). */
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 28px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y; /* a vertical swipe scrolls the sheet (widgets.ts keeps the value) */
+  --fill: 50%;
+}
+input[type='range']::-webkit-slider-runnable-track {
+  height: 6px; border-radius: 3px;
+  background:
+    linear-gradient(to right, transparent calc(var(--mark, -9px) - 1px), var(--text) 0, var(--text) calc(var(--mark, -9px) + 1px), transparent 0),
+    linear-gradient(to right, var(--accent) var(--fill), var(--surface-3) var(--fill));
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px; border: 0; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+}
+input[type='range']::-moz-range-track { height: 6px; border-radius: 3px; background: linear-gradient(to right, transparent calc(var(--mark, -9px) - 1px), var(--text) 0, var(--text) calc(var(--mark, -9px) + 1px), transparent 0), var(--surface-3); }
+input[type='range']::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent); }
+input[type='range']::-moz-range-thumb { width: 22px; height: 22px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4); }
+
+/* Checkboxes are switches. */
+input[type='checkbox'] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  flex: none;
+  width: 42px; height: 24px; margin: 0;
+  border-radius: 999px;
+  background: var(--surface-3);
+  cursor: pointer;
+  transition: background 0.18s;
+}
+input[type='checkbox']::after {
+  content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;
+  background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); transition: transform 0.18s var(--ease);
+}
+input[type='checkbox']:checked { background: var(--accent); }
+input[type='checkbox']:checked::after { transform: translateX(18px); }
+input[type='checkbox']:disabled { opacity: 0.5; cursor: not-allowed; }
+:root[data-theme='light'] input[type='checkbox']:not(:checked) { background: #c5cbd3; } /* an off switch on white was nearly invisible */
+
+label.check { display: flex; gap: 10px; align-items: center; cursor: pointer; }
+
+.segmented { display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-2); border-radius: 999px; }
+.segmented button { min-height: 32px; padding: 4px 14px; border-radius: 999px; background: transparent; color: var(--muted); font-size: 13px; }
+@media (hover: hover) { .segmented button:hover { color: var(--text); background: transparent; } }
+.segmented button.active { background: var(--surface-3); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); }
+:root[data-theme='light'] .segmented button.active { background: #fff; }
+
+/* The speed selector, like a gear selector: P · 1 · 2 · 3. */
+.gear { display: inline-flex; gap: 2px; padding: 4px; background: var(--surface-2); border-radius: 999px; }
+.gear button {
+  min-width: 54px; height: 42px; min-height: 0; padding: 0; border-radius: 999px;
+  background: transparent; color: var(--muted); font-size: 19px; font-weight: 650; font-variant-numeric: tabular-nums;
+}
+@media (hover: hover) { .gear button:hover { background: transparent; color: var(--text); } }
+.gear button.active { background: var(--surface-3); color: var(--text); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); }
+:root[data-theme='light'] .gear button.active { background: #fff; }
+.gear-compact { padding: 3px; }
+.gear-compact button { min-width: 40px; height: 32px; }
+.gear button .i { width: 18px; height: 18px; stroke-width: 1.5; }
+
+.muted { color: var(--muted); }
+.legend { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; }
+h3.sub { font-size: 12px; color: var(--muted); margin: 16px 0 8px; font-weight: 600; letter-spacing: 0.02em; }
+#info h3.sub { font-size: 12.5px; color: var(--text); font-weight: 650; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); } /* the card's long list in parts */
+h3.sub .score { color: var(--text); font-size: 14px; margin-left: 2px; }
+h3.sub .score.neg { color: var(--danger); }
+
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+td { padding: 5px 0; vertical-align: top; }
+td:last-child { text-align: right; }
+td.neg, .neg { color: var(--danger); }
+.pos { color: var(--good); }
+
+kbd {
+  display: inline-block; min-width: 1.6em; padding: 0 5px; border-radius: 6px;
+  border: 1px solid var(--line-strong); border-bottom-width: 2px; background: var(--surface-2);
+  font: 600 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; color: var(--muted);
+}
+
+/* ------------------------------------------------------------------ status bar */
+
+#statusbar {
+  grid-area: bar;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 10px 0 16px;
+  background: var(--chrome);
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+  z-index: 10;
+}
+.sb-left { display: flex; align-items: center; gap: 10px; flex: 1 1 0; min-width: 0; }
+.logo {
+  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; flex: none;
+  background: var(--accent); color: #fff;
+}
+.logo .i { width: 16px; height: 16px; stroke-width: 2.2; }
+#city-title {
+  min-height: 34px; padding: 4px 8px; background: none; border-radius: 10px; color: var(--text);
+  font-size: 15px; font-weight: 650; letter-spacing: 0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;
+}
+@media (hover: hover) { #city-title:hover { background: var(--surface-2); } }
+.sb-center { display: flex; align-items: center; justify-content: center; gap: 16px; flex: none; font-variant-numeric: tabular-nums; }
+#sb-date { position: relative; }
+#sb-date::after { content: ''; position: absolute; left: 0; bottom: -2px; height: 2px; width: var(--month-pct, 0%); border-radius: 1px; background: var(--accent); opacity: 0.55; transition: width 0.25s linear; }
+#sb-date.turned { animation: month-in 0.3s var(--ease); }
+@keyframes month-in { from { opacity: 0.35; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.sb-date { font-size: 15px; font-weight: 650; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; min-width: 6.6em; text-align: right; } /* months of different length don't shift the speed buttons */
+.sb-wind { display: inline-flex; align-items: center; gap: 5px; min-width: 5.5em; color: var(--muted); font-size: 13px; } /* "↙ 강풍" and "→" take the same room */
+.sb-wind .i { width: 17px; height: 17px; }
+/* Population and money in sight while building (the pane that also lists them can be closed, or folded on a new map). */
+.sb-kpis { display: flex; gap: 12px; white-space: nowrap; font-size: 13px; color: var(--muted); }
+.sb-kpis b { color: var(--text); font-weight: 650; }
+.sb-right { display: flex; align-items: center; justify-content: flex-end; gap: 2px; flex: 1 1 0; }
+
+.dropdown { position: relative; }
+.dropdown > summary { list-style: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+.dropdown > summary::-webkit-details-marker { display: none; }
+.dropdown[open] > summary { background: var(--surface-2); color: var(--text); }
+.dropdown-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 30; min-width: 230px;
+  display: grid; gap: 2px; padding: 8px; background: var(--float-solid); border: 1px solid var(--line);
+  border-radius: var(--r-lg); box-shadow: var(--shadow); backdrop-filter: blur(20px);
+  animation: pop-in 0.16s var(--ease);
+  max-height: calc(100dvh - var(--bar-h) - 16px); overflow-y: auto; /* a sideways phone cut off its last items */
+}
+.dropdown-menu button, .dropdown-menu .button { justify-content: flex-start; gap: 12px; width: 100%; min-height: 40px; background: transparent; font-weight: 500; }
+@media (hover: hover) { .dropdown-menu button:hover, .dropdown-menu .button:hover { background: var(--surface-2); } }
+.dropdown-menu .i { width: 18px; height: 18px; color: var(--muted); }
+.seed-row button .i { width: 18px; height: 18px; }
+.dropdown-menu hr { border: none; border-top: 1px solid var(--line); margin: 4px 6px; }
+.menu-note { margin: 6px 12px 4px; font-size: 12px; color: var(--muted); max-width: 230px; }
+
+/* ------------------------------------------------------------------ instrument pane */
+
+#pane {
+  grid-area: pane;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 18px 16px 24px;
+  overflow-y: auto;
+  background: var(--pane);
+  border-right: 1px solid var(--line);
+  /* Fades out at the foot instead of cutting a line in half. */
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
+}
+.pane-grip, .pane-close { display: none; }
+#pane.fresh #onboarding { order: -1; }
+/* Before anyone lives here the figures all read 0: the checklist says what to do instead. */
+#pane.fresh #onboarding:not([hidden]) ~ #status .summary { display: none; }
+.watch-fold > summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; list-style: none; }
+.watch-fold > summary::-webkit-details-marker { display: none; }
+.watch-fold > summary { padding: 0 6px; }
+.watch-fold > summary h2 { margin: 0; font-size: 13.5px; font-weight: 650; }
+.watch-fold[open] > summary { margin-bottom: 8px; }
+@media (max-width: 860px) { #pane.fresh #onboarding, #pane:not(.fresh) #status { margin-top: 34px; } } /* clear of the close button */
+
+#status { display: grid; gap: 14px; } /* the same rhythm as the cards below it */
+.hero { display: grid; gap: 4px; padding: 2px 4px 4px; }
+.hero-value { font-size: 60px; font-weight: 600; line-height: 1; letter-spacing: -0.035em; font-variant-numeric: tabular-nums; }
+.hero-label { display: flex; align-items: baseline; gap: 8px; font-size: 14px; color: var(--muted); }
+.hero-label .k-sub { font-size: 13px; }
+.hero-total { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.summary {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px 14px;
+  padding: 14px 16px; background: var(--surface); border-radius: var(--r-lg);
+}
+.sum-main { display: grid; grid-template-columns: auto auto 1fr; align-items: baseline; column-gap: 8px; min-width: 0; }
+.sum-label { grid-column: 1 / -1; font-size: 12px; color: var(--muted); }
+.sum-value { font-size: 34px; font-weight: 700; line-height: 1.05; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.sum-main .k-sub { font-size: 12.5px; }
+.sum-total { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.sum-side { display: grid; gap: 8px; justify-items: end; text-align: right; }
+.sum-side > div { display: grid; justify-items: end; }
+.sum-side span { font-size: 11.5px; color: var(--muted); }
+.sum-side b { font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.sum-side .k-sub { font-size: 11px; }
+.sum-side .bad b { color: var(--danger); }
+.kpis { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+/* Funds read like a car's range: one wide row with the monthly balance beside it. */
+.kpis .kpi:first-child { grid-column: 1 / -1; grid-template-columns: auto 1fr auto; align-items: baseline; column-gap: 10px; }
+.kpis .kpi:first-child .k-value { font-size: 20px; }
+.kpi { display: grid; align-content: start; gap: 1px; min-width: 0; padding: 10px 14px; background: var(--surface); border-radius: var(--r-md); }
+.kpi .k-label { font-size: 12px; color: var(--muted); }
+.kpi .k-value { font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi.bad .k-value { color: var(--danger); }
+.k-sub { font-size: 12px; font-weight: 550; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.k-sub.pos { color: var(--good); }
+.k-sub.neg { color: var(--danger); }
+
+.gauges { display: grid; padding: 4px 14px; background: var(--surface); border-radius: var(--r-lg); }
+.gauge {
+  display: grid; grid-template-columns: 20px auto minmax(0, 1fr); grid-template-areas: 'icon label value' 'bar bar bar';
+  align-items: center; column-gap: 8px; row-gap: 7px; padding: 10px 0; border-bottom: 1px solid var(--line);
+}
+.gauge:last-child { border-bottom: 0; }
+.gauge > .i { grid-area: icon; width: 18px; height: 18px; color: var(--muted); }
+.g-label { grid-area: label; font-size: 13.5px; }
+.g-value { grid-area: value; justify-self: end; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.g-value b { color: var(--text); font-weight: 650; }
+.g-bar { grid-area: bar; height: 4px; overflow: hidden; border-radius: 2px; background: var(--surface-3); }
+.g-bar i { display: block; height: 100%; border-radius: 2px; background: var(--data); transition: width 0.4s var(--ease); }
+.gauge.warn .g-bar i { background: var(--warn); }
+.gauge.bad .g-bar i { background: var(--danger); }
+.g-bar.rate i { background: var(--good); }
+.gauge.bad > .i, .gauge.bad .g-value b { color: var(--danger); }
+
+/* The watch list: each goal's state in a row; a row opens its goal. */
+.watch-head { display: flex; align-items: center; justify-content: flex-start; gap: 8px; }
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.watch-head h2 { margin: 0; font-size: 13.5px; font-weight: 650; white-space: nowrap; }
+.watch-head .chip, .watch-sort { white-space: nowrap; flex: none; }
+.watch-sort { margin-left: auto; min-height: 24px; padding: 0 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 12px; font-weight: 550; text-decoration: none; }
+.watch-sort[aria-pressed='true'] { background: var(--accent-soft); color: var(--accent-hi); }
+@media (hover: hover) { .watch-sort:hover { background: var(--surface-3); color: var(--text); } }
+.watch-head > .chip { margin-left: auto; }
+/* The goals that are fine: one quiet line that opens to them. */
+.watch-rest > summary { display: flex; align-items: center; gap: 6px; padding: 8px; color: var(--muted); font-size: 12.5px; cursor: pointer; list-style: none; border-radius: var(--r-sm); }
+.watch-rest > summary::-webkit-details-marker { display: none; }
+.watch-rest > summary::after { content: ''; width: 14px; height: 14px; margin-left: auto; background: var(--chevron) center / 14px no-repeat; transition: transform 0.2s var(--ease); }
+.watch-rest[open] > summary::after { transform: rotate(180deg); }
+@media (hover: hover) { .watch-rest > summary:hover { background: var(--surface-2); color: var(--text); } }
+.watch-list + .watch-rest { margin-top: 2px; border-top: 1px solid var(--line); padding-top: 2px; }
+.chip.good { background: var(--good-soft); color: var(--good-ink); }
+/* A fire or a riot on a goal's screen: before anything else, with where and the unit to send. */
+.mg-alert { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 10px; align-items: start; padding: 12px; border-radius: var(--r-md); background: var(--danger-soft, rgba(220, 50, 50, 0.12)); color: var(--danger-ink); }
+.mg-alert > .i { width: 20px; height: 20px; margin-top: 1px; }
+.mg-alert b { display: block; font-size: 14px; }
+.mg-alert small { display: block; font-size: 12px; color: var(--text); opacity: 0.85; margin-top: 2px; }
+.mg-alert .advice-acts { grid-column: 2; }
+.advice-view.act-now { background: var(--danger); color: #fff; }
+.advice-view.act-now .i { color: #fff; }
+/* 다음 보상: the nearest reward under the headline figures, a goal further off than this month's problems. */
+.sum-next { grid-column: 1 / -1; display: grid; justify-content: stretch; width: 100%; min-height: 0; gap: 4px; margin-top: 8px; padding: 10px 0 0; border-top: 1px solid var(--line); background: transparent; text-align: left; border-radius: 0; color: inherit; }
+.sum-next-head { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+.sum-next-head .i { width: 14px; height: 14px; color: var(--accent-hi); }
+.sum-next-head b { color: var(--text); font-weight: 650; }
+.sum-next-pct { margin-left: auto; font-variant-numeric: tabular-nums; }
+.sum-next .w-bar { grid-area: auto; margin: 0; height: 2px; }
+.sum-next .w-bar i { background: var(--accent); }
+.sum-next-left { font-size: 11.5px; color: var(--muted); line-height: 1.35; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.sum-next:hover .sum-next-head b { color: var(--accent-hi); }
+/* 지금 할 일: the one thing to do next, above the list (its edge in the goal's tone). */
+.news-when { margin-right: 6px; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+/* The state is the chip's (a coloured edge said it twice); only an emergency tints the card. */
+.next-card { display: grid; gap: 4px; padding: 14px 16px; }
+.next-card.bad:has(.next-do[data-next-kind='incident']) { background: var(--danger-soft); }
+.next-head { display: flex; align-items: center; gap: 8px; }
+.next-title { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.next-title .i { width: 13px; height: 13px; }
+.next-head .chip { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.next-head .chip .i { width: 13px; height: 13px; }
+.next-what { margin: 2px 0 0; font-size: 14.5px; font-weight: 650; line-height: 1.3; word-break: keep-all; }
+.next-why { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; word-break: keep-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.next-acts { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.next-acts .primary { min-height: 34px; padding: 6px 14px; }
+.watch-card { padding: 12px 8px 6px; }
+.w-drift { margin-right: 4px; font-size: 10px; vertical-align: 1px; }
+.w-drift.up { color: var(--good-ink, var(--good)); }
+.w-drift.down { color: var(--danger-ink); }
+.w-wait { margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 10.5px; font-weight: 600; vertical-align: 1px; }
+.watch-group { padding: 10px 8px 2px; font-size: 11px; font-weight: 650; color: var(--faint); letter-spacing: 0.02em; }
+.watch-list > .watch-group:first-child { padding-top: 2px; }
+.watch-card .watch-head { padding: 0 6px 6px; }
+.watch-list { display: grid; }
+.watch {
+  display: grid; justify-content: stretch; grid-template-columns: 30px minmax(0, auto) minmax(0, 1fr) 14px; grid-template-areas: 'icon name val go' 'icon note note go' 'icon bar bar go';
+  align-items: center; column-gap: 10px; row-gap: 2px; width: 100%; padding: 8px 8px; text-align: left;
+  background: transparent; border-radius: var(--r-md);
+}
+.watch { position: relative; }
+/* A straight hairline between rows, from the text on (a shadow followed the rounded corners). */
+.watch + .watch::before { content: ''; position: absolute; top: 0; left: 48px; right: 8px; height: 1px; background: var(--line); }
+@media (hover: hover) { .watch:hover { background: var(--surface-2); } .watch:hover::before, .watch:hover + .watch::before { opacity: 0; } }
+.watch.on::before, .watch.on + .watch::before { opacity: 0; }
+.watch.on { background: var(--accent-soft); }
+/* The goal's icon on a tile tinted by its state: neutral, amber, red. */
+.watch > .w-i { grid-area: icon; align-self: center; box-sizing: content-box; width: 16px; height: 16px; padding: 7px; border-radius: 9px; background: transparent; color: var(--faint); } /* a tile behind the icon only when it needs attention */
+.watch.warn > .w-i { background: var(--warn-soft); color: var(--warn-ink); }
+.watch.bad > .w-i { background: var(--danger-soft); color: var(--danger-ink); }
+.w-name { grid-area: name; font-size: 13.5px; font-weight: 600; white-space: nowrap; }
+.w-val { grid-area: val; justify-self: end; font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.w-note { grid-area: note; display: flex; align-items: center; gap: 4px; min-width: 0; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+.w-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* An alert's note says what is wrong: two lines rather than cut off. */
+.watch:is(.warn, .bad) .w-note { white-space: normal; align-items: flex-start; }
+.watch:is(.warn, .bad) .w-txt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.w-bar { grid-area: bar; height: 2px; margin-top: 5px; overflow: hidden; border-radius: 1px; background: var(--surface-2); }
+.w-bar i { display: block; height: 100%; border-radius: 2px; background: var(--data); transition: width 0.4s var(--ease); }
+.watch > .w-go { grid-area: go; width: 14px; height: 14px; color: var(--muted); opacity: 0.6; }
+.watch.warn .w-note { color: var(--warn-ink); }
+.watch.warn .w-bar i { background: var(--warn); }
+.watch.bad .w-note { color: var(--danger-ink); } /* (the value stays neutral: "+520" in red read as bad news) */
+.watch.bad .w-bar i { background: var(--danger); }
+
+/* A goal's screen takes the pane; the overview steps aside until it closes. */
+#manage { display: none; }
+#pane.managing #manage { display: grid; gap: 12px; align-content: start; }
+#pane.managing > :not(#manage):not(.pane-grip):not(.pane-close) { display: none; }
+.mg-head { display: flex; align-items: center; gap: 8px; position: sticky; top: -18px; z-index: 1; margin: -18px -16px 0; padding: 14px 16px 10px; background: var(--pane); }
+.mg-head h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 17px; font-weight: 700; }
+.mg-head h2 .i { width: 20px; height: 20px; color: var(--accent-hi); }
+.mg-head .chip { margin-left: auto; }
+/* The clock beside the goal's name: a quiet pill while time runs, amber when paused (the city waits). */
+.mg-time { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; min-height: 26px; padding: 0 9px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11.5px; font-weight: 600; }
+.mg-time .i { width: 13px; height: 13px; }
+.mg-time.on .i { color: var(--accent-hi); }
+.mg-time:not(.on) { background: var(--warn-soft); color: var(--text); }
+.mg-time + .chip { margin-left: 0; }
+.mg-back { flex: none; }
+.mg-switch { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; margin-top: -4px; } /* every goal in sight (a scrolling row hid the last ones) */
+.mg-switch button { position: relative; flex: none; display: grid; place-items: center; width: 100%; height: 30px; border-radius: 8px; background: transparent; color: var(--muted); }
+.mg-switch button .i { width: 17px; height: 17px; }
+.mg-switch button.on { background: var(--accent-soft); color: var(--accent-hi); }
+@media (hover: hover) { .mg-switch button:hover { background: var(--surface-2); } }
+.mg-switch button.bad::after, .mg-switch button.warn::after { content: ''; position: absolute; top: 4px; right: max(4px, calc(50% - 16px)); width: 7px; height: 7px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--pane); } /* on its icon at any column width */
+.mg-switch button.warn::after { background: var(--warn); }
+.delta { font-size: 11px; line-height: 1.2; font-weight: 600; color: var(--muted); }
+.delta.up { color: var(--good-ink); }
+.delta.down { color: var(--danger-ink); }
+.mg-log { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 12.5px; }
+.mg-log span { display: inline-block; min-width: 92px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mg-aim { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.mg-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.mg-m:last-child:nth-child(odd) { grid-column: 1 / -1; grid-template-columns: auto 1fr; align-items: baseline; column-gap: 10px; } /* no lone half-tile */
+.mg-m:last-child:nth-child(odd) b { justify-self: end; }
+.mg-m:last-child:nth-child(odd) .delta { grid-column: 1 / -1; justify-self: end; }
+.mg-m { display: grid; gap: 2px; padding: 8px 10px; background: var(--surface); border-radius: var(--r-md); min-width: 0; }
+.mg-m span { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mg-m b { font-size: 14.5px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mg-m.bad b { color: var(--danger-ink); }
+.mg-m.warn b { color: var(--warn-ink); }
+.mg-m.good b { color: var(--good-ink); }
+.mg-sec { display: grid; gap: 6px; padding: 12px; background: var(--surface); border-radius: var(--r-lg); }
+.mg-sec h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 2px; font-size: 13px; font-weight: 650; }
+.mg-sec h3 .i { width: 15px; height: 15px; color: var(--muted); }
+.mg-sec .advice { margin: 0; }
+.mg-sec .funding.dept { margin-top: 0; }
+.mg-sec .funding.mg-group { grid-template-columns: 92px minmax(0, 1fr) 52px; margin-top: 0; }
+.mg-sec .funding.mg-group span { grid-column: auto; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.mg-sec .funding.mg-group span.note { grid-column: 2 / -1; text-align: left; margin-top: -4px; font-size: 11.5px; }
+.mg-sec .ordinance { margin-bottom: 4px; }
+.mg-views { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mg-views > .i { width: 16px; height: 16px; color: var(--muted); margin-right: 2px; }
+.mg-views .vchip { min-height: 30px; padding: 0 11px; font-size: 12.5px; }
+.acts { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 6px; }
+/* In the pane's width two columns wrapped every line: one wide row each, name and price across, what it gives below. */
+#manage .acts { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
+#manage .acts > .act { grid-column: 1 / -1; }
+#manage .acts > .act.act-chip { grid-column: span 2; padding: 8px 6px; }
+#manage .act-chip .act-name { font-size: 11.5px; gap: 4px; white-space: nowrap; }
+#manage .act-chip .act-sub { display: none; }
+#manage .act { grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; padding: 8px 10px; }
+#manage .act-name { grid-column: 1; }
+#manage .act-sub { grid-column: 1 / -1; }
+#manage .act-fx { grid-column: 1 / -1; }
+.act {
+  display: grid; justify-content: stretch; justify-items: start; gap: 2px; min-width: 0; padding: 8px 10px; text-align: left;
+  background: var(--surface-2); border-radius: var(--r-md);
+}
+.act.wanted, .act.best { box-shadow: inset 0 0 0 1.5px var(--good); }
+.act-best { margin-left: 2px; padding: 0 5px; border-radius: 999px; background: var(--good-soft); color: var(--good-ink); font-size: 10.5px; font-style: normal; font-weight: 650; }
+.act-name { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; font-weight: 600; line-height: 1.25; word-break: keep-all; }
+.act-name .i { flex: none; width: 15px; height: 15px; }
+.act-name .swatch { flex: none; width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.act-sub { font-size: 11.5px; color: var(--muted); line-height: 1.3; word-break: keep-all; }
+.act.short .act-sub { color: var(--danger-ink); }
+.act-more { background: transparent; box-shadow: none; border: 1px dashed var(--line-strong); }
+.act-fx { font-size: 11px; font-weight: 600; color: var(--good-ink); }
+.act-fx.neg { color: var(--danger-ink); }
+.mg-spot { display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 12px; background: var(--accent-soft); border-radius: var(--r-md); font-size: 12.5px; line-height: 1.4; }
+.mg-spot > .i { flex: none; width: 18px; height: 18px; color: var(--accent-hi); }
+.mg-spot > span { flex: 1; min-width: 0; }
+.mg-spot .advice-view { flex: none; background: var(--surface); }
+/* With 여기에 짓기 the buttons go under the words (beside them the words were squeezed to a column). */
+.mg-spot:has(.spot-build) { flex-wrap: wrap; }
+.mg-spot:has(.spot-build) > .advice-acts { flex: 1 1 100%; display: flex; justify-content: flex-end; gap: 6px; margin: 0; }
+.mg-spot .advice-view.spot-build { background: var(--accent); color: var(--accent-ink); font-weight: 650; }
+.mg-spot .spot-build .i { color: inherit; }
+@media (hover: hover) { .mg-spot .advice-view.spot-build:hover { background: var(--accent-hi); } }
+.mg-facs { display: grid; gap: 2px; }
+.fac { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; border-radius: var(--r-md); }
+.fac-main { display: grid; justify-content: stretch; justify-items: start; gap: 1px; min-width: 0; padding: 6px 8px; text-align: left; background: transparent; border-radius: var(--r-md); }
+@media (hover: hover) { .fac-main:hover { background: var(--surface-2); } }
+.fac-name { font-size: 12.5px; font-weight: 600; }
+.fac-line { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mg-sec .fac-main { margin-inline-start: -8px; } /* names in line with the section's heading; the press area keeps its padding */
+.fac.warn .fac-line { color: var(--warn-ink); }
+.fac.bad .fac-line { color: var(--danger-ink); }
+.fac-fund { display: inline-flex; align-items: center; gap: 4px; }
+.fac-fund .tax-step { display: inline-grid; place-items: center; width: 26px; min-height: 26px; font-size: 15px; }
+.fac-fund > span { display: grid; justify-items: center; min-width: 52px; font-variant-numeric: tabular-nums; }
+.fac-fund b { font-size: 12.5px; font-weight: 650; }
+.fac-fund small { font-size: 10.5px; color: var(--muted); }
+.fac-fund.dept-note { font-size: 11px; color: var(--muted); padding: 3px 8px; margin-right: 4px; white-space: nowrap; border-radius: 999px; background: var(--surface-2); }
+.mg-more { justify-self: start; font-size: 12.5px; }
+.mg-links { background: transparent; padding: 0 4px; gap: 4px; }
+.mg-links .link { display: inline-flex; align-items: center; gap: 4px; justify-self: start; font-size: 13px; }
+.mg-links .link .i { width: 14px; height: 14px; }
+.mg-tax { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; }
+.mg-tax .tax-effect { grid-column: 1 / -1; font-size: 11.5px; }
+.mg-tax .tax-step { display: inline-grid; place-items: center; width: 28px; min-height: 28px; }
+.mg-tax .tax-out { display: inline-flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.mg-bars { display: grid; gap: 4px; }
+.mg-bar { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; align-items: center; gap: 8px; font-size: 12px; }
+.mg-bar i { display: block; height: 6px; border-radius: 3px; background: var(--data); } /* spending is not "bad": the neutral data colour, as in the budget sheet */
+.mg-bar b { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* On the map while a goal is open: its name and state; tap to bring its panel back, ✕ to end it. */
+#manage-chip { top: 14px; left: 14px; z-index: 4; display: none; align-items: center; gap: 4px; padding: 3px 3px 3px 4px; border-radius: 999px; }
+#manage-chip-label { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 8px; border-radius: 999px; background: transparent; font-size: 13px; }
+#manage-chip-label .i { width: 16px; height: 16px; color: var(--accent-hi); }
+#manage-chip-label b { font-weight: 650; }
+#manage-chip.bad { box-shadow: inset 0 0 0 1.5px var(--danger); }
+#manage-chip.warn { box-shadow: inset 0 0 0 1.5px var(--warn); }
+#manage-chip .icon-btn { width: 30px; height: 30px; border-radius: 999px; }
+/* Shown where the pane isn't: map-only (F) on wide screens, and on phones (the pane is a sheet there). */
+#app.focus #manage-chip:not([hidden]) { display: flex; top: 14px; left: auto; right: 74px; } /* beside the zoom buttons, clear of the view picker's legend */
+@media (max-width: 860px) {
+  #manage-chip:not([hidden]) { display: flex; top: 66px; left: 10px; }
+  #app.pane-open #manage-chip { visibility: hidden; }
+  /* Phones: the goals in trouble stay in sight over the map (the pane that lists them is a sheet here). */
+  #goal-strip:not([hidden]) { display: flex; top: 19px; left: 74px; right: 74px; gap: 6px; padding: 0; background: transparent; box-shadow: none; border: 0; -webkit-backdrop-filter: none; backdrop-filter: none; overflow-x: auto; scrollbar-width: none; }
+  #app.pane-open #goal-strip, #view.holding #goal-strip, #view.sheet-open #goal-strip { visibility: hidden; }
+  #view:has(#map-layer:not(.off)) #goal-strip { visibility: hidden; } /* (a view's legend opens under it) */
+  #view:has(#manage-chip:not([hidden])) #toasts { margin-top: 50px; } /* below the chip */
+  /* The sheet's padding is taller here: the sticky head starts at its edge, and keeps clear of the close button. */
+  .mg-head { top: -26px; margin-top: -26px; padding-top: 22px; padding-right: 52px; }
+  /* Half the screen: the goal's map view stays in sight above it. */
+  #pane.managing { max-height: min(60dvh, calc(100dvh - var(--bar-h) - var(--dock-h) - 12px)); }
+}
+
+.card { padding: 14px 14px; /* one inset with the KPIs and gauges */ background: var(--surface); border-radius: var(--r-lg); }
+.card h2 { margin: 0 0 10px; font-size: 13.5px; font-weight: 650; letter-spacing: 0.01em; }
+.card .card { background: var(--surface-2); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.chips.alerts { margin: 0; }
+.chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px; background: var(--surface-3); font-size: 12px; font-weight: 550; }
+.chip .i { width: 14px; height: 14px; }
+.chip.bad { background: var(--danger-soft); color: var(--danger-ink); }
+.chip.warn { background: var(--warn-soft); color: var(--warn-ink); }
+.chip.gold { background: var(--gold-soft); color: var(--gold-ink); }
+
+/* RCI demand: one bar per class, centred at zero. */
+.rci { display: grid; grid-template-columns: repeat(3, 1fr); align-items: start; gap: 10px; margin-bottom: 6px; }
+.rci-col { display: grid; justify-items: center; gap: 3px; padding: 6px 0; border-radius: var(--r-md); cursor: pointer; transition: background 0.15s; }
+@media (hover: hover) { .rci-col:hover { background: var(--surface-2); } }
+.rci-bar { position: relative; width: 30px; height: 64px; overflow: hidden; border-radius: 8px; background: var(--surface-3); }
+.rci-bar::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line-strong); }
+.rci-fill { position: absolute; left: 0; right: 0; border-radius: 8px; }
+.rci-label { font-size: 15px; font-weight: 700; color: var(--text); }
+.rci-value { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rci-note { color: var(--muted); font-size: 11px; font-weight: 600; }
+.rci-cap { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 999px; background: var(--warn-soft); color: var(--warn-ink); font-size: 11px; font-weight: 600; }
+.rci-cap .i { width: 11px; height: 11px; }
+#demand details summary { margin: 4px 0; color: var(--muted); font-size: 12.5px; cursor: pointer; }
+.demand-row { cursor: pointer; }
+.demand-row { display: grid; grid-template-columns: 46px minmax(0, 1fr) 48px; align-items: center; gap: 8px; height: 22px; }
+.demand-row .label { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.demand-row .value { text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar { position: relative; height: 6px; border-radius: 3px; background: var(--surface-3); }
+.bar::after { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--line-strong); }
+.bar .fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
+
+/* Advisor alerts and notices, like a car's alert cards. */
+.advice {
+  margin: 8px 0 0; padding: 10px 12px; border-radius: var(--r-md);
+  background: var(--warn-soft); color: var(--warn-ink); font-size: 13px; line-height: 1.5; word-break: keep-all;
+}
+.advice.good { background: var(--good-soft); color: var(--good-ink); }
+/* A problem reads red like a gauge in trouble; a notice amber; a tip grey. */
+.advice.bad { background: var(--danger-soft); color: var(--danger-ink); }
+.advice.neutral { background: var(--surface-2); color: var(--text); }
+.advice b { font-weight: 650; }
+.advice .adv-i { width: 15px; height: 15px; margin-right: 5px; vertical-align: -3px; stroke-width: 2; }
+.advice-view {
+  min-height: 26px; margin: 4px 4px 0 0; /* wrapped onto a line of their own they sit at its start */ padding: 2px 10px; border-radius: 999px; vertical-align: middle;
+  background: var(--surface-2); color: var(--text); font-size: 12px; font-weight: 600;
+}
+/* On a tinted advice card the pill is the card's surface (on a plain card, surface-2 above). */
+.advice .advice-view { background: var(--surface); }
+.advice-view .i { width: 13px; height: 13px; margin-right: 3px; stroke-width: 2.4; }
+.growth .advice-view { background: var(--surface-2); }
+@media (hover: hover) { .growth .advice-view:hover { background: var(--surface-3); } }
+@media (hover: hover) { .advice-view:hover { background: var(--surface-3); } }
+.info-goal {
+  display: inline-flex; align-items: center; gap: 6px; justify-self: start; min-height: 30px; margin: 2px 0 4px; padding: 0 8px 0 10px;
+  border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 12.5px; font-weight: 600;
+}
+.info-goal .i { width: 14px; height: 14px; }
+@media (hover: hover) { .info-goal:hover { filter: brightness(1.05); } }
+.advice-goal {
+  display: inline-flex; align-items: center; gap: 2px; min-height: 26px; margin: 2px 0 0 2px; padding: 0 6px 0 9px; border-radius: 999px;
+  background: var(--surface); color: var(--accent-hi); font-size: 12px; font-weight: 600; vertical-align: middle;
+}
+.advice-goal .i { width: 13px; height: 13px; }
+@media (hover: hover) { .advice-goal:hover { background: var(--surface-3); } }
+
+/* Getting started */
+#onboarding .sample { display: grid; gap: 6px; margin-bottom: 12px; }
+#onboarding-sample { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 40px; font-weight: 600; }
+#onboarding-sample .i { width: 16px; height: 16px; }
+#onboarding .sample .legend { margin: 0; }
+.step-progress { height: 4px; overflow: hidden; border-radius: 2px; background: var(--surface-3); }
+.step-progress i { display: block; height: 100%; border-radius: 2px; background: var(--good); }
+.steps { display: grid; gap: 2px; margin: 8px -8px; padding: 0; list-style: none; font-size: 13px; }
+/* Finished steps fold into one line, so the next one sits at the top. */
+.steps-done { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+.steps-done > summary { display: flex; gap: 6px; align-items: center; cursor: pointer; list-style: none; }
+.steps-done > summary::-webkit-details-marker { display: none; }
+.steps-done > summary .i { width: 16px; height: 16px; color: var(--good); }
+.steps-done .steps { margin-top: 4px; }
+.steps-later { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.steps-later > summary { cursor: pointer; padding: 4px 0; }
+.steps-later .steps { margin-top: 4px; }
+.step {
+  display: flex; align-items: center; justify-content: flex-start; gap: 10px; width: 100%; min-height: 36px; padding: 6px 8px;
+  background: transparent; color: var(--text); border-radius: var(--r-sm); text-align: left; font-weight: 500; line-height: 1.35;
+}
+@media (hover: hover) { button.step:hover { background: var(--surface-2); } }
+.step-text { flex: 1; min-width: 0; word-break: keep-all; }
+.step-dot { display: grid; place-items: center; flex: none; width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--faint); }
+.step-dot .i { width: 12px; height: 12px; stroke-width: 3; }
+.done .step { color: var(--faint); }
+.done .step-dot { background: var(--good); box-shadow: none; color: #fff; }
+.step-go { width: 16px; height: 16px; color: var(--faint); }
+/* The step to do now: tinted, its dot and arrow in the accent. */
+.steps li.next .step { background: var(--accent-soft); font-weight: 600; }
+.steps li.next .step-dot { box-shadow: inset 0 0 0 2px var(--accent); }
+.steps li.next .step-go { color: var(--accent-hi); }
+.step-foot { display: flex; justify-content: space-between; }
+
+/* ------------------------------------------------------------------ map */
+
+#view { grid-area: view; position: relative; overflow: hidden; background: var(--view-bg); min-width: 0; }
+#map { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; }
+
+.floating {
+  position: absolute;
+  background: var(--float);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  -webkit-backdrop-filter: blur(18px) saturate(1.3);
+  backdrop-filter: blur(18px) saturate(1.3);
+}
+
+#map-layer { top: 14px; left: 14px; z-index: 3; width: min(300px, calc(100% - 96px)); padding: 6px; }
+#map-layer:not(.off) { padding-bottom: 12px; }
+#map-layer.off:not(.picking) { width: auto; } /* closed, as wide as its label (a 300px slab sat over the map) */
+#view.info-open #map-layer.off:not(.picking) { width: auto; } /* (the info card's width rule would win) */
+#map-layer:not(.off) #overlay > :not(.view-current, #view-grid) { width: auto; margin: 0 6px; }
+#map-layer .layer-title {
+  display: none; align-items: center; justify-content: flex-start; gap: 6px; width: 100%; min-height: 0; margin: 0 0 8px; padding: 0;
+  background: none; color: var(--muted); font-size: 12.5px; font-weight: 600; cursor: default; transform: none;
+}
+#map-layer .layer-title .i { width: 16px; height: 16px; }
+#map-layer .legend-toggle { display: none; margin-left: auto; }
+#overlay { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+#overlay select { width: 100%; }
+.view-current { display: flex; gap: 6px; }
+#view-pick {
+  flex: 1; min-width: 0; justify-content: flex-start; gap: 8px; min-height: 40px; padding: 0 12px;
+  background: transparent; color: var(--text); font-weight: 600; border-radius: var(--r-sm);
+}
+@media (hover: hover) { #view-pick:hover { background: var(--surface-2); } } /* one frame, not a box in a box */
+#map-layer.off #view-pick span { color: var(--muted); font-weight: 500; }
+#view-pick span { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#view-pick .i { width: 16px; height: 16px; color: var(--muted); transition: transform 0.2s var(--ease); }
+#view-pick .i:first-child { width: 18px; height: 18px; }
+#map-layer:not(.off) #view-pick .i:first-child { color: var(--accent-hi); }
+#view-pick[aria-expanded='true'] .i:last-child { transform: rotate(180deg); }
+#view-off { width: 40px; height: 40px; flex: none; }
+#view-grid { display: grid; gap: 10px; max-height: min(60vh, 460px); overflow-y: auto; padding: 2px 2px 4px; overscroll-behavior: contain; }
+/* A drag that starts on the view's card selected its text; with a building tool in hand its legend steps aside (the map is the work). */
+#map-layer { -webkit-user-select: none; user-select: none; }
+#view.holding #map-layer:not(.picking) #overlay-legend { display: none !important; }
+#map-layer.picking { z-index: 6; width: min(400px, calc(100% - 96px)); background: var(--float-solid); } /* over the toasts while choosing */
+#map-layer.picking #overlay-legend, #map-layer.picking #overlay-scale, #map-layer.picking #overlay-type { display: none !important; }
+.vg-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
+.vg-head .i { width: 14px; height: 14px; }
+.vg-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.vchip { min-height: 34px; padding: 0 12px; border-radius: 999px; background: var(--surface-2); color: var(--text); font-size: 13px; font-weight: 550; }
+.vchip[aria-pressed='true'] { background: var(--accent-soft); color: var(--active-ink); box-shadow: inset 0 0 0 1.5px var(--accent); }
+#overlay .legend { margin: 0; }
+#overlay .legend:empty { display: none; }
+#overlay-legend .swatch-item { display: inline-flex; align-items: center; gap: 5px; margin: 0 10px 3px 0; white-space: nowrap; }
+#overlay-legend .swatch-item i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; box-shadow: 0 0 0 1px var(--line-strong); } /* outside: a near-black swatch kept its edge on the dark card */
+.overlay-scale { display: grid; gap: 3px; }
+.overlay-scale .scale-bar { height: 8px; border-radius: 4px; }
+.overlay-scale .ends { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); }
+
+/* What tool is in hand (none shown for 조회). */
+#tool-chip {
+  top: 14px; left: 50%; transform: translateX(-50%); z-index: 4;
+  display: flex; align-items: center; gap: 10px; max-width: calc(100% - 2 * 360px);
+  padding: 5px 5px 5px 14px; border-radius: 999px; animation: pop-in 0.18s var(--ease);
+}
+#tool-chip-icon { display: grid; place-items: center; color: var(--accent-hi); }
+#tool-chip-icon .i { width: 20px; height: 20px; }
+#tool-chip-icon .swatch { width: 16px; height: 16px; border-radius: 5px; display: block; }
+#tool-chip-label { cursor: pointer; display: flex; gap: 8px; align-items: baseline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
+#tool-chip-label b { font-weight: 650; }
+#tool-chip-label span { color: var(--muted); font-size: 12.5px; }
+#tool-chip-label span.short, .pick-sub .short { color: var(--danger-ink); }
+.pick-sub .short { font-weight: 650; }
+#tool-chip .icon-btn { width: 30px; height: 30px; border-radius: 999px; }
+#tool-chip .icon-btn .i { width: 16px; height: 16px; }
+/* The tool's siblings under the chip: another road, density or kind in one click. */
+#tool-alts {
+  top: 62px; left: 50%; transform: translateX(-50%); z-index: 4;
+  display: flex; gap: 2px; padding: 3px; border-radius: 999px; max-width: calc(100% - 2 * 225px);
+  overflow-x: auto; scrollbar-width: none; animation: pop-in 0.18s var(--ease);
+}
+#tool-alts[hidden] { display: none; }
+#tool-alts button {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px;
+  border-radius: 999px; font-size: 12.5px; color: var(--muted); white-space: nowrap;
+}
+#tool-alts button:hover { background: var(--surface-2); color: var(--text); }
+#tool-alts button.active { background: var(--accent-soft, var(--surface-3)); color: var(--accent-hi); font-weight: 650; }
+#tool-alts .i { width: 15px; height: 15px; }
+#tool-alts .swatch, #tool-alts .pick-swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; flex: none; }
+#view:has(#confirm-bar:not([hidden])) #tool-alts, #view:has(#tool-chip[hidden]) #tool-alts { display: none; }
+/* The open tool card already shows the same tools: the row comes back when it closes. */
+#view:has(#tray:not([hidden])) #tool-alts { display: none; }
+
+#map-controls { position: absolute; top: 14px; right: 14px; z-index: 3; display: grid; gap: 10px; justify-items: end; transition: right 0.22s var(--ease); }
+#view.info-open #map-controls { right: calc(var(--info-w) + 28px); }
+/* The view picker gives the zoom buttons, now beside the card, room. */
+#view.info-open #map-layer { width: max(200px, min(300px, calc(100% - var(--info-w) - 124px))); }
+#view.info-open #map-layer.picking { width: max(200px, min(400px, calc(100% - var(--info-w) - 124px))); }
+/* Too narrow for both: the buttons step aside while the card is open (wheel and pinch still zoom). */
+@media (min-width: 861px) and (max-width: 941px) { #view.info-open #map-controls { visibility: hidden; } }
+#map-zoom { position: static; display: grid; gap: 2px; padding: 4px; border-radius: var(--r-lg); }
+#map-zoom .icon-btn { width: 40px; height: 40px; color: var(--text); }
+/* Zooming is the wheel, a pinch or + −: only 전체 보기 stays, and only while zoomed in (as the minimap). */
+#zoom-in, #zoom-out { display: none !important; }
+#minimap, #map-zoom { transition: opacity 0.25s var(--ease); }
+#view.whole-view :is(#minimap, #map-zoom) { opacity: 0; pointer-events: none; }
+#minimap { position: static; display: block; width: 148px; height: 148px; padding: 0; border-radius: var(--r-lg); cursor: pointer; touch-action: none; image-rendering: pixelated; }
+#view.night { --view-bg: #0d1017; }
+/* Dark theme: the daytime map a touch dimmer beside the black chrome (it glared). */
+:root[data-theme='dark'] #view:not(.night) :is(#map, #minimap) { filter: brightness(0.88); }
+#view.night #minimap { filter: brightness(0.55) saturate(0.8); }
+#view.info-open #minimap { display: none; } /* the card has the right side; the minimap would sit over the city */
+#view:has(#tray:not([hidden])) #minimap { display: none; } /* the open tool tray reaches up beside it */
+
+#hint {
+  position: absolute; left: 50%; bottom: calc(var(--bb) + 8px); z-index: 4; transform: translateX(-50%);
+  width: max-content; max-width: calc(100% - 32px); padding: 8px 18px;
+  background: var(--float); border: 1px solid var(--line); border-radius: 19px; box-shadow: var(--shadow-sm); /* a pill on one line, not a stretched capsule on three */
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  font-size: 13.5px; line-height: 1.45; text-align: center; word-break: keep-all; font-variant-numeric: tabular-nums; pointer-events: none;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow: clip; overflow-clip-margin: content-box; max-height: calc(4.35em + 18px); /* no sliver of a 4th line in the padding */
+}
+#hint:empty { display: none; }
+/* Beside an open info card, centred on the map that is left. */
+@media (min-width: 1100px) { #view.info-open #hint { left: calc((100% - var(--info-w) - 28px) / 2); max-width: calc(100% - var(--info-w) - 60px); } }
+/* Touch: a facility waiting for 짓기. */
+#confirm-bar {
+  position: absolute; left: 50%; bottom: calc(var(--bb) + 8px); z-index: 7; transform: translateX(-50%);
+  width: min(440px, calc(100% - 24px)); padding: 12px 14px; border-radius: var(--r-xl);
+  display: grid; gap: 10px;
+}
+#confirm-bar[hidden] { display: none; }
+#confirm-text { margin: 0; font-size: 13.5px; line-height: 1.45; word-break: keep-all; }
+#confirm-text b { font-weight: 650; }
+#confirm-text > span { display: block; margin-top: 4px; }
+.confirm-stat { color: var(--muted); font-size: 12.5px; }
+.confirm-no { color: var(--danger-ink); font-weight: 600; }
+#confirm-text > .confirm-warns { display: grid; gap: 3px; color: var(--warn-ink); font-size: 12.5px; }
+#confirm-bar .confirm-actions { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; }
+#confirm-bar button { min-height: 44px; border-radius: 12px; font-size: 15px; }
+#view:has(#confirm-bar:not([hidden])) :is(#hint, #tool-chip) { display: none; }
+#hint[data-tone='info'] { border-color: var(--line-strong); }
+#hint[data-tone='bad'] { border-color: var(--danger); color: var(--danger-ink); }
+#hint[data-tone='bad']::before { content: '⚠ '; }
+#hint[data-tone='warn'] { border-color: var(--warn); }
+
+/* The drag's count and cost beside the pointer. */
+/* The chip by the tile under the pointer: a price or count in bold, then what is there or what the tool would do. */
+#cursor-tag {
+  position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none;
+  display: grid; gap: 2px; max-width: 280px; padding: 6px 10px 7px; border-radius: 10px;
+  font-size: 12.5px; line-height: 1.4; font-variant-numeric: tabular-nums; word-break: keep-all;
+  background: var(--float-solid); color: var(--text); border: 1px solid var(--line); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16), 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: transform 0.08s linear;
+}
+#cursor-tag b { font-size: 13px; font-weight: 700; white-space: nowrap; }
+#cursor-tag span { color: var(--muted); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+#cursor-tag.plain span { color: var(--text); }
+#cursor-tag[hidden] { display: none; }
+#cursor-tag[data-tone='warn'] { border-color: var(--warn); }
+#cursor-tag[data-tone='bad'] { border-color: var(--danger); }
+#cursor-tag[data-tone='bad'] b, #cursor-tag[data-tone='bad'].plain span { color: var(--danger-ink); }
+
+
+/* Notifications drop in at the top of the map. */
+/* Above the hint at the foot of the map: at the top they covered the tool chip and the view legend. */
+#toasts { position: absolute; bottom: calc(var(--bb) + 60px); left: 50%; align-content: end; z-index: 5; transform: translateX(-50%); display: grid; gap: 8px; width: min(440px, calc(100% - 32px)); pointer-events: none; }
+/* With the info card open, toasts centre on the map left of it, clear of the map controls beside the card. */
+@media (min-width: 1100px) { #view.info-open #toasts { left: calc((100% - var(--info-w) - 28px) / 2); width: min(440px, max(240px, calc(100% - var(--info-w) - 180px))); } }
+.toast {
+  touch-action: none; /* a swipe is ours: it puts the toast away (toast.ts) */
+  justify-content: flex-start; gap: 12px; min-height: 0; padding: 10px 14px 10px 10px; border-radius: var(--r-lg);
+  background: var(--float-solid); color: var(--text); box-shadow: var(--shadow); border: 1px solid var(--line);
+  font-size: 13.5px; font-weight: 500; line-height: 1.45; text-align: left; word-break: keep-all;
+  pointer-events: auto; animation: drop-in 0.22s var(--ease);
+}
+@media (hover: hover) { .toast:hover { background: var(--float-solid); } }
+.toast-badge { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--good-soft); color: var(--good); }
+.toast.bad .toast-badge { background: var(--danger-soft); color: var(--danger); }
+.toast.info .toast-badge { background: var(--surface-2); color: var(--muted); }
+.toast-badge .i { width: 17px; height: 17px; stroke-width: 2; }
+.toast-text { flex: 1; min-width: 0; }
+.toast-go { width: 16px; height: 16px; color: var(--faint); }
+.toast.leaving { opacity: 0; transform: translateY(-6px); transition: opacity 0.25s, transform 0.25s; }
+
+/* U-Drive-It */
+#drive-hud { position: absolute; inset: auto 14px 14px 14px; z-index: 5; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; pointer-events: none; }
+#drive-hud > * { pointer-events: auto; }
+.drive-side { display: grid; gap: 8px; max-width: 50%; }
+.drive-actions { display: flex; gap: 8px; }
+#drive-info { white-space: nowrap; padding: 12px 16px; background: var(--float-solid); border-radius: var(--r-lg); box-shadow: var(--shadow); font-size: 14px; }
+#drive-info .time { font-size: 30px; font-weight: 650; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+#drive-info .time.low { color: var(--danger); }
+#drive-pad { display: grid; grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(3, 56px); gap: 6px; }
+#drive-pad button { padding: 0; border-radius: 14px; background: var(--float-solid); box-shadow: var(--shadow-sm); font-size: 18px; touch-action: none; }
+#drive-pad [data-dir='up'] { grid-area: 1 / 2; }
+#drive-pad [data-dir='left'] { grid-area: 2 / 1; }
+#drive-pad [data-dir='right'] { grid-area: 2 / 3; }
+#drive-pad [data-dir='down'] { grid-area: 3 / 2; }
+#drive-quit, #drive-special { white-space: nowrap; background: var(--float-solid); box-shadow: var(--shadow-sm); }
+#drive-quit .i { width: 16px; height: 16px; }
+#view:has(#drive-hud:not([hidden])) #hint { bottom: 196px; }
+.goal-arrow { display: inline-block; color: var(--warn); font-weight: 700; }
+.mission { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.mission:last-child { border-bottom: none; }
+.mission .good { color: var(--good); }
+.mission .evil { color: var(--danger); }
+
+/* ------------------------------------------------------------------ cards over the map */
+
+.sheet-card {
+  position: absolute;
+  background: var(--float-solid);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  box-shadow: var(--shadow);
+}
+.card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 10px 8px 18px; flex: none; }
+.card-head h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 15.5px; font-weight: 650; }
+.card-head h2 .i { width: 20px; height: 20px; color: var(--muted); }
+
+/* The tool tray (placed under the build menu at the map's top, below). */
+#tray {
+  left: 50%; bottom: var(--bb); z-index: 6; transform: translateX(-50%);
+  display: flex; flex-direction: column; width: min(860px, calc(100% - 28px)); max-height: min(66%, 560px);
+  animation: tray-in 0.2s var(--ease);
+}
+#tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(370px, 100%), 1fr)); column-gap: 22px; align-items: start; padding: 0 18px 2px; overflow-y: auto; } /* row by row, so groups keep their places (columns rebalanced them as their text changed) */
+/* Finding a tool by name, and the ones used lately. */
+#tray-find { display: grid; gap: 8px; padding: 0 18px 12px; flex: none; }
+#tray-find:not(:has(#tray-recent:not([hidden]))) { display: none; }
+/* The search sits in the card's head (a row of its own pushed the tools half a card down the map). */
+#tray .card-head .find-box { flex: 0 1 280px; margin-left: auto; height: 36px; }
+@media (max-width: 860px) { #tray .card-head { flex-wrap: wrap; } #tray .card-head .find-box { order: 3; flex: 1 1 100%; height: 42px; margin: 4px 8px 0 0; } }
+.find-box {
+  display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 10px 0 12px;
+  background: var(--surface-2); border-radius: var(--r-md); color: var(--muted);
+}
+.find-box:focus-within { box-shadow: inset 0 0 0 2px var(--accent); }
+.find-box .i { width: 16px; height: 16px; flex: none; }
+.find-box input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text); font: inherit; font-size: 14px; outline: none; padding: 0; }
+.find-box input::-webkit-search-cancel-button { cursor: pointer; }
+.find-key { font-size: 11px; padding: 0 6px; }
+.find-box:focus-within .find-key { display: none; }
+@media (pointer: coarse) and (hover: none) { .find-key { display: none; } .find-box { height: 44px; } #tray-recent button { min-height: 38px; } }
+#tray-recent { display: flex; align-items: center; gap: 6px; overflow-x: auto; scrollbar-width: none; }
+#tray-recent[hidden] { display: none; }
+.recent-sep { flex: none; width: 1px; height: 18px; margin: 0 4px; background: var(--line-strong); }
+.goal-label { color: var(--accent-hi); font-weight: 600; }
+.recent-label { flex: none; font-size: 12px; color: var(--muted); margin-right: 2px; }
+#tray-recent button {
+  flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 11px;
+  border-radius: 999px; background: var(--surface-2); font-size: 12.5px; font-weight: 550; white-space: nowrap;
+}
+#tray-recent button.active { background: var(--accent-soft); color: var(--accent-hi); box-shadow: inset 0 0 0 1.5px var(--accent); }
+#tray-recent .i { width: 15px; height: 15px; }
+#tray-recent .swatch, #tray-recent .pick-swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; flex: none; }
+#tray-results { padding: 0 18px 16px; overflow-y: auto; align-content: start; }
+#tray-results[hidden], #tools[hidden] { display: none; }
+#tray-results .pick.first { box-shadow: inset 0 0 0 1.5px var(--accent); } /* Enter picks it */
+#tray-results .pick.locked { display: flex; }
+#tray-results .pick-name .i { width: 14px; height: 14px; }
+#tray-results .pick-name .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.find-none { grid-column: 1 / -1; margin: 4px 0 8px; }
+.tray-section { break-inside: avoid; padding-bottom: 16px; }
+.tray-section h3 { margin: 0 0 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+#tray.single .tray-section h3 { display: none; }
+.tray-section .group { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 8px; }
+.tile {
+  flex-direction: column; justify-content: flex-start; gap: 5px; min-height: 86px; padding: 10px 8px 9px;
+  background: var(--surface-2); border-radius: var(--r-md); text-align: center;
+}
+.tile.active { background: var(--accent-soft); color: var(--text); box-shadow: inset 0 0 0 2px var(--accent); }
+.tile-icon { display: grid; place-items: center; height: 28px; color: var(--text); }
+.tile.active .tile-icon { color: var(--accent-hi); }
+.tile-icon .i { width: 28px; height: 28px; stroke-width: 1.6; }
+.tile-icon .swatch { display: block; width: 26px; height: 26px; border-radius: 8px; box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.18); }
+.tile-label { font-size: 13px; font-weight: 600; line-height: 1.25; word-break: keep-all; }
+.tile-sub { min-height: 17px; display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tile kbd { min-width: 0; padding: 0 5px; font-size: 10.5px; line-height: 1.5; border-bottom-width: 1px; }
+/* The shortcut shows on the tile under the pointer (a key on every tile was noise). */
+.tile kbd { opacity: 0; transition: opacity 0.15s; }
+.tile:is(:hover, :focus-visible) kbd { opacity: 1; }
+.picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.group + .picker { margin-top: 8px; }
+.picker:not(.show-locked) .pick.locked { display: none; }
+.pick-more {
+  grid-column: 1 / -1; justify-content: flex-start; gap: 6px; min-height: 32px; padding: 0 4px;
+  background: transparent; color: var(--muted); font-size: 12.5px; font-weight: 550;
+}
+@media (hover: hover) { .pick-more:hover { background: transparent; color: var(--text); } }
+.pick-more .i { width: 14px; height: 14px; }
+.pick {
+  flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 3px;
+  min-width: 0; min-height: 60px; padding: 9px 12px;
+  background: var(--surface-2); border-radius: var(--r-md); text-align: left;
+}
+.pick.active { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
+.pick-name { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; line-height: 1.25; word-break: keep-all; }
+.pick-name .i { width: 14px; height: 14px; }
+.pick-swatch { flex: none; width: 12px; height: 12px; border-radius: 3px; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.22); } /* its colour on the map: cards scan like the tiles beside them */
+.pick-sub {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+  color: var(--muted); font-size: 11.5px; font-weight: 500; line-height: 1.35; word-break: keep-all;
+}
+.pick-stat { color: var(--text); font-size: 11.5px; font-weight: 600; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.pick.active .pick-stat { color: var(--accent); }
+.pick:disabled { opacity: 1; cursor: default; transform: none; }
+.pick.locked { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); opacity: 0.6; }
+.pick.placed { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
+.tray-section > label.check { margin-top: 12px; color: var(--muted); font-size: 13px; }
+.tray-section .extras { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: center; margin-top: 10px; }
+.tray-section .extras:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+
+/* What the query tool found. */
+#info-card {
+  top: 14px; right: 14px; z-index: 6; display: flex; flex-direction: column;
+  width: var(--info-w); max-height: calc(100% - 28px);
+  animation: slide-left 0.22s var(--ease);
+}
+/* The card shows what was found: its own name is the heading, so only the close button floats over it. */
+#info-card .card-head { position: absolute; top: 10px; right: 10px; z-index: 2; padding: 0; }
+/* It floats over the facts as they scroll: a solid button, not a stray glyph on the text. */
+#info-card .card-head .icon-btn { background: var(--float-solid); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18); border-radius: 50%; }
+#info-card .card-head h2 { display: none; }
+#info { flex: 1; min-height: 0; padding: 18px 18px 18px; overflow-y: auto; }
+#info > :first-child { padding-right: 40px; }
+/* The name stays at the top as the facts scroll (they ran under the close button). */
+#info > .info-head:first-child { position: sticky; top: -18px; z-index: 1; margin: -18px -18px 0; padding: 18px 58px 10px 18px; background: var(--float-solid); }
+/* Two-column facts: the label stays on one line, a long value wraps. */
+#info table:not(.factors) td:first-child { white-space: nowrap; padding-right: 16px; color: var(--muted); }
+#info table:not(.factors) td:last-child { word-break: keep-all; }
+#info .swatch { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 3px; vertical-align: -1px; }
+.info-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.info-swatch { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 10px; box-shadow: inset 0 -8px 0 rgba(0, 0, 0, 0.22); color: #fff; }
+.info-swatch .i { width: 20px; height: 20px; margin-top: -4px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35)); }
+.info-title { display: grid; min-width: 0; }
+.info-title strong { overflow: hidden; font-size: 17px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.info-title .muted { font-size: 12.5px; }
+.info-meter { height: 6px; overflow: hidden; border-radius: 999px; background: var(--surface-3); }
+.info-meter .fill { height: 100%; border-radius: 999px; }
+.info-meter-label { display: flex; justify-content: space-between; margin: 5px 0 10px; color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.info-sims { display: flex; align-items: center; gap: 6px; margin: -4px 0 10px; color: var(--accent-hi); font-size: 12.5px; font-weight: 600; }
+.info-sims .i { width: 14px; height: 14px; }
+#bname { width: 100%; margin-bottom: 8px; }
+.info-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.info-bulldoze { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; background: transparent; color: var(--danger-ink); box-shadow: inset 0 0 0 1px var(--line-strong); font-weight: 600; }
+.info-bulldoze .i { width: 16px; height: 16px; }
+@media (hover: hover) { .info-bulldoze:hover { background: var(--danger-soft); } }
+.info-own { margin-top: 14px; }
+.info-own #bname { margin-bottom: 10px; }
+.factors td { font-size: 12.5px; }
+.factors .bar-cell { width: 38%; padding-left: 8px; }
+.fbar { display: block; height: 6px; min-width: 2px; border-radius: 3px; }
+.fbar.pos { background: var(--good); opacity: 0.75; }
+.fbar.neg { background: var(--danger); opacity: 0.75; }
+ul.growth { list-style: none; margin: 0 0 6px; padding: 0; font-size: 13px; }
+ul.growth li { position: relative; padding: 4px 0 4px 20px; }
+ul.growth li::before { position: absolute; left: 0; }
+ul.growth li.bad::before { content: '✕'; color: var(--danger); }
+ul.growth li.warn::before { content: '!'; left: 4px; color: var(--warn); font-weight: 700; }
+ul.growth li.good::before { content: '✓'; color: var(--good); }
+
+/* Apps (재정 · 통계 · 시민 · 지역): a control screen with its menu on the left. */
+#sheet {
+  top: 14px; left: 14px; bottom: 14px; z-index: 7;
+  display: grid; grid-template-columns: minmax(0, 1fr); overflow: hidden; background: var(--pane);
+  width: min(760px, calc(100% - 28px));
+  animation: slide-right 0.22s var(--ease);
+}
+#tabs { display: flex; flex-direction: column; gap: 4px; padding: 18px 10px; border-right: 1px solid var(--line); }
+#tabs button {
+  justify-content: flex-start; gap: 12px; min-height: 50px; padding: 0 14px;
+  background: transparent; color: var(--muted); border-radius: var(--r-md); font-size: 15px; font-weight: 600;
+}
+@media (hover: hover) { #tabs button:hover { color: var(--text); background: var(--surface-2); } }
+#tabs button.active { background: var(--surface-2); color: var(--text); box-shadow: none; }
+#tabs button.active .i { color: var(--accent-hi); }
+.sheet-body { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.sheet-body .card-head { padding: 16px 12px 6px 24px; }
+.sheet-body .card-head h2 { font-size: 22px; letter-spacing: -0.01em; }
+.sheet-sub { margin-left: 14px; color: var(--muted); font-size: 14px; font-weight: 500; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.sheet-sub.neg { color: var(--danger-ink); }
+#sheet .panes { flex: 1; min-height: 0; padding: 6px 24px 24px; overflow-y: auto; }
+#sheet [data-pane] { columns: 2 360px; column-gap: 14px; column-fill: balance; }
+#sheet [data-pane] > .card { display: block; margin: 0 0 14px; break-inside: avoid; background: var(--surface); }
+/* One card (지역): a narrower sheet, one column. */
+#sheet[data-tab='region'] [data-pane] { columns: 1; }
+#sheet[data-tab='region'] { width: min(760px, calc(100% - 28px)); } /* one card: lines stay readable */
+/* While a sheet covers the map, its floating controls step back (unless the screen leaves room beside it). */
+@media (max-width: 1700px) {
+  #view.sheet-open #map-controls, #view.sheet-open #map-layer, #view.sheet-open #tool-chip, #view.sheet-open #tool-alts { visibility: hidden; }
+}
+
+/* Budget, taxes, ordinances, loans */
+#budget b.good { color: var(--good); }
+#budget b.bad { color: var(--danger); }
+.budget-table td:first-child { position: relative; padding-bottom: 9px; }
+.budget-table tr.sub td:first-child { padding-left: 14px; }
+.budget-table tr.head td { font-weight: 600; }
+.budget-table tr.head + tr.head td, .budget-table tr.sub + tr.head td { padding-top: 10px; }
+.budget-table .share { position: absolute; left: 0; bottom: 1px; height: 2px; border-radius: 1px; opacity: 0.4; } /* (clear of the label: it read as an underline) */
+.budget-table tr.sub .share { left: 14px; max-width: calc(100% - 14px); }
+.budget-table .share.in { background: var(--good); }
+.budget-table .share.out { background: var(--data); }
+.budget-table tr.total td { padding-top: 8px; border-top: 1px solid var(--line); }
+.tax-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 52px; align-items: center; gap: 10px; margin: 2px 0; }
+.tax-row input { width: 100%; }
+.tax-out { display: flex; align-items: center; justify-content: flex-end; gap: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); }
+.tax-step { display: none; width: 32px; min-height: 32px; padding: 0; border-radius: 50%; font-size: 17px; line-height: 1; }
+@media (pointer: coarse) and (hover: none) {
+  .tax-row { grid-template-columns: 64px minmax(0, 1fr) auto; }
+  .tax-step { display: inline-grid; place-items: center; }
+}
+.tax-row small { display: block; font-size: 11px; line-height: 1.2; }
+.tax-row small.neg { color: var(--danger); }
+.tax-row small.pos { color: var(--good-ink); }
+.tax-row .tax-effect { grid-column: 2 / 4; margin-top: -6px; }
+.tax-row .tax-effect { min-height: 13px; } /* kept when empty: rows don't jump as a rate starts to bite */
+#taxes details summary { margin: 8px 0 4px; color: var(--muted); font-size: 12.5px; cursor: pointer; }
+.funding { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 10px; margin-top: 10px; }
+.funding span { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
+.funding input { width: 100%; min-width: 0; }
+.funding.dept { grid-template-columns: 92px minmax(0, 1fr) 52px; margin-top: 4px; }
+.funding.dept span { grid-column: auto; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+.ordinance { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 12px; margin-bottom: 12px; font-size: 13px; cursor: pointer; }
+.ordinance small { color: var(--muted); font-size: 11.5px; }
+.ordinance small.needs { color: var(--warn-ink); }
+.ordinance.muted { cursor: default; }
+.loan-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; font-size: 13px; }
+.loan-row select { flex: 1; min-width: 0; }
+.loan-row:has([data-offer]) { flex-wrap: wrap; }
+.loan-row:has([data-offer]) > span:first-child { flex: 1 0 100%; } /* a deal: its terms, then amount and button below */
+
+/* Graphs */
+.graph-range { margin-bottom: 10px; }
+.graph { margin: 0 0 12px; }
+.graph figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 8px; margin-bottom: 4px; color: var(--muted); font-size: 12.5px; }
+.graph .graph-value { margin-left: auto; color: var(--text); font-variant-numeric: tabular-nums; } /* right-aligned even when it wraps */
+.graph canvas { display: block; width: 100%; background: var(--surface-2); border-radius: var(--r-sm); cursor: crosshair; }
+.graph-key { margin-left: 6px; color: var(--muted); font-size: 11.5px; white-space: nowrap; }
+.graph-key i { display: inline-block; width: 10px; height: 2px; margin: 0 3px 0 4px; vertical-align: middle; }
+.graph-key i.dash { height: 0; border-top: 2px dashed; background: none; }
+
+/* Polls, ages, reward progress, wealth tables */
+.poll-row { display: grid; grid-template-columns: 68px minmax(0, 1fr) 42px; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
+.poll-row .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.poll-row .bar { height: 6px; overflow: hidden; }
+.poll-row .bar::after { display: none; }
+.poll-row .fill { left: 0; height: 100%; border-radius: 0 3px 3px 0; background: var(--data); }
+.poll-row.warn .fill { background: var(--warn); }
+.poll-row.bad .fill { background: var(--danger); }
+.poll-row.bad .value { color: var(--danger-ink); }
+.poll-row .value { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.poll-row.wide { grid-template-columns: 68px minmax(0, 1fr) 64px; }
+.poll-row.reward { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 34px; }
+.poll-row.reward .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wealth-table th { padding: 2px 0 6px; color: var(--muted); font-size: 11.5px; font-weight: 600; text-align: right; }
+.wealth-table th:first-child, .wealth-table td:first-child { text-align: left; }
+.wealth-table td { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* Region */
+.region-grid { display: grid; gap: 4px; margin: 8px 0; }
+.region-grid .square { flex-direction: column; min-height: 46px; padding: 4px; border-radius: 8px; font-size: 11.5px; line-height: 1.2; }
+.region-grid .square.active { background: var(--accent); color: #fff; opacity: 1; }
+.region-grid .square.empty { display: grid; place-items: center; gap: 0; background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--faint); line-height: 1.1; }
+.region-grid .square.empty span { font-size: 15px; }
+.region-grid .square.empty.beside { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent-hi); }
+/* Wide regions (a margin of free squares around the city): compact squares, names clipped, empty ones just "+". */
+.region-grid.dense { gap: 3px; }
+.region-grid.dense .square { min-height: 0; padding: 2px; border-radius: 6px; font-size: 10px; overflow: hidden; text-overflow: ellipsis; }
+.region-grid.dense .square small { display: none; }
+.region-grid.dense .square.empty span { font-size: 12px; }
+@media (hover: hover) { .region-grid .square.empty:hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); } }
+
+/* My Sims */
+.mysim { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.mysim:last-child { border-bottom: none; }
+.mysim .thoughts { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.thought { padding: 2px 10px; border-radius: 999px; font-size: 12.5px; white-space: nowrap; }
+.thought.pos { background: var(--good-soft); color: var(--good-ink); }
+.thought.neg { background: var(--danger-soft); color: var(--danger-ink); }
+.mysim-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.mysim-buttons button { min-height: 32px; padding: 4px 12px; font-size: 12.5px; }
+
+
+/* ------------------------------------------------------------------ dialogs */
+
+dialog {
+  min-width: 320px; padding: 24px; color: var(--text);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-xl); box-shadow: var(--shadow);
+}
+dialog[open] { animation: pop-in 0.18s var(--ease); }
+dialog::backdrop { background: var(--backdrop); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); }
+dialog h2 { margin: 0 0 16px; font-size: 20px; font-weight: 650; }
+dialog label { display: grid; gap: 6px; margin-bottom: 14px; color: var(--muted); font-size: 12.5px; }
+dialog label > input, dialog label > select { color: var(--text); font-size: 14px; }
+dialog label.check { display: flex; gap: 10px; align-items: center; color: var(--text); font-size: 14px; }
+dialog menu { display: flex; justify-content: flex-end; gap: 8px; margin: 18px 0 0; padding: 0; }
+dialog menu button { min-height: 42px; padding: 8px 18px; }
+/* The help's long text scrolls under its close button, not past it. */
+#help-dialog menu { position: sticky; bottom: -24px; margin: 18px -24px -24px; padding: 12px 24px 16px; background: var(--surface); border-top: 1px solid var(--line); }
+#help-dialog { max-width: min(600px, calc(100vw - 32px)); }
+#saves-dialog { width: min(540px, calc(100vw - 32px)); }
+#new-dialog { width: min(480px, calc(100vw - 32px)); }
+.new-more { display: grid; gap: 12px; }
+.new-more > summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 2px 0; }
+.new-more[open] > summary { margin-bottom: 2px; }
+.saves { display: grid; gap: 8px; max-height: 60vh; margin: 0; padding: 0; overflow: auto; list-style: none; }
+.saves li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: var(--r-md); }
+.saves li > div { display: grid; flex: 1; min-width: 0; }
+.save-thumb { width: 52px; height: 52px; flex: none; border-radius: 10px; background: var(--surface-3); image-rendering: pixelated; }
+.saves li button { min-height: 42px; }
+.saves [data-delete] { background: transparent; }
+.saves strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saves .muted { font-size: 12.5px; }
+.help-tips { display: grid; gap: 6px; margin: 0; padding-left: 18px; font-size: 13px; }
+#help-body > h3.sub:first-child { margin-top: 0; }
+.help-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 8px 16px; margin: 0; font-size: 13.5px; }
+.help-grid dt { color: var(--muted); }
+.help-grid dd { margin: 0; }
+.key-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px 14px; font-size: 13px; }
+.key-grid span { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.key-grid kbd { flex: none; }
+/* Touch screens: no keyboard to list. */
+@media (pointer: coarse) and (hover: none) { .help-keys { display: none; } }
+.seed-row { display: flex; gap: 8px; }
+.seed-row input { flex: 1; min-width: 0; }
+.file-row { display: flex; align-items: center; gap: 10px; color: var(--text); }
+.file-row .button { cursor: pointer; }
+
+/* ------------------------------------------------------------------ motion */
+
+@keyframes pop-in { from { opacity: 0; transform: scale(0.97); } }
+@keyframes drop-in { from { opacity: 0; transform: translateY(-8px); } }
+@keyframes tray-in { from { opacity: 0; transform: translate(-50%, 16px); } }
+@keyframes slide-left { from { opacity: 0; transform: translateX(16px); } }
+@keyframes slide-right { from { opacity: 0; transform: translateX(-16px); } }
+#tool-chip { animation-name: chip-in; }
+@keyframes chip-in { from { opacity: 0; transform: translate(-50%, -6px); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ------------------------------------------------------------------ smaller screens */
+
+@media (max-width: 1360px) {
+  :root { --pane-w: 310px; --info-w: 360px; }
+  .hero-value { font-size: 52px; }
+}
+
+@media (max-width: 1180px) {
+  :root { --pane-w: 288px; }
+  .sb-wind span { display: none; }
+  #tool-chip, #tool-alts { max-width: calc(100% - 2 * 200px); }
+}
+
+/* Phones and small tablets: map first; the pane, apps, info and tools become bottom sheets. */
+@media (max-width: 860px) {
+  :root { --bar-h: 56px; --bb: 76px; }
+  #app { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--bar-h) minmax(0, 1fr); grid-template-areas: 'bar' 'view'; }
+  #app.focus { grid-template-columns: minmax(0, 1fr); }
+  #statusbar { gap: 8px; padding: 0 6px 0 10px; }
+  /* The status bar reads in two lines: the date over population and funds. */
+  .sb-left, .sb-wind, #btn-help, #btn-focus { display: none; }
+  /* The date with the speed selector beside it, population and funds below. */
+  .sb-center {
+    flex: 1 1 auto; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'date speed' 'kpis kpis';
+    align-items: center; justify-items: start; align-content: center; column-gap: 8px; row-gap: 3px; min-width: 0; overflow: hidden; line-height: 1.25;
+  }
+  #sb-date { grid-area: date; }
+  #sb-kpis { grid-area: kpis; }
+  #speed { grid-area: speed; }
+  .sb-date { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; min-width: 6.4em; text-align: left; }
+  .sb-kpis { display: flex; white-space: nowrap; font-size: 13.5px; color: var(--text); }
+  .sb-kpis b { font-weight: 650; }
+  .gear-compact { padding: 2px; }
+  .gear-compact button { min-width: 32px; height: 26px; }
+  .gear button .i { width: 16px; height: 16px; }
+  .sb-right .icon-btn { width: 36px; height: 36px; }
+  /* While 다시 하기 shows, the night button makes room (the row ran under the fastest speed). */
+  .sb-right { flex: none; }
+
+  #statusbar { z-index: 30; } /* its menu opens over the city pane */
+  #pane {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    max-height: min(80dvh, calc(100dvh - var(--bar-h) - 12px)); padding-top: 26px; padding-bottom: calc(24px + env(safe-area-inset-bottom));
+    border-right: 0; border-radius: var(--r-xl) var(--r-xl) 0 0; box-shadow: var(--shadow);
+    transform: translateY(100%); visibility: hidden;
+    transition: transform 0.26s var(--ease), visibility 0s 0.26s;
+  }
+  #app.pane-open #pane { transform: none; visibility: visible; transition: transform 0.26s var(--ease); }
+  #app.focus #pane { display: flex; }
+  .pane-grip { display: block; position: absolute; top: 9px; left: 50%; width: 40px; height: 5px; margin-left: -20px; border-radius: 3px; background: var(--surface-3); }
+  .pane-close { display: inline-flex; position: absolute; top: 10px; right: 10px; z-index: 2; } /* over a goal's sticky header */
+  #pane.managing .pane-close { top: 22px; } /* level with the goal's title row */
+  /* A watch row's note is what to do: two lines rather than cut off. */
+  .w-note { white-space: normal; align-items: flex-start; }
+  .w-txt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .hero-value { font-size: 46px; }
+
+  #tray.build #tray-title { display: none; }
+  #tray.build #tray-cats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; flex: 1; min-width: 0; }
+  .tray-cat {
+    flex-direction: column; gap: 3px; min-height: 54px; padding: 4px 0; border-radius: var(--r-md);
+    background: transparent; color: var(--muted);
+  }
+  .tray-cat .i { width: 22px; height: 22px; }
+  .tray-cat .dock-label { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .tray-cat.open { background: var(--surface-2); color: var(--text); }
+  .tray-cat.open .i { color: var(--accent-hi); }
+
+  /* The data view card is one row: the picker, and a button that unfolds its legend. */
+  #map-layer { top: 10px; left: 10px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; width: calc(100% - 76px); padding: 6px; }
+  /* The info card is a bottom sheet here: it takes no width from the view card. */
+  #view.info-open #map-layer:is(:not(.off), .picking) { width: calc(100% - 76px); }
+  #view.info-open #map-layer.off:not(.picking) { width: auto; }
+  #map-layer .layer-title { display: flex; order: 2; width: 40px; height: 40px; margin: 0; justify-content: center; border-radius: var(--r-sm); cursor: pointer; }
+  #map-layer .layer-title > span { display: none !important; }
+  #map-layer .layer-title > .i { width: 20px; height: 20px; }
+  #map-layer.off .layer-title { display: none; } /* no legend to unfold */
+  /* Off, the picker shrinks to its icon (a 300px pill sat over the map for nothing). */
+  #map-layer.off:not(.picking) { width: auto; padding: 4px; }
+  #map-layer.off:not(.picking) #view-pick { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  #map-layer.off:not(.picking) #view-pick > :not(.i:first-child) { display: none; }
+  /* A building tool in hand: the view's card shrinks to its icon too (the tool's chip, alternatives and hint need the room; the view stays drawn). */
+  #view.holding #map-layer:not(.picking) { width: auto; padding: 4px; }
+  #view.holding #map-layer:not(.picking) :is(.layer-title, #view-off), #view.holding #map-layer:not(.picking) #overlay > :not(.view-current) { display: none !important; }
+  #view.holding #map-layer:not(.picking) #view-pick { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  #view.holding #map-layer:not(.picking) #view-pick > :not(.i:first-child) { display: none; }
+  #map-layer:not(.off) { padding-bottom: 6px; }
+  #map-layer.open:not(.off) { padding-bottom: 12px; }
+  #map-layer.open .layer-title { background: var(--surface-2); color: var(--accent-hi); }
+  #overlay { order: 1; flex: 1; min-width: 0; }
+  #map-layer:not(.open) #overlay-legend, #map-layer:not(.open) #overlay-scale { display: none !important; }
+  #map-controls { top: 10px; right: 10px; }
+  #view.info-open #map-controls { right: 10px; }
+  #minimap { display: none; }
+  #tool-chip { top: auto; bottom: calc(var(--bb) + 4px); left: 10px; transform: none; max-width: calc(100% - 20px); animation-name: pop-in; }
+  /* At the top, under the view picker: the hint and the confirm bar take the bottom, and an info card rises over it. */
+  #toasts { top: 96px; bottom: auto; align-content: start; left: 10px; transform: none; width: calc(100% - 84px); } /* clear of the zoom column on the right */
+  /* The view list takes the room there is, and fades at the foot when more is below. */
+  #view-grid { max-height: calc(100dvh - 300px); padding-bottom: 24px; mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); }
+  #view:has(#tool-chip:not([hidden])) #hint { bottom: calc(var(--bb) + 54px); } /* above the chip, not over it */
+  #tool-alts { top: auto; bottom: calc(var(--bb) + 60px); left: 10px; transform: none; max-width: calc(100% - 20px); }
+  #view:not(.sheet-open):has(#tool-alts:not([hidden])):not(:has(#map-layer.picking)) #hint { bottom: calc(var(--bb) + 112px); }
+  #view:has(#map-layer.picking) #tool-alts { display: none; }
+  #view:has(#map-layer.picking) #tool-chip { display: none; } /* the open view list reaches down over it */
+
+  #tray, #info-card, #sheet {
+    left: 0; right: 0; bottom: 0; top: auto; width: auto; transform: none;
+    border-radius: var(--r-xl) var(--r-xl) 0 0; border-bottom: 0;
+    animation: rise 0.24s var(--ease);
+  }
+  #tray { max-height: 62%; }
+  #info-card { max-height: 56%; } /* the spot it describes stays in sight above it */
+  #sheet { top: 8%; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  #sheet[data-tab='region'] { width: auto; }
+  #tabs { flex-direction: row; gap: 4px; padding: 10px 10px 0; border-right: 0; overflow-x: auto; }
+  #tabs button { flex: 1 0 auto; justify-content: center; gap: 8px; min-height: 42px; padding: 0 12px; font-size: 14px; }
+  .sheet-body .card-head { display: none; }
+  #sheet .panes { padding: 10px 12px 20px; }
+  #sheet [data-pane] { columns: 2 340px; } /* one column on a phone, two on a tablet held upright */
+  #tools { padding: 0 14px 16px; }
+  .tray-section .group { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
+  .picker { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .tile { min-height: 84px; }
+  .tray-section .extras { grid-template-columns: minmax(0, 1fr); }
+  #drive-pad { grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); }
+}
+@keyframes rise { from { opacity: 0.6; transform: translateY(30px); } }
+
+/* Sheets close with a tap on their header area on phones, so keep a visible close button there. */
+@media (max-width: 420px) {
+  .sb-kpis .lbl { display: none; }
+  #sb-kpis .i { display: inline-block; width: 14px; height: 14px; margin-right: 3px; vertical-align: -2px; color: var(--muted); }
+  .gear-compact button { min-width: 34px; }
+}
+
+@media (max-width: 860px) {
+  /* The tabs name the section; only the close button stays, at the end of the tab row. */
+  #sheet .sheet-body .card-head { display: flex; position: absolute; top: 12px; right: 8px; z-index: 1; padding: 0; }
+  #sheet-title { display: none; }
+  #tabs { padding: 12px 56px 0 10px; }
+  #tabs button { padding: 0 8px; }
+}
+@media (max-width: 420px) {
+  .tray-cat .dock-label { font-size: 10.5px; letter-spacing: -0.02em; } /* 공공시설 whole at 360px */
+  #tabs button .i { display: none; } /* words alone fit, clear of the close button */
+  #tabs button { padding: 0 6px; font-size: 13.5px; }
+  .gear-compact button { min-width: 28px; } /* the speeds fit beside the undo and night buttons */
+}
+.i.inline-i { width: 15px; height: 15px; vertical-align: -3px; margin-right: 3px; }
+
+/* Phones turned sideways: little height, plenty of width. The dock goes slim
+   (labels beside icons), the data view card stays card-sized, and sheets may
+   take most of the height. */
+@media (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
+  #map-layer { width: min(360px, calc(100% - 76px)); }
+  /* Sideways there is width to spare and little height: cards become side panels
+     (the city pane from the left, the rest from the right) and the map stays in view. */
+  #tray, #info-card, #sheet {
+    left: auto; right: 0; top: 0; bottom: 0; width: min(420px, 58%); max-height: none;
+    border-radius: var(--r-xl) 0 0 var(--r-xl); border-bottom: 1px solid var(--line); border-right: 0;
+    animation: slide-left 0.22s var(--ease);
+  }
+  #pane {
+    right: auto; top: var(--bar-h); width: min(380px, 50%); max-height: none;
+    border-radius: 0 var(--r-xl) var(--r-xl) 0; padding-top: 18px;
+    transform: translateX(-100%);
+  }
+  .pane-grip { display: none; }
+  #view:has(#map-layer.open) :is(#tool-chip, #tool-alts) { display: none; }
+  /* Little height: the view list takes what there is; the card's side panel pushes the zoom
+     buttons and toasts aside; the hint sits low beside the tool chip, not mid-map. */
+  #view-grid { max-height: calc(100dvh - var(--bar-h) - var(--dock-h) - 90px); }
+  #view.info-open #map-controls { right: calc(min(420px, 58%) + 10px); }
+  /* The city pane on the left: the hint and toasts keep to the map beside it. */
+  #app.pane-open #hint { left: calc(min(380px, 50%) + 10px); right: 10px; width: auto; max-width: none; transform: none; }
+  #app.pane-open #toasts { left: calc(min(380px, 50%) + 10px); width: auto; right: 84px; }
+  .mg-head { top: -18px; margin-top: -18px; padding-top: 14px; } /* this sheet's padding is 18px */
+  #view.info-open #toasts { width: calc(100% - min(420px, 58%) - 84px); }
+  #view:has(#tool-chip:not([hidden])) #hint { bottom: 10px; left: auto; right: 10px; transform: none; max-width: 55%; }
+  /* Little height: the siblings sit beside the chip at the foot, clear of the zoom buttons. */
+  #tool-alts { bottom: 64px; left: auto; right: 10px; max-width: 45%; }
+  #view:not(.sheet-open):has(#tool-alts:not([hidden])):not(:has(#map-layer.picking)) #hint { bottom: 10px; }
+}
+
+/* Hospital and school grade: five dots, filled up to the grade. */
+.grade { display: inline-flex; gap: 3px; vertical-align: middle; }
+.grade i { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); }
+.grade i.on { background: var(--data); }
+
+/* Zone groups in the tray: how much the class is wanted now. */
+.zone-demand { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; color: var(--muted); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; text-transform: none; letter-spacing: 0; }
+.zone-demand.up { color: var(--good); }
+.zone-demand.cap { color: var(--warn); }
+.zone-demand .i { width: 12px; height: 12px; }
+#tool-chip-label .zone-demand { margin-left: 0; font-size: 12px; }
+#tool-chip-label .zone-demand.up { color: var(--good); }
+#tool-chip-label .zone-demand.cap { color: var(--warn); }
+
+/* My Sim name, asked for in place on the info card. */
+.mysim-form { display: flex; gap: 6px; align-items: center; }
+.mysim-form input { width: 7.5em; min-height: 34px; padding: 0 10px; border-radius: var(--r-sm, 8px); }
+.gauge[data-g] { cursor: pointer; }
+.gauges .g-detail { grid-column: 1 / -1; margin: 0 0 10px; padding-top: 8px; }
+.gauge[aria-expanded='true'] .g-label { font-weight: 650; }
+.gauge[aria-expanded='true'] > .i { color: var(--text); }
+
+/* The data view's value at the inspected spot. */
+#info-card .info-reading { display: flex; gap: 6px; align-items: center; margin: 4px 0 8px; padding: 6px 10px; border-radius: 10px; background: var(--chip-bg, rgba(127, 127, 127, 0.12)); font-size: 13px; }
+#info-card .info-reading .i { width: 16px; height: 16px; flex: none; }
+
+/* Touch screens: fingers need ~40px. Small text links get an invisible margin to hit. */
+@media (pointer: coarse) and (hover: none) {
+  .gear-compact button { position: relative; }
+  .gear-compact button::after { content: ''; position: absolute; inset: -8px 0; } /* taller to hit, same row */
+  #tool-chip .icon-btn { width: 40px; height: 40px; }
+  #tool-alts button { min-height: 40px; }
+  .graph-range button, #view-grid button { min-height: 40px; }
+  button.link, details:not(.watch-rest) > summary { position: relative; }
+  button.link::after, details:not(.watch-rest) > summary::after { content: ''; position: absolute; inset: -12px -8px; }
+  .tile kbd { display: none; }
+  /* The goal screens' small controls: a finger's margin, the rows unchanged. */
+  :is(.watch-sort, .advice-view, .mg-views .vchip, .mg-tax .tax-step, .fac-fund .tax-step, #manage-chip .icon-btn) { position: relative; }
+  .mg-time { position: relative; }
+  :is(.watch-sort, .advice-view, .mg-views .vchip, #manage-chip .icon-btn, .mg-time)::after { content: ''; position: absolute; inset: -7px 0; }
+  :is(.mg-tax .tax-step, .fac-fund .tax-step)::after { content: ''; position: absolute; inset: -7px -3px; }
+  .mg-switch button { height: 40px; }
+  /* Two links one above the other: each its own 40px row (their margins overlapped, the lower one took the upper's tap). */
+  .mg-links { gap: 0; }
+  .mg-links .link { min-height: 40px; }
+  .mg-links .link::after { display: none; }
+  /* Demand rows open their type's breakdown: rows a finger can pick one of (22px stacked, the neighbour took the tap). */
+  .demand-row { height: 30px; }
+  #hint { -webkit-line-clamp: 4; max-height: calc(5.8em + 18px); }
+}
+
+/* A drag that starts on the tray must not select its text. */
+#tray { -webkit-user-select: none; user-select: none; }
+
+/* The status line's icons stand in for its labels on phones only. */
+.sb-kpis .i { display: none; }
+
+/* The app's own confirm (util ask): a question and its two answers. */
+#ask-dialog { max-width: min(420px, calc(100vw - 32px)); }
+#ask-dialog .ask-title { margin: 0 0 8px; font-size: 20px; }
+#ask-dialog .ask-text { margin: 0; font-size: 15px; line-height: 1.55; }
+.advice-more { display: block; margin: 10px 0 0; font-size: 13px; }
+/* A sheet's title takes focus when it opens (for screen readers), not to be ringed. */
+[tabindex='-1']:focus { outline: none; }
+#overlay-legend[data-title]::before { content: attr(data-title); display: block; color: var(--text); font-weight: 600; } /* a heading line (a trailing · hung at line ends) */
+.nw { white-space: nowrap; }
+
+/* Touch tablets: the chip is taller (its 40px close button), so its siblings sit lower. */
+@media (pointer: coarse) and (hover: none) and (min-width: 861px) { #tool-alts { top: 74px; } }
+
+/* An advice line's buttons (보기, the fix) on their own row under its text, wherever the text wraps. */
+.advice-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.advice-acts > * { margin: 0 !important; }
+
+/* An info card reading that opens its goal's screen (EQ → 교육, commute → 교통…). */
+#info-card tr.row-goal { cursor: pointer; }
+#info-card tr.row-goal:hover td, #info-card tr.row-goal:focus-visible td { background: var(--surface-2); }
+#info-card tr.row-goal td:last-child::after { content: '›'; margin-left: 6px; color: var(--faint); }
+#info-card .row-goal-btn { all: unset; cursor: pointer; }
+#info-card .row-goal-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+.mg-deal { margin: 4px 0; font-size: 12.5px; }
+
+/* The goal an ordinance serves, beside it in the budget sheet (pressed: that goal's screen). */
+.goal-tag { display: inline-flex; align-items: center; gap: 3px; min-height: 0; padding: 1px 7px; margin-left: 4px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11px; font-weight: 600; vertical-align: 1px; }
+.goal-tag .i { width: 11px; height: 11px; }
+.goal-tag:hover { color: var(--accent-hi); }
+
+.sum-rating { cursor: pointer; border-radius: var(--r-sm); }
+.sum-rating:hover b, .sum-rating:focus-visible b { color: var(--accent-hi); }
+
+#goal-strip { display: none; position: absolute; z-index: 4; }
+#goal-strip button { flex: none; display: inline-flex; align-items: center; gap: 5px; min-height: 36px; padding: 0 12px; border-radius: 999px; background: var(--float-solid); box-shadow: var(--shadow-sm); font-size: 12.5px; font-weight: 600; }
+#goal-strip button .i { width: 15px; height: 15px; }
+/* The state is the icon's colour (an outline round each made three loud rings over the map). */
+#goal-strip button.bad { color: var(--danger-ink); }
+#goal-strip button.bad .i { color: var(--danger); }
+#goal-strip button.warn .i { color: var(--warn); }
+.legend-more { margin-top: 8px; }
+.legend-more > summary { cursor: pointer; color: var(--muted); font-size: 12.5px; padding: 4px 0; }
+/* A goal screen's other build choices, folded under the recommended one. */
+.acts-more { margin-top: 6px; }
+.acts-more > summary { display: flex; align-items: center; gap: 6px; padding: 6px 2px; color: var(--muted); font-size: 12.5px; cursor: pointer; list-style: none; }
+.acts-more > summary::-webkit-details-marker { display: none; }
+.acts-more > summary::after { content: ''; width: 14px; height: 14px; background: var(--chevron) center / 14px no-repeat; transition: transform 0.2s var(--ease); }
+.acts-more[open] > summary::after { transform: rotate(180deg); }
+@media (hover: hover) { .acts-more > summary:hover { color: var(--text); } }
+.acts-more > .acts { margin-top: 4px; }
+/* The info card's area readings, folded under its own story. */
+.info-more { margin-top: 14px; border-top: 1px solid var(--line); }
+.info-more > summary { display: flex; align-items: center; gap: 6px; padding: 12px 0 4px; color: var(--muted); font-size: 12.5px; cursor: pointer; list-style: none; }
+.info-more > summary::-webkit-details-marker { display: none; }
+.info-more > summary::after { content: ''; width: 14px; height: 14px; margin-left: auto; background: var(--chevron) center / 14px no-repeat; transition: transform 0.2s var(--ease); }
+.info-more[open] > summary::after { transform: rotate(180deg); }
+@media (hover: hover) { .info-more > summary:hover { color: var(--text); } }
+#info .info-more > h3.sub:first-of-type { border-top: 0; margin-top: 6px; }
+.info-more #bname { margin: 10px 0 8px; }
+/* Undo appears once there is something to take back (a greyed arrow sat there from the start). */
+#btn-undo:disabled { visibility: hidden; }
+
+/* The city pane is one surface: its parts are set apart by space and a hairline, not by boxes on grey. */
+#pane { background: var(--surface); }
+#pane :is(.card, .summary) { background: transparent; border-radius: 0; padding-left: 4px; padding-right: 4px; box-shadow: none; }
+#status > * + *, #pane > .card:not([hidden]) ~ .card:not([hidden]), #status:not(:empty) ~ .card:not([hidden]), #pane > #onboarding:not([hidden]) + #status > :first-child { border-top: 1px solid var(--line); padding-top: 18px; }
+#pane .watch-card .watch-head, #pane .watch-fold > summary { padding-left: 4px; padding-right: 4px; }
+#pane .watch-card { padding-left: 0; padding-right: 0; }
+#pane .mg-head { background: var(--surface); }
+#pane .mg-m { background: var(--surface-2); }
+#pane .mg-sec { background: transparent; border-radius: 0; padding: 14px 4px 4px; border-top: 1px solid var(--line); }
+/* The app sheet, likewise: one surface, its sections ruled by hairlines. */
+#sheet { background: var(--surface); }
+#sheet [data-pane] > .card { background: transparent; border-radius: 0; margin: 0; padding: 16px 4px 18px; border-top: 1px solid var(--line); }
+#goal-strip button.strip-more { padding: 0 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ------------------------------------------------------------------ build menu (floating on the map) */
+
+/* At the map's foot, centred: looking and removing, then building, then rewards and the land.
+   A category opens its tools in the card above it (as the view picker unfolds its list). */
+#dock {
+  position: absolute; left: 50%; bottom: 14px; z-index: 5; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 2px; padding: 5px; max-width: calc(100% - 28px);
+  border-radius: 18px; overflow-x: auto; scrollbar-width: none;
+}
+#dock::-webkit-scrollbar { display: none; }
+#dock-tools { display: flex; align-items: center; gap: 2px; }
+.dock-sep { flex: none; width: 1px; height: 28px; margin: 0 5px; background: var(--line-strong); }
+.dock-btn {
+  position: relative; flex: none; flex-direction: column; gap: 3px;
+  width: 62px; height: 50px; min-height: 0; padding: 0; border-radius: 13px;
+  background: transparent; color: var(--muted);
+}
+.dock-btn .i { width: 21px; height: 21px; stroke-width: 1.7; }
+.dock-label { font-size: 11px; font-weight: 600; white-space: nowrap; }
+@media (hover: hover) { .dock-btn:hover { background: var(--surface-2); color: var(--text); } }
+.dock-btn.current { color: var(--accent-hi); background: var(--accent-soft); }
+.dock-btn.open { background: var(--surface-2); color: var(--text); }
+.dock-btn.open.current { color: var(--accent-hi); background: var(--accent-soft); }
+#dock.sheet-open .dock-btn.current:not(.open), #dock:has(.dock-btn.open) .dock-btn.current:not(.open) { color: inherit; background: transparent; }
+.dock-city, .dock-build, #tray-cats { display: none; }
+.dock-btn[data-alerts]::after {
+  content: attr(data-alerts); position: absolute; top: 3px; right: 8px; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 8px; background: var(--danger); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 16px; text-align: center;
+}
+.dock-btn.unread::before { content: ''; position: absolute; top: 6px; right: 14px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+/* Beside an open info card, centred on the map that is left (as the hint). */
+@media (min-width: 1100px) { #view.info-open #dock { left: calc((100% - var(--info-w) - 28px) / 2); max-width: calc(100% - var(--info-w) - 56px); } }
+/* A sheet and a tool card cover the map's foot: the menu steps back under them. */
+#view.sheet-open #dock { visibility: hidden; }
+
+/* ------------------------------------------------------------------ a goal's statistics */
+
+/* Under its screen: the graphs of its figures and the reports that go with it. */
+#goal-stats { gap: 10px; }
+#goal-stats h4 { margin: 4px 0 8px; color: var(--muted); font-size: 12.5px; font-weight: 600; }
+#goal-stats > :not(h3):not([hidden]) ~ .gs:not([hidden]) { padding-top: 10px; border-top: 1px solid var(--line); }
+#goal-stats .graph.off, #goal-stats h3.sub.off { display: none; }
+#goal-stats #ages h3.sub:first-child { margin-top: 4px; }
+
+/* ------------------------------------------------------------------ 주민 · 지역 · 정책, in the status bar */
+
+.sb-policy {
+  gap: 6px; height: 34px; min-height: 0; padding: 0 12px; border-radius: 999px;
+  background: var(--surface-2); color: var(--text); font-size: 13px; font-weight: 600;
+}
+.sb-policy .i { width: 16px; height: 16px; color: var(--muted); }
+@media (hover: hover) { .sb-policy:hover { background: var(--surface-3); } }
+.sb-policy.open { background: var(--accent-soft); color: var(--accent-hi); }
+.sb-policy.open .i { color: var(--accent-hi); }
+#sheet .sheet-body .card-head { display: flex; }
+#sheet-title { display: block; }
+
+@media (max-width: 860px) {
+  /* Phones: the menu across the foot (도시 · 살펴보기 · 철거 · 짓기), floating clear of the edges. */
+  #dock { left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); transform: none; max-width: none; justify-content: space-around; padding: 4px; }
+  #dock-tools { display: contents; }
+  .dock-sep, .dock-build-cat { display: none; }
+  .dock-city, .dock-build { display: inline-flex; }
+  .dock-btn { flex: 1 1 0; width: auto; max-width: 96px; height: 54px; }
+  .dock-build { order: 1; }
+  .dock-btn .i { width: 22px; height: 22px; }
+  /* A sheet: its own title and close button. */
+  #sheet .sheet-body .card-head { position: static; padding: 16px 12px 6px 18px; }
+  .sb-policy { padding: 0 10px; height: 32px; }
+}
+/* Narrow: the three as plain icons beside 되돌리기 and ⋯ (their titles name them; lit while open). */
+@media (max-width: 560px) {
+  .sb-policy-label { display: none; }
+  .sb-policy { width: 32px; height: 36px; padding: 0; background: transparent; border-radius: 10px; }
+  .sb-policy .i { width: 19px; height: 19px; color: var(--text); }
+  .sb-right { gap: 0; }
+  .sb-right .icon-btn { width: 32px; }
+  .sb-date { min-width: 0; }
+}
+@media (max-width: 400px) {
+  #statusbar { gap: 4px; padding: 0 4px 0 8px; }
+  .sb-right .icon-btn, .sb-policy { width: 30px; }
+  .gear-compact button { min-width: 25px; padding: 0; }
+  .sb-center { column-gap: 5px; }
+}
+
+/* ------------------------------------------------------------------ 재정·정책 */
+
+.sec-title { font-size: 12.5px; font-weight: 650; color: var(--muted); letter-spacing: 0.01em; }
+.sec-go { width: 15px; height: 15px; margin-left: auto; color: var(--faint); flex: none; }
+.sec-head .chip + .sec-go { margin-left: 0; }
+
+/* Its screen: the books and graphs below the policy, the policy kept across redraws. */
+#mg-body, #policy { display: contents; }
+#policy .tax-row:first-child { margin-top: 0; }
+
+/* ------------------------------------------------------------------ the overview, top down */
+
+/* Each block's heading: the same quiet label, a count or a hint at its right. */
+.sec-head { display: flex; align-items: center; gap: 8px; min-height: 22px; margin-bottom: 8px; }
+.sec-head h2 { margin: 0; font-size: 12.5px; font-weight: 650; color: var(--muted); letter-spacing: 0.01em; white-space: nowrap; }
+.sec-head .chip { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; }
+.sec-head .chip .i { width: 13px; height: 13px; }
+.sec-note { margin-left: auto; font-size: 11.5px; color: var(--faint); white-space: nowrap; }
+#status > section { display: grid; gap: 4px; }
+#status > section > .sec-head { margin-bottom: 4px; }
+
+.problems .chips.alerts { margin-bottom: 6px; }
+.all-good { display: flex; align-items: center; gap: 6px; margin: 0; padding: 2px 2px 4px; font-size: 13px; color: var(--good-ink); }
+.all-good .i { width: 15px; height: 15px; }
+
+/* The pane's other blocks (시작하기, 소식) under the same quiet heading as the overview's. */
+#pane > .card > h2 { margin: 0 0 8px; font-size: 12.5px; font-weight: 650; color: var(--muted); letter-spacing: 0.01em; }
+
+
+/* ------------------------------------------------------------------ the overview: five blocks, each read at a glance */
+
+/* 점수판 — what the city has become: its stage, the residents that earned it, the way to the next. */
+.summary.score { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding-top: 2px; }
+.score p { margin: 0; }
+.score-stage { display: flex; align-items: center; gap: 6px; color: var(--accent-hi); }
+.score-stage .i { width: 17px; height: 17px; }
+.score-stage b { font-size: 15px; font-weight: 750; letter-spacing: -0.01em; }
+.score-stage span { padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); font-size: 11px; font-weight: 650; }
+.score-main { display: flex; align-items: baseline; gap: 4px; }
+.score .sum-value { font-size: 40px; }
+.score-unit { font-size: 15px; font-weight: 600; color: var(--muted); }
+.score-main .k-sub { margin-left: 6px; font-size: 13px; }
+.score-bar { height: 6px; overflow: hidden; border-radius: 3px; background: var(--surface-3); }
+.score-bar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); transition: width 0.5s var(--ease); }
+.score-next { display: flex; align-items: baseline; gap: 4px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.score-next b { color: var(--text); font-weight: 650; }
+.score-next span { margin-left: auto; color: var(--accent-hi); font-weight: 650; }
+
+/* 다음 보상 — one prize in sight: what it is and gives, how close, what is left. */
+.reward {
+  display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; grid-template-areas: 'icon name pct' 'icon bar bar' 'icon left left';
+  align-items: center; justify-content: stretch; column-gap: 12px; row-gap: 5px; width: 100%; min-height: 0; margin: 0; padding: 12px 14px 12px 12px;
+  border-radius: var(--r-md); background: var(--accent-soft); color: inherit; text-align: left; font-weight: 400;
+}
+@media (hover: hover) { .reward:hover { filter: brightness(1.04); } }
+.rw-icon { grid-area: icon; align-self: start; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 11px; background: var(--accent); color: #fff; }
+.rw-icon .i { width: 20px; height: 20px; }
+.rw-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rw-name b { font-size: 14.5px; font-weight: 700; }
+.rw-name small { margin-left: 7px; color: var(--good-ink); font-size: 11.5px; font-weight: 650; }
+.rw-pct { grid-area: pct; font-size: 13px; font-weight: 750; color: var(--accent-hi); font-variant-numeric: tabular-nums; }
+.rw-bar { grid-area: bar; height: 6px; overflow: hidden; border-radius: 3px; background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.rw-bar i { display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+.rw-left { grid-area: left; min-width: 0; font-size: 12px; color: var(--text); line-height: 1.35; }
+.rw-left span { margin-right: 4px; color: var(--muted); font-weight: 600; }
+
+/* 해결할 문제 — the worst first: what is wrong, what it costs if left, the one thing to do. */
+.lead { display: grid; gap: 4px; padding: 12px 14px; border-radius: var(--r-md); background: var(--surface-2); }
+.lead.warn { background: var(--warn-soft); }
+.lead.bad { background: var(--danger-soft); }
+.lead.calm { background: var(--good-soft); }
+.lead p { margin: 0; }
+.lead-title { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.35; word-break: keep-all; }
+.lead-title > .i { width: 16px; height: 16px; flex: none; margin-top: 2px; color: var(--muted); }
+.lead-title b { font-weight: 750; margin-right: 2px; }
+.lead.warn .lead-title > .i { color: var(--warn-ink); }
+.lead.bad .lead-title > .i { color: var(--danger-ink); }
+.lead.calm .lead-title { color: var(--good-ink); font-weight: 600; }
+.lead.calm .lead-title > .i { color: var(--good-ink); }
+.lead-title em { margin-left: auto; flex: none; padding: 1px 7px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 11px; font-style: normal; font-weight: 700; }
+.lead-risk, .lead-do, .lead .next-acts { margin-left: 24px !important; }
+.lead-risk { font-size: 12.5px; line-height: 1.4; color: var(--warn-ink); word-break: keep-all; }
+.lead.bad .lead-risk { color: var(--danger-ink); }
+.lead-do { margin-top: 4px !important; font-size: 13px; font-weight: 600; line-height: 1.4; word-break: keep-all; }
+.lead-do > span { margin-right: 6px; color: var(--muted); font-size: 11.5px; font-weight: 650; }
+.lead-do small { color: var(--muted); font-size: 12px; font-weight: 400; }
+.lead .next-acts { margin-top: 6px; }
+.dot { display: inline-block; width: 8px; height: 8px; flex: none; border-radius: 50%; background: var(--good); }
+.warn > .dot { background: var(--warn); }
+.bad > .dot { background: var(--danger); }
+
+
+/* 도시 상태 — every quality in two columns: a dot for its state, a word, a figure. */
+.s-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 14px; }
+.s-row {
+  display: flex; align-items: center; justify-content: flex-start; gap: 7px; width: 100%; min-height: 0; margin: 0; padding: 7px 4px;
+  background: transparent; color: inherit; text-align: left; border-radius: 0; font-weight: 400; box-shadow: 0 1px 0 var(--line);
+}
+@media (hover: hover) { .s-row:hover { background: var(--surface-2); } }
+.s-name { font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.s-val { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.s-row.warn .s-val { color: var(--warn-ink); }
+.s-row.bad .s-val { color: var(--danger-ink); }
+.s-row.on { background: var(--accent-soft); }
+.s-wait { margin-left: 3px; color: var(--accent-hi); font-size: 10px; letter-spacing: -1px; }
+/* (A line that does not wrap is cut at the pane's edge, not let widen it.) */
+#status, #status > section { grid-template-columns: minmax(0, 1fr); min-width: 0; }
+.score-next .score-pct { margin-left: auto; color: var(--accent-hi); font-weight: 650; }
+.score-next > span:first-child { margin-left: 0; color: var(--muted); font-weight: 400; }
+.sec-head .chip + .sec-note { margin-left: 4px; }
+
+/* The clock held while building: the pause button ringed; the tool chip says 멈춤. */
+.gear.held button.active { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent-hi); }
+.chip-held { display: inline-flex; align-items: center; gap: 3px; margin-left: 2px; padding: 1px 7px 1px 5px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi) !important; font-size: 11px; font-weight: 650; }
+.chip-held .i { width: 11px; height: 11px; }
+
+/* ------------------------------------------------------------------ the tray: the everyday tools first */
+
+/* The finer tools fold behind 더 보기 (one in hand stays in sight). */
+.tray-section:not(.show-more) :is(.tile.more:not(.active), .more-only) { display: none; }
+.tile-more { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
+.tile-more .tile-icon .i { width: 20px; height: 20px; }
+@media (hover: hover) { .tile-more:hover { color: var(--text); background: var(--surface-2); } }
+/* Acting on the running city (send a unit, throw money): a small button by the group's name. */
+.tray-section h3 { display: flex; align-items: center; gap: 8px; min-height: 26px; }
+.sec-act {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 26px; padding: 0 10px 0 8px; margin-left: auto;
+  border-radius: 999px; background: var(--surface-2); color: var(--text); font-size: 12px; font-weight: 600;
+}
+.sec-act + .sec-act { margin-left: 0; }
+.sec-act .i { width: 14px; height: 14px; color: var(--muted); }
+.sec-act.active { background: var(--accent-soft); color: var(--accent-hi); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.sec-act.active .i { color: var(--accent-hi); }
+/* Smaller tiles: a glyph, a name, a price. */
+.tray-section .group { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
+.tile { min-height: 74px; gap: 4px; padding: 9px 6px 8px; }
+.tile-icon { height: 24px; }
+.tile-icon .i { width: 23px; height: 23px; }
+.tile-icon .swatch { width: 22px; height: 22px; border-radius: 7px; }
+.tile-label { font-size: 12.5px; }
+.tile-sub { font-size: 11px; min-height: 15px; }
+/* A facility's card: its name and price on one line, what it does under it. */
+.picker { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 6px; }
+.pick { min-height: 0; gap: 2px; padding: 8px 11px 9px; }
+.pick-name { width: 100%; }
+.pick-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pick-cost { margin-left: auto; padding-left: 8px; flex: none; font-size: 11.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pick-cost.short { color: var(--danger-ink); }
+.pick-stat { font-weight: 550; color: var(--muted); }
+.pick.active .pick-stat { color: var(--accent-hi); }
+.tray-section .group { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+
+/* ------------------------------------------------------------------ the tool in hand: one bar */
+
+/* The tool's name and price, its siblings after a hairline, and the way out — one bar, not two. */
+#tool-chip { gap: 8px; max-width: min(860px, calc(100% - 2 * 200px)); }
+#tool-chip #tool-alts {
+  position: static; inset: auto; transform: none; z-index: auto; flex: 0 1 auto; min-width: 0; max-width: none;
+  margin: 0; padding: 0 0 0 8px; border-radius: 0; border-left: 1px solid var(--line);
+  background: transparent; box-shadow: none; animation: none;
+}
+#tool-chip #tool-alts[hidden] { display: none; }
+#tool-chip #tool-alts button.active { display: none; } /* the bar's name already says it */
+#tool-chip #tool-alts button { min-height: 28px; padding: 0 9px; }
+#tool-chip-label { flex: none; }
+@media (max-width: 860px) {
+  #tool-chip { max-width: calc(100% - 20px); }
+  #view:not(.sheet-open):has(#tool-alts:not([hidden])):not(:has(#map-layer.picking)) #hint { bottom: calc(var(--bb) + 54px); }
+}
+/* Open land in the info card: its few facts in a row (the rest folds under 자세히). */
+.info-glance { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 4px 0 2px; font-size: 13px; }
+.info-glance span { display: inline-flex; align-items: center; gap: 5px; }
+.info-glance .i { width: 15px; height: 15px; color: var(--muted); }
+.info-glance .neg { color: var(--danger-ink); }
+.info-glance .neg .i { color: var(--danger-ink); }
+/* Zones: residential, commercial and industrial side by side, three densities each. */
+@media (min-width: 861px) {
+  #tray[data-cat='zones'] { width: min(720px, calc(100% - 28px)); }
+  #tray[data-cat='zones'] #tools { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 18px; }
+}
+@media (min-width: 861px) { #tray[data-cat='zones'] .group { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* The shortcut sits in the tile's corner (it no longer pushes the price onto two lines). */
+.tile { position: relative; }
+.tile kbd { position: absolute; top: 5px; right: 5px; }
+.tile-sub { white-space: nowrap; }
+/* Transport's stations and airports: the whole width under the roads and tracks (a column of twelve cards beside an empty one). */
+@media (min-width: 861px) { #tray[data-cat='transport'] .tray-section:has(.picker) { grid-column: 1 / -1; } }
+/* A drag laying something down: the menu, the minimap and the view picker step back. */
+#view :is(#dock, #minimap, #map-layer, #map-zoom, #goal-strip, #manage-chip) { transition: opacity 0.2s var(--ease); }
+#view.drawing :is(#dock, #minimap, #map-layer, #map-zoom, #goal-strip, #manage-chip) { opacity: 0.25; }
+/* The tool's name opens its card: it reads as a button (a hover, a small caret). */
+#tool-chip-label { align-items: center; margin: -4px 0 -4px -6px; padding: 4px 6px; border-radius: 999px; }
+@media (hover: hover) { #tool-chip-label:hover { background: var(--surface-2); } }
+#tool-chip-label .chip-more { width: 13px; height: 13px; color: var(--faint); margin-left: -4px; }
+/* The pointer's chip eases in where it appears. */
+#cursor-tag:not([hidden]) { animation: tag-in 0.12s var(--ease); }
+@keyframes tag-in { from { opacity: 0; } to { opacity: 1; } }
+/* The kind a short service would build first: marked 추천 (its goal's screen says why). */
+.pick.suggested { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent); }
+.pick.suggested.active { box-shadow: inset 0 0 0 2px var(--accent); }
+.pick.suggested .pick-stat { display: flex; align-items: center; width: 100%; }
+.pick.suggested .pick-stat::after { content: '추천'; margin-left: auto; padding: 1px 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 10.5px; font-weight: 700; } /* (on the line under the name: the name keeps its room) */
+.tray-section:not(.show-more) .pick.more:not(.active) { display: none; }
+@media (hover: hover) { .chip-held:hover { background: var(--accent); color: #fff !important; } }
+/* Narrower wide screens: the city's name gives way (cut to "예..", it said nothing; ⋯ renames it). */
+@media (min-width: 861px) and (max-width: 1023px) { #city-title { display: none; } }
+#tool-chip-label { background: transparent; color: inherit; min-height: 0; font-weight: 400; border: 0; }
+/* (The open tool card takes that place: the bar steps aside until the card closes, then stands where it was.) */
+@media (min-width: 861px) { #view:has(#tray.at-top:not([hidden])) #tool-chip { display: none; } }
+/* Siblings cut off by a narrow bar fade at that edge (a swipe brings them in). */
+#tool-alts.more-right { mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+#tool-alts.more-left { mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); }
+#tool-alts.more-left.more-right { mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+/* A category holding a 추천 (a short service's answer): a small dot by its icon. */
+.dock-btn.suggest, .tray-cat.suggest { position: relative; }
+.dock-btn.suggest::after, .tray-cat.suggest::after {
+  content: ''; position: absolute; top: 6px; left: calc(50% + 8px); width: 7px; height: 7px; border-radius: 50%;
+  background: var(--accent); box-shadow: 0 0 0 2px var(--float-solid, var(--surface)); pointer-events: none;
+}
+/* A long name ("엠파이어 스테이트 빌딩") takes a second line rather than an ellipsis; the price stays on the first. */
+.pick-name { align-items: flex-start; }
+.pick-name > :is(.pick-swatch, .i) { flex: none; margin-top: 2.5px; }
+.pick-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.pick-cost { flex: none; }
+/* A facility's catches, a line each (then what it does). */
+#cursor-tag span { white-space: pre-line; -webkit-line-clamp: 8; }
+/* A pale facility colour (a hospital's white) keeps its square on a pale card: a hairline round it. */
+.pick-swatch { box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.22), 0 0 0 1px var(--line-strong); }
+
+/* ------------------------------------------------------------------ a tool in hand: one bar at the top */
+
+/* Picked, the tool's bar at the top is all the building there is: the menu at the foot goes until the tool is
+   put down (its card, opened from the bar's name, drops from the top where the bar is). */
+#view.holding:not(:has(#tray:not([hidden]):not(.at-top))) { --bb: 12px; }
+#view.holding:not(:has(#tray:not([hidden]):not(.at-top))) #dock { display: none; }
+@media (min-width: 861px) {
+  #tray.at-top { top: 14px; bottom: auto; animation-name: pop-in; }
+  /* The view's card folds while a tool is in hand (the bar takes the top); to its icon where the map is narrower. */
+  #view.holding #map-layer:not(.picking) { width: auto; max-width: 220px; padding-bottom: 6px; }
+  #view.holding #map-layer:not(.picking) :is(.layer-title, #view-off), #view.holding #map-layer:not(.picking) #overlay > :not(.view-current) { display: none !important; }
+}
+@media (min-width: 861px) and (max-width: 1279px) {
+  #view.holding #map-layer:not(.picking) { padding: 4px; }
+  #view.holding #map-layer:not(.picking) #view-pick { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  #view.holding #map-layer:not(.picking) #view-pick > :not(.i:first-child) { display: none; }
+  #tool-chip { max-width: calc(100% - 2 * 80px); }
+}
+@media (max-width: 860px) {
+  /* Phones: the bar between the view and map buttons at the top. */
+  #tool-chip { top: 10px; bottom: auto; left: 66px; right: 66px; width: auto; max-width: none; animation-name: pop-in; }
+  #view:has(#tool-chip:not([hidden])) #hint { bottom: calc(var(--bb) + 4px); }
+  #view:not(.sheet-open):has(#tool-alts:not([hidden])):not(:has(#map-layer.picking)) #hint { bottom: calc(var(--bb) + 4px); }
+}
+/* Who comes and goes (the map's lines, in their colours) and what the residents think: a line each, no toggle. */
+.info-paths, .info-voice { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
+.info-paths > .i, .info-voice > .i { width: 15px; height: 15px; color: var(--accent-hi); }
+.info-paths > span:first-of-type, .info-voice > span:first-of-type { color: var(--text); font-weight: 600; margin-right: 2px; }
+.info-path { display: inline-flex; align-items: center; gap: 5px; color: var(--text); }
+.info-path i { width: 10px; height: 4px; border-radius: 2px; display: inline-block; }
+.info-voice .thought { margin: 0; }
+/* The card's foot: its goal's screen and taking it down, side by side after what it says. */
+.info-own:has(.info-goal, .info-bulldoze) { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.info-own .info-goal, .info-own .info-bulldoze { margin: 0; min-height: 34px; }
+.info-own .info-bulldoze { margin-left: auto; padding: 0 12px; border-radius: 999px; font-size: 12.5px; }
+/* A building's essentials at a glance under its meter: green when fine, red when cut. */
+.info-glance .ok .i { color: var(--good, #2e9e57); }
+/* A toast: a card to press (its subject in bold, on a line of its own), and when it stopped the clock, its 계속. */
+.toast { display: flex; align-items: center; cursor: pointer; }
+.toast:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toast-text b { display: block; font-weight: 700; margin-bottom: 1px; }
+.toast-resume {
+  flex: none; display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 0 12px 0 10px; border-radius: 999px;
+  background: var(--accent); color: #fff; font-size: 12.5px; font-weight: 700;
+}
+.toast-resume .i { width: 14px; height: 14px; }
+@media (hover: hover) { .toast-resume:hover { filter: brightness(1.08); } }
+/* A view showing what needs a look now: a small dot by its name. */
+.vchip.hint { position: relative; }
+.vchip.hint::after { content: ''; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--float-solid, var(--surface)); }
+.vg-note { display: flex; align-items: center; gap: 6px; margin: 0 0 -2px; color: var(--muted); font-size: 12px; }
+.vg-note[hidden] { display: none; }
+.vg-note i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+/* The view's count under its legend: how many go without (red), or that none do (green). */
+.overlay-sum { margin: 2px 0 0; font-size: 12.5px; font-weight: 650; }
+.overlay-sum.bad { color: var(--danger-ink); }
+.overlay-sum.good { color: var(--good, #2e9e57); }
+.overlay-sum { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.overlay-sum .sum-go { font-size: 12px; font-weight: 600; }
+/* A chip or glance item that opens its goal's screen. */
+#info [data-row-goal]:not(tr) { cursor: pointer; }
+#info button.chip { border: 0; font: inherit; }
+@media (hover: hover) { #info .info-glance [data-row-goal]:hover { text-decoration: underline; text-underline-offset: 3px; } #info button.chip:hover { filter: brightness(0.97); } }
+/* With a tool in hand the view's card folds, but its count stays: where the service is missing is where to place. */
+#view.holding #map-layer:not(.picking) #overlay > #overlay-sum:not([hidden]) { display: flex !important; margin: 4px 8px 2px; }
+#view.holding #map-layer:not(.picking):has(#overlay-sum:not([hidden])) { width: 220px; }
+/* (Narrower maps fold the card to its icon while a tool is in hand: no room for the count beside the bar.) */
+@media (max-width: 1279px) {
+  #view.holding #map-layer:not(.picking) #overlay > #overlay-sum:not([hidden]) { display: none !important; }
+  #view.holding #map-layer:not(.picking):has(#overlay-sum:not([hidden])) { width: auto; }
+}
+/* The view picker, closed, dotted when a view would show what needs a look now. */
+
+/* ------------------------------------------------------------------ the build bar heads the map */
+
+/* The build bar sits at the top of the map, where a picked tool's bar shows: choosing and what is chosen,
+   in one place. A category's tools drop down under it; the map's foot keeps only the hint. */
+:root { --bb: 12px; }
+#dock {
+  top: 14px; bottom: auto; gap: 1px; padding: 4px; border-radius: 16px;
+  background: var(--float-solid); box-shadow: var(--shadow); animation: chip-in 0.18s var(--ease);
+}
+#dock-tools { gap: 1px; }
+.dock-btn { flex-direction: row; gap: 7px; width: auto; height: 40px; padding: 0 13px 0 11px; border-radius: 12px; }
+.dock-btn .i { width: 19px; height: 19px; stroke-width: 1.8; }
+.dock-label { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
+.dock-sep { height: 22px; margin: 0 5px; }
+/* The open category is lit, as its card hangs under the bar. */
+.dock-btn.open { background: var(--accent-soft); color: var(--accent-hi); }
+/* 철거 takes things away: it says so in red while it is chosen. */
+.dock-btn[data-cat='bulldoze'].open, .dock-btn[data-cat='bulldoze'].current { background: var(--danger-soft); color: var(--danger-ink); }
+@media (hover: hover) { .dock-btn[data-cat='bulldoze']:hover .i { color: var(--danger); } }
+.dock-btn.suggest::after { top: 7px; left: 25px; }
+/* The category's card hangs from the bar. */
+#tray { top: 70px; bottom: auto; max-height: min(calc(100% - 84px), 560px); animation-name: tray-drop; }
+@keyframes tray-drop { from { opacity: 0; transform: translate(-50%, -10px); } }
+@media (min-width: 861px) { #tray.at-top { top: 14px; } }
+/* A narrower map: each category's name under its icon, so the bar keeps clear of the view's button and 전체 보기. */
+@media (min-width: 861px) and (max-width: 1299px) {
+  #dock { padding: 3px; }
+  .dock-btn { flex-direction: column; gap: 2px; width: 54px; height: 46px; padding: 0; }
+  .dock-btn .i { width: 19px; height: 19px; }
+  .dock-label { font-size: 11px; }
+  .dock-sep { margin: 0 3px; }
+  .dock-btn.suggest::after { top: 4px; left: calc(50% + 7px); }
+}
+
+/* Notices: small cards stacked in the map's lower right corner, clear of the bar, the tool and the town's middle. */
+@media (min-width: 861px) {
+  #toasts { top: auto; bottom: 14px; left: auto; right: 14px; transform: none; width: min(360px, calc(100% - 28px)); align-content: end; }
+  #view:has(#hint:not(:empty)) #toasts { bottom: 62px; } /* above the hint's line */
+  #view.info-open #toasts { left: auto; right: calc(var(--info-w) + 28px); width: min(360px, calc(100% - var(--info-w) - 56px)); }
+}
+.toast {
+  position: relative; overflow: hidden; gap: 11px; padding: 11px 12px 12px 14px; border-radius: 14px;
+  background: var(--float-solid); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08);
+  font-size: 13px; line-height: 1.45; animation: toast-in 0.28s var(--ease);
+}
+@keyframes toast-in { from { opacity: 0; transform: translateX(28px); } }
+.toast.leaving { transform: translateX(28px); }
+/* Its tone in the badge (and the line of time left). */
+.toast-badge { width: 30px; height: 30px; border-radius: 10px; }
+.toast.info .toast-badge { background: var(--accent-soft); color: var(--accent-hi); }
+.toast-badge .i { width: 16px; height: 16px; }
+.toast-text { color: var(--text); }
+.toast-text:has(b) { color: var(--muted); }
+.toast-text b { color: var(--text); font-size: 13.5px; font-weight: 650; margin-bottom: 2px; }
+/* The time it has left, running out along its foot (held while it is pointed at or focused). */
+.toast.timed::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; transform-origin: left;
+  background: currentColor; color: var(--good); opacity: 0.45; animation: toast-life var(--life, 7s) linear forwards;
+}
+.toast.bad.timed::after { color: var(--danger); }
+.toast.info.timed::after { color: var(--accent); }
+@keyframes toast-life { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+/* Put away without going anywhere: a small ×, there when pointed at. */
+.toast-x {
+  flex: none; display: grid; place-items: center; width: 26px; height: 26px; min-height: 0; margin: -4px -4px -4px -6px; padding: 0;
+  border-radius: 8px; background: transparent; color: var(--faint); opacity: 0; transition: opacity 0.15s;
+}
+.toast-x .i { width: 14px; height: 14px; }
+.toast:is(:hover, :focus-within) .toast-x { opacity: 1; }
+@media (hover: hover) { .toast-x:hover { background: var(--surface-2); color: var(--text); } }
+@media (hover: none) { .toast-x { display: none; } } /* (a swipe puts it away) */
+.toast-go { flex: none; }
+.toast-resume { flex: none; }
+.toast.sticky { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08), inset 0 0 0 1px var(--danger-soft); }
+
+/* Phones: the bar takes the top row between the view's button and 전체 보기, as a picked tool's bar does;
+   the goals that need a look and the notices come below it. */
+@media (max-width: 860px) {
+  :root { --bb: calc(12px + env(safe-area-inset-bottom)); }
+  #dock { top: 10px; bottom: auto; left: 70px; right: 70px; padding: 3px; gap: 2px; justify-content: stretch; animation-name: pop-in; }
+  .dock-btn { flex: 1 1 0; max-width: none; height: 44px; padding: 0 6px; gap: 6px; }
+  .dock-btn .i { width: 20px; height: 20px; }
+  .dock-label { font-size: 13.5px; }
+  .dock-btn.unread::before { top: 8px; right: auto; left: calc(50% - 4px); }
+  .dock-btn.suggest::after { top: 8px; left: calc(50% + 2px); }
+  #goal-strip:not([hidden]) { top: 72px; left: 10px; right: 10px; }
+  #toasts { top: 72px; left: 10px; right: 10px; width: auto; animation: none; }
+  #view:has(#goal-strip:not([hidden])) #toasts { top: 118px; }
+  #view:has(#tray:not([hidden])) #hint { display: none; } /* (it peeked out under the card) */
+  .toast { animation-name: drop-in; }
+  .toast.leaving { transform: translateY(-6px); }
+}
+@media (max-width: 860px) and (orientation: portrait), (max-width: 860px) and (min-height: 521px) {
+  #tray {
+    top: 70px; bottom: auto; left: 8px; right: 8px; max-height: calc(100% - 82px);
+    border-radius: var(--r-xl); border-bottom: 1px solid var(--line); animation: drop-in 0.22s var(--ease);
+  }
+}
+/* Sideways: the bar as wide as its three buttons need, the notices card-sized, and the side card below the bar's row. */
+@media (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
+  #dock { left: 50%; right: auto; width: min(420px, calc(100% - 140px)); transform: translateX(-50%); animation: none; }
+  #toasts { right: auto; width: min(360px, calc(100% - 84px)); }
+  #tray { top: 70px; border-radius: var(--r-xl) 0 0 0; }
+}
+
+/* The top row is for controls (the view, the bar, 전체 보기); cards open below it. The info card starts under
+   the row, so the bar stays centred on the map and the zoom button keeps its corner. */
+@media (min-width: 861px) {
+  #info-card { top: 70px; max-height: calc(100% - 84px); }
+  #view.info-open #map-controls { right: 14px; }
+  #view.info-open #dock { left: 50%; max-width: calc(100% - 28px); }
+}
+@media (min-width: 861px) and (max-width: 941px) { #view.info-open #map-controls { visibility: visible; } }
+/* Phones: a view that is on shows as its card under the row, and the bar takes the row's left end. */
+@media (max-width: 860px) {
+  #view:not(.holding) #map-layer:not(.off):not(.picking) { top: 72px; }
+  #view:not(.holding):has(#map-layer:not(.off):not(.picking)) #toasts { top: 132px; }
+  /* A goal's chip takes that place (opening a goal turns its view on): the card goes under the chip. */
+  #app:not(.pane-open) #view:not(.holding):has(#manage-chip:not([hidden])) #map-layer:not(.off):not(.picking) { top: 116px; }
+  #app:not(.pane-open) #view:not(.holding):has(#manage-chip:not([hidden])):has(#map-layer:not(.off):not(.picking)) #toasts { top: 176px; }
+}
+/* (Upright only: sideways the bar is centred at its own width, clear of the card.) */
+@media (max-width: 860px) and (orientation: portrait), (max-width: 860px) and (min-height: 521px) {
+  #view:not(.holding):has(#map-layer:not(.off):not(.picking)) #dock { left: 10px; }
+}
+
+/* ------------------------------------------------------------------ the pane: one thing stands out */
+
+/* Colour is kept for what asks for a hand (지금 할 일 and its 해 보기); the city's size and the next reward
+   read as plain facts: the stage in ink, the reward on a quiet card, its progress in the rewards' gold. */
+.score-stage { color: var(--muted); }
+.score-stage .i { color: var(--gold); }
+.score-stage b { color: var(--text); font-weight: 700; }
+.score-stage span { background: var(--surface-2); color: var(--muted); }
+.reward { background: var(--surface-2); padding: 11px 14px 11px 11px; }
+@media (hover: hover) { .reward:hover { filter: none; background: var(--surface-3); } }
+.rw-icon { width: 34px; height: 34px; border-radius: 10px; background: var(--gold-soft); color: var(--gold-ink); }
+.rw-icon .i { width: 18px; height: 18px; }
+.reward { grid-template-columns: 34px minmax(0, 1fr) auto; }
+.rw-name b { font-size: 14px; font-weight: 650; }
+.rw-pct { color: var(--text); font-weight: 650; }
+.rw-bar { height: 4px; background: var(--surface-3); }
+.rw-bar i { background: var(--gold); }
+.rw-left { color: var(--muted); }
+.rw-left span { color: var(--muted); font-weight: 500; }
+/* 도시 상태: only what is off is marked (a green dot by every sound figure drowned the amber ones);
+   a warning is its dot, a problem its dot and its red figure. */
+.s-row.ok > .dot { background: var(--line-strong); }
+.s-row.warn .s-val { color: var(--text); }
+.score-next .score-pct { color: var(--muted); }
+/* The status bar's 주민 · 지역: plain buttons (two grey pills beside the clock's read as more controls of it). */
+.sb-policy:not(.open) { background: transparent; }
+@media (hover: hover) { .sb-policy:not(.open):hover { background: var(--surface-2); } }
+/* Wide screens too: a view that is on (its name, legend and summary) is a card under the top row, not one
+   the bar runs over. (With a tool in hand it folds back to its button in the row.) */
+@media (min-width: 861px) {
+  #view:not(.holding) #map-layer:not(.off):not(.picking) { top: 70px; }
+}
+#overlay-legend[data-title]::before { color: var(--muted); font-weight: 500; margin-bottom: 2px; }
+/* 주민 생각: a complaint in red, a liking as a quiet chip with a small green mark. */
+.thought.pos { display: inline-flex; align-items: center; gap: 5px; background: var(--surface-2); color: var(--muted); }
+.thought.pos::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--good); }
+/* 철거 in a card: there when wanted, not a red-ringed button beside the card's way on. */
+.info-own .info-bulldoze { box-shadow: none; color: var(--muted); font-weight: 500; }
+.info-own .info-bulldoze .i { width: 15px; height: 15px; }
+@media (hover: hover) { .info-own .info-bulldoze:hover { color: var(--danger-ink); background: var(--danger-soft); } }
+/* A card's figures in plain ink: the name is its one bold line (bold numbers under every name made a wall of them). */
+.pick-stat, .pick-sub b, .pick-stat b { font-weight: 400; }
+.mg-sec h3 .sec-note { font-weight: 500; }
+/* 도움말's keys: two even columns, every key in one column of its own so the words line up (three ragged
+   columns wrapped half the lines). */
+.key-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 20px; }
+.key-grid span { display: grid; grid-template-columns: 7.2em minmax(0, 1fr); align-items: start; gap: 10px; line-height: 1.4; }
+.key-grid kbd { justify-self: start; }
+@media (max-width: 560px) { .key-grid { grid-template-columns: minmax(0, 1fr); } }
+.fac-line, .fac-line b { font-weight: 400; } /* (the button's bold reached its figures) */
+/* A goal's figures: a ruled grid, not eight grey boxes; colour only on a figure that is off. */
+#pane .mg-metrics { gap: 0 18px; }
+#pane .mg-m { background: transparent; border-radius: 0; padding: 9px 2px 8px; border-top: 1px solid var(--line); }
+#pane .mg-m:nth-child(-n + 2) { border-top: 0; padding-top: 2px; }
+.mg-m.good b { color: inherit; }
+/* The top row reads as one family: the view's button, the bar (or the tool's bar in its place) and 전체 보기
+   are the same height on the same solid surface with the same light shadow. */
+@media (min-width: 861px) {
+  #map-layer, #map-zoom, #dock, #tool-chip { background: var(--float-solid); box-shadow: var(--shadow-sm); }
+  #map-layer.off:not(.picking) { padding: 4px; }
+  #map-layer.off:not(.picking) #view-pick { min-height: 40px; }
+  #map-zoom { padding: 4px; border-radius: 16px; }
+  #map-layer { border-radius: 16px; }
+  #tool-chip { min-height: 50px; }
+}
+#sheet [data-pane] > .card { box-shadow: none; } /* (sections ruled by hairlines: a card's shadow drew a frame round each) */
+/* Sliders lighter: a thin track and a smaller knob (a dozen thick blue bars filled the 재정 screen). */
+input[type='range']::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; }
+input[type='range']::-webkit-slider-thumb { width: 18px; height: 18px; margin-top: -7px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.25); }
+input[type='range']::-moz-range-track { height: 4px; border-radius: 2px; }
+input[type='range']::-moz-range-progress { height: 4px; border-radius: 2px; }
+input[type='range']::-moz-range-thumb { width: 18px; height: 18px; }
+@media (pointer: coarse) { input[type='range']::-webkit-slider-thumb { width: 24px; height: 24px; margin-top: -10px; } }
+/* No lone word on a last line ("… 3,816 / 더"): short texts wrap evenly. */
+p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #confirm-text { text-wrap: pretty; }
+/* All well: the card is calm (neutral, its check green), not a green block asking to be read. */
+.lead.calm { background: var(--surface-2); }
+.lead.calm .lead-title { color: var(--text); }
+.mg-time:not(.on) { background: var(--surface-2); color: var(--muted); } /* the clock's state is not a warning: the goal's own chip beside it is */
+/* 추천 reads the same wherever it is: the action's blue ring and tag (green said "good" in the goal screen and
+   "recommended" nowhere else); what it would do stays green, as a gain. */
+.act.wanted, .act.best { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.act-best { background: var(--accent-soft); color: var(--accent-hi); }
+.overlay-sum.good { color: var(--good-ink); font-weight: 500; } /* all well, said calmly; a gap is the bold red line */
+/* A narrow map (861–1099): the closed view button is its icon (as on phones), so the bar clears it. */
+@media (min-width: 861px) and (max-width: 1099px) {
+  #map-layer.off:not(.picking) #view-pick { width: 44px; height: 44px; min-height: 44px; padding: 0; justify-content: center; } /* (as while holding a tool) */
+  #map-layer.off:not(.picking) #view-pick > :not(.i:first-child) { display: none; }
+}
+.score-bar i { background: var(--gold); } /* progress to the next stage, in the trophy's gold (blue is for what to press) */
+/* Wide screens: a sheet as tall as what it holds (up to the map's height), not a full-height panel with an
+   empty half under a short 지역. */
+@media (min-width: 861px) {
+  #sheet { bottom: auto; max-height: calc(100% - 28px); display: flex; flex-direction: column; }
+  #sheet .sheet-body { flex: 0 1 auto; min-height: 0; } /* (the sheet's own max-height bounds it; its panes scroll) */
+}
+/* Searching: the card shows what was found across categories, so no category stays lit on the bar. */
+#view:has(#tray:not([hidden]) #tray-results:not([hidden])) .dock-btn.open { background: transparent; color: var(--muted); }
+/* With a view on, its list opens where its card is (under the row), not jumping up over the bar. */
+#view:not(.holding) #map-layer:not(.off).picking { top: 70px; }
+@media (max-width: 860px) { #view:not(.holding) #map-layer:not(.off).picking { top: 72px; } }
+.advice > .adv-i + b { font-weight: 600; opacity: 0.72; margin-right: 2px; } /* who says it, as a quiet label: what is said is the line */
+.act-sub b { font-weight: 400; color: var(--text); } /* (figures in plain ink, as on the tool cards) */
+.mg-sec > button.link[data-mg-tab] { justify-self: start; justify-content: flex-start; width: auto; margin-left: 0; padding-left: 2px; } /* (a section's way on, under its heading, not floated mid-pane) */
+/* An informational notice in grey (blue is what to press; green and red are good and bad news). */
+.toast.info .toast-badge { background: var(--surface-2); color: var(--muted); }
+.toast.info.timed::after { color: var(--faint); }
+.info-glance .ok .i { color: var(--muted); } /* sound is the default and quiet; only a cut is coloured (red) */
+.tax-effect:not(.neg):not(.pos) { color: var(--muted); }
+.tax-effect.pos { color: var(--good-ink); }
+.act-sub { font-weight: 400; } /* (the button's bold reached the whole line) */
+
+/* ------------------------------------------------------------------ the pane in two blocks */
+
+/* 도시: its size and the next reward (money, jobs and the rating are rows of 도시 상태). */
+.city-sum { display: grid; gap: 14px; }
+#pane.fresh #onboarding:not([hidden]) ~ #status .city-sum { display: none; }
+/* The reward as the block's last line: a quiet card, its label before its name. */
+.city-sum .reward { padding: 10px 12px 10px 10px; column-gap: 10px; grid-template-columns: 30px minmax(0, 1fr) auto; }
+.city-sum .rw-icon { width: 30px; height: 30px; border-radius: 9px; }
+.city-sum .rw-icon .i { width: 16px; height: 16px; }
+.rw-label { margin-right: 6px; color: var(--muted); font-size: 11.5px; font-weight: 500; }
+.city-sum .rw-name > small:not(.rw-label) { display: none; } /* (what it gives: in the tooltip and the rewards list) */
+.city-sum .rw-left { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; }
+
+/* The reward hangs right under the size it grows with; money, jobs and rating below a hairline. */
+.city-sum .score + .reward { margin-top: -4px; }
+.rw-name small.rw-label { margin-left: 0; color: var(--muted); font-size: 11.5px; font-weight: 500; }
+
+/* ------------------------------------------------------------------ 도시 상태, one column */
+
+/* Each area a row: its icon on a badge that says how it stands (red, amber, grey), its name and
+   why in a line when off, its figure at the right. Worst first; the sound ones after a quiet rule. */
+.s-list { display: grid; gap: 4px; }
+.s-list .s-row {
+  display: grid; grid-template-columns: 30px minmax(0, 1fr) auto 14px; align-items: center; column-gap: 10px;
+  width: 100%; min-height: 0; margin: 0; padding: 8px 6px; border-radius: var(--r-md); box-shadow: none;
+  background: transparent; color: inherit; text-align: left; font-weight: 400;
+}
+.s-list .s-row.bad { background: var(--danger-soft); }
+.s-list .s-row.warn { background: var(--warn-soft); }
+@media (hover: hover) {
+  .s-list .s-row.ok:hover { background: var(--surface-2); }
+  .s-list .s-row:is(.bad, .warn):hover { filter: brightness(0.98); }
+}
+.s-list .s-row.on { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.s-ic { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--surface-2); color: var(--muted); }
+.s-ic .i { width: 16px; height: 16px; }
+.s-row.bad .s-ic { background: var(--danger); color: #fff; }
+.s-row.warn .s-ic { background: var(--warn); color: #fff; }
+.s-main { display: grid; gap: 1px; min-width: 0; }
+.s-list .s-name { display: flex; align-items: baseline; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; }
+.s-row.ok .s-name { font-weight: 500; }
+.s-note { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-row.bad .s-note { color: var(--danger-ink); }
+.s-row.warn .s-note { color: var(--warn-ink); }
+.s-list .s-val { margin: 0; font-size: 13px; font-weight: 650; text-align: right; }
+.s-list .s-row.ok .s-val { font-weight: 500; color: var(--muted); }
+.s-list .s-row.warn .s-val { color: var(--warn-ink); }
+.s-list .s-row.bad .s-val { color: var(--danger-ink); }
+.s-go { width: 14px; height: 14px; color: var(--faint); }
+.s-list .s-wait { font-size: 10.5px; font-weight: 500; color: var(--accent-hi); letter-spacing: 0; }
+/* The sound ones: tighter rows under a quiet rule. */
+.s-split { display: flex; align-items: center; gap: 8px; margin: 8px 0 2px; color: var(--faint); font-size: 11.5px; font-weight: 600; }
+.s-split::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.s-list .s-row.ok { padding-top: 4px; padding-bottom: 4px; }
+.s-list .s-row.ok .s-ic { width: 26px; height: 26px; margin: 0 2px; background: transparent; }
+/* Only what is urgent is a filled row; a warning is its amber badge (six amber cards read as a wall). */
+.s-list .s-row.warn { background: transparent; }
+@media (hover: hover) { .s-list .s-row.warn:hover { background: var(--surface-2); filter: none; } }
+.s-row.warn .s-ic { background: var(--warn-soft); color: var(--warn-ink); }
+.s-row.warn .s-note { color: var(--muted); }
+.s-list .s-row.warn .s-val { color: var(--text); }
+.s-list .s-row:not(.bad) + .s-row:not(.bad) { border-top: 1px solid var(--line); border-radius: 0; }
+.s-list { gap: 0; }
+.s-list .s-row.bad { margin-bottom: 4px; }
+/* An emergency (a fire, a riot) over 도시 상태, and a goal screen's 추천 조치 at its top. */
+.quality > .lead { margin-bottom: 10px; }
+.quality > .chips.alerts { margin-bottom: 8px; }
+.mg-guide { margin: 4px 0 2px; }
+.mg-guide .lead-risk, .mg-guide .lead-do, .mg-guide .next-acts { margin-left: 24px !important; }
+
+/* ------------------------------------------------------------------ a goal screen's 추천 조치 */
+
+/* The problem and its cost on the card's tint; the action in a white box of its own, read as one thing
+   to press: what (glyph, name, price), what it does (green), then 해 보기 and the site to build on. */
+.mg-guide { gap: 6px; padding: 14px; }
+.mg-guide .lead-title { font-size: 14px; }
+.mg-guide .lead-title b { font-weight: 650; }
+.mg-guide .lead-title > .i { margin-top: 1px; }
+.mg-guide .lead-risk { margin-left: 24px !important; }
+.g-label { margin: 6px 0 -2px !important; color: var(--muted); font-size: 11.5px; font-weight: 650; letter-spacing: 0.02em; }
+.g-act { display: grid; gap: 4px; padding: 11px 12px 12px; border-radius: var(--r-md); background: var(--surface); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06); }
+.g-act p { margin: 0; }
+.g-act-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 7px; font-size: 14px; line-height: 1.3; }
+.g-act-head > :is(.i, .swatch, .pick-swatch) { flex: none; width: 16px; height: 16px; }
+.g-act-head > .swatch, .g-act-head > .pick-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.g-act-head b { font-weight: 700; }
+.g-act-head small { flex-basis: 100%; color: var(--muted); font-size: 12px; font-weight: 400; }
+.g-act-head small.neg { color: var(--danger-ink); }
+.g-act-fx { color: var(--good-ink); font-size: 12.5px; font-weight: 650; }
+.g-act-why { color: var(--muted); font-size: 12.5px; line-height: 1.4; word-break: keep-all; }
+.g-act-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
+.g-act-btns .primary { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 16px; }
+.g-act-btns .i { width: 15px; height: 15px; }
+.g-site { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; background: transparent; color: var(--accent-hi); box-shadow: inset 0 0 0 1px var(--line-strong); font-weight: 600; }
+@media (hover: hover) { .g-site:hover { background: var(--accent-soft); } }
+.g-wait { display: flex; align-items: flex-start; gap: 6px; margin: 4px 0 0 !important; color: var(--muted); font-size: 12px; line-height: 1.4; }
+.g-wait .i { flex: none; width: 14px; height: 14px; margin-top: 1px; color: var(--good); }
+.mg-guide { display: grid; grid-template-columns: minmax(0, 1fr); }
+.mg-guide > .g-act, .mg-guide > .g-label, .mg-guide > .g-wait { grid-column: 1 / -1; }
+/* (A flex column: the lead's grid placed the cost line after the label.) */
+.mg-guide { display: flex; flex-direction: column; align-items: stretch; }
+.g-note { color: var(--muted); font-weight: 400; }
+/* The status bar: the date and the clock only (population and money are in the city pane). */
+#sb-kpis { display: none !important; }
+@media (max-width: 860px) { .sb-center { grid-template-areas: 'date speed'; } }
+.s-sub { display: inline-flex; align-items: baseline; gap: 3px; color: var(--muted); }
+.s-sub .k-sub { font-size: 10.5px; }

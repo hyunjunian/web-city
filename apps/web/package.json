@@ -1,0 +1,18 @@
+{
+  "name": "@web-city/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Web viewer for the web-city engine: Canvas map, tools and panels.",
+  "dependencies": {
+    "@web-city/engine": "*",
+    "lucide": "^1.51.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  }
+}

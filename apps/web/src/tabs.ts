@@ -1,0 +1,172 @@
+// What sits beside and over the map besides tools: the city pane on the left (the
+// city's state, 재정·정책, each goal's screen with its statistics), the status bar's
+// sheets (주민 and 지역), the info card (what the query tool found) and, on small
+// screens, the pane as a bottom sheet. Esc closes the topmost.
+
+import { closeGoal, openFinance, paneClosed } from './manage';
+import { redraw, renderer, setSelected } from './state';
+import { closeTray } from './tools';
+import { cancelMySimAction } from './mysims';
+import { $, flash } from './util';
+
+/** 'budget': the pane's 재정·정책 (taxes, budgets, loans, ordinances and the books). */
+export type Tab = 'city' | 'info' | 'budget' | SheetTab;
+/** The status bar's sheets: 주민 (My Sim, U-Drive-It) and 지역 (neighbours, deals). */
+export type SheetTab = 'sims' | 'region';
+
+const SHEET_TITLE: Record<SheetTab, string> = { sims: '주민', region: '지역' };
+
+/** The sheet open, if any. */
+let sheetTab: SheetTab | null = null;
+
+/** Phones: the city pane and a sheet are both bottom sheets, one at a time. */
+const phone = () => matchMedia('(max-width: 860px)').matches;
+
+/** Whether the city pane is in sight (always beside the map on wide screens, unless the map has the whole window). */
+export const paneShown = () => (phone() ? $('#app').classList.contains('pane-open') : !$('#app').classList.contains('focus'));
+
+/** Whether this sheet is on screen now (the panels skip rendering hidden ones). */
+export function sheetShown(tab: SheetTab): boolean {
+  return sheetTab === tab;
+}
+
+/** Shows a panel: the info card, the city pane, its 재정·정책, or one of the status bar's sheets. */
+export function showTab(tab: Tab): void {
+  if (tab === 'info') openInfo();
+  else if (tab === 'city') openPane();
+  else if (tab === 'budget') openFinance();
+  else openSheet(tab);
+}
+
+function openSheet(tab: SheetTab): void {
+  closeInfo(); // the sheet would cover it
+  closeTray();
+  if (phone()) closePane();
+  const changed = sheetTab !== tab;
+  sheetTab = tab;
+  $('#sheet').hidden = false;
+  $('#sheet').dataset.tab = tab;
+  document.querySelectorAll<HTMLElement>('#sheet [data-pane]').forEach((p) => (p.hidden = p.dataset.pane !== tab));
+  $('#view').classList.add('sheet-open');
+  $('#sheet-title').textContent = SHEET_TITLE[tab];
+  $('#sheet-close').setAttribute('aria-label', `${SHEET_TITLE[tab]} 닫기`);
+  if (changed) $('#sheet .panes').scrollTop = 0;
+  markOpen();
+  document.dispatchEvent(new CustomEvent('sheet-open'));
+  // Into the sheet, so the keyboard carries on there.
+  if (!$('#sheet').contains(document.activeElement)) {
+    const title = $('#sheet-title');
+    title.tabIndex = -1;
+    title.focus({ preventScroll: true });
+  }
+}
+
+export function closeSheet(): boolean {
+  if (!sheetTab) return false;
+  const hadFocus = $('#sheet').contains(document.activeElement);
+  const was = sheetTab;
+  sheetTab = null;
+  $('#sheet').hidden = true;
+  if (hadFocus) document.querySelector<HTMLElement>(`[data-sheet-btn="${was}"]`)?.focus();
+  $('#view').classList.remove('sheet-open');
+  markOpen();
+  return true;
+}
+
+function openInfo(): void {
+  closeTray(); // they overlap
+  const card = $('#info-card');
+  // A touch that opened the card is followed by its click, which landed on the card rising
+  // under the finger (the name field took focus and the keyboard came up): not for a moment.
+  if (card.hidden && matchMedia('(pointer: coarse)').matches) {
+    card.style.pointerEvents = 'none';
+    setTimeout(() => (card.style.pointerEvents = ''), 400);
+  }
+  card.hidden = false;
+  $('#view').classList.add('info-open');
+}
+
+/** Closes the info card and lets go of what it showed (selection, routes). */
+export function closeInfo(): boolean {
+  if ($('#info-card').hidden) return false;
+  $('#info-card').hidden = true;
+  $('#view').classList.remove('info-open');
+  setSelected(null);
+  renderer.routes = null;
+  redraw();
+  return true;
+}
+
+/** Small screens: the city pane slides up over the map (wide screens always show it). */
+export function openPane(): void {
+  if (phone()) {
+    closeTray(); // both rise from the bottom
+    closeSheet();
+  }
+  const was = paneShown();
+  $('#app').classList.add('pane-open');
+  document.querySelector('.dock-city')?.classList.remove('unread');
+  markOpen();
+  if (!was) document.dispatchEvent(new CustomEvent('sheet-open'));
+}
+
+export function closePane(): boolean {
+  if (!$('#app').classList.contains('pane-open')) return false;
+  $('#app').classList.remove('pane-open');
+  markOpen();
+  paneClosed();
+  return true;
+}
+
+/** Something to look at on the map: the sheet goes, and on phones the city pane (both cover it). */
+export function revealMap(): void {
+  closeSheet();
+  if (phone()) closePane();
+}
+
+/** Esc: drops a pending My Sim pick, else closes the info card, else the sheet, else the city pane. */
+export function closeTopLayer(): boolean {
+  if (cancelMySimAction()) {
+    flash('My Sim 지정을 취소했습니다');
+    return true;
+  }
+  return closeInfo() || closeSheet() || closePane();
+}
+
+/** The buttons for the pane and the sheets light up while theirs is open. */
+function markOpen(): void {
+  const pane = $('#app').classList.contains('pane-open');
+  $('#dock').classList.toggle('sheet-open', !!sheetTab || (phone() && pane));
+  const city = document.querySelector<HTMLButtonElement>('#dock [data-app="city"]');
+  if (city) {
+    city.classList.toggle('open', pane);
+    city.setAttribute('aria-pressed', String(pane));
+  }
+  document.querySelectorAll<HTMLButtonElement>('[data-sheet-btn]').forEach((b) => {
+    const on = b.dataset.sheetBtn === sheetTab;
+    b.classList.toggle('open', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+}
+
+/** Opens a sheet, or closes it when it is the one open (the status bar's buttons; U, J). */
+export function toggleSheet(tab: SheetTab): void {
+  if (sheetTab === tab) closeSheet();
+  else openSheet(tab);
+}
+
+export function setupTabs(): void {
+  // Phones: the build menu's 도시 opens the pane on its overview; again, it goes.
+  const city = document.querySelector<HTMLButtonElement>('#dock [data-app="city"]');
+  if (city) city.onclick = () => {
+    if (!closePane()) {
+      closeGoal();
+      openPane();
+    }
+  };
+  document.querySelectorAll<HTMLButtonElement>('[data-sheet-btn]').forEach((b) => (b.onclick = () => toggleSheet(b.dataset.sheetBtn as SheetTab)));
+  $('#sheet-close').onclick = closeSheet;
+  $('#info-close').onclick = closeInfo;
+  $('#pane-close').onclick = closePane;
+  markOpen();
+}
