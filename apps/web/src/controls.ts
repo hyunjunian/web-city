@@ -480,7 +480,7 @@ export function refreshTaxes(): void {
 }
 
 // (One line; the rest is its tooltip: a paragraph under the rates said it every time the screen opened.)
-const taxNote = () => `중립 세율 ${city.demand.neutralTax.toFixed(1)}% · 낮추면 수요↑, 올리면 수요↓`;
+const taxNote = () => `중립 세율 ${city.demand.neutralTax.toFixed(1)}% (막대의 눈금) · 낮추면 수요↑, 올리면 수요↓`;
 const TAX_DETAIL = '중립 세율보다 낮으면 수요가 최대 35% 커지고, 높으면 줄어들며, 많이 올리면 수요가 마이너스로 돌아섭니다(영향 −100% 넘음). 올린 세율은 90일간 기억됩니다.';
 
 export function buildTaxes(): void {
@@ -502,6 +502,9 @@ export function buildTaxes(): void {
     const show = () => {
       const v = get();
       input.value = String(v);
+      // The neutral rate as a tick on the track: left of it demand grows, right of it it shrinks.
+      input.dataset.mark = city.demand.neutralTax.toFixed(1);
+      input.title = `눈금: 중립 세율 ${city.demand.neutralTax.toFixed(1)}% (이보다 낮으면 수요가 늘고, 높으면 줄어듭니다)`;
       fillRange(input);
       out.textContent = `${v.toFixed(1)}%`;
       // What the rate does to this type's demand (SC4's tax effect, +35% to −350%).

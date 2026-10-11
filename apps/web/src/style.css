@@ -229,6 +229,8 @@ input[type='range']::-webkit-slider-thumb {
 input[type='range']::-moz-range-track { height: 6px; border-radius: 3px; background: linear-gradient(to right, transparent calc(var(--mark, -9px) - 1px), var(--text) 0, var(--text) calc(var(--mark, -9px) + 1px), transparent 0), var(--surface-3); }
 input[type='range']::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--accent); }
 input[type='range']::-moz-range-thumb { width: 22px; height: 22px; border: 0; border-radius: 50%; background: #fff; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4); }
+/* A slider with nothing behind it (no jail for 교도소, no landmark): faint, not a live control at 100%. */
+input[type='range']:disabled { opacity: 0.35; cursor: default; }
 
 /* Checkboxes are switches. */
 input[type='checkbox'] {
