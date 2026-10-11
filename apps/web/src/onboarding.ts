@@ -9,7 +9,7 @@ import { markSuggested, panTipAt, selectTool } from './tools';
 import { closePane, showTab, type Tab } from './tabs';
 import { $, ask, fmt, touchFirst } from './util';
 import { STRUCTURE_NAME } from './names';
-import { toast } from './toast';
+import { dropToasts, toast } from './toast';
 import { type GoalId } from './goals';
 import { unpoweredZones } from './readings';
 import { openGoal } from './manage';
@@ -185,6 +185,7 @@ function cheer(steps: [boolean, string, string | null][]): void {
   const fresh = ticked.owner === city ? [...now].filter((i) => !ticked.told.has(i)) : [];
   ticked = { owner: city, told: ticked.owner === city ? new Set([...ticked.told, ...now]) : now };
   if (!fresh.length) return; // (a city just opened says nothing)
+  dropToasts('시작하기'); // (the last one's 다음은 … is done now: two stacked, the older one wrong)
   const short = (t: string) => t.split(/ \(| — | · /)[0]!;
   const next = steps.find(([ok]) => !ok);
   if (!next) {

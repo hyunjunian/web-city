@@ -9,12 +9,24 @@ import { revealMap } from './tabs';
 /** Toasts at once: three over a wide map, one on a phone (more covered the town being built). */
 const max = () => (matchMedia('(max-width: 860px)').matches ? 1 : 3);
 
+/** Puts away the toasts whose words begin so (a newer one says it better: the checklist's last step told). */
+export function dropToasts(prefix: string): void {
+  for (const t of document.querySelectorAll<HTMLElement>('#toasts .toast-text')) {
+    const el = t.closest<HTMLElement>('.toast');
+    if (!el || el.classList.contains('leaving') || !(t.dataset.text ?? '').startsWith(prefix)) continue;
+    el.classList.add('leaving');
+    setTimeout(() => el.remove(), 250);
+  }
+}
+
 /** `at`: a tile the notice is about; clicking the notice then shows it. */
 export function toast(text: string, tone: 'good' | 'bad' | 'info' = 'good', at?: [number, number], open?: () => void, sticky = false, label?: string): void {
   const box = document.querySelector('#toasts');
   if (!box) return;
-  // The same words already showing: not again (picking two checklist steps stacked two of them).
-  if ([...box.querySelectorAll<HTMLElement>('.toast-text')].some((t) => t.dataset.text === text && !t.closest('.leaving'))) return;
+  // The same words about the same place already showing: not again (picking two checklist steps stacked two of
+  // them). About another place they are another notice (two sinkholes with no damage read alike).
+  const where = at ? at.join(',') : '';
+  if ([...box.querySelectorAll<HTMLElement>('.toast-text')].some((t) => t.dataset.text === text && (t.dataset.at ?? '') === where && !t.closest('.leaving'))) return;
   // (Not a button: the clock's 계속 sits inside it.)
   const el = document.createElement('div');
   el.tabIndex = 0;
@@ -36,6 +48,7 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' = 'good', at?:
     body.append(b, document.createTextNode(head[2]!));
   } else body.textContent = words;
   body.dataset.text = text;
+  body.dataset.at = where;
   el.append(badge, body);
   if (sticky) {
     // The clock stopped for it: the two ways on, side by side under what it says — look into it, or go on.
