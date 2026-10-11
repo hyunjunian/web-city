@@ -1551,8 +1551,9 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #tool-chip .icon-btn { width: 40px; height: 40px; }
   #tool-alts button { min-height: 40px; }
   .graph-range button, #view-grid button { min-height: 40px; }
-  button.link, details:not(.watch-rest) > summary { position: relative; }
-  button.link::after, details:not(.watch-rest) > summary::after { content: ''; position: absolute; inset: -12px -8px; }
+  /* (Not the folds that draw their chevron with ::after: on phones it was thrown off to a corner. They are whole rows to hit anyway.) */
+  button.link, details:not(.watch-rest, .acts-more, .info-more, .tip) > summary { position: relative; }
+  button.link::after, details:not(.watch-rest, .acts-more, .info-more, .tip) > summary::after { content: ''; position: absolute; inset: -12px -8px; }
   .tile kbd { display: none; }
   /* The goal screens' small controls: a finger's margin, the rows unchanged. */
   :is(.watch-sort, .advice-view, .mg-views .vchip, .mg-tax .tax-step, .fac-fund .tax-step, #manage-chip .icon-btn) { position: relative; }

@@ -113,7 +113,7 @@ export function showHelp(): void {
     <p class="legend">직접 운전(U-Drive-It) 중에는 방향키·WASD로 움직이고 <kbd>Space</kbd>로 물을 뿌리거나 포를 쏩니다.</p>
     </div>
     <h3 class="sub">알아 두면 좋은 것</h3>
-    <div class="help-tips">${tips.map(([title, text]) => `<details><summary>${title}</summary><p>${text}</p></details>`).join('')}</div>
+    <div class="help-tips">${tips.map(([title, text]) => `<details class="tip"><summary>${title}</summary><p>${text}</p></details>`).join('')}</div>
     <p class="legend">이 창처럼 도움말·저장·새 도시 창이 열려 있는 동안에는 시간이 멈춥니다.</p>
     <p class="legend">처음이라면 ${touch ? '<b>도시</b> 버튼' : '왼쪽 도시 현황'}의 "시작하기" 순서를 따라 하거나(누르면 그 도구가 골라짐) 예시 도시를 열어 보세요. 도시는 6개월마다, 그리고 탭을 떠날 때 자동 저장됩니다.</p>`;
   const dialog = $<HTMLDialogElement>('#help-dialog');
