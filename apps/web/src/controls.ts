@@ -647,7 +647,8 @@ function viewSummary(v: string): [string, '' | 'bad' | 'good', number[]] {
   const f = city.fields;
   const n = s.size;
   const blds = [...s.buildings.values()].filter((b) => b.type);
-  if (!blds.length) return ['', '', []];
+  // (Not the growth view: zones painted and nothing grown yet is when it is wanted most.)
+  if (!blds.length && v !== 'growth') return ['', '', []];
   const mid = (b: { x: number; y: number; w: number; h: number }) => (b.y + (b.h >> 1)) * n + b.x + (b.w >> 1);
   const lacking = (list: { x: number; y: number; w: number; h: number }[], what: string, all: string): [string, '' | 'bad' | 'good', number[]] =>
     (list.length ? [`${what} ${fmt(list.length)}채`, 'bad', list.map(mid)] : [all, 'good', []]);
@@ -700,6 +701,7 @@ function viewSummary(v: string): [string, '' | 'bad' | 'good', number[]] {
       }
       markLegend(growthSum.byColor);
       const h = growthSum.held;
+      if (!h.length && !growthSum.byColor.size) return ['', '', []]; // (no zones at all: no all-clear to give)
       return h.length ? [`개발이 막힌 빈 구역 ${fmt(h.length)}칸 · ${growthSum.top.join(' · ')}`, 'bad', h.filter((_, k) => k % 8 === 0)] : ['막힌 빈 구역이 없습니다', 'good', []];
     }
     default: return ['', '', []];

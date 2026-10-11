@@ -142,7 +142,9 @@ export function renderNeighbours(): void {
   neighbourKey = key;
   const month = Math.floor(s.day / 30);
   const offers = city.dealOffers();
-  const sig = `${month}|${s.name}|${region ? regionPos.join() : '-'}|${s.neighbours.map((nb) => nb.kind).join()}|${s.neighbourDeals.map((d) => `${d.id}${d.status}`).join()}|${offers.map((o) => +o.ok).join('')}`;
+  // (With what reaches each edge: a road built to one still read 연결 없음 until the month turned.)
+  const links = Object.values(city.connectionsPerEdge()).map((v) => v.join()).join('/');
+  const sig = `${month}|${s.name}|${region ? regionPos.join() : '-'}|${s.neighbours.map((nb) => nb.kind).join()}|${s.neighbourDeals.map((d) => `${d.id}${d.status}`).join()}|${offers.map((o) => +o.ok).join('')}|${links}`;
   if (sig === neighbourSignature) return;
   neighbourSignature = sig;
   const el = $('#neighbours');

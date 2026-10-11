@@ -1088,6 +1088,8 @@ function clearFind(): void {
 function pickFound(key: string): void {
   const f = [...findables(), ...screens()].find((x) => x.key === key);
   if (!f || f.locked) return;
+  // A screen is no tool: the one the dock armed unasked goes down first (it stayed in hand, the clock held).
+  if (f.key.startsWith('screen:')) closeTray(true);
   f.pick();
   closeTray();
   hoverUnderMouse();
