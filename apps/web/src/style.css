@@ -2497,3 +2497,15 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 @media (min-width: 640px) and (max-width: 860px) and (orientation: portrait) {
   #pane, #tray, #info-card, #sheet { left: calc(50% - 300px); right: calc(50% - 300px); }
 }
+
+/* An area's screen up on a phone held upright: the view's card folds to its icon in the top row (the screen
+   names the view and reads its figures), so the city drawn above the sheet gets that room too (it was a stamp
+   between the card and the sheet). */
+@media (max-width: 860px) and (orientation: portrait) {
+  #app.pane-open:has(#pane.managing) #view:not(.holding) #map-layer:not(.picking) { top: 10px; width: auto; padding: 4px; }
+  #app.pane-open:has(#pane.managing) #view:not(.holding) #map-layer:not(.picking) :is(.layer-title, #view-off),
+  #app.pane-open:has(#pane.managing) #view:not(.holding) #map-layer:not(.picking) #overlay > :not(.view-current) { display: none !important; }
+  #app.pane-open:has(#pane.managing) #view:not(.holding) #map-layer:not(.picking) #view-pick { width: 44px; height: 44px; padding: 0; justify-content: center; }
+  #app.pane-open:has(#pane.managing) #view:not(.holding) #map-layer:not(.picking) #view-pick > :not(.i:first-child) { display: none; }
+  #app.pane-open:has(#pane.managing) #view:not(.holding) #dock { left: 70px; }
+}
