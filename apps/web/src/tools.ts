@@ -1005,7 +1005,7 @@ function findables(): Found[] {
           });
         }
       } else {
-        out.push({ key: t.id, name: toolName(t), where: `${cat.label} · ${g.title}`, glyph: toolGlyph(t), sub: toolPrice(t), locked: usable(t) ? '' : '잠김', pick: () => selectTool(t.id) });
+        out.push({ key: t.id, name: toolName(t), where: `${cat.label} · ${g.title}`, glyph: toolGlyph(t), sub: t.kind === 'terraform' && !city.established() ? '무료' : toolPrice(t), locked: usable(t) ? '' : '잠김', pick: () => selectTool(t.id) });
       }
     }
   }
