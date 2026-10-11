@@ -84,7 +84,9 @@ export function problemsHtml(alerts: string, figs: PaneFigs): string {
   const bad = all.filter(({ s }) => s.tone === 'bad').length + (figs.rating < 0 ? 1 : 0);
   const warn = all.length - all.filter(({ s }) => s.tone === 'bad').length + (figs.rating >= 0 && figs.rating < 20 ? 1 : 0);
   refreshBadge(bad);
-  const counts = bad ? `<span class="chip bad">급한 일 ${bad}</span>${warn ? `<span class="sec-note">살펴볼 것 ${warn}</span>` : ''}` : warn ? `<span class="sec-note">살펴볼 것 ${warn}</span>` : '<span class="sec-note">모두 양호</span>';
+  // (Said by colour too: the counts are the red and the amber rows below.)
+  const look = warn ? `<span class="sec-note" title="주황으로 표시된 항목: 두면 나빠질 수 있는 분야">살펴볼 것 ${warn}</span>` : '';
+  const counts = bad ? `<span class="chip bad" title="빨강으로 표시된 항목: 지금 손봐야 할 분야">급한 일 ${bad}</span>${look}` : look || '<span class="sec-note">모두 양호</span>';
   // No separate "what to do": 도시 상태 shows what needs a hand, and each area's screen says what to do.
   // Only what cannot wait (a fire, a riot, a blackout, impeachment) stands above it.
   return qualityGrid(counts, `${alerts}${step.urgent ? step.html : ''}`, figs);
