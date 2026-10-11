@@ -113,14 +113,26 @@ function qualityGrid(counts: string, top: string, figs: PaneFigs): string {
   const rTone: Tone = figs.rating < 0 ? 'bad' : figs.rating < 20 ? 'warn' : '';
   const rating = `<button type="button" class="s-row ${rTone || 'ok'}${rTone ? ' has-note' : ''}" data-open-polls title="시장 평점 (주거 구역 블록별 평균, −100~100) · 눌러서 주제별 여론 보기" aria-label="시장 평점: ${figs.rating}">
       <span class="s-ic">${icon('users')}</span><span class="s-main"><span class="s-name">시장 평점</span>${rTone ? `<small class="s-note">${figs.rating < 0 ? '주민 대다수가 불만 · 계속되면 탄핵될 수 있음' : '주민 만족이 낮음 · 여론을 살펴보세요'}</small>` : ''}</span><b class="s-val">${figs.ratingTrend}${figs.rating}</b>${icon('chevronRight', 's-go')}</button>`;
-  const off = rows.filter(({ s }) => s.tone).map(row);
-  const sound = rows.filter(({ s }) => !s.tone).map(row);
-  (rTone ? off : sound).splice(rTone ? off.length : 1, 0, rating); // (a sound rating second, after 재정)
+  let off = rows.filter(({ s }) => s.tone).map((r) => ({ key: r.id as string, html: row(r) }));
+  let sound = rows.filter(({ s }) => !s.tone).map((r) => ({ key: r.id as string, html: row(r) }));
+  (rTone ? off : sound).splice(rTone ? off.length : 1, 0, { key: 'rating', html: rating }); // (a sound rating second, after 재정)
+  // Under a pointer the rows keep their places (their figures still move): a row sorted up as the month
+  // turned took the click meant for the one that had been there. They sort again once it leaves.
+  const byKey = new Map([...off, ...sound].map((e) => [e.key, e]));
+  if (listOrder && hoverable() && document.querySelector('#status .s-list:hover') && listOrder.keys.length === byKey.size && listOrder.keys.every((k) => byKey.has(k))) {
+    const held = listOrder.keys.map((k) => byKey.get(k)!);
+    [off, sound] = [held.slice(0, listOrder.split), held.slice(listOrder.split)];
+  }
+  listOrder = { keys: [...off, ...sound].map((e) => e.key), split: off.length };
   // What the arrows mean, said once under the list while any shows (a red ▼ by 90k / 100k read as a puzzle).
-  const arrows = [...off, ...sound].some((r) => r.includes('w-drift'));
+  const arrows = [...off, ...sound].some((r) => r.html.includes('w-drift'));
   const key = arrows ? '<p class="s-legend"><span class="w-drift up">▲</span><span class="w-drift down">▼</span> 지난 3개월 흐름 · 초록 좋아짐 · 빨강 나빠짐</p>' : '';
-  return `<section class="card quality" aria-label="도시 상태"><div class="sec-head"><h2>도시 상태</h2>${counts}</div>${top}<div class="s-list">${off.join('')}${off.length && sound.length ? '<p class="s-split">양호</p>' : ''}${sound.join('')}</div>${key}</section>`;
+  return `<section class="card quality" aria-label="도시 상태"><div class="sec-head"><h2>도시 상태</h2>${counts}</div>${top}<div class="s-list">${off.map((e) => e.html).join('')}${off.length && sound.length ? '<p class="s-split">양호</p>' : ''}${sound.map((e) => e.html).join('')}</div>${key}</section>`;
 }
+
+/** The order 도시 상태 was last drawn in, and where its 양호 began (held while the pointer is over the list). */
+let listOrder: { keys: string[]; split: number } | null = null;
+const hoverable = () => matchMedia('(hover: hover)').matches;
 
 /**
  * Phones: the goals in trouble (and anything burning) as chips over the map while the
