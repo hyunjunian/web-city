@@ -186,7 +186,11 @@ function readStatus(id: GoalId): Status {
     }
     case 'environment': {
       const air = s.history.at(-1)?.air;
-      return pick(air !== undefined && air > 40 ? 'warn' : '', air !== undefined ? `대기 오염 ${air.toFixed(0)}` : '—', air !== undefined ? `낮을수록 좋음 · 시장 평점 ${st.mayorRating}` : '첫 달이 지나면 기록됩니다');
+      if (air === undefined) return pick('', '—', '첫 달이 지나면 기록됩니다');
+      // The mean over all land counts the industry's own air too: what wants a hand is homes breathing it.
+      const homes = smoggyHomes();
+      return pick(air > 40 && homes > 0 ? 'warn' : '', `대기 오염 ${air.toFixed(0)}`,
+        homes > 0 ? `공기 나쁜 주거지 ${fmt(homes)}칸 · 낮을수록 좋음` : '낮을수록 좋음 · 주거지 공기는 괜찮음');
     }
   }
 }
@@ -371,7 +375,9 @@ function goalMetrics(id: GoalId): Metric[] {
     case 'environment': {
       const h = s.history.at(-1);
       const parks = [...s.structures.values()].filter((x) => STRUCTURES[x.kind].category === 'park').length;
-      return [['대기 오염', h?.air !== undefined ? h.air.toFixed(0) : '—', (h?.air ?? 0) > 40 ? 'warn' : '', h?.air !== undefined ? Math.round(h.air) : undefined, -1],
+      const homes = smoggyHomes();
+      return [['대기 오염', h?.air !== undefined ? h.air.toFixed(0) : '—', (h?.air ?? 0) > 40 && homes > 0 ? 'warn' : '', h?.air !== undefined ? Math.round(h.air) : undefined, -1],
+        ['공기 나쁜 주거지', `${fmt(homes)}칸`, homes > 0 && (h?.air ?? 0) > 40 ? 'warn' : '', homes, -1, '대기 오염이 40을 넘는 주거 구역 칸 · 공장·발전소·막히는 길 가까이에서 생깁니다'],
         ['수질 오염', h?.waterPollution !== undefined ? h.waterPollution.toFixed(0) : '—', '', h?.waterPollution !== undefined ? Math.round(h.waterPollution) : undefined, -1],
         ['공원', `${parks}곳`, '', parks, 1], ['시장 평점', String(st.mayorRating), st.mayorRating < 0 ? 'bad' : '', st.mayorRating, 1]];
     }
@@ -536,6 +542,19 @@ function jammedTiles(): number {
   const net = city.state.net; // (once: \`city\` is a proxy, read per tile it cost more than the count)
   for (let i = 0; i < net.length; i++) if (net[i] && want(i) > 0) n++;
   jamMemo = { key, n };
+  return n;
+}
+
+/** Homes in air past what people put up with (counted once a week of game time or after an edit). */
+let smogMemo: { key: string; n: number } | null = null;
+function smoggyHomes(): number {
+  const key = changeKey();
+  if (smogMemo?.key === key) return smogMemo.n;
+  const want = need('environment')!;
+  let n = 0;
+  const zone = city.state.zone;
+  for (let i = 0; i < zone.length; i++) if (zone[i] && want(i) > 0) n++;
+  smogMemo = { key, n };
   return n;
 }
 
