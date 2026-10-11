@@ -193,6 +193,7 @@ select {
 }
 @media (hover: hover) { select:hover { background-color: var(--surface-3); } }
 select option, select optgroup { background: var(--surface); color: var(--text); }
+select:disabled { opacity: 0.6; cursor: default; }
 
 input[type='number'], input:not([type]), input[type='text'] {
   min-height: 40px;
