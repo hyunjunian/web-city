@@ -1084,6 +1084,16 @@ function incidentBanner(id: GoalId): string {
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${inc.at.join(',')}" title="지도에서 그곳 보기">보기</button>${free ? `<button type="button" class="advice-view act-now" data-act="${inc.tool}" title="출동 도구 들기">${icon(inc.goal === 'fire' ? 'flame' : 'shield')}출동</button>` : ''}</span></section>`;
 }
 
+/** A facility's load against what it takes (power, water, rubbish, patients, pupils, prisoners, riders), as a thin bar under its line. */
+function facBar(f: Structure): string {
+  const d = STRUCTURES[f.kind];
+  const cap = d.station ? d.station.capacity : f.capacity;
+  if (!cap || !(d.plant || d.pump || d.incinerator || d.health || d.school || d.police || d.station)) return '';
+  const r = f.load / cap;
+  // (Past full in the line's own amber: a crowded school reads as its figures do, not as an emergency.)
+  return `<span class="fac-bar${r > 1 ? ' over' : ''}" aria-hidden="true"><i style="width:${Math.min(100, r * 100).toFixed(0)}%"></i></span>`;
+}
+
 /** How much of a goal's capacity is in use (power, water, beds, seats), as a bar under its figures: read at a glance. */
 function usageBar(id: GoalId): string {
   const st = readStats();
@@ -1156,7 +1166,7 @@ function goalHtml(id: GoalId): string {
       // Each its own budget, a step either way, and what it costs a month (per-building funding).
       const u = city.structureUpkeep(f.id);
       const cost = u ? u.running + u.overcapacity : 0;
-      return `<div class="fac ${tone}"><button type="button" class="fac-main" data-fac="${f.id}" title="지도에서 보고 정보 카드 열기"><span class="fac-name">${STRUCTURE_NAME[f.kind]}</span><span class="fac-line">${line}</span></button>
+      return `<div class="fac ${tone}"><button type="button" class="fac-main" data-fac="${f.id}" title="지도에서 보고 정보 카드 열기"><span class="fac-name">${STRUCTURE_NAME[f.kind]}</span><span class="fac-line">${line}</span>${facBar(f)}</button>
         ${allDept ? '' : deptFunded(f.kind) ? `<span class="fac-fund dept-note" title="이 시설은 부서 예산으로 운영됩니다">부서 예산</span>` : `<span class="fac-fund" title="이 시설의 예산 · 월 §${fmt(cost)}"><button type="button" class="tax-step" data-fund="${f.id}" data-d="-10" aria-label="${STRUCTURE_NAME[f.kind]} 예산 줄이기"${f.funding <= 0 ? ' disabled' : ''}>−</button><span><b>${f.funding}%</b><small>월 §${fmt(cost)}</small></span><button type="button" class="tax-step" data-fund="${f.id}" data-d="10" aria-label="${STRUCTURE_NAME[f.kind]} 예산 늘리기"${f.funding >= FUNDING_MAX(f.kind) ? ' disabled' : ''}>+</button></span>`}</div>`;
     }).join('')}</div>${list.length > 6 ? `<button type="button" class="link mg-more">${allFacilities ? '줄여 보기' : `${list.length - 6}곳 더 보기`}</button>` : ''}</section>` : ''}
     ${g.links?.length ? `<section class="mg-sec mg-links">${g.links.map(([tab, label]) => `<button type="button" class="link" data-mg-tab="${tab}">${label} ${icon('chevronRight')}</button>`).join('')}</section>` : ''}
