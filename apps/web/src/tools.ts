@@ -455,7 +455,7 @@ export function buildTools(): void {
       const key = Object.entries(TOOL_KEYS).find(([, id]) => id === t.id)?.[0];
       const price = toolPrice(t);
       b.innerHTML = `<span class="tile-icon">${toolGlyph(t)}</span><span class="tile-label">${t.label}</span>`
-        + (price || key ? `<span class="tile-sub">${price}${key ? `<kbd>${key.toUpperCase()}</kbd>` : ''}</span>` : '');
+        + (price || key ? `<span class="tile-sub"><span class="tile-price">${price}</span>${key ? `<kbd>${key.toUpperCase()}</kbd>` : ''}</span>` : '');
       b.title = `${toolName(t)}${key ? ` (${key.toUpperCase()})` : ''}${price ? ` · ${price}` : ''}`;
       b.onclick = (e) => pickTool(t.id, e.detail === 0);
       // A facility tool is picked with its kind's card below, not with a tile of its own.
@@ -648,6 +648,18 @@ export function structureStat(k: StructureKind): string {
   return d.relief[0] ? `주거 상한 +${fmt(d.relief[0])}` : '';
 }
 
+/** The land's tools cost nothing until the city is founded (as the getting-started list says): their tiles say so. */
+function refreshTerrainPrices(): void {
+  const free = !city.established();
+  document.querySelectorAll<HTMLElement>('#tools .tile[data-tool]').forEach((b) => {
+    const t = TOOLS.find((x) => x.id === b.dataset.tool);
+    if (t?.kind !== 'terraform') return;
+    const price = b.querySelector('.tile-price');
+    if (price) price.textContent = free ? '무료' : toolPrice(t);
+    b.classList.toggle('free', free);
+  });
+}
+
 /** The zone groups' demand: the class's strongest, or that its cap holds it, or none. */
 function refreshZoneDemand(): void {
   const dem = city.demand;
@@ -694,6 +706,7 @@ export function refreshStructureLists(): void {
     return;
   }
   refreshZoneDemand();
+  refreshTerrainPrices();
   document.querySelectorAll<HTMLElement>('#tools .picker[data-tool]').forEach((picker) => {
     const id = picker.dataset.tool!;
     const kinds = kindsFor(TOOLS.find((t) => t.id === id) as StructureTool);
@@ -781,7 +794,8 @@ export function refreshToolChip(): void {
   // Facilities: the kind picked in the tray, with its price.
   const kind = tool.kind === 'structure' ? chosen[tool.id]! : null;
   const price = kind ? `§${fmt(STRUCTURES[kind].cost)} · 월 §${fmt(STRUCTURES[kind].upkeep)}`
-    : tool.kind === 'dispatch' ? `출동 가능 ${city.freeUnits(tool.unit)}대` : toolPrice(tool);
+    : tool.kind === 'dispatch' ? `출동 가능 ${city.freeUnits(tool.unit)}대`
+    : tool.kind === 'terraform' && !city.established() ? '무료 (처음 짓기 전)' : toolPrice(tool);
   const short = !!kind && STRUCTURES[kind].cost > city.state.funds;
   const demand = tool.kind === 'zone' ? zoneDemandChip(tool.zone) : '';
   // (The clock held for building says so here, where the eye is, not up in the status bar.)

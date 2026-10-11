@@ -2550,3 +2550,5 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .nb-kinds { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 10px 0 0; font-size: 12.5px; line-height: 1.45; }
 .nb-kinds dt { font-weight: 650; white-space: nowrap; }
 .nb-kinds dd { margin: 0; color: var(--muted); }
+/* The land's tools before the city is founded: 무료, in the colour of a gain. */
+.tile.free .tile-price { color: var(--good-ink); font-weight: 650; }
