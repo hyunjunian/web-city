@@ -2208,6 +2208,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* Sideways: the bar as wide as its three buttons need, the notices card-sized, and the side card below the bar's row. */
 @media (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
   #dock { left: 50%; right: auto; width: min(420px, calc(100% - 140px)); transform: translateX(-50%); animation: none; }
+  /* The info card's side panel takes the right: the bar centres on the map left beside it (it ran under the card). */
+  #view.info-open #dock { left: calc((100% - min(420px, 58%) + 64px) / 2); width: min(420px, calc(100% - min(420px, 58%) - 84px)); }
   #toasts { right: auto; width: min(360px, calc(100% - 84px)); }
   #tray { top: 70px; border-radius: var(--r-xl) 0 0 0; }
 }
