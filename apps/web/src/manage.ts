@@ -1082,6 +1082,20 @@ function incidentBanner(id: GoalId): string {
 }
 
 /** The goal's panel. */
+/** How much of a goal's capacity is in use (power, water, beds, seats), as a bar under its figures: read at a glance. */
+function usageBar(id: GoalId): string {
+  const st = readStats();
+  const of = { power: st.power.supply > 0 ? '발전량' : '', water: st.water.supply > 0 ? '급수량' : '', health: '병원 정원', education: '학교 정원' }[id as 'power'];
+  const r = goalStatus(id).bar;
+  if (!of || r === undefined || !Number.isFinite(r)) return '';
+  const pct = Math.round(r * 100);
+  // Past the whole: a cut for power and water, a crowded school or hospital otherwise; near it, a warning for the grids.
+  const utility = id === 'power' || id === 'water';
+  const tone = r > 1 ? (utility ? 'bad' : 'warn') : utility && r > 0.85 ? 'warn' : '';
+  const tail = utility ? ' 사용 중' : r > 1 ? ' · 넘침' : '';
+  return `<div class="mg-usage ${tone}" role="img" aria-label="${of}의 ${pct}%${tail}"><span class="mg-usage-bar"><i style="width:${Math.min(100, pct)}%"></i></span><span class="mg-usage-text">${of}의 <b>${pct}%</b>${tail}</span></div>`;
+}
+
 /**
  * One advisor's word under 진단, with its 보기 and fix buttons. The word 추천 조치 already leads with
  * is not said twice: its first sentence stands at the top of the screen, so only the rest is read here.
@@ -1123,6 +1137,7 @@ function goalHtml(id: GoalId): string {
       const delta = d ? `<small class="delta ${dir}" title="이 화면을 연 뒤의 변화 (조치 말고도 도시가 저절로 바뀐 몫 포함)">${d > 0 ? '▲' : '▼'} ${withUnit(Math.abs(d), value, label)}</small>` : '';
       return `<div class="mg-m ${tone ?? ''}"${title ? ` title="${escapeHtml(title.trim())}"` : ''}><span>${label}</span><b>${value}</b>${delta}</div>`;
     }).join('')}</div>
+    ${usageBar(id)}
     <div class="mg-views" role="group" aria-label="지도 보기">${icon('layers')}${g.views.map(([v, label]) => `<button type="button" class="vchip" data-mg-view="${v}" aria-pressed="${view === v}">${label}</button>`).join('')}</div>
     ${advice.length ? `<section class="mg-sec"><h3>${icon('info')}진단</h3>${advice.map((a) => diagnosis(a, lead)).join('')}</section>` : ''}
     ${id === 'finance' ? financeActions() : ''}
