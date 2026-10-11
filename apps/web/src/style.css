@@ -1991,6 +1991,16 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @media (max-width: 860px) {
   /* Phones: the bar between the view and map buttons at the top. */
   #tool-chip { top: 10px; bottom: auto; left: 66px; right: 66px; width: auto; max-width: none; animation-name: pop-in; }
+  /* Its words give way inside the bar rather than run under the map button beside it (a zone's demand and 멈춤
+     pushed the × off the bar): the siblings' row first, then the price, then the demand; × and 멈춤 stay whole. */
+  #tool-chip { gap: 6px; padding-left: 12px; }
+  #tool-chip > :is(#tool-chip-icon, .icon-btn) { flex: none; }
+  #tool-chip-label { flex: 0 1 auto; min-width: 0; overflow: hidden; gap: 6px; }
+  #tool-chip-label > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }
+  #tool-chip-label > :is(b, .chip-held, .chip-more) { flex: none; }
+  /* A zone's price per tile (§10–§50) gives way to its demand, what decides where to paint. */
+  #tool-chip-label:has(.zone-demand) > span:not(.zone-demand, .chip-held) { display: none; }
+  #tool-chip #tool-alts { flex: 1 1 0; }
   #view:has(#tool-chip:not([hidden])) #hint { bottom: calc(var(--bb) + 4px); }
   #view:not(.sheet-open):has(#tool-alts:not([hidden])):not(:has(#map-layer.picking)) #hint { bottom: calc(var(--bb) + 4px); }
 }
