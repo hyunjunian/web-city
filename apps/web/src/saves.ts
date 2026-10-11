@@ -58,6 +58,20 @@ function stamp(ms: number): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
+/** How long ago a save was made, as one says it (방금, 12분 전, 어제 21:05); older ones in full. */
+function ago(ms: number, now = Date.now()): string {
+  const min = Math.floor((now - ms) / 60_000);
+  if (min < 1) return '방금';
+  if (min < 60) return `${min}분 전`;
+  const d = new Date(ms);
+  const p = (v: number) => String(v).padStart(2, '0');
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  if (ms >= today.getTime()) return `${Math.floor(min / 60)}시간 전`;
+  if (ms >= today.getTime() - 86_400_000) return `어제 ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return stamp(ms);
+}
+
 export function saveSlot(): void {
   const list = readIndex();
   const existing = list.find((s) => s.id === saveSlotId);
@@ -102,7 +116,7 @@ export function showSaves(): void {
         ${s.thumb ? `<img class="save-thumb" src="${s.thumb}" alt="">` : '<span class="save-thumb"></span>'}
         <div>
           <strong>${escapeHtml(s.name)}</strong>
-          <span class="muted">인구 ${fmt(s.population)} · ${s.year}년 ${s.month}월 · ${stamp(s.savedAt)} 저장</span>
+          <span class="muted">인구 ${fmt(s.population)} · ${s.year}년 ${s.month}월 · <time datetime="${new Date(s.savedAt).toISOString()}" title="${stamp(s.savedAt)}">${ago(s.savedAt)}</time> 저장</span>
         </div>
         <button type="button" class="primary" data-load="${s.id}">열기</button>
         <button type="button" data-delete="${s.id}" aria-label="${escapeHtml(s.name)} 삭제" title="삭제">${icon('trash')}</button>
