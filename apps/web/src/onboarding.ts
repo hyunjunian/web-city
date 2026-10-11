@@ -89,6 +89,7 @@ export function renderOnboarding(): void {
     [kinds.some((d) => d.category === 'park'), '공원 (주거 상한 완화)', 'park'],
   ];
   const done = steps.filter(([ok]) => ok).length;
+  cheer(steps);
   el.hidden = dismissed || done === steps.length;
   // On a town not yet founded, the first step's tool: the dock dots its category (where to start, on the map's side too).
   const first = steps.find(([ok]) => !ok)?.[2];
@@ -127,34 +128,7 @@ export function renderOnboarding(): void {
     ${fresh ? `<p class="legend">처음 짓기 전에는 <button type="button" class="link" data-step-tool="raise" title="높이기·낮추기·물 파기·메우기: 도로·구역·시설을 하나라도 지으면 칸당 돈이 듭니다">지형 편집</button>이 무료입니다.</p>` : `<p class="legend">건물이 안 들어서면 <button type="button" class="link advice-view" data-overlay="growth">개발 막힘 보기${touchFirst() ? '' : ' (G)'}</button>로 무엇이 막는지 확인하세요.</p>`}
     <p class="legend step-foot"><span class="step-progress" role="img" aria-label="${done}/${steps.length} 완료"><i style="width:${((done / steps.length) * 100).toFixed(1)}%"></i></span><span>${done}/${steps.length} 완료</span><button id="onboarding-hide" class="link">그만 보기</button></p>`;
   // A step's text picks the tool that does it.
-  $('#onboarding-steps').querySelectorAll<HTMLButtonElement>('[data-step-tool]').forEach((b) => (b.onclick = () => {
-    const step = b.dataset.stepTool!;
-    // A service's step opens its goal's screen: the view, the spot it's missing from, the kind to build.
-    if (step.startsWith('goal:')) {
-      openGoal(step.slice(5) as GoalId);
-      return;
-    }
-    if (step.startsWith('view:')) {
-      showOverlay(step.slice(5));
-      closePane();
-      return;
-    }
-    // The tool alone, the map left clear to build on; the chip on the map opens its kinds.
-    if (step.startsWith('sheet:')) {
-      showTab(step.slice(6) as Tab);
-      return;
-    }
-    selectTool(b.dataset.stepTool!);
-    // (Said once: the bar under the map repeats the tool's own reading, and two banners covered the drag.)
-    const tipShown = shownTip;
-    shownTip = true;
-    closePane(); // phones: the pane holding the checklist steps aside for the map
-    // (On a touch screen it replaces the one-finger tip selectTool just gave, so it says it too.)
-    // A toast, not the hint: the hint is where the tool's own reading (cost, ⚠ no road) must show at once.
-    // (Not the one-finger tip again when the bar under the map has just said it.)
-    const panTold = performance.now() - panTipAt < 1000;
-    if (!tipShown) toast(touchFirst() ? `${panTold ? '' : '한 손가락으로 끌어 지으세요 · 지도 이동은 두 손가락. '}다른 종류는 지도 위 도구 이름을 눌러 고릅니다.` : '지도에서 바로 지으세요. 다른 종류는 지도 위 도구 이름을 눌러 고릅니다.', 'info');
-  }));
+  $('#onboarding-steps').querySelectorAll<HTMLButtonElement>('[data-step-tool]').forEach((b) => (b.onclick = () => takeStep(b.dataset.stepTool!)));
   const sample = document.querySelector<HTMLButtonElement>('#onboarding-sample');
   if (sample) sample.onclick = async () => {
     // Something built is lost without a save (as the menu's way to the sample asks).
@@ -170,6 +144,57 @@ export function renderOnboarding(): void {
     } catch { /* storage unavailable */ }
     el.hidden = true;
   };
+}
+
+/** Does a step: a service's opens its goal's screen, a view comes on, else its tool is picked (the map left clear). */
+function takeStep(step: string): void {
+  // A service's step opens its goal's screen: the view, the spot it's missing from, the kind to build.
+  if (step.startsWith('goal:')) {
+    openGoal(step.slice(5) as GoalId);
+    return;
+  }
+  if (step.startsWith('view:')) {
+    showOverlay(step.slice(5));
+    closePane();
+    return;
+  }
+  // The tool alone, the map left clear to build on; the chip on the map opens its kinds.
+  if (step.startsWith('sheet:')) {
+    showTab(step.slice(6) as Tab);
+    return;
+  }
+  selectTool(step);
+  // (Said once: the bar under the map repeats the tool's own reading, and two banners covered the drag.)
+  const tipShown = shownTip;
+  shownTip = true;
+  closePane(); // phones: the pane holding the checklist steps aside for the map
+  // A toast, not the hint: the hint is where the tool's own reading (cost, ⚠ no road) must show at once.
+  // (Not the one-finger tip again when the bar under the map has just said it.)
+  const panTold = performance.now() - panTipAt < 1000;
+  if (!tipShown) toast(touchFirst() ? `${panTold ? '' : '한 손가락으로 끌어 지으세요 · 지도 이동은 두 손가락. '}다른 종류는 지도 위 도구 이름을 눌러 고릅니다.` : '지도에서 바로 지으세요. 다른 종류는 지도 위 도구 이름을 눌러 고릅니다.', 'info');
+}
+
+/**
+ * A step ticked off says so, and what comes next (pressed, it takes that step): on a phone the list is
+ * behind the 도시 button while a tool is in hand, and the next step went unseen. The whole list done, a cheer.
+ */
+let ticked: { owner: typeof city | null; told: Set<number> } = { owner: null, told: new Set() };
+function cheer(steps: [boolean, string, string | null][]): void {
+  const now = new Set(steps.flatMap(([ok], i) => (ok ? [i] : [])));
+  // (Each step once a city: one that comes and goes — power cut from a new zone, then back — is told the first time.)
+  const fresh = ticked.owner === city ? [...now].filter((i) => !ticked.told.has(i)) : [];
+  ticked = { owner: city, told: ticked.owner === city ? new Set([...ticked.told, ...now]) : now };
+  if (!fresh.length) return; // (a city just opened says nothing)
+  const short = (t: string) => t.split(/ \(| — | · /)[0]!;
+  const next = steps.find(([ok]) => !ok);
+  if (!next) {
+    toast(`시작하기를 모두 마쳤습니다! 이제 도시 상태를 보며 도시를 키워 보세요.`);
+    return;
+  }
+  const what = fresh.map((i) => short(steps[i]![1])).join(' · ');
+  const tool = next[2];
+  toast(`시작하기 ${now.size}/${steps.length}: ${what} 완료 · 다음은 ${short(next[1])}`, 'good', undefined,
+    tool ? () => takeStep(tool) : undefined, false, tool ? `눌러서 다음 단계: ${short(next[1])}` : undefined);
 }
 
 /** The checklist's deficit step: to be closed soon, or (years of money left) as the town grows. */

@@ -10,7 +10,7 @@ import { revealMap } from './tabs';
 const max = () => (matchMedia('(max-width: 860px)').matches ? 1 : 3);
 
 /** `at`: a tile the notice is about; clicking the notice then shows it. */
-export function toast(text: string, tone: 'good' | 'bad' | 'info' = 'good', at?: [number, number], open?: () => void, sticky = false): void {
+export function toast(text: string, tone: 'good' | 'bad' | 'info' = 'good', at?: [number, number], open?: () => void, sticky = false, label?: string): void {
   const box = document.querySelector('#toasts');
   if (!box) return;
   // The same words already showing: not again (picking two checklist steps stacked two of them).
@@ -20,7 +20,7 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' = 'good', at?:
   el.tabIndex = 0;
   el.setAttribute('role', 'button');
   el.className = `toast ${tone}`;
-  el.title = open ? '눌러서 관리 화면 열기' : at ? '눌러서 그곳 보기' : '닫기';
+  el.title = label ?? (open ? '눌러서 관리 화면 열기' : at ? '눌러서 그곳 보기' : '닫기');
   // A tone badge, the text (its subject in bold: "개발·수요: …"), and a chevron when it leads somewhere.
   const badge = document.createElement('span');
   badge.className = 'toast-badge';
