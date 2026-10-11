@@ -4,7 +4,7 @@ import { STRUCTURES, type StructureKind } from '@web-city/engine';
 import { icon } from './icons';
 import { openSample } from './main';
 import { region } from './region';
-import { changeKey, city } from './state';
+import { changeKey, city, cityLineage } from './state';
 import { markSuggested, panTipAt, selectTool } from './tools';
 import { closePane, showTab, type Tab } from './tabs';
 import { $, ask, fmt, touchFirst } from './util';
@@ -90,7 +90,10 @@ export function renderOnboarding(): void {
   ];
   const done = steps.filter(([ok]) => ok).length;
   cheer(steps);
-  el.hidden = dismissed || done === steps.length;
+  // Done once, put away for this city: a plant pulled down later is for 도시 상태 to flag in red, not for the
+  // whole list to come back over the city at 12/13.
+  if (done === steps.length) doneLineage = cityLineage;
+  el.hidden = dismissed || done === steps.length || doneLineage === cityLineage;
   // On a town not yet founded, the first step's tool: the dock dots its category (where to start, on the map's side too).
   const first = steps.find(([ok]) => !ok)?.[2];
   const was = firstStepTool;
@@ -205,6 +208,9 @@ function deficitStep(deficit: number, funds: number): string {
     ? `재정 흑자 만들기 (지난달 −§${fmt(deficit)} · 자금은 ${years >= 100 ? '100년' : `${years}년`} 넘게 버팀: 주민이 늘면 세금이 메웁니다)`
     : `재정 적자 메우기 (지난달 −§${fmt(deficit)}: 세율·부서 예산)`;
 }
+
+/** The city (by lineage: undo's restored copy is the same city) whose checklist was once all done. */
+let doneLineage = -1;
 
 /** The tool of the checklist's first open step on an unfounded town (null otherwise). */
 export let firstStepTool: string | null = null;
