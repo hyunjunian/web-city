@@ -125,7 +125,7 @@ export function renderOnboarding(): void {
     <ol class="steps">${todo.slice(0, 3).map((t, i) => row(t, i)).join('')}</ol>
     ${todo.length > 3 ? `<details class="steps-later"><summary>그다음 ${todo.length - 3}개</summary><ol class="steps">${todo.slice(3).map((t) => row(t)).join('')}</ol></details>` : ''}
     ${fresh ? `<p class="legend">처음 짓기 전에는 <button type="button" class="link" data-step-tool="raise" title="높이기·낮추기·물 파기·메우기: 도로·구역·시설을 하나라도 지으면 칸당 돈이 듭니다">지형 편집</button>이 무료입니다.</p>` : `<p class="legend">건물이 안 들어서면 <button type="button" class="link advice-view" data-overlay="growth">개발 막힘 보기${touchFirst() ? '' : ' (G)'}</button>로 무엇이 막는지 확인하세요.</p>`}
-    <p class="legend step-foot"><span>${done}/${steps.length} 완료</span><button id="onboarding-hide" class="link">그만 보기</button></p>`;
+    <p class="legend step-foot"><span class="step-progress" role="img" aria-label="${done}/${steps.length} 완료"><i style="width:${((done / steps.length) * 100).toFixed(1)}%"></i></span><span>${done}/${steps.length} 완료</span><button id="onboarding-hide" class="link">그만 보기</button></p>`;
   // A step's text picks the tool that does it.
   $('#onboarding-steps').querySelectorAll<HTMLButtonElement>('[data-step-tool]').forEach((b) => (b.onclick = () => {
     const step = b.dataset.stepTool!;

@@ -752,7 +752,9 @@ kbd {
 .steps li.next .step { background: var(--accent-soft); font-weight: 600; }
 .steps li.next .step-dot { box-shadow: inset 0 0 0 2px var(--accent); }
 .steps li.next .step-go { color: var(--accent-hi); }
-.step-foot { display: flex; justify-content: space-between; }
+.step-foot { display: flex; align-items: center; gap: 10px; }
+.step-foot .step-progress { flex: 1; min-width: 40px; }
+.step-foot .link { margin-left: 6px; }
 
 /* ------------------------------------------------------------------ map */
 
