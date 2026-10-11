@@ -2491,3 +2491,9 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
   #dock .dock-btn .i { width: 18px; height: 18px; }
   #dock .dock-label { font-size: 12px; }
 }
+
+/* A tablet held upright gets the phone's sheets, but not stretched edge to edge: they rise 600 px wide in the
+   middle, the map in sight on either side (rows of the city pane ran 768 px from name to figure). */
+@media (min-width: 640px) and (max-width: 860px) and (orientation: portrait) {
+  #pane, #tray, #info-card, #sheet { left: calc(50% - 300px); right: calc(50% - 300px); }
+}
