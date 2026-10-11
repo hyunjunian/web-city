@@ -586,7 +586,8 @@ export function openFinance(): void {
   if (active !== 'finance') openGoal('finance');
   else {
     openPane();
-    $('#policy').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    // (Its first part: #policy itself draws no box, and asked to come into sight it never moved.)
+    ($('#policy').querySelector<HTMLElement>(':scope > :not([hidden])') ?? $('#policy')).scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 }
 
