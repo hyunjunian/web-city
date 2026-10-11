@@ -1158,16 +1158,20 @@ function goalHtml(id: GoalId): string {
   const view = currentView();
   const advice = adviceFor(id).filter((a) => a.level !== 'good' || adviceFor(id).every((x) => x.level === 'good'));
   const lead = guideSaid(id);
-  const shown = allFacilities ? list : list.slice(0, 6);
-  // Several of a kind are numbered in the list's order (five rows of 양수 펌프 could not be told apart).
+  // Several of a kind are numbered in the order they were built (five rows of 양수 펌프 could not be told apart).
   const ofKind = new Map<string, number>();
   for (const f of list) ofKind.set(f.kind, (ofKind.get(f.kind) ?? 0) + 1);
   const nth = new Map<string, number>();
-  const facName = (f: Structure) => {
+  const named = new Map<number, string>();
+  for (const f of list) {
     const k = (nth.get(f.kind) ?? 0) + 1;
     nth.set(f.kind, k);
-    return (ofKind.get(f.kind) ?? 0) > 1 ? `${STRUCTURE_NAME[f.kind]} ${k}` : STRUCTURE_NAME[f.kind];
-  };
+    named.set(f.id, (ofKind.get(f.kind) ?? 0) > 1 ? `${STRUCTURE_NAME[f.kind]} ${k}` : STRUCTURE_NAME[f.kind]);
+  }
+  const facName = (f: Structure) => named.get(f.id) ?? STRUCTURE_NAME[f.kind];
+  // The ones in trouble first (red, then amber): the seventh, overcrowded, was folded under N곳 더 보기.
+  const rank = (f: Structure) => ({ bad: 0, warn: 1 } as Record<string, number>)[facilityLine(f)[1]] ?? 2;
+  const shown = [...list].sort((a, b) => rank(a) - rank(b)).slice(0, allFacilities ? list.length : 6);
   // (All run on the department's budget: said once by the heading, not as the same pill on every row.)
   const allDept = list.length > 0 && list.every((f) => deptFunded(f.kind));
   return `<header class="mg-head">
