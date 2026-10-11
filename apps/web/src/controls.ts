@@ -90,7 +90,7 @@ export function showHelp(): void {
   ];
   // The basic loop in five steps (the getting-started list, in short), then the keys by what they are for.
   // (Each step is also the way to do it: pressed, the help closes on its tool, its screen or the clock.)
-  const loop = ([['road', '도로', '맵 가장자리까지 이으면 이웃 도시와 이어짐', 'road'], ['zones', '구역', '길가에 주거·상업·산업을 칠하기', 'R-low'], ['zap', '전기', '발전소를 구역 가까이 (4칸 넘으면 송전선)', 'goal:power'],
+  const loop = ([['road', '도로', '지도 가장자리까지 이으면 이웃 도시와 이어짐', 'road'], ['zones', '구역', '길가에 주거·상업·산업을 칠하기', 'R-low'], ['zap', '전기', '발전소를 구역 가까이 (4칸 넘으면 송전선)', 'goal:power'],
     ['droplet', '물', '양수 펌프와 수도관 (도시가 커지면)', 'goal:water'], ['play', '시간', touch ? '▶를 눌러 도시가 자라게' : '▶ 또는 Space로 도시가 자라게', 'play']] as const)
     .map(([ic, name, what, act], k) => `<li><button type="button" class="loop-step" data-loop="${act}" title="${name}: 눌러서 바로 해 보기">${icon(ic)}<b><span class="loop-n">${k + 1}</span>${name}</b><small>${what}</small></button></li>`).join('');
   const group = (title: string, keys: string, wide = false) => `<section class="key-group${wide ? ' wide' : ''}"><h4>${title}</h4><div class="key-list">${keys}</div></section>`;
