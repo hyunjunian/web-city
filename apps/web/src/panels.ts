@@ -1,6 +1,6 @@
 // The side panel refresh: demand, budget, departments, loans and advisor notices.
 
-import { DEV_TYPES, GROWTH_CODES, STRUCTURES, ZONES, type PollTopic, type StructureKind, type UnlockCheck } from '@web-city/engine';
+import { DEV_TYPES, GROWTH_CODES, STRUCTURES, ZONES, type PollTopic, type StructureKind } from '@web-city/engine';
 import { icon } from './icons';
 import { chooseSpeed, refreshTaxes, showOverlay } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
@@ -14,7 +14,7 @@ import { renderOnboarding } from './onboarding';
 import { renderNeighbours } from './region';
 import { TYPE_COLOR } from './render';
 import { GROWTH_LABEL } from './views';
-import { checkLeft, checkText, renderAges, renderPolls, renderRewards } from './reports';
+import { checkLeft, checkText, renderAges, renderPolls, renderRewards, rewardShare } from './reports';
 import { centerOn, changeKey, city, cityGeneration, graphs, redraw, speed } from './state';
 import { categoryOf, chosen, openTray, refreshStructureLists, selectTool, structureStat, TOOLS } from './tools';
 import { renderUdi, watchMissions } from './udi';
@@ -176,10 +176,9 @@ let rewardSeen: { key: string; html: string } | null = null;
 function nextReward(): string {
   const key = `${cityGeneration}|${Math.floor(city.state.day / 30)}|${city.state.unlocked.length}`;
   if (rewardSeen?.key === key) return rewardSeen.html;
-  const part = (c: UnlockCheck) => (c.met ? 1 : c.below || c.need <= 0 ? 0 : Math.max(0, Math.min(1, c.have / c.need)));
   const best = city.rewardProgress()
     .filter((r) => r.checks.length && !r.checks.every((c) => c.met))
-    .map((r) => ({ ...r, share: r.checks.reduce((a, c) => a + part(c), 0) / r.checks.length }))
+    .map((r) => ({ ...r, share: rewardShare(r.checks) }))
     .sort((a, b) => b.share - a.share)[0];
   // What is still missing, in a line (all of it in the tooltip).
   const left = best ? best.checks.filter((c) => !c.met).map(checkLeft) : [];

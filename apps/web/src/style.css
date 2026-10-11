@@ -1233,8 +1233,12 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .poll-row.bad .value { color: var(--danger-ink); }
 .poll-row .value { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .poll-row.wide { grid-template-columns: 68px minmax(0, 1fr) 64px; }
-.poll-row.reward { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 34px; }
-.poll-row.reward .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The rewards still to earn: a row each, the name and how many conditions are met, what is left under it. */
+.rw-item { padding: 9px 2px; border-bottom: 1px solid var(--line); }
+.rw-item:last-of-type { border-bottom: 0; }
+.rw-item .poll-row { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 34px; margin: 0; }
+.rw-item .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; }
+.rw-need { margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .wealth-table th { padding: 2px 0 6px; color: var(--muted); font-size: 11.5px; font-weight: 600; text-align: right; }
 .wealth-table th:first-child, .wealth-table td:first-child { text-align: left; }
 .wealth-table td { text-align: right; font-variant-numeric: tabular-nums; }

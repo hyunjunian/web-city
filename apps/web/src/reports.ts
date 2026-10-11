@@ -3,7 +3,7 @@
 import { type DevType, type PollTopic, type StructureKind, type UnlockCheck } from '@web-city/engine';
 import { CHECK_NAME, POLL_NAME, STRUCTURE_NAME, TYPE_NAME } from './names';
 import { city } from './state';
-import { $, fmt } from './util';
+import { $, escapeHtml, fmt } from './util';
 
 export let pollMonth = -1;
 
@@ -61,6 +61,12 @@ export function checkText(c: UnlockCheck): string {
   return `${what} ${v(c.have)}${c.below ? ' (< ' : '/'}${v(c.need)}${c.below ? ')' : ''}`;
 }
 
+/** How far a reward's conditions are along (each met one whole, the rest by how near): the bar of 다음 보상 and of the list. */
+export function rewardShare(checks: readonly UnlockCheck[]): number {
+  const part = (c: UnlockCheck) => (c.met ? 1 : c.below || c.need <= 0 ? 0 : Math.max(0, Math.min(1, c.have / c.need)));
+  return checks.length ? checks.reduce((a, c) => a + part(c), 0) / checks.length : 0;
+}
+
 /** What a condition still wants, as an amount to go: "총인구 3,816 더", "범죄 40 아래로". */
 export function checkLeft(c: UnlockCheck): string {
   const [field, sub] = c.key.startsWith('regional.') ? [c.key, undefined] : c.key.split('.') as [string, string | undefined];
@@ -78,18 +84,20 @@ export function renderRewards(): void {
   rewardMonth = month;
   const rows = city.rewardProgress()
     .filter((r) => r.checks.length)
-    .map((r) => ({ ...r, share: r.checks.filter((c) => c.met).length / r.checks.length }))
+    .map((r) => ({ ...r, share: rewardShare(r.checks) }))
     .sort((a, b) => b.share - a.share)
     .slice(0, 12);
   $('#rewards').innerHTML = rows.length ? rows.map((r) => {
-    const missing = r.checks.filter((c) => !c.met).map(checkText).join(' · ');
+    const missing = r.checks.filter((c) => !c.met);
     // One earned in tiers (already in the tray): this row is its next tier.
     const name = city.isUnlocked(r.kind) ? `${STRUCTURE_NAME[r.kind]} (다음 단계)` : STRUCTURE_NAME[r.kind];
-    return `<div class="poll-row reward" title="${name}: ${r.description}">
+    // (What it still wants inside its own row, said as the summary's 다음 보상 says it: under the row it read
+    // as the next reward's. The bar and the order are the summary's too, so its 다음 보상 leads the list.)
+    return `<div class="rw-item" title="${escapeHtml(`${name}: ${r.description}${missing.length ? ` · 지금 ${missing.map(checkText).join(' · ')}` : ''}`)}"><div class="poll-row">
       <span class="label">${name}</span>
-      <div class="bar"><div class="fill" style="width:${Math.round(r.share * 100)}%"></div></div>
-      <span class="value">${r.checks.filter((c) => c.met).length}/${r.checks.length}</span></div>
-      <p class="legend" style="margin:0 0 6px">${missing || '이번 달에 열립니다'}</p>`;
+      <div class="bar"><div class="fill" style="width:${(r.share * 100).toFixed(1)}%"></div></div>
+      <span class="value">${Math.round(r.share * 100)}%</span></div>
+      <p class="rw-need">${missing.length ? `열리려면 ${missing.map(checkLeft).join(' · ')}` : '이번 달에 열립니다'}</p></div>`;
   }).join('') + '<p class="legend">아직 얻지 못한 보상 중 조건을 많이 채운 순서(매달 갱신).</p>'
     : '<p class="muted">남은 보상이 없습니다.</p>';
 }
