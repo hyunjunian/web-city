@@ -2402,6 +2402,10 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .rci-mini i.neg::after { bottom: auto; top: 50%; border-radius: 0 0 2px 2px; opacity: 0.5; }
 .rci-mini i.cap::after { background: repeating-linear-gradient(0deg, var(--c) 0 2px, transparent 2px 3px); }
 .advice .adv-echo { color: var(--muted); font-weight: 500; }
+/* The arrows' key, under the list while any shows. */
+.s-legend { display: flex; align-items: center; gap: 2px; margin: 8px 6px 0; color: var(--faint); font-size: 11px; }
+.s-legend .w-drift { margin-right: 0; font-size: 9px; }
+.s-legend .w-drift + .w-drift { margin-right: 5px; }
 .rci-mini .k-r { --c: var(--zone-r); }
 .rci-mini .k-c { --c: var(--zone-c); }
 .rci-mini .k-i { --c: var(--zone-i); }
