@@ -1724,6 +1724,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 #goal-stats { gap: 10px; }
 #goal-stats h4 { margin: 4px 0 8px; color: var(--muted); font-size: 12.5px; font-weight: 600; }
 #goal-stats > :not(h3):not([hidden]) ~ .gs:not([hidden]) { padding-top: 10px; border-top: 1px solid var(--line); }
+#goal-stats .gs { scroll-margin-top: 76px; } /* (brought into sight from the summary — 다음 보상, 시장 평점 — its heading clears the sticky head) */
 #goal-stats .graph.off, #goal-stats h3.sub.off { display: none; }
 #goal-stats #ages h3.sub:first-child { margin-top: 4px; }
 
