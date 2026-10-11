@@ -1236,7 +1236,7 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 /* The rewards still to earn: a row each, the name and how many conditions are met, what is left under it. */
 .rw-item { padding: 9px 2px; border-bottom: 1px solid var(--line); }
 .rw-item:last-of-type { border-bottom: 0; }
-.rw-item .poll-row { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) 34px; margin: 0; }
+.rw-item .poll-row { grid-template-columns: minmax(0, 1fr) clamp(56px, 30%, 110px) 38px; margin: 0; } /* (the name has the room: on a narrow pane 마이너리그 경기장 was cut) */
 .rw-item .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; }
 .rw-need { margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .wealth-table th { padding: 2px 0 6px; color: var(--muted); font-size: 11.5px; font-weight: 600; text-align: right; }
@@ -2349,7 +2349,7 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .city-sum .rw-icon .i { width: 16px; height: 16px; }
 .rw-label { margin-right: 6px; color: var(--muted); font-size: 11.5px; font-weight: 500; }
 .city-sum .rw-name > small:not(.rw-label) { display: none; } /* (what it gives: in the tooltip and the rewards list) */
-.city-sum .rw-left { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; }
+.city-sum .rw-left { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; font-size: 11.5px; } /* (two lines where the pane is narrow: 총인구 (주민+일자리) 3,763 더 was cut before its number) */
 
 /* The reward hangs right under the size it grows with; money, jobs and rating below a hairline. */
 .city-sum .score + .reward { margin-top: -4px; }
@@ -2415,6 +2415,8 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
   grid-column: 2 / 4; grid-row: 2; white-space: normal; line-height: 1.4;
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
 }
+/* 개발·수요's line leads with the jobs, so its reason gets a third line where the pane is narrow. */
+.s-list .s-row[data-goal='growth'] .s-note { -webkit-line-clamp: 3; line-clamp: 3; }
 /* 개발·수요's figure: the RCI meter in small (three bars from a midline: up wanted, down surplus). */
 .rci-mini { position: relative; display: inline-flex; align-items: stretch; gap: 3px; height: 24px; margin: -3px 7px -3px 0; padding: 0 2px; }
 .rci-mini::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line-strong); }

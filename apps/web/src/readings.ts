@@ -394,7 +394,8 @@ export function facilityLine(f: Structure): [string, Tone] {
   if (d.pump) return [`${fmt(f.load)} / ${fmt(f.capacity)} m³${f.capacity === 0 ? ' · 가동 안 함' : ''}`, f.capacity === 0 ? 'bad' : f.life >= 90 ? 'warn' : ''];
   if (d.incinerator) return [`${fmt(f.load)} / ${fmt(f.capacity)} t 소각`, ''];
   if (d.health || d.school) return [`${d.health ? '환자' : '학생'} ${fmt(f.load)} / ${fmt(f.capacity)}${strike}`, f.strike ? 'bad' : f.load > f.capacity ? 'warn' : ''];
-  if (d.police) return [`${d.police.radius ? `효과 ${Math.round(f.effectiveness * 100)}% · ` : ''}수감 ${fmt(f.load)} / ${fmt(f.capacity)}${strike}`, f.strike ? 'bad' : f.capacity && f.load >= f.capacity ? 'warn' : ''];
+  // (Its effect said when off the full: "효과 100% · 수감 28 / 50" was cut where the pane is narrow.)
+  if (d.police) return [`${d.police.radius && Math.round(f.effectiveness * 100) !== 100 ? `효과 ${Math.round(f.effectiveness * 100)}% · ` : ''}수감 ${fmt(f.load)} / ${fmt(f.capacity)}${strike}`, f.strike ? 'bad' : f.capacity && f.load >= f.capacity ? 'warn' : ''];
   if (d.fire) return [`효과 ${Math.round(f.effectiveness * 100)}%${strike}`, f.strike ? 'bad' : ''];
   // (No riders: why, in short, as its info card says it: alone of its kind, no road, or nowhere worth going.)
   if (d.station) return f.load < 1 ? [`승차 0 · ${noRiders(f).split(/[.:]/)[0]}`, 'warn'] : [`승차 ${fmt(f.load)} / ${fmt(d.station.capacity)}`, ''];
