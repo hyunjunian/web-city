@@ -896,6 +896,7 @@ export function selectTool(id: string): void {
       if (!localStorage.getItem(PAN_TIP_KEY)) {
         localStorage.setItem(PAN_TIP_KEY, '1');
         flash(`도구를 든 동안 한 손가락은 그립니다 · 지도 이동은 두 손가락으로${isHeld() ? ' · 짓는 동안 시간은 잠시 멈춥니다' : ''}`, 'info'); // (it takes the hold's own tip's place)
+        panTipAt = performance.now();
       }
     } catch { /* storage unavailable */ }
   }
@@ -915,6 +916,8 @@ export function selectTool(id: string): void {
 }
 
 const PAN_TIP_KEY = 'web-city:pan-tip';
+/** When the one-finger tip was last shown (a tip given with it needn't say it again). */
+export let panTipAt = -Infinity;
 /** Tools a one-finger drag draws with (so it doesn't pan the map). */
 const DRAWING = new Set<Tool['kind']>(['network', 'zone', 'bulldoze', 'powerline', 'pipe', 'unpipe', 'subway', 'unsubway', 'elevated', 'trees', 'terraform', 'level']);
 

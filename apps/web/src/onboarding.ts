@@ -5,7 +5,7 @@ import { icon } from './icons';
 import { openSample } from './main';
 import { region } from './region';
 import { changeKey, city } from './state';
-import { markSuggested, selectTool } from './tools';
+import { markSuggested, panTipAt, selectTool } from './tools';
 import { closePane, showTab, type Tab } from './tabs';
 import { $, ask, fmt, touchFirst } from './util';
 import { STRUCTURE_NAME } from './names';
@@ -151,7 +151,9 @@ export function renderOnboarding(): void {
     closePane(); // phones: the pane holding the checklist steps aside for the map
     // (On a touch screen it replaces the one-finger tip selectTool just gave, so it says it too.)
     // A toast, not the hint: the hint is where the tool's own reading (cost, ⚠ no road) must show at once.
-    if (!tipShown) toast(touchFirst() ? '한 손가락으로 끌어 지으세요 · 지도 이동은 두 손가락. 다른 종류는 지도 위 도구 이름을 눌러 고릅니다.' : '지도에서 바로 지으세요. 다른 종류는 지도 위 도구 이름을 눌러 고릅니다.', 'info');
+    // (Not the one-finger tip again when the bar under the map has just said it.)
+    const panTold = performance.now() - panTipAt < 1000;
+    if (!tipShown) toast(touchFirst() ? `${panTold ? '' : '한 손가락으로 끌어 지으세요 · 지도 이동은 두 손가락. '}다른 종류는 지도 위 도구 이름을 눌러 고릅니다.` : '지도에서 바로 지으세요. 다른 종류는 지도 위 도구 이름을 눌러 고릅니다.', 'info');
   }));
   const sample = document.querySelector<HTMLButtonElement>('#onboarding-sample');
   if (sample) sample.onclick = async () => {
