@@ -260,6 +260,24 @@ export class Graphs {
         ctx.stroke();
         ctx.setLineDash([]);
       }
+      // A soft wash under the main line, fading to zero: the shape of the change reads before the numbers.
+      // (Not on a fitted axis: an area down to a bottom that isn't zero would overstate the change.)
+      if (!fit) {
+        const base = y(0);
+        const wash = ctx.createLinearGradient(0, Math.min(...vals.map(y)), 0, base);
+        wash.addColorStop(0, c1!);
+        wash.addColorStop(1, 'transparent');
+        ctx.save();
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = wash;
+        ctx.beginPath();
+        ctx.moveTo(x(0), base);
+        vals.forEach((v, k) => ctx.lineTo(x(k), y(v)));
+        ctx.lineTo(x(vals.length - 1), base);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
       ctx.strokeStyle = c1!;
       ctx.lineWidth = 2;
       ctx.lineJoin = 'round';
@@ -287,6 +305,11 @@ export class Graphs {
         ctx.lineTo(Math.round(x(k)) + 0.5, H - PAD);
         ctx.stroke();
       }
+      // The month read: a dot ringed in the plot's colour, clear of the line under it.
+      ctx.fillStyle = chip;
+      ctx.beginPath();
+      ctx.arc(x(k), y(vals[k]!), 6, 0, Math.PI * 2);
+      ctx.fill();
       ctx.fillStyle = c1!;
       ctx.beginPath();
       ctx.arc(x(k), y(vals[k]!), 4, 0, Math.PI * 2);
