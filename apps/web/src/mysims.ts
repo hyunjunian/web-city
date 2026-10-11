@@ -3,7 +3,7 @@
 import { type Thought } from '@web-city/engine';
 import { icon } from './icons';
 import { ko } from './messages';
-import { THOUGHT, WEALTH_NAME } from './names';
+import { THOUGHT } from './names';
 import { pushNotice, updatePanels } from './panels';
 import { centerOn, city, redraw, setSelected } from './state';
 import { forgetInfo, showInfo } from './info';
@@ -11,8 +11,10 @@ import { closeSheet, revealMap, showTab } from './tabs';
 import { $, escapeHtml, flash, hours, josa } from './util';
 import { choice } from './undo';
 
-/** A place on the map as a link that goes there. */
-const goto = (x: number, y: number) => `<button type="button" class="link" data-goto="${x},${y}" title="지도에서 보기">(${x}, ${y})</button>`;
+/** A place on the map as a link that goes there, named (집, 일터) rather than by its coordinates. */
+const goto = (x: number, y: number, label: string) => `<button type="button" class="link" data-goto="${x},${y}" title="지도에서 보기 (${x}, ${y})">${label}</button>`;
+/** A Sim's wealth in a word (R$ read as a code). */
+const WEALTH_WORD = ['저소득층', '중산층', '부유층'] as const;
 
 /** Names a new My Sim is given (the info card's form starts with the same). */
 export const SIM_NAMES = ['민지', '서준', '하은', '도윤', '지우'];
@@ -29,7 +31,7 @@ export function interviewAt(x: number, y: number): void {
   }
   setSelected(r.home);
   redraw();
-  el.innerHTML = `<p><b>${icon('mic', 'inline-i')}지나가던 R${WEALTH_NAME[r.wealth]} 주민</b> <span class="muted">(${r.home.x}, ${r.home.y} 근처에 삶)</span></p>
+  el.innerHTML = `<p><b>${icon('mic', 'inline-i')}지나가던 ${WEALTH_WORD[r.wealth]} 주민</b> <span class="muted">(지도에 표시한 집 근처에 삶)</span></p>
     <p>${r.thoughts.length ? thoughtChips(r.thoughts) : '<span class="muted">딱히 할 말이 없답니다.</span>'}</p>
     <p class="legend">빨강 = 불만, 회색 = 좋아함. 집 주변의 건강·교육·치안·오염·통근 등에 대한 생각입니다.</p>`;
 }
@@ -57,7 +59,7 @@ export function renderMySims(force = false): void {
     const trip = city.mySimCommute(sim.id);
     const pending = mySimAction?.id === sim.id ? mySimAction.kind : null;
     return `<div class="mysim">
-      <div><b>${escapeHtml(sim.name)}</b>${(sim.generation ?? 1) > 1 ? ` <span class="chip">${sim.generation}대째</span>` : ''} <span class="muted">R${WEALTH_NAME[sim.wealth]} · ${home ? `집 ${goto(home.x, home.y)}` : '<span class="neg">집 찾는 중</span>'} · 일터 ${job ? goto(job.x, job.y) : '자동'}${trip ? ` · 통근 ${trip.time < 0 ? '<span class="neg">못 감</span>' : hours(trip.time)}` : ''}</span></div>
+      <div><b>${escapeHtml(sim.name)}</b>${(sim.generation ?? 1) > 1 ? ` <span class="chip">${sim.generation}대째</span>` : ''} <span class="muted">${WEALTH_WORD[sim.wealth]} · ${home ? goto(home.x, home.y, '집') : '<span class="neg">집 찾는 중</span>'} · ${job ? goto(job.x, job.y, '일터') : '일터 자동'}${trip ? ` · 통근 ${trip.time < 0 ? '<span class="neg">못 감</span>' : hours(trip.time)}` : ''}</span></div>
       <div class="thoughts">${thoughtChips(city.mySimThoughts(sim.id))}</div>
       <div class="mysim-buttons">
         <button data-sim="${sim.id}" data-act="job" class="${pending === 'job' ? 'active' : ''}">일터 지정</button>
@@ -88,7 +90,7 @@ export function renderMySims(force = false): void {
     const h = pool[Math.floor(Math.random() * pool.length)]!;
     const res = choice('My Sim', () => city.addMySim(SIM_NAMES[city.state.mySims.length % SIM_NAMES.length]!, h.x, h.y));
     if (!res.ok) flash(ko(res.message ?? 'pick a lived-in home'), 'bad');
-    else flash(`${res.sim!.name}${josa(res.sim!.name, '이', '가')} (${h.x}, ${h.y})에 입주했습니다`);
+    else flash(`${res.sim!.name}${josa(res.sim!.name, '이', '가')} ${WEALTH_WORD[res.sim!.wealth]} 집에 입주했습니다`);
     renderMySims(true);
     updatePanels();
   };
@@ -127,7 +129,7 @@ export function mySimClick(x: number, y: number): void {
   if (!sim) return;
   if (a.kind === 'dispatch') {
     const ts = city.dispatchMySim(a.id, x, y);
-    pushNotice({ text: `${sim.name}의 의견 (${x}, ${y}): ${ts.map((t) => `${THOUGHT[t.subject][0]}${t.approve ? '👍' : '👎'}`).join(' ')}`, until: city.state.day + 60 });
+    pushNotice({ text: `${sim.name}의 의견: ${ts.map((t) => `${THOUGHT[t.subject][0]}${t.approve ? '👍' : '👎'}`).join(' ')}`, until: city.state.day + 60, at: [x, y] });
   } else {
     const res = a.kind === 'job' ? choice('My Sim', () => city.setMySimJob(a.id, x, y)) : choice('My Sim', () => city.moveMySim(a.id, x, y));
     if (!res.ok) flash(ko(res.message ?? 'pick a lived-in home'), 'bad');
