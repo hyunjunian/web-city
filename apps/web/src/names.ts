@@ -84,18 +84,18 @@ export const TYPE_NAME: Record<DevType, string> = {
   IA: '농업', ID: '공해 산업', IM: '제조업', IHT: '첨단 산업',
 };
 
-/** A type in a word and its wealth, for narrow lists (the demand bars): 상점 $$, not Cs$$. */
+/** A type in a word and its wealth, for narrow lists (the demand bars): 상점 중소득, not Cs$$ (nor 상점 $$). */
 export const TYPE_SHORT: Record<DevType, string> = {
-  'R$': '주거 $', 'R$$': '주거 $$', 'R$$$': '주거 $$$',
-  'Cs$': '상점 $', 'Cs$$': '상점 $$', 'Cs$$$': '상점 $$$',
-  'Co$$': '오피스 $$', 'Co$$$': '오피스 $$$',
+  'R$': '주거 저소득', 'R$$': '주거 중소득', 'R$$$': '주거 고소득',
+  'Cs$': '상점 저소득', 'Cs$$': '상점 중소득', 'Cs$$$': '상점 고소득',
+  'Co$$': '오피스 중소득', 'Co$$$': '오피스 고소득',
   IA: '농업', ID: '공해 산업', IM: '제조업', IHT: '첨단 산업',
 };
 
 export const FACTOR_NAME: Record<string, string> = {
   // Named as qualities, so a plus reads as good whichever way the factor points.
   air: '공기 질', landValue: '땅값', rProx1: '저소득 주거 근접', rProx2: '중소득 주거 근접', rProx3: '고소득 주거 근접',
-  coProx2: '오피스 $$ 근접', coProx3: '오피스 $$$ 근접', resNimby: '주거 님비/임비', comNimby: '상업 님비/임비',
+  coProx2: '중소득 오피스 근접', coProx3: '고소득 오피스 근접', resNimby: '주거 님비/임비', comNimby: '상업 님비/임비',
   slope: '평지', traffic: '교통량', trip: '통근/화물 시간', health: '보건', school: '교육', crime: '치안', events: '최근 사건(화재 등)', garbage: '청결 (쓰레기)',
 };
 

@@ -544,7 +544,7 @@ export function garbageValue(g: ReturnType<typeof city.stats>['garbage']): strin
 /** A whole number with a true minus (the funds use one; demand read -70). */
 const signed = (v: number) => `${Math.round(v) < 0 ? '−' : ''}${fmt(Math.abs(Math.round(v)))}`;
 
-const byWealth = (v: readonly (number | string)[]) => v.map((x, w) => `<span class="nw">${'$'.repeat(w + 1)} ${x}</span>`).join(' · ');
+const byWealth = (v: readonly (number | string)[]) => v.map((x, w) => `<span class="nw">${WEALTH_NAME[w as 0 | 1 | 2]} ${x}</span>`).join(' · ');
 
 /** The garbage gauge's tooltip: where last month's garbage went, and how long the landfill lasts. */
 export function garbageTitle(g: ReturnType<typeof city.stats>['garbage']): string {
