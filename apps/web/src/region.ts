@@ -124,7 +124,7 @@ function ownCost(o: { resource: Parameters<typeof city.utility>[0]; direction: '
 }
 
 /** The kinds of neighbour in a word or two (the compass's cells are narrow). */
-const KIND_SHORT = { simnation: '심네이션', established: '미개발', developed: '개발됨' } as const;
+const KIND_SHORT = { simnation: '도시 없음', established: '미개발', developed: '개발됨' } as const;
 
 /** What reaches an edge from this city (roads, rail…): a neighbour is only met where something does. */
 function edgeLinks(edge: 0 | 1 | 2 | 3): string {
@@ -155,7 +155,11 @@ export function renderNeighbours(): void {
     <div class="nb-compass" role="group" aria-label="네 변의 이웃">${s.neighbours.map((nb) => `<label class="nb-edge ${'wens'[nb.edge]}"><span class="nb-dir">${EDGE_NAME[nb.edge]}</span><select data-edge="${nb.edge}" ${region ? 'disabled' : ''} aria-label="${EDGE_NAME[nb.edge]} 이웃">
       ${(['simnation', 'established', 'developed'] as const).map((k) => `<option value="${k}" ${nb.kind === k ? 'selected' : ''} title="${KIND_NAME[k]}">${KIND_SHORT[k]}</option>`).join('')}
     </select>${edgeLinks(nb.edge)}</label>`).join('')}<div class="nb-me">${icon('zones')}<b>${escapeHtml(s.name)}</b><small>이 도시</small></div></div>
-    <p class="legend">심네이션은 화물 출구와 연결 종류별 첫 오피스 상한 완화만 줍니다. 미개발 이웃 도시와는 주민이 오가며 통근합니다. 개발된 이웃은 송전선·수도관·도로로 연결하면 전력·물·쓰레기를 사고팔 수 있고, 성장 수요(인구의 10%)를 보내옵니다.</p>
+    <dl class="nb-kinds" aria-label="이웃의 종류">
+      <dt>도시 없음</dt><dd>화물 출구와 연결 종류별 첫 오피스 상한 완화만 줍니다 (심네이션)</dd>
+      <dt>미개발</dt><dd>주민이 오가며 통근합니다</dd>
+      <dt>개발됨</dt><dd>송전선·수도관·도로로 이으면 전력·물·쓰레기를 사고팔고, 성장 수요(인구의 10%)를 보내옵니다</dd>
+    </dl>
     <h3 class="sub">거래</h3>
     ${dealRows || '<p class="muted">진행 중인 거래 없음</p>'}
     ${open.length ? open.map((o, k) => `<div class="loan-row"><span>${EDGE_NAME[o.edge]} · ${RESOURCE_NAME[o.resource]} ${o.direction === 'buy' ? '구매' : '판매'} · 단가 §${o.price.toFixed(3)}${ownCost(o)}</span>

@@ -2537,3 +2537,7 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
   #app.pane-open:has(#pane.managing) #view:not(.holding) #map-layer:not(.picking) #view-pick > :not(.i:first-child) { display: none; }
   #app.pane-open:has(#pane.managing) #view:not(.holding) #dock { left: 70px; }
 }
+/* The kinds of neighbour side by side: the name, then what it gives (a paragraph of three made them hard to compare). */
+.nb-kinds { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 10px 0 0; font-size: 12.5px; line-height: 1.45; }
+.nb-kinds dt { font-weight: 650; white-space: nowrap; }
+.nb-kinds dd { margin: 0; color: var(--muted); }

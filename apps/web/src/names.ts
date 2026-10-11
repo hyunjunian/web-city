@@ -131,7 +131,7 @@ export const RESOURCE_NAME = { power: '전력', water: '물', garbage: '쓰레�
 
 export const RESOURCE_UNIT = { power: 'MWh', water: 'm³', garbage: 't' } as const;
 
-export const KIND_NAME = { simnation: '심네이션', established: '이웃 도시 (미개발)', developed: '이웃 도시 (개발됨)' } as const;
+export const KIND_NAME = { simnation: '도시 없음 (심네이션)', established: '이웃 도시 (미개발)', developed: '이웃 도시 (개발됨)' } as const;
 
 export const SPAN_NAME: Record<CitySpan, string> = { 1: '작은', 2: '중간', 4: '큰' };
 
