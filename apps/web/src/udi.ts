@@ -41,9 +41,9 @@ export function renderUdi(force = false): void {
     ${ids.map((id) => {
       const m: MissionDef = MISSIONS[id];
       return `<div class="mission">
-        <div><b title="${m.name}">${MISSION_NAME_KO[id]}</b> <span class="muted">${icon(CLASS_ICON[VEHICLES[m.vehicle].class], 'inline-i')}${m.anyMySim ? 'My Sim 차량 아무거나' : m.training ? `${TRAINING_NAME[m.training]} 탈것 아무거나` : VEHICLE_NAME_KO[m.vehicle]} · ${DIFFICULTY_NAME[m.difficulty]} ·</span>
-          <span class="${m.alignment}">${ALIGNMENT_NAME[m.alignment]}</span></div>
-        <div class="legend">성공: ${resultText(m.success) || '—'}<br>실패: ${resultText(m.failure) || '—'}</div>
+        <div><b title="${m.name}">${MISSION_NAME_KO[id]}</b> <span class="muted">${icon(CLASS_ICON[VEHICLES[m.vehicle].class], 'inline-i')}${m.anyMySim ? 'My Sim 차량 아무거나' : m.training ? `${TRAINING_NAME[m.training]} 탈것 아무거나` : VEHICLE_NAME_KO[m.vehicle]} · 난이도 ${DIFFICULTY_NAME[m.difficulty]} ·</span>
+          <span class="${m.alignment}" title="임무의 성향 (선한 일·나쁜 일·어느 쪽도 아님)">성향 ${ALIGNMENT_NAME[m.alignment]}</span></div>
+        <div class="legend">성공: ${resultText(m.success) || (m.training ? `${TRAINING_NAME[m.training]} 탈것 임무가 열립니다` : '없음')}<br>실패: ${resultText(m.failure) || '없음'}</div>
         <button data-mission="${id}" ${drive ? 'disabled' : ''}>출발</button></div>`;
     }).join('') || '<p class="muted">지금 할 수 있는 임무가 없습니다.</p>'}
     ${progress ? `<p class="legend">여러 번 해야 하는 보상: ${progress}</p>` : ''}

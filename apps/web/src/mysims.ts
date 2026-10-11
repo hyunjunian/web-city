@@ -68,7 +68,10 @@ export function renderMySims(force = false): void {
   const homes = city.state.mySims.length < city.cfg.mySims.max ? [...city.state.buildings.values()].filter((b) => b.type?.[0] === 'R' && b.occupancy > 0) : [];
   const anyHome = homes.length ? `<button id="mysim-any" class="${rows ? '' : 'primary'}">${icon('users')}아무 집에나 입주</button>` : '';
   el.innerHTML = `${rows || `<p class="muted">지도에서 집을 눌러 My Sim을 입주시키세요${homes.length ? ', 또는 아래에서 바로 입주시키세요' : ' (아직 사람이 사는 집이 없습니다)'}.</p>`}${anyHome}
-    <p class="legend">빨강은 불만, 회색은 좋아함입니다. 일터 지정·이사·보내기를 누른 뒤 지도를 누르세요. 보내기는 그곳에 대한 의견을 들려줍니다. My Sim은 최대 ${city.cfg.mySims.max}명까지 둘 수 있습니다.</p>`;
+    <p class="legend">${rows
+      ? `생각 칩의 빨강은 불만, 회색은 좋아하는 것입니다. 일터 지정·이사·보내기를 누른 뒤 지도를 누르세요. 보내기는 그곳에 대한 의견을 들려줍니다. My Sim은 최대 ${city.cfg.mySims.max}명까지 둘 수 있습니다.`
+      // (Before any: what one does, not a key to chips not yet shown — "빨강은 불만" said of nothing.)
+      : `My Sim은 사는 곳에 대한 생각을 들려주고(빨강은 불만, 회색은 좋아함), 일터를 정하거나 이사시키거나 어디로 보내 그곳의 의견을 들을 수 있습니다. 최대 ${city.cfg.mySims.max}명까지 둘 수 있습니다.`}</p>`;
   // A home or workplace's place: the map goes there, with its card.
   el.querySelectorAll<HTMLButtonElement>('button[data-goto]').forEach((btn) => {
     btn.onclick = () => {
