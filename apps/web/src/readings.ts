@@ -389,7 +389,8 @@ function goalMetrics(id: GoalId): Metric[] {
 export function facilityLine(f: Structure): [string, Tone] {
   const d = STRUCTURES[f.kind];
   const strike = f.strike ? ' · 파업' : '';
-  if (d.plant) return [`${fmt(f.load)} / ${fmt(f.capacity)} MWh · 수명 ${Math.round(100 - f.life)}%`, f.life >= 85 ? 'bad' : f.life >= 70 ? 'warn' : ''];
+  // (Its life said once half is gone: "수명 100%" on every new plant pushed the output out of the line.)
+  if (d.plant) return [`${fmt(f.load)} / ${fmt(f.capacity)} MWh${f.life >= 50 ? ` · 수명 ${Math.round(100 - f.life)}% 남음` : ''}`, f.life >= 85 ? 'bad' : f.life >= 70 ? 'warn' : ''];
   if (d.pump) return [`${fmt(f.load)} / ${fmt(f.capacity)} m³${f.capacity === 0 ? ' · 가동 안 함' : ''}`, f.capacity === 0 ? 'bad' : f.life >= 90 ? 'warn' : ''];
   if (d.incinerator) return [`${fmt(f.load)} / ${fmt(f.capacity)} t 소각`, ''];
   if (d.health || d.school) return [`${d.health ? '환자' : '학생'} ${fmt(f.load)} / ${fmt(f.capacity)}${strike}`, f.strike ? 'bad' : f.load > f.capacity ? 'warn' : ''];
