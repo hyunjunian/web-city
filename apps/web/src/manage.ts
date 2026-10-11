@@ -13,7 +13,7 @@ import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME } from './names';
 import { whyNoDeals } from './region';
 import { journal } from './journal';
-import { abandonHint, capBest, capHint, jobHint, pushNotice, updatePanels } from './panels';
+import { abandonHint, capBest, capHint, jobHint, pushNotice, rciMini, updatePanels } from './panels';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, flightCount, glideTo, graphs, redraw, renderer, setHover, speed, stopFlight } from './state';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
@@ -103,14 +103,15 @@ function qualityGrid(counts: string, top: string, figs: PaneFigs): string {
   const row = ({ id, s }: (typeof rows)[number]) => {
     const g = GOALS[id];
     const wait = journal().pending[id] ? '<small class="s-wait" title="한 조치의 결과를 기다리는 중 (석 달 뒤 알려 드립니다)">결과 기다리는 중</small>' : '';
-    return `<button type="button" class="s-row ${s.tone || 'ok'}${active === id ? ' on' : ''}" data-goal="${id}" title="${g.name}: ${escapeHtml(s.note)} · 눌러서 자세히" aria-label="${g.name}${s.tone === 'bad' ? ', 조치 필요' : s.tone === 'warn' ? ', 주의' : ''}: ${s.value}">
+    // (A row with a line under it lays that line across the row: has-note.)
+    return `<button type="button" class="s-row ${s.tone || 'ok'}${s.tone || id === 'growth' ? ' has-note' : ''}${active === id ? ' on' : ''}" data-goal="${id}" title="${g.name}: ${escapeHtml(s.note)} · 눌러서 자세히" aria-label="${g.name}${s.tone === 'bad' ? ', 조치 필요' : s.tone === 'warn' ? ', 주의' : ''}: ${s.value}">
       <span class="s-ic">${icon(g.icon)}</span><span class="s-main"><span class="s-name">${g.name}${wait}</span>${id === 'growth'
         ? `<small class="s-note"><span class="s-sub">일자리 ${fmt(figs.jobs)}${figs.jobsTrend}</span>${s.tone ? ` · ${escapeHtml(s.note)}` : ''}</small>`
-        : s.tone ? `<small class="s-note">${escapeHtml(s.note)}</small>` : ''}</span><b class="s-val">${drift(id)}${s.value}</b>${icon('chevronRight', 's-go')}</button>`;
+        : s.tone ? `<small class="s-note">${escapeHtml(s.note)}</small>` : ''}</span><b class="s-val">${drift(id)}${id === 'growth' ? `${rciMini()}${s.value.replace(' 수요 ', ' ')}` : s.value}</b>${icon('chevronRight', 's-go')}</button>`;
   };
   // 시장 평점: no goal of its own, a row all the same (below 0 it is a problem); pressed, the polls.
   const rTone: Tone = figs.rating < 0 ? 'bad' : figs.rating < 20 ? 'warn' : '';
-  const rating = `<button type="button" class="s-row ${rTone || 'ok'}" data-open-polls title="시장 평점 (주거 구역 블록별 평균, −100~100) · 눌러서 주제별 여론 보기" aria-label="시장 평점: ${figs.rating}">
+  const rating = `<button type="button" class="s-row ${rTone || 'ok'}${rTone ? ' has-note' : ''}" data-open-polls title="시장 평점 (주거 구역 블록별 평균, −100~100) · 눌러서 주제별 여론 보기" aria-label="시장 평점: ${figs.rating}">
       <span class="s-ic">${icon('users')}</span><span class="s-main"><span class="s-name">시장 평점</span>${rTone ? `<small class="s-note">${figs.rating < 0 ? '주민 대다수가 불만 · 계속되면 탄핵될 수 있음' : '주민 만족이 낮음 · 여론을 살펴보세요'}</small>` : ''}</span><b class="s-val">${figs.ratingTrend}${figs.rating}</b>${icon('chevronRight', 's-go')}</button>`;
   const off = rows.filter(({ s }) => s.tone).map(row);
   const sound = rows.filter(({ s }) => !s.tone).map(row);
@@ -126,7 +127,9 @@ export function refreshStrip(): void {
   const el = $('#goal-strip');
   const tones = GOAL_ORDER.map((id) => [id, goalStatus(id).tone] as const);
   const inc = new Set(incidents().map((x) => x.goal));
-  const worst = [...tones.filter(([id, t]) => t === 'bad' || inc.has(id as 'fire')), ...tones.filter(([id, t]) => t === 'warn' && !inc.has(id as 'fire'))].slice(0, 3);
+  // In the city pane's order (the worst, then the weightiest): the chip names the list's top row.
+  const byWeight = (a: (typeof tones)[number], b: (typeof tones)[number]) => WEIGHT[b[0]] - WEIGHT[a[0]];
+  const worst = [...tones.filter(([id, t]) => t === 'bad' || inc.has(id as 'fire')).sort(byWeight), ...tones.filter(([id, t]) => t === 'warn' && !inc.has(id as 'fire')).sort(byWeight)].slice(0, 3);
   // The worst one over the map, and how many more (three chips were a row of noise over a small map); the
   // count opens the city pane, where they are listed.
   const more = tones.filter(([id, t]) => t === 'bad' || t === 'warn' || inc.has(id as 'fire')).length - 1;
@@ -188,14 +191,20 @@ const same = (a: string, b: string) => a.replace(/[\s.·,]/g, '') === b.replace(
  * for it, 추천 자리에 짓기. Once something was done here, when its result will be told.
  * (A fire or a riot has its banner instead; a sound goal shows nothing here.)
  */
+/** The advisor's word a troubled goal's 추천 조치 leads with (its first sentence), and that word; none for a sound goal or one on fire. */
+function guideSaid(id: GoalId): { said: string; worst?: ReturnType<typeof adviceFor>[number] } {
+  if (!goalStatus(id).tone || incidents().some((x) => x.goal === id)) return { said: '' };
+  const advice = adviceFor(id);
+  const worst = advice.find((x) => x.level === 'bad') ?? advice.find((x) => x.level !== 'good');
+  return { said: worst && adviceText(worst) ? firstSentence(adviceText(worst)) : '', worst };
+}
+
 function guideHtml(id: GoalId): string {
   const s = goalStatus(id);
   if (!s.tone || incidents().some((x) => x.goal === id)) return '';
   const st = goalStep(id);
-  const advice = adviceFor(id);
-  const worst = advice.find((x) => x.level === 'bad') ?? advice.find((x) => x.level !== 'good');
   // What is wrong as its advisor says it; with no advisor's word, the figure itself and its note.
-  const said = worst && adviceText(worst) ? firstSentence(adviceText(worst)) : '';
+  const { said, worst } = guideSaid(id);
   const problem = said || s.note;
   const title = said ? `<b>${escapeHtml(said)}</b>` : `<b>${escapeHtml(s.value)}</b> <span class="g-note">${escapeHtml(s.note)}</span>`;
   const spot = suggestSpot(id);
@@ -1073,12 +1082,28 @@ function incidentBanner(id: GoalId): string {
 }
 
 /** The goal's panel. */
+/**
+ * One advisor's word under 진단, with its 보기 and fix buttons. The word 추천 조치 already leads with
+ * is not said twice: its first sentence stands at the top of the screen, so only the rest is read here.
+ */
+function diagnosis(a: ReturnType<typeof adviceFor>[number], lead: ReturnType<typeof guideSaid>): string {
+  let text = a.code === 'waterShort' && waterApart() ? APART : ADVICE_TEXT[a.code]?.(a.value ?? 0, a.type) ?? a.code;
+  const echo = a === lead.worst && !!lead.said && text.startsWith(lead.said);
+  if (echo) text = text.slice(lead.said.length).trim();
+  const more = a.code === 'unemployment' ? jobHint() : a.code === 'abandoned' ? abandonHint() : a.code === 'capRes' ? capHint() : '';
+  const acts = a.at || fixButton(a) ? `<span class="advice-acts">${a.at ? `<button type="button" class="advice-view" data-at="${a.at.join(',')}" title="지도에서 그곳 보기">보기</button>` : ''}${fixButton(a)}</span>` : '';
+  if (echo && !text && !more && !acts) return '';
+  const level = a.level === 'bad' ? 'bad' : a.level === 'good' ? 'good' : 'neutral';
+  return `<p class="advice ${level}${echo ? ' echo' : ''}">${icon(a.level === 'bad' ? 'alert' : a.level === 'good' ? 'award' : 'info', 'adv-i')}<b>${ADVISOR_NAME[a.advisor]}</b> ${echo ? `<span class="adv-echo" title="${escapeHtml(lead.said)}">위의 문제:</span> ` : ''}${text}${more}${acts}</p>`;
+}
+
 function goalHtml(id: GoalId): string {
   const g = GOALS[id];
   const s = goalStatus(id);
   const list = facilities(g);
   const view = currentView();
   const advice = adviceFor(id).filter((a) => a.level !== 'good' || adviceFor(id).every((x) => x.level === 'good'));
+  const lead = guideSaid(id);
   const shown = allFacilities ? list : list.slice(0, 6);
   // (All run on the department's budget: said once by the heading, not as the same pill on every row.)
   const allDept = list.length > 0 && list.every((f) => deptFunded(f.kind));
@@ -1099,10 +1124,10 @@ function goalHtml(id: GoalId): string {
       return `<div class="mg-m ${tone ?? ''}"${title ? ` title="${escapeHtml(title.trim())}"` : ''}><span>${label}</span><b>${value}</b>${delta}</div>`;
     }).join('')}</div>
     <div class="mg-views" role="group" aria-label="지도 보기">${icon('layers')}${g.views.map(([v, label]) => `<button type="button" class="vchip" data-mg-view="${v}" aria-pressed="${view === v}">${label}</button>`).join('')}</div>
-    ${advice.length ? `<section class="mg-sec"><h3>${icon('info')}진단</h3>${advice.map((a) => `<p class="advice ${a.level === 'bad' ? 'bad' : a.level === 'good' ? 'good' : 'neutral'}">${icon(a.level === 'bad' ? 'alert' : a.level === 'good' ? 'award' : 'info', 'adv-i')}<b>${ADVISOR_NAME[a.advisor]}</b> ${a.code === 'waterShort' && waterApart() ? APART : ADVICE_TEXT[a.code]?.(a.value ?? 0, a.type) ?? a.code}${a.code === 'unemployment' ? jobHint() : a.code === 'abandoned' ? abandonHint() : a.code === 'capRes' ? capHint() : ''}${a.at || fixButton(a) ? `<span class="advice-acts">${a.at ? `<button type="button" class="advice-view" data-at="${a.at.join(',')}" title="지도에서 그곳 보기">보기</button>` : ''}${fixButton(a)}</span>` : ''}</p>`).join('')}</section>` : ''}
+    ${advice.length ? `<section class="mg-sec"><h3>${icon('info')}진단</h3>${advice.map((a) => diagnosis(a, lead)).join('')}</section>` : ''}
     ${id === 'finance' ? financeActions() : ''}
     ${spotLine(id)}
-    ${id === 'growth' && $('#demand').innerHTML.trim() ? `<section class="mg-sec mg-rci"><h3>${icon('zones')}RCI 수요</h3>${$('#demand').innerHTML.replace('id="demand-detail"', 'class="demand-detail-mg"')}</section>` : ''}
+    ${id === 'growth' && $('#demand').innerHTML.trim() ? `<section class="mg-sec mg-rci"><h3>${icon('zones')}구역별 수요 <span class="sec-note">막대가 위로 길수록 수요가 큼</span></h3>${$('#demand').innerHTML.replace('id="demand-detail"', 'class="demand-detail-mg"')}</section>` : ''}
     ${buildActions(g)}
     ${dealActions(id)}
     ${budgetActions(g, list)}

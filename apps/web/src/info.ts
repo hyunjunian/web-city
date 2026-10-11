@@ -547,7 +547,7 @@ function growthSection(x: number, y: number): string {
       case 'noPower': return ['bad', '전기가 없습니다 — 발전소나 송전선을 4칸 안으로'];
       case 'noRoad': return ['bad', '도로에 닿지 않습니다 (산업·농업은 도로에서 몇 칸 안)'];
       case 'noJobs': return ['bad', '이 길로 2시간 30분 안에 닿는 일자리가 없거나 사는 사람보다 적습니다. 가까이에 상업·산업 구역을 짓거나, 더 빠른 길(도로·대로)이나 길을 맵 가장자리(이웃 도시)까지 이으세요'];
-      case 'noDemand': return ['bad', '이 구역 종류의 수요가 없습니다 (RCI 수요·세율 확인)'];
+      case 'noDemand': return ['bad', '이 구역 종류의 수요가 없습니다 (개발·수요의 구역별 수요·세율 확인)'];
       case 'noWorkers': return ['bad', '일할 사람이 모자라 새 사업체가 들어서지 않습니다 — 주거 구역을 늘리거나 주거지가 자랄 수 있게 하세요'];
       case 'noWater': return ['bad', '이 단계 건물은 수도가 필요합니다 — 수도관을 6칸 안으로'];
       case 'lowDesirability': return ['bad', `쾌적도가 낮습니다: ${TYPE_NAME[b.type]} ${b.value.toFixed(0)} / 필요 ${b.need} (아래 요인 확인)`];

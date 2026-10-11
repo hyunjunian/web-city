@@ -16,6 +16,11 @@ import { type Goal, type GoalId, goalOfAdvice, GOALS, type Metric, type Tone } f
 export const sum = (v: readonly number[]) => v.reduce((a, b) => a + b, 0);
 const avg = (v: readonly number[], w: readonly number[]) => (sum(w) ? sum(v.map((x, i) => x * w[i]!)) / sum(w) : 0);
 
+/** The zone classes in words (the pane says 상업, not SimCity's C). */
+export const CLASS_WORD = { R: '주거', C: '상업', I: '산업' } as const;
+/** The wealthy's types in words (a figure labelled Cs$$$ read as a code). */
+const RICH_WORD = { 'R$$$': '부유층 주거', 'Cs$$$': '고급 상점', 'Co$$$': '고급 오피스' } as const;
+
 /** The goal's facilities, biggest first. */
 export function facilities(g: Goal): Structure[] {
   if (!g.facility) return [];
@@ -82,26 +87,33 @@ function readStatus(id: GoalId): Status {
     case 'growth': {
       const dem = city.demand.demand;
       const top = (k: string) => Math.max(...DEV_TYPES.filter((t) => t[0] === k && t !== 'IA').map((t) => dem[t]));
-      const word = (k: string) => `${k} ${top(k) >= 1 ? `+${short(top(k))}` : '0'}`;
+      // In words, not SimCity's letters (R·C·I read as a code to most).
+      const word = (k: 'R' | 'C' | 'I') => `${CLASS_WORD[k]} ${top(k) >= 1 ? `+${short(top(k))}` : '0'}`;
       // The class most wanted leads; all three read on the line below.
       const lead = (['R', 'C', 'I'] as const).reduce((a, b) => (top(b) > top(a) ? b : a));
+      // The headline: the class most wanted (farms when only they are wanted much); a trickle reads as
+      // little ("상업 수요 +2" sounded like demand on a ±1,000 scale where it is none).
+      const headline = () => {
+        const [name, v] = top(lead) < 10 && dem.IA > top(lead) ? ['농업', dem.IA] : [CLASS_WORD[lead], top(lead)];
+        return v >= 10 ? `${name} 수요 +${short(v)}` : v >= 1 ? '수요 적음' : '수요 없음';
+      };
       const z = unpoweredZones();
-      if (z.off >= 10 && z.off >= z.all * 0.1) return pick('warn', top(lead) >= 1 ? `${lead} 수요 +${short(top(lead))}` : '수요 없음', `전기 없는 구역 ${fmt(z.off)}칸 · 개발 안 됨`);
+      if (z.off >= 10 && z.off >= z.all * 0.1) return pick('warn', headline(), `전기 없는 구역 ${fmt(z.off)}칸 · 개발 안 됨`);
       // Homes without work: jobs are what the town needs (a town of 120 with none was sent to its traffic,
       // which was only the long way to the neighbours' jobs).
       const jobless = sum(st.unemployed);
       if (st.population >= 100 && jobless > st.population * 0.2) {
         const cls = top('I') >= top('C') ? 'I' : 'C';
-        return pick('warn', `실업 ${fmt(jobless)}명`, `일자리가 모자랍니다 · ${cls === 'I' ? '산업' : '상업'} 구역을 더 내세요 (${['R', 'C', 'I'].map(word).join(' · ')})`);
+        return pick('warn', `실업 ${fmt(jobless)}명`, `일자리가 모자랍니다 · ${cls === 'I' ? '산업' : '상업'} 구역을 더 내세요 (${(['R', 'C', 'I'] as const).map(word).join(' · ')})`);
       }
       // The class most wanted has filled its zones: more of them is the whole of what it needs.
       if (top(lead) >= 300 && adviceFor('growth').some((a) => a.code === `zone${lead}`))
-        return pick('warn', `${lead} 수요 +${short(top(lead))}`, `빈 ${{ R: '주거', C: '상업', I: '산업' }[lead]} 구역이 없습니다 · 구역을 더 칠하세요`);
+        return pick('warn', `${CLASS_WORD[lead]} 수요 +${short(top(lead))}`, `빈 ${CLASS_WORD[lead]} 구역이 없습니다 · 구역을 더 칠하세요`);
       // A class held at its cap leads when nothing else is wanted much (the "농업 +520" headline hid it).
       const cappedCls = (['R', 'C', 'I'] as const).find((k) => DEV_TYPES.some((t) => t[0] === k && t !== 'IA' && capped(t)));
-      if (cappedCls && top(lead) < 100) return pick('warn', `${{ R: '주거', C: '상업', I: '산업' }[cappedCls]} 상한`, `${['R', 'C', 'I'].map(word).join(' · ')}${dem.IA >= 1 ? ` · 농업 +${short(dem.IA)}` : ''}`);
-      return pick(st.abandoned > 0 ? 'warn' : '', top(lead) >= 1 ? `${lead} 수요 +${short(top(lead))}` : dem.IA >= 1 ? `농업 수요 +${short(dem.IA)}` : '수요 없음',
-        `${['R', 'C', 'I'].map(word).join(' · ')}${dem.IA >= 1 ? ` · 농업 +${short(dem.IA)}` : ''}${st.abandoned ? ` · 버려짐 ${fmt(st.abandoned)}` : ''}`);
+      if (cappedCls && top(lead) < 100) return pick('warn', `${CLASS_WORD[cappedCls]} 상한`, `${(['R', 'C', 'I'] as const).map(word).join(' · ')}${dem.IA >= 1 ? ` · 농업 +${short(dem.IA)}` : ''}`);
+      return pick(st.abandoned > 0 ? 'warn' : '', headline(),
+        `${(['R', 'C', 'I'] as const).map(word).join(' · ')}${dem.IA >= 1 ? ` · 농업 +${short(dem.IA)}` : ''}${st.abandoned ? ` · 버려짐 ${fmt(st.abandoned)}` : ''}`);
     }
     case 'power': {
       const p = st.power;
@@ -170,7 +182,7 @@ function readStatus(id: GoalId): Status {
       const rich = st.residents[2] / Math.max(1, sum(st.residents));
       const want = city.demand.demand['R$$$'];
       // Worth a look once there is a town and the wealthy aren't coming.
-      return pick(st.population > 2000 && want < 1 ? 'warn' : '', `$$$ ${Math.round(rich * 100)}%`, `R$$$ 수요 ${want >= 1 ? `+${fmt(want)}` : '없음'}${landValue() >= 0.5 ? ` · 땅값 ${landValue().toFixed(0)}` : ''}`);
+      return pick(st.population > 2000 && want < 1 ? 'warn' : '', `부유층 ${Math.round(rich * 100)}%`, `부유층 주거 수요 ${want >= 1 ? `+${fmt(want)}` : '없음'}${landValue() >= 0.5 ? ` · 땅값 ${landValue().toFixed(0)}` : ''}`);
     }
     case 'environment': {
       const air = s.history.at(-1)?.air;
@@ -351,9 +363,9 @@ function goalMetrics(id: GoalId): Metric[] {
     case 'wealth': {
       const total = Math.max(1, sum(st.residents));
       const dem = city.demand.demand;
-      const d = (t: 'R$$$' | 'Cs$$$' | 'Co$$$'): Metric => [`${t} 수요`, dem[t] >= 1 ? `+${fmt(dem[t])}` : dem[t] <= -1 ? `−${fmt(-dem[t])}` : '0', dem[t] >= 100 ? 'good' : dem[t] < 0 ? 'warn' : ''];
-      return [['부유층 ($$$)', `${fmt(st.residents[2])}명 · ${Math.round((st.residents[2] / total) * 100)}%`, '', st.residents[2], 1],
-        ['중산층 ($$)', `${fmt(st.residents[1])}명`, '', st.residents[1], 1], ['평균 땅값', landValue() >= 0.5 ? landValue().toFixed(1) : '차이 없음', '', Math.round(landValue()), 1, '건물이 선 칸의 평균: 물가와 주변보다 높은 땅이 올립니다 (모두 평평한 내륙이면 0)'],
+      const d = (t: 'R$$$' | 'Cs$$$' | 'Co$$$'): Metric => [`${RICH_WORD[t]} 수요`, dem[t] >= 1 ? `+${fmt(dem[t])}` : dem[t] <= -1 ? `−${fmt(-dem[t])}` : '0', dem[t] >= 100 ? 'good' : dem[t] < 0 ? 'warn' : ''];
+      return [['부유층 주민', `${fmt(st.residents[2])}명 · ${Math.round((st.residents[2] / total) * 100)}%`, '', st.residents[2], 1],
+        ['중산층 주민', `${fmt(st.residents[1])}명`, '', st.residents[1], 1], ['평균 땅값', landValue() >= 0.5 ? landValue().toFixed(1) : '차이 없음', '', Math.round(landValue()), 1, '건물이 선 칸의 평균: 물가와 주변보다 높은 땅이 올립니다 (모두 평평한 내륙이면 0)'],
         d('R$$$'), d('Cs$$$'), d('Co$$$'), ['EQ 평균', avg(st.eq, st.residents).toFixed(0), '', Math.round(avg(st.eq, st.residents)), 1]];
     }
     case 'environment': {

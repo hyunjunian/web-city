@@ -665,10 +665,12 @@ kbd {
 .rci { display: grid; grid-template-columns: repeat(3, 1fr); align-items: start; gap: 10px; margin-bottom: 6px; }
 .rci-col { display: grid; justify-items: center; gap: 3px; padding: 6px 0; border-radius: var(--r-md); cursor: pointer; transition: background 0.15s; }
 @media (hover: hover) { .rci-col:hover { background: var(--surface-2); } }
-.rci-bar { position: relative; width: 30px; height: 64px; overflow: hidden; border-radius: 8px; background: var(--surface-3); }
+.rci-bar { position: relative; width: 34px; height: 72px; overflow: hidden; border-radius: 9px; background: var(--surface-3); }
 .rci-bar::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line-strong); }
-.rci-fill { position: absolute; left: 0; right: 0; border-radius: 8px; }
-.rci-label { font-size: 15px; font-weight: 700; color: var(--text); }
+.rci-fill { position: absolute; left: 0; right: 0; border-radius: 0; }
+.rci-fill[style*="bottom"] { border-radius: 6px 6px 0 0; }
+.rci-fill[style*="top"] { border-radius: 0 0 6px 6px; opacity: 0.55; }
+.rci-label { font-size: 13px; font-weight: 650; color: var(--text); }
 .rci-value { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .rci-note { color: var(--muted); font-size: 11px; font-weight: 600; }
 .rci-cap { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 999px; background: var(--warn-soft); color: var(--warn-ink); font-size: 11px; font-weight: 600; }
@@ -2304,6 +2306,30 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .s-list .s-row:not(.bad) + .s-row:not(.bad) { border-top: 1px solid var(--line); border-radius: 0; }
 .s-list { gap: 0; }
 .s-list .s-row.bad { margin-bottom: 4px; }
+/* Why an area needs a hand is read whole: its line runs under the name and the figure, two lines at most
+   (cut at one line, "환자 수가 정원의 181%(81% 초…" said nothing). */
+.s-list .s-row { grid-template-rows: auto; row-gap: 2px; }
+.s-list .s-row.has-note { grid-template-rows: auto auto; }
+.s-list .s-main { display: contents; }
+.s-list .s-ic { grid-column: 1; grid-row: 1 / -1; }
+.s-list .s-name { grid-column: 2; grid-row: 1; align-self: center; }
+.s-list .s-val { grid-column: 3; grid-row: 1; align-self: center; display: inline-flex; align-items: center; justify-content: flex-end; }
+.s-list .s-go { grid-column: 4; grid-row: 1 / -1; }
+.s-list .s-note {
+  grid-column: 2 / 4; grid-row: 2; white-space: normal; line-height: 1.4;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2;
+}
+/* 개발·수요's figure: the RCI meter in small (three bars from a midline: up wanted, down surplus). */
+.rci-mini { position: relative; display: inline-flex; align-items: stretch; gap: 3px; height: 24px; margin: -3px 7px -3px 0; padding: 0 2px; }
+.rci-mini::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line-strong); }
+.rci-mini i { position: relative; width: 6px; }
+.rci-mini i::after { content: ''; position: absolute; left: 0; right: 0; bottom: 50%; height: max(2px, calc(var(--h) / 2)); border-radius: 2px 2px 0 0; background: var(--c); }
+.rci-mini i.neg::after { bottom: auto; top: 50%; border-radius: 0 0 2px 2px; opacity: 0.5; }
+.rci-mini i.cap::after { background: repeating-linear-gradient(0deg, var(--c) 0 2px, transparent 2px 3px); }
+.advice .adv-echo { color: var(--muted); font-weight: 500; }
+.rci-mini .k-r { --c: var(--zone-r); }
+.rci-mini .k-c { --c: var(--zone-c); }
+.rci-mini .k-i { --c: var(--zone-i); }
 /* An emergency (a fire, a riot) over 도시 상태, and a goal screen's 추천 조치 at its top. */
 .quality > .lead { margin-bottom: 10px; }
 .quality > .chips.alerts { margin-bottom: 8px; }
