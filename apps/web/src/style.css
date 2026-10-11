@@ -599,6 +599,7 @@ kbd {
 .mg-spot { display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 12px; background: var(--accent-soft); border-radius: var(--r-md); font-size: 12.5px; line-height: 1.4; }
 .mg-spot > .i { flex: none; width: 18px; height: 18px; color: var(--accent-hi); }
 .mg-spot > span { flex: 1; min-width: 0; }
+.mg-spot > .advice-acts { flex: none; margin: 0; } /* (its buttons at the end: as a span they took half the line, 보기 adrift in the middle) */
 .mg-spot .advice-view { flex: none; background: var(--surface); }
 /* With 여기에 짓기 the buttons go under the words (beside them the words were squeezed to a column). */
 .mg-spot:has(.spot-build) { flex-wrap: wrap; }
