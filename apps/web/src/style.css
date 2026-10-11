@@ -2324,6 +2324,8 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 }
 /* Searching: the card shows what was found across categories, so no category stays lit on the bar. */
 #view:has(#tray:not([hidden]) #tray-results:not([hidden])) .dock-btn.open { background: transparent; color: var(--muted); }
+#tray:has(#tray-results:not([hidden])) .tray-cat.open { background: transparent; color: var(--muted); } /* (a phone's tabs in the card, the same) */
+#tray:has(#tray-results:not([hidden])) .tray-cat.open .i { color: inherit; }
 /* With a view on, its list opens where its card is (under the row), not jumping up over the bar. */
 #view:not(.holding) #map-layer:not(.off).picking { top: 70px; }
 @media (max-width: 860px) { #view:not(.holding) #map-layer:not(.off).picking { top: 72px; } }
