@@ -1,6 +1,7 @@
 // Web viewer entry: wires the modules together, runs the frame loop and boots the first city.
 
 import { setupGoals } from './manage';
+import { setupBack } from './back';
 import { City, sampleCity } from '@web-city/engine';
 import { buildOverlay, buildSpeed, refreshViewSummary, resetSpeedChoice, restoreNight, setSpeed } from './controls';
 import { followTag, preview, refreshTag, setupInput } from './input';
@@ -248,6 +249,7 @@ setupGoals();
 setupMenu();
 setupDriving();
 setupTabs();
+setupBack();
 setupUndo();
 setupMinimap();
 setupTheme();
