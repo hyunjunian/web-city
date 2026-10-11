@@ -262,6 +262,14 @@ function goalStep(id: GoalId) {
   if (a) {
     const act = adviceTool(a.code)![0].split(':')[0]!;
     const t = TOOLS.find((x) => x.id === act);
+    // The cap's fix is the park its 해 보기 hands over, with its price and how far it lifts the cap
+    // (the card said 공원·광장 and no more).
+    const park = a.code === 'capRes' ? capBest() : undefined;
+    if (park) {
+      const d = STRUCTURES[park];
+      return { kind: 'fix' as const, what: STRUCTURE_NAME[park], why: adviceText(a), fixAct: act, act, glyph: t ? toolGlyph(t) : '',
+        sub: `§${fmt(d.cost)} · 월 §${fmt(d.upkeep)}`, fx: `주거 상한 +${fmt(d.relief[0])}명`, site: false };
+    }
     return { kind: 'fix' as const, what: adviceTool(a.code)![1], why: adviceText(a), fixAct: act, act, glyph: t ? toolGlyph(t) : '', sub: '', fx: '', site: false };
   }
   return { kind: 'open' as const, what: '', why: '', fixAct: '', act: '', glyph: '', sub: '', fx: '', site: false };
