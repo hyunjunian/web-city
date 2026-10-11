@@ -1159,6 +1159,15 @@ function goalHtml(id: GoalId): string {
   const advice = adviceFor(id).filter((a) => a.level !== 'good' || adviceFor(id).every((x) => x.level === 'good'));
   const lead = guideSaid(id);
   const shown = allFacilities ? list : list.slice(0, 6);
+  // Several of a kind are numbered in the list's order (five rows of 양수 펌프 could not be told apart).
+  const ofKind = new Map<string, number>();
+  for (const f of list) ofKind.set(f.kind, (ofKind.get(f.kind) ?? 0) + 1);
+  const nth = new Map<string, number>();
+  const facName = (f: Structure) => {
+    const k = (nth.get(f.kind) ?? 0) + 1;
+    nth.set(f.kind, k);
+    return (ofKind.get(f.kind) ?? 0) > 1 ? `${STRUCTURE_NAME[f.kind]} ${k}` : STRUCTURE_NAME[f.kind];
+  };
   // (All run on the department's budget: said once by the heading, not as the same pill on every row.)
   const allDept = list.length > 0 && list.every((f) => deptFunded(f.kind));
   return `<header class="mg-head">
@@ -1193,7 +1202,7 @@ function goalHtml(id: GoalId): string {
       // Each its own budget, a step either way, and what it costs a month (per-building funding).
       const u = city.structureUpkeep(f.id);
       const cost = u ? u.running + u.overcapacity : 0;
-      return `<div class="fac ${tone}"><button type="button" class="fac-main" data-fac="${f.id}" title="지도에서 보고 정보 카드 열기"><span class="fac-name">${STRUCTURE_NAME[f.kind]}</span><span class="fac-line">${line}</span>${facBar(f)}</button>
+      return `<div class="fac ${tone}"><button type="button" class="fac-main" data-fac="${f.id}" title="지도에서 보고 정보 카드 열기"><span class="fac-name">${facName(f)}</span><span class="fac-line">${line}</span>${facBar(f)}</button>
         ${allDept ? '' : deptFunded(f.kind) ? `<span class="fac-fund dept-note" title="이 시설은 부서 예산으로 운영됩니다">부서 예산</span>` : `<span class="fac-fund" title="이 시설의 예산 · 월 §${fmt(cost)}"><button type="button" class="tax-step" data-fund="${f.id}" data-d="-10" aria-label="${STRUCTURE_NAME[f.kind]} 예산 줄이기"${f.funding <= 0 ? ' disabled' : ''}>−</button><span><b>${f.funding}%</b><small>월 §${fmt(cost)}</small></span><button type="button" class="tax-step" data-fund="${f.id}" data-d="10" aria-label="${STRUCTURE_NAME[f.kind]} 예산 늘리기"${f.funding >= FUNDING_MAX(f.kind) ? ' disabled' : ''}>+</button></span>`}</div>`;
     }).join('')}</div>${list.length > 6 ? `<button type="button" class="link mg-more">${allFacilities ? '줄여 보기' : `${list.length - 6}곳 더 보기`}</button>` : ''}</section>` : ''}
     ${g.links?.length ? `<section class="mg-sec mg-links">${g.links.map(([tab, label]) => `<button type="button" class="link" data-mg-tab="${tab}">${label} ${icon('chevronRight')}</button>`).join('')}</section>` : ''}
