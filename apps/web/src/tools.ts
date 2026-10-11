@@ -4,15 +4,16 @@
 import { DEFAULT_CONFIG, DEV_TYPES, DISASTER_KINDS, type DisasterKind, type NetworkKind, type StructureKind, STRUCTURES, type ZoneKind } from '@web-city/engine';
 import { icon, type IconName } from './icons';
 import { hoverUnderMouse, setPreview, updatePreview } from './input';
-import { goalTools, nextStep, suggestedKinds } from './manage';
+import { goalTools, nextStep, openGoal, suggestedKinds } from './manage';
 import { firstStepTool } from './onboarding';
 import { DISASTER_NAME, STRUCTURE_NAME } from './names';
-import { holdForBuilding, isHeld, releaseHold, showOverlay } from './controls';
+import { holdForBuilding, isHeld, releaseHold, showHelp, showOverlay } from './controls';
 import { structureColor } from './render';
 import { city, overlay, redraw, renderer, setDrag } from './state';
-import { closeInfo, closePane, closeSheet } from './tabs';
+import { closeInfo, closePane, closeSheet, showTab } from './tabs';
 import { cancelMySimAction } from './mysims';
 import { $, endFlash, flash, fmt, touchFirst } from './util';
+import { GOAL_ORDER, GOALS, type GoalId } from './goals';
 
 export type Category = 'power' | 'water' | 'garbage' | 'safety' | 'health' | 'education' | 'park' | 'transport' | 'reward' | 'deal' | 'landmark';
 
@@ -937,8 +938,34 @@ let viewBefore = 'none';
 
 // ------------------------------------------------------------------ finding a tool
 
-/** What the search box can find: every tool, and every kind of facility (by its own name). */
-type Found = { key: string; name: string; where: string; glyph: string; sub: string; locked: string; pick: () => void };
+/** What the search box can find: every tool, every kind of facility (by its own name), and the screens (by what they hold). */
+type Found = { key: string; name: string; where: string; glyph: string; sub: string; locked: string; pick: () => void; words?: string };
+
+/**
+ * The words that find each screen: what is done or read there. Typed 세율 or 대출, the box offered no tool and
+ * said nothing; now 재정·정책 comes up.
+ */
+const SCREEN_WORDS: Record<GoalId, string> = {
+  finance: '세율 세금 예산 부서 대출 빚 조례 수입 지출 자금 돈 결산', growth: '수요 인구 일자리 실업 재개발 빈구역 개발막힘',
+  power: '전기 발전 정전 송전', water: '물 급수 단수 펌프 수도관 정수', garbage: '매립 소각 재활용 수거',
+  police: '범죄 경찰 교도소 감방 폭동 체포', fire: '화재 불 소방차 출동', health: '건강 병원 수명 HQ 보건소',
+  education: '학교 교육지수 EQ 대학 도서관', traffic: '통근 혼잡 대중교통 버스 지하철 철도 정류장',
+  environment: '오염 공기 대기 수질 공원 쾌적도 시장평점 여론', wealth: '부유층 고급 땅값 보상 랜드마크',
+};
+
+/** The screens the box finds besides tools: each goal's, the status bar's sheets, and the help. */
+function screens(): Found[] {
+  const out: Found[] = GOAL_ORDER.map((id) => ({
+    key: `screen:${id}`, name: GOALS[id].name, where: '관리 화면', glyph: icon(GOALS[id].icon), sub: '', locked: '',
+    words: SCREEN_WORDS[id], pick: () => openGoal(id),
+  }));
+  out.push(
+    { key: 'screen:sims', name: '주민', where: '화면 (U)', glyph: icon('users'), sub: '', locked: '', words: 'My Sim 마이심 직접운전 U-Drive-It 따라가기', pick: () => showTab('sims') },
+    { key: 'screen:region', name: '지역', where: '화면 (J)', glyph: icon('globe'), sub: '', locked: '', words: '이웃 도시 거래 사고팔기 심네이션', pick: () => showTab('region') },
+    { key: 'screen:help', name: '조작법', where: '도움말 (?)', glyph: icon('help'), sub: '', locked: '', words: '도움말 단축키 키보드 사용법', pick: () => showHelp() },
+  );
+  return out;
+}
 
 function findables(): Found[] {
   const out: Found[] = [];
@@ -1027,9 +1054,10 @@ function renderFound(q: string): void {
   // Typed as initial consonants only (ㅅㅂㅅ), it matches names by theirs (소방서).
   const initials = /^[ㄱ-ㅎ]+$/.test(query);
   const key = (v: string) => (initials ? chosung(norm(v)) : norm(v));
-  // Its own name first, then where it sits (발전 finds the plants; 서비스 finds the services).
-  found = findables()
-    .map((f) => ({ f, at: key(f.name).indexOf(query), inWhere: !initials && key(f.where).includes(query) }))
+  // Its own name first, then where it sits (발전 finds the plants; 서비스 finds the services), then the screens
+  // by what they hold (세율 finds 재정·정책).
+  found = [...findables(), ...screens()]
+    .map((f) => ({ f, at: key(f.name).indexOf(query), inWhere: !initials && (key(f.where).includes(query) || norm(f.words ?? '').includes(query)) }))
     .filter((x) => x.at >= 0 || x.inWhere)
     .sort((a, b) => (a.at < 0 ? 99 : a.at) - (b.at < 0 ? 99 : b.at) || +!!a.f.locked - +!!b.f.locked)
     .map((x) => x.f);
@@ -1058,7 +1086,7 @@ function clearFind(): void {
 }
 
 function pickFound(key: string): void {
-  const f = findables().find((x) => x.key === key);
+  const f = [...findables(), ...screens()].find((x) => x.key === key);
   if (!f || f.locked) return;
   f.pick();
   closeTray();
