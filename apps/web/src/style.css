@@ -822,6 +822,9 @@ kbd {
 /* Against the map: how many tiles each colour holds; a colour the map doesn't show reads faint. */
 #overlay-legend .swatch-item small { color: var(--muted); font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; }
 #overlay-legend .swatch-item.absent { opacity: 0.38; }
+#overlay-legend .swatch-item[role='button'] { cursor: pointer; border-radius: 6px; }
+@media (hover: hover) { #overlay-legend .swatch-item[role='button']:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; } }
+#overlay-legend .swatch-item[role='button']:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .overlay-scale { display: grid; gap: 3px; }
 .overlay-scale .scale-bar { height: 8px; border-radius: 4px; }
 .overlay-scale .ends { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); }

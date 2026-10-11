@@ -278,6 +278,8 @@ export function buildOverlay(): void {
   const kind = $<HTMLSelectElement>('#overlay-kind');
   const type = $<HTMLSelectElement>('#overlay-type');
   const title = $<HTMLButtonElement>('#layer-title');
+  $('#overlay-legend').addEventListener('click', legendGo);
+  $('#overlay-legend').addEventListener('keydown', legendGo);
   title.onclick = () => {
     const open = $('#map-layer').classList.toggle('open');
     title.setAttribute('aria-expanded', String(open));
@@ -705,6 +707,52 @@ function markLegend(byColor: Map<string, number>): void {
     let count = item.querySelector('small');
     if (k && !count) item.append((count = document.createElement('small')));
     if (count) count.textContent = k ? fmt(k) : '';
+    // A colour on the map is a way to its tiles: pressed, the map goes to the next one of them.
+    if (k) {
+      item.setAttribute('role', 'button');
+      item.tabIndex = 0;
+      item.title = `${item.textContent?.replace(/\d[\d,]*$/, '').trim()}: 눌러서 이런 곳 하나씩 찾아가기`;
+    } else {
+      item.removeAttribute('role');
+      item.removeAttribute('tabindex');
+      item.title = '';
+    }
   }
+}
+
+/** The tiles the growth view paints a colour (a blocker's empty zone tiles; abandoned or failing buildings), for 찾아가기. */
+function tilesOfColor(color: string): number[] {
+  const s = city.state;
+  const n = s.size;
+  if (color === ABANDONED_COLOR || color === RISK_COLOR) {
+    return [...s.buildings.values()].filter((b) => (color === ABANDONED_COLOR ? !b.type : !!b.type && !!buildingRisk(b)))
+      .map((b) => (b.y + (b.h >> 1)) * n + b.x + (b.w >> 1));
+  }
+  const map = growthNow(city);
+  if (!map) return [];
+  const out: number[] = [];
+  for (let i = 0; i < map.length; i++) if (map[i] && !s.occupant[i] && GROWTH_COLOR[GROWTH_CODES[map[i]! - 1]!] === color) out.push(i);
+  // (A stretch a stop: every eighth tile, so the next press moves on along a run of them, as 찾아가기 does.)
+  return out.filter((_, k) => k % 8 === 0);
+}
+const legendNext = new Map<string, number>();
+
+/** A press on a counted swatch of the growth view's legend: the map goes to the next tile of its colour. */
+function legendGo(e: Event): void {
+  const item = (e.target as HTMLElement).closest<HTMLElement>('#overlay-legend .swatch-item[data-color][role="button"]');
+  if (!item) return;
+  if (e instanceof KeyboardEvent && e.key !== 'Enter' && e.key !== ' ') return;
+  e.preventDefault();
+  const color = item.dataset.color!;
+  const tiles = tilesOfColor(color);
+  if (!tiles.length) return;
+  const k = legendNext.get(color) ?? 0;
+  legendNext.set(color, k + 1);
+  const i = tiles[k % tiles.length]!;
+  const [x, y] = [i % city.size, Math.floor(i / city.size)];
+  revealMap();
+  centerOn(x, y);
+  renderer.effect('flash', x - 1, y - 1, 3, 3);
+  redraw();
 }
 
