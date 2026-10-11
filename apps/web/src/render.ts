@@ -1262,8 +1262,21 @@ export class Renderer {
     ctx.fillStyle = this.background;
     ctx.fillRect(0, 0, W, H);
     ctx.setTransform(sc, 0, 0, sc, -cam.x * sc, -cam.y * sc);
-    // Where the map's edge is in view, it casts a soft shadow on the margin (a hard cut looked unfinished).
+    // Where the map's edge is in view, it casts a soft shadow on the margin (a hard cut looked unfinished),
+    // and the margin is a faint grid of dots that moves with the map: a table the map lies on, not a void.
     if (cam.x < 0 || cam.y < 0 || cam.x + W / sc > n || cam.y + H / sc > n) {
+      let step = 2; // tiles between dots: a power of two, at least 18 pixels apart at any zoom
+      while (step * sc < 18) step *= 2;
+      const dot = 2 / sc;
+      ctx.fillStyle = document.documentElement.dataset.theme === 'light' && !this.night ? 'rgba(20,30,50,0.09)' : 'rgba(255,255,255,0.1)';
+      const gx0 = Math.floor(cam.x / step) * step;
+      const gy0 = Math.floor(cam.y / step) * step;
+      for (let gy = gy0; gy <= cam.y + H / sc; gy += step) {
+        for (let gx = gx0; gx <= cam.x + W / sc; gx += step) {
+          if (gx > 0 && gx < n && gy > 0 && gy < n) continue; // (the map covers its own)
+          ctx.fillRect(gx - dot / 2, gy - dot / 2, dot, dot);
+        }
+      }
       ctx.save();
       ctx.shadowColor = this.night ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.18)';
       ctx.shadowBlur = 24;
