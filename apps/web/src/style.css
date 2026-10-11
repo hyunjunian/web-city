@@ -808,6 +808,9 @@ kbd {
 #overlay .legend:empty { display: none; }
 #overlay-legend .swatch-item { display: inline-flex; align-items: center; gap: 5px; margin: 0 10px 3px 0; white-space: nowrap; }
 #overlay-legend .swatch-item i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; box-shadow: 0 0 0 1px var(--line-strong); } /* outside: a near-black swatch kept its edge on the dark card */
+/* Against the map: how many tiles each colour holds; a colour the map doesn't show reads faint. */
+#overlay-legend .swatch-item small { color: var(--muted); font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; }
+#overlay-legend .swatch-item.absent { opacity: 0.38; }
 .overlay-scale { display: grid; gap: 3px; }
 .overlay-scale .scale-bar { height: 8px; border-radius: 4px; }
 .overlay-scale .ends { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); }
@@ -1978,6 +1981,16 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 }
 .toast-resume .i { width: 14px; height: 14px; }
 @media (hover: hover) { .toast-resume:hover { filter: brightness(1.08); } }
+/* A toast that stopped the clock: what it says, then its two ways on under it (살펴보기, 계속). */
+.toast.sticky { flex-wrap: wrap; row-gap: 8px; }
+.toast.sticky .toast-text { flex: 1 1 0; }
+.toast-acts { order: 3; flex: 1 0 100%; display: flex; justify-content: flex-end; gap: 6px; }
+.toast-look {
+  flex: none; display: inline-flex; align-items: center; gap: 5px; min-height: 32px; padding: 0 12px 0 10px; border-radius: 999px;
+  background: var(--surface-2); color: var(--text); font-size: 12.5px; font-weight: 650;
+}
+.toast-look .i { width: 14px; height: 14px; }
+@media (hover: hover) { .toast-look:hover { background: var(--surface-3); } }
 /* A view showing what needs a look now: a small dot by its name. */
 .vchip.hint { position: relative; }
 .vchip.hint::after { content: ''; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--float-solid, var(--surface)); }

@@ -7,7 +7,7 @@ import { fillRange } from './widgets';
 import { TYPE_NAME } from './names';
 import { updatePanels } from './panels';
 import { type Overlay, type VolumeNetwork } from './render';
-import { ABANDONED_COLOR, GROWTH_COLOR, GROWTH_LABEL, growthNow, RISK_COLOR, volumeAt } from './views';
+import { ABANDONED_COLOR, buildingRisk, GROWTH_COLOR, GROWTH_LABEL, growthNow, RISK_COLOR, volumeAt } from './views';
 import { centerOn, city, cityGeneration, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
 import { refreshToolChip, SPEEDS, TOOL_KEYS, toolName, TOOLS } from './tools';
 import { drive } from './udi';
@@ -381,11 +381,12 @@ export function buildOverlay(): void {
       const seen = new Set<string>();
       // The cap beside plain no-demand, its kin (the engine appends new codes at the end).
       const order = GROWTH_CODES.flatMap((c) => (c === 'capped' ? [] : c === 'noDemand' ? [c, 'capped' as const] : [c]));
+      // (Each keyed by its colour: the summary counts the map's tiles by it, so what is not on the map reads faint.)
       $('#overlay-legend').innerHTML = order.filter((c) => !seen.has(GROWTH_COLOR[c]) && seen.add(GROWTH_COLOR[c]))
-        .map((c) => `<span class="swatch-item"><i style="background:${GROWTH_COLOR[c]}"></i>${c === 'unbuildable' ? '지을 수 없음·가파름' : GROWTH_LABEL[c]}</span>`).join('')
-        + `<span class="swatch-item"><i style="background:${ABANDONED_COLOR}"></i>버려진 건물</span>`
-        + `<span class="swatch-item"><i style="background:${RISK_COLOR}"></i>버려질 위험</span>`
-        + '';
+        .map((c) => `<span class="swatch-item" data-color="${GROWTH_COLOR[c]}"><i style="background:${GROWTH_COLOR[c]}"></i>${c === 'unbuildable' ? '지을 수 없음·가파름' : GROWTH_LABEL[c]}</span>`).join('')
+        + `<span class="swatch-item" data-color="${ABANDONED_COLOR}"><i style="background:${ABANDONED_COLOR}"></i>버려진 건물</span>`
+        + `<span class="swatch-item" data-color="${RISK_COLOR}"><i style="background:${RISK_COLOR}"></i>버려질 위험</span>`;
+      sumSeen = ''; // (the counts go on the new swatches)
     }
     // With a colour scale beside it, the explanation is the legend's tooltip: the scale is what's read.
     const legend = $('#overlay-legend');
@@ -654,14 +655,45 @@ function viewSummary(v: string): [string, '' | 'bad' | 'good', number[]] {
         const map = growthNow(city);
         if (!map) return ['', '', []]; // (not worked out yet: nothing rather than a wrong all-clear)
         const held: number[] = [];
-        for (let i = 0; i < map.length; i++) if (map[i] && !s.occupant[i] && GROWTH_CODES[map[i]! - 1] !== 'waiting') held.push(i);
-        growthSum = { key, held };
+        // Tiles by the colour the map paints them (the legend's key), and the blockers by how many they hold.
+        const byColor = new Map<string, number>();
+        const byCode = new Map<string, number>();
+        const add = <K,>(m: Map<K, number>, k: K) => m.set(k, (m.get(k) ?? 0) + 1);
+        for (let i = 0; i < map.length; i++) {
+          if (!map[i] || s.occupant[i]) continue;
+          const code = GROWTH_CODES[map[i]! - 1]!;
+          add(byColor, GROWTH_COLOR[code]);
+          if (code === 'waiting') continue;
+          held.push(i);
+          add(byCode, code);
+        }
+        for (const b of s.buildings.values()) {
+          if (!b.type) add(byColor, ABANDONED_COLOR);
+          else if (buildingRisk(b)) add(byColor, RISK_COLOR);
+        }
+        // The blockers that hold the most, in words: what to fix first (two at most).
+        const ranked = [...byCode].sort((a, b) => b[1] - a[1]);
+        const name = (c: string) => GROWTH_LABEL[c as (typeof GROWTH_CODES)[number]];
+        const top = ranked.length === 1 ? [`모두 ${name(ranked[0]![0])}`] : ranked.slice(0, 2).map(([c, k]) => `${name(c)} ${fmt(k)}`);
+        growthSum = { key, held, byColor, top };
       }
+      markLegend(growthSum.byColor);
       const h = growthSum.held;
-      return h.length ? [`개발이 막힌 빈 구역 ${fmt(h.length)}칸`, 'bad', h.filter((_, k) => k % 8 === 0)] : ['막힌 빈 구역이 없습니다', 'good', []];
+      return h.length ? [`개발이 막힌 빈 구역 ${fmt(h.length)}칸 · ${growthSum.top.join(' · ')}`, 'bad', h.filter((_, k) => k % 8 === 0)] : ['막힌 빈 구역이 없습니다', 'good', []];
     }
     default: return ['', '', []];
   }
 }
-let growthSum: { key: string; held: number[] } = { key: '', held: [] };
+let growthSum: { key: string; held: number[]; byColor: Map<string, number>; top: string[] } = { key: '', held: [], byColor: new Map(), top: [] };
+
+/** A categorical legend against the map: each swatch with how many tiles show it, faint where none do. */
+function markLegend(byColor: Map<string, number>): void {
+  for (const item of document.querySelectorAll<HTMLElement>('#overlay-legend .swatch-item[data-color]')) {
+    const k = byColor.get(item.dataset.color!) ?? 0;
+    item.classList.toggle('absent', !k);
+    let count = item.querySelector('small');
+    if (k && !count) item.append((count = document.createElement('small')));
+    if (count) count.textContent = k ? fmt(k) : '';
+  }
+}
 

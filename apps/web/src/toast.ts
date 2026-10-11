@@ -38,6 +38,21 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' = 'good', at?:
   body.dataset.text = text;
   el.append(badge, body);
   if (sticky) {
+    // The clock stopped for it: the two ways on, side by side under what it says — look into it, or go on.
+    const acts = document.createElement('span');
+    acts.className = 'toast-acts';
+    if (open || at) {
+      const look = document.createElement('button');
+      look.type = 'button';
+      look.className = 'toast-look';
+      look.title = open ? '관리 화면에서 원인과 할 일 보기' : '지도에서 그곳 보기';
+      look.innerHTML = `${icon(open ? 'search' : 'target')}살펴보기`;
+      look.onclick = (e) => {
+        e.stopPropagation();
+        el.click();
+      };
+      acts.append(look);
+    }
     const go = document.createElement('button');
     go.type = 'button';
     go.className = 'toast-resume';
@@ -47,7 +62,8 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' = 'good', at?:
       e.stopPropagation();
       chooseSpeed(runningSpeed || 1);
     };
-    el.append(go);
+    acts.append(go);
+    el.append(acts);
   } else if (at || open) el.insertAdjacentHTML('beforeend', icon('chevronRight', 'toast-go'));
   // Put away without going to it.
   const x = document.createElement('button');
