@@ -2552,3 +2552,6 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .nb-kinds dd { margin: 0; color: var(--muted); }
 /* The land's tools before the city is founded: 무료, in the colour of a gain. */
 .tile.free .tile-price { color: var(--good-ink); font-weight: 650; }
+/* 다음 보상 opens the rewards list: a chevron says so, as the rows below have. */
+.rw-pct { display: inline-flex; align-items: center; }
+.rw-go { width: 15px; height: 15px; margin: 0 -5px 0 3px; color: var(--faint); }

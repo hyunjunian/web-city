@@ -187,7 +187,7 @@ function nextReward(): string {
   const gives = best ? structureStat(best.kind) : '';
   const html = !best || !city.state.buildings.size ? '' : `<button type="button" class="reward sum-next" title="${escapeHtml(`보상 ${STRUCTURE_NAME[best.kind]}: ${best.description}${leftFull.length ? ` · 지금 ${leftFull.join(' · ')}` : ''} · 눌러서 보상 진행 모두 보기`)}">
     <span class="rw-icon">${icon('award')}</span>
-    <span class="rw-name"><small class="rw-label">다음 보상</small><b>${STRUCTURE_NAME[best.kind]}${city.isUnlocked(best.kind) ? ' (다음 단계)' : ''}</b>${gives ? `<small>${gives}</small>` : ''}</span><span class="rw-pct">${Math.round(best.share * 100)}%</span>
+    <span class="rw-name"><small class="rw-label">다음 보상</small><b>${STRUCTURE_NAME[best.kind]}${city.isUnlocked(best.kind) ? ' (다음 단계)' : ''}</b>${gives ? `<small>${gives}</small>` : ''}</span><span class="rw-pct">${Math.round(best.share * 100)}%${icon('chevronRight', 'rw-go')}</span>
     <span class="rw-bar"><i style="width:${(best.share * 100).toFixed(1)}%"></i></span>
     <span class="rw-left">${left.length ? `<span>열리려면</span> ${escapeHtml(left.join(' · '))}` : '이번 달에 열립니다'}</span></button>`;
   rewardSeen = { key, html };
