@@ -202,7 +202,9 @@ export function openSample(): void {
       setCity(town);
       closePane(); // phones: the pane it was opened from steps aside for the city
       // (One thing to do, and what it already earned: the keys are in 도움말.)
-      flash(`예시 도시입니다 · 건물을 눌러 살펴보세요${earned ? ` · 보상 시설 ${earned}종 열림` : ''}`);
+      // (Where they are: under 짓기 on a phone, the bar's own 보상 on a wide screen.)
+      const where = matchMedia('(max-width: 860px)').matches ? '짓기 › 보상' : '위쪽 막대의 보상';
+      flash(`예시 도시입니다 · 건물을 눌러 살펴보세요${earned ? ` · 보상 ${earned}종을 지을 수 있습니다 (${where})` : ''}`);
       finish();
     } catch (e) {
       finish();
