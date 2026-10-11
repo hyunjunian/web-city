@@ -2555,3 +2555,7 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 /* 다음 보상 opens the rewards list: a chevron says so, as the rows below have. */
 .rw-pct { display: inline-flex; align-items: center; }
 .rw-go { width: 15px; height: 15px; margin: 0 -5px 0 3px; color: var(--faint); }
+/* The blackout above 도시 상태 opens the power screen (it was a label to read, and the row to press was below). */
+.chips.alerts button.chip { min-height: 0; font: inherit; font-size: 12px; font-weight: 600; }
+.chips.alerts .chip-go { width: 13px; height: 13px; margin: 0 -4px 0 -1px; opacity: 0.7; }
+@media (hover: hover) { .chips.alerts button.chip.bad:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); } }

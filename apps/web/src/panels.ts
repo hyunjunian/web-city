@@ -369,7 +369,7 @@ export function updatePanels(): void {
   // and not while a goal's screen hides it.
   // (A fire or a riot has its own card under 해결할 문제, with the unit to send: no chip says it again.)
   const alerts = st.impeached || st.power.blackedOut ? `<div class="chips alerts">
-      ${st.power.blackedOut ? `<span class="chip bad" title="전력이 모자라 돌아가며 끊기는 건물">${icon('zap')}정전 ${fmt(st.power.blackedOut)}채</span>` : ''}
+      ${st.power.blackedOut ? `<button type="button" class="chip bad" data-goal="power" title="전력이 모자라 돌아가며 끊기는 건물 · 눌러서 전력 화면">${icon('zap')}정전 ${fmt(st.power.blackedOut)}채${icon('chevronRight', 'chip-go')}</button>` : ''}
       ${st.impeached ? `<span class="chip bad">${icon('alert')}탄핵되었습니다</span>` : ''}</div>` : '';
   // (Fixed role, see CLAUDE.md: the pane's overview motivates — the reward ahead, the losses to avoid —
   // and monitors; what to do is told on each area's screen.)
