@@ -112,11 +112,11 @@ export function renderOnboarding(): void {
   // The next three steps; the rest fold away (the whole list pushed the RCI meter off the pane).
   const todo = steps.filter(([ok]) => !ok);
   // A row per step: done ones ticked, the rest pick the tool that does them.
-  // (The first step to do stands out on a bare map; once anything is built the next-step card below says what
-  // comes first, and two highlights disagreed.)
+  // (The first step to do stands out until the first residents come: from then the city's state below leads the
+  // pane. It went out with the first road, and nothing said what came next.)
   const row = ([ok, text, tool]: (typeof steps)[number], i = -1) => {
     const body = `<span class="step-dot">${ok ? icon('check') : ''}</span><span class="step-text">${text}</span>`;
-    return `<li class="${ok ? 'done' : i === 0 && fresh ? 'next' : ''}">${!ok && tool
+    return `<li class="${ok ? 'done' : i === 0 && st.population === 0 ? 'next' : ''}">${!ok && tool
       ? `<button type="button" class="step" data-step-tool="${tool}" title="${tool.startsWith('goal:') ? '관리 화면 열기 (지도 보기·지을 곳·추천 시설)' : tool.startsWith('view:') ? '지도 보기 켜기' : '이 도구 고르기'}">${body}${icon('chevronRight', 'step-go')}</button>`
       : `<div class="step">${body}</div>`}</li>`;
   };

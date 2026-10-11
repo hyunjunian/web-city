@@ -718,6 +718,9 @@ kbd {
 .growth .advice-view { background: var(--surface-2); }
 @media (hover: hover) { .growth .advice-view:hover { background: var(--surface-3); } }
 @media (hover: hover) { .advice-view:hover { background: var(--surface-3); } }
+/* A link in a sentence that does a pill's job (the getting-started tip): it reads as words, the particle after it close by. */
+button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inherit; font-weight: 500; border-radius: 0; }
+@media (hover: hover) { button.link.advice-view:hover { background: none; } }
 .info-goal {
   display: inline-flex; align-items: center; gap: 6px; justify-self: start; min-height: 30px; margin: 2px 0 4px; padding: 0 8px 0 10px;
   border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 12.5px; font-weight: 600;
