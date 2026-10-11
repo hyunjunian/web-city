@@ -336,7 +336,8 @@ function goalMetrics(id: GoalId): Metric[] {
       const now = g.kept || g.produced - g.recycled;
       return [['처리할 쓰레기', `${fmt(now)} t`, '', now, -1, '이번 달, 재활용·조례로 줄인 뒤'], ['처리 여유 (소각·매립)', `${fmt(g.capacity)} t`, '', g.capacity, 1, '소각장이 태울 수 있는 양과 매립지에 남은 자리'],
         ['매립지 남은 기간', months === null ? '—' : landfillSpan(months), months !== null && months < 6 ? 'bad' : months !== null && months < 18 ? 'warn' : ''],
-        ['재활용·소각', `${fmt(g.recycled)} · ${fmt(g.incinerated)} t`], ['못 치움', g.uncollected > 1 ? `${fmt(g.uncollected)} t` : '없음', g.uncollected > 1 ? 'bad' : '', g.uncollected, -1]];
+        // (Each its own figure: "재활용·소각 197 · 788 t" left which number was which to guess.)
+        ['재활용', `${fmt(g.recycled)} t`, '', Math.round(g.recycled), 1, '이번 달 재활용으로 줄인 양'], ['소각', `${fmt(g.incinerated)} t`, '', Math.round(g.incinerated), 0, '이번 달 소각 발전소가 태운 양'], ['못 치움', g.uncollected > 1 ? `${fmt(g.uncollected)} t` : '없음', g.uncollected > 1 ? 'bad' : '', g.uncollected, -1]];
     }
     case 'police':
       return [['범죄 (지난달)', fmt(st.safety.crimes), '', st.safety.crimes, -1, crimeKinds(st.safety.byType)], ['체포', fmt(st.safety.arrests), '', st.safety.arrests, 1], ['예방', fmt(st.safety.prevented), '', st.safety.prevented, 1],
