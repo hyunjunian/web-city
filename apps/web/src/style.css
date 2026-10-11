@@ -518,6 +518,12 @@ kbd {
 /* A goal's screen takes the pane; the overview steps aside until it closes. */
 #manage { display: none; }
 #pane.managing #manage { display: grid; gap: 12px; align-content: start; }
+/* Going into an area's screen slides in from the right, coming back to the overview from the left: the pane
+   reads as one level deeper and back, not as its contents swapped in place. */
+#pane.managing #manage { animation: goal-in 0.2s var(--ease); }
+#pane:not(.managing) > #status { animation: goal-out 0.2s var(--ease); }
+@keyframes goal-in { from { opacity: 0; transform: translateX(14px); } }
+@keyframes goal-out { from { opacity: 0; transform: translateX(-14px); } }
 #pane.managing > :not(#manage):not(.pane-grip):not(.pane-close) { display: none; }
 .mg-head { display: flex; align-items: center; gap: 8px; position: sticky; top: -18px; z-index: 1; margin: -18px -16px 0; padding: 14px 16px 10px; background: var(--pane); }
 .mg-head h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 17px; font-weight: 700; }
