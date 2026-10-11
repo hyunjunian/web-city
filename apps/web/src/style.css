@@ -1294,14 +1294,19 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* 도움말: the basic loop as five numbered steps, the keys in groups by what they are for (each group a key
    column and a words column, lined up), and the tips as titles that open. */
 .help-loop { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
-.help-loop li { display: grid; align-content: start; gap: 5px; padding: 11px 10px 12px; border-radius: var(--r-md); background: var(--surface-2); }
+.help-loop li { display: grid; }
+.loop-step {
+  display: grid; align-content: start; justify-items: start; gap: 5px; width: 100%; min-height: 0; padding: 11px 10px 12px;
+  border-radius: var(--r-md); background: var(--surface-2); color: var(--text); text-align: left; font-weight: 400;
+}
+@media (hover: hover) { .loop-step:hover { background: var(--surface-3); } }
 .help-loop .i { width: 20px; height: 20px; color: var(--accent-hi); }
 .help-loop b { display: flex; align-items: center; gap: 5px; font-size: 13.5px; font-weight: 650; }
 .loop-n { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-hi); font-size: 10.5px; font-weight: 700; }
 .help-loop small { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
 @media (max-width: 560px) {
   .help-loop { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-  .help-loop li { grid-template-columns: 20px auto minmax(0, 1fr); align-items: center; column-gap: 10px; padding: 9px 12px; }
+  .loop-step { grid-template-columns: 20px auto minmax(0, 1fr); align-items: center; column-gap: 10px; padding: 9px 12px; }
 }
 .key-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 22px; align-items: start; }
 .key-group h4 { margin: 0 0 7px; color: var(--muted); font-size: 12px; font-weight: 650; }

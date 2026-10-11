@@ -2,19 +2,19 @@
 
 import { DEV_TYPES, type DevType, GROWTH_CODES, NETWORK_KINDS } from '@web-city/engine';
 import { icon, type IconName } from './icons';
-import { nextStep } from './manage';
+import { nextStep, openGoal } from './manage';
 import { fillRange } from './widgets';
 import { TYPE_NAME } from './names';
 import { updatePanels } from './panels';
 import { type Overlay, type VolumeNetwork } from './render';
 import { ABANDONED_COLOR, buildingRisk, GROWTH_COLOR, GROWTH_LABEL, growthNow, RISK_COLOR, volumeAt } from './views';
 import { centerOn, city, cityGeneration, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
-import { refreshToolChip, SPEEDS, TOOL_KEYS, toolName, TOOLS } from './tools';
+import { refreshToolChip, selectTool, SPEEDS, TOOL_KEYS, toolName, TOOLS } from './tools';
 import { drive } from './udi';
 import { closeInfo, closePane, revealMap } from './tabs';
 import { $, flash, fmt } from './util';
 import { choice } from './undo';
-import { GOALS } from './goals';
+import { type GoalId, GOALS } from './goals';
 
 /** Day / night view (cosmetic). */
 const NIGHT_KEY = 'web-city:night';
@@ -89,9 +89,10 @@ export function showHelp(): void {
     ['재정·주민·지역·저장', '왼쪽 도시 상태의 항목(B: 재정·정책)을 누르면 그 관리 화면과 통계(그래프·보고서)가 나옵니다. 세율·예산·대출·조례는 재정·정책에서 바꿉니다. 위쪽 막대의 <b>주민</b>(U)·<b>지역</b>(J)에서 My Sim·이웃 도시를 봅니다. 도시 이름은 위쪽 막대에서 눌러 바꾸고, <b>⋯</b> 메뉴에서 저장·불러오기·테마를 고릅니다.'],
   ];
   // The basic loop in five steps (the getting-started list, in short), then the keys by what they are for.
-  const loop = ([['road', '도로', '맵 가장자리까지 이으면 이웃 도시와 이어짐'], ['zones', '구역', '길가에 주거·상업·산업을 칠하기'], ['zap', '전기', '발전소를 구역 가까이 (4칸 넘으면 송전선)'],
-    ['droplet', '물', '양수 펌프와 수도관 (도시가 커지면)'], ['play', '시간', touch ? '▶를 눌러 도시가 자라게' : '▶ 또는 Space로 도시가 자라게']] as const)
-    .map(([ic, name, what], k) => `<li>${icon(ic)}<b><span class="loop-n">${k + 1}</span>${name}</b><small>${what}</small></li>`).join('');
+  // (Each step is also the way to do it: pressed, the help closes on its tool, its screen or the clock.)
+  const loop = ([['road', '도로', '맵 가장자리까지 이으면 이웃 도시와 이어짐', 'road'], ['zones', '구역', '길가에 주거·상업·산업을 칠하기', 'R-low'], ['zap', '전기', '발전소를 구역 가까이 (4칸 넘으면 송전선)', 'goal:power'],
+    ['droplet', '물', '양수 펌프와 수도관 (도시가 커지면)', 'goal:water'], ['play', '시간', touch ? '▶를 눌러 도시가 자라게' : '▶ 또는 Space로 도시가 자라게', 'play']] as const)
+    .map(([ic, name, what, act], k) => `<li><button type="button" class="loop-step" data-loop="${act}" title="${name}: 눌러서 바로 해 보기">${icon(ic)}<b><span class="loop-n">${k + 1}</span>${name}</b><small>${what}</small></button></li>`).join('');
   const group = (title: string, keys: string, wide = false) => `<section class="key-group${wide ? ' wide' : ''}"><h4>${title}</h4><div class="key-list">${keys}</div></section>`;
   $('#help-body').innerHTML = `
     <h3 class="sub">기본 순서</h3>
@@ -117,6 +118,13 @@ export function showHelp(): void {
     <p class="legend">이 창처럼 도움말·저장·새 도시 창이 열려 있는 동안에는 시간이 멈춥니다.</p>
     <p class="legend">처음이라면 ${touch ? '<b>도시</b> 버튼' : '왼쪽 도시 현황'}의 "시작하기" 순서를 따라 하거나(누르면 그 도구가 골라짐) 예시 도시를 열어 보세요. 도시는 6개월마다, 그리고 탭을 떠날 때 자동 저장됩니다.</p>`;
   const dialog = $<HTMLDialogElement>('#help-dialog');
+  dialog.querySelectorAll<HTMLButtonElement>('[data-loop]').forEach((b) => (b.onclick = () => {
+    const act = b.dataset.loop!;
+    dialog.close();
+    if (act === 'play') chooseSpeed(runningSpeed || 1);
+    else if (act.startsWith('goal:')) openGoal(act.slice(5) as GoalId);
+    else selectTool(act);
+  }));
   // A tap on the backdrop around it closes it, as the 닫기 button (at the end of a long page on a phone) does.
   dialog.onclick = (e) => {
     const r = dialog.getBoundingClientRect();
