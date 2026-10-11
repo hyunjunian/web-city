@@ -1529,6 +1529,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
     border-radius: 0 var(--r-xl) var(--r-xl) 0; padding-top: 18px;
     transform: translateX(-100%);
   }
+  #pane.managing { max-height: none; } /* (beside the map, an area's screen keeps the full height: held upright it is half, to leave the map above) */
   .pane-grip { display: none; }
   #view:has(#map-layer.open) :is(#tool-chip, #tool-alts) { display: none; }
   /* Little height: the view list takes what there is; the card's side panel pushes the zoom
