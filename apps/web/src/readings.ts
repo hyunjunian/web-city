@@ -3,7 +3,7 @@
 
 import { DEFAULT_CONFIG, DEV_TYPES, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind } from '@web-city/engine';
 import { noRiders } from './info';
-import { ADVICE_TEXT, POLL_NAME } from './names';
+import { ADVICE_TEXT, POLL_NAME, WEALTH_NAME } from './names';
 import { crimeKinds, currentAdvice, garbageFill } from './panels';
 import { changeKey, city } from './state';
 import { kindsFor, structureStat, TOOLS } from './tools';
@@ -348,12 +348,12 @@ function goalMetrics(id: GoalId): Metric[] {
     case 'health': {
       const hq = avg(st.hq, st.residents);
       const life = s.history.at(-1)?.lifeExpectancy;
-      return [['HQ 평균 (0–200)', hq.toFixed(0), '', Math.round(hq), 1, `$·$$·$$$ ${st.hq.map((v) => Math.round(v)).join(' · ')}`], ['기대 수명', life ? `${life.toFixed(0)}세` : '—', '', life ? Math.round(life) : undefined, 1],
+      return [['HQ 평균 (0–200)', hq.toFixed(0), '', Math.round(hq), 1, WEALTH_NAME.map((w, k) => `${w} ${Math.round(st.hq[k]!)}`).join(' · ')], ['기대 수명', life ? `${life.toFixed(0)}세` : '—', '', life ? Math.round(life) : undefined, 1],
         ['환자 / 정원', c ? `${fmt(l)} / ${fmt(c)}` : '—', c && l > c ? 'warn' : ''], ['병원', `${list.length}곳`, '', list.length, 0]];
     }
     case 'education': {
       const eq = avg(st.eq, st.residents);
-      return [['EQ 평균 (0–200)', eq.toFixed(0), '', Math.round(eq), 1, `$·$$·$$$ ${st.eq.map((v) => Math.round(v)).join(' · ')}`], ['학생 / 정원', c ? `${fmt(l)} / ${fmt(c)}` : '—', c && l > c ? 'warn' : ''], ['학교', `${list.length}곳`, '', list.length, 0]];
+      return [['EQ 평균 (0–200)', eq.toFixed(0), '', Math.round(eq), 1, WEALTH_NAME.map((w, k) => `${w} ${Math.round(st.eq[k]!)}`).join(' · ')], ['학생 / 정원', c ? `${fmt(l)} / ${fmt(c)}` : '—', c && l > c ? 'warn' : ''], ['학교', `${list.length}곳`, '', list.length, 0]];
     }
     case 'traffic': {
       const h = s.history.at(-1);

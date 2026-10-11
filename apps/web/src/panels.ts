@@ -540,10 +540,10 @@ export function garbageValue(g: ReturnType<typeof city.stats>['garbage']): strin
   return `${month} · 매립지 ${landfillSpan(months)}`;
 }
 
-/** Three values by wealth, labelled ($ · $$ · $$$). */
 /** A whole number with a true minus (the funds use one; demand read -70). */
 const signed = (v: number) => `${Math.round(v) < 0 ? '−' : ''}${fmt(Math.abs(Math.round(v)))}`;
 
+/** Three values by wealth, labelled (저소득층 · 중산층 · 부유층). */
 const byWealth = (v: readonly (number | string)[]) => v.map((x, w) => `<span class="nw">${WEALTH_NAME[w as 0 | 1 | 2]} ${x}</span>`).join(' · ');
 
 /** The garbage gauge's tooltip: where last month's garbage went, and how long the landfill lasts. */
