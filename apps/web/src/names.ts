@@ -122,7 +122,8 @@ export const THOUGHT: Record<ThoughtSubject, [string, string]> = {
   reward: ['🏆', '보상 건물'], shop: ['🛍', '상점'], restaurant: ['🍴', '식당'], hotel: ['🏨', '호텔'], car: ['🔧', '정비소'], friend: ['🙂', '친구'],
 };
 
-export const WEALTH_NAME = ['$', '$$', '$$$'] as const;
+/** The three incomes in words (SimCity's $, $$, $$$ read as prices). */
+export const WEALTH_NAME = ['저소득층', '중산층', '부유층'] as const;
 
 export const EDGE_NAME = ['서쪽', '동쪽', '북쪽', '남쪽'] as const;
 

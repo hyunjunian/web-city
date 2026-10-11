@@ -217,7 +217,7 @@ function renderWealth(): void {
   const el = $('#wealth');
   if (el.dataset.sig === sig) return;
   el.dataset.sig = sig;
-  const rows = (['$', '$$', '$$$'] as const).map((w, k) => {
+  const rows = WEALTH_NAME.map((w, k) => {
     const jobless = c.unemployed[k]!;
     return `<tr><td>${w}</td><td>${fmt(c.residents[k]!)}</td><td>${fmt(c.workers[k]!)}</td><td>${fmt(c.jobsByWealth[k]!)}</td>
       <td class="${jobless > c.workers[k]! * 0.1 ? 'neg' : ''}">${fmt(jobless)}</td></tr>`;
@@ -233,12 +233,12 @@ function renderWealth(): void {
 
 /** The workforce's schooling by wealth (EQ bands 1–4): offices and high-tech want the upper bands. */
 function eqMix(byEq: readonly (readonly number[])[]): string {
-  const rows = (['$', '$$', '$$$'] as const).map((w, k) => {
+  const rows = WEALTH_NAME.map((w, k) => {
     const row = byEq[k]!;
     const total = row.reduce((a, b) => a + b, 0);
     if (!(total > 0)) return '';
     const bands = row.map((v, b) => [b + 1, Math.round((v / total) * 100)] as const).filter(([, p]) => p > 0);
-    return `<b>R${w}</b> ${bands.map(([b, p]) => `${b}단계 ${p}%`).join(', ')}`;
+    return `<b>${w}</b> ${bands.map(([b, p]) => `${b}단계 ${p}%`).join(', ')}`;
   }).filter(Boolean);
   return rows.length ? `<p class="legend">일하는 사람의 학력(EQ 1~4단계, 4가 가장 높음): ${rows.join(' · ')}<br>오피스와 첨단 산업은 높은 단계의 일꾼을 원합니다(학교·도서관으로 올라감).</p>` : '';
 }
