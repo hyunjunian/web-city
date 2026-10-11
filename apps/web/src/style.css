@@ -2188,6 +2188,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .dock-btn .i { width: 20px; height: 20px; }
   .dock-label { font-size: 13.5px; }
   .dock-btn.unread::before { top: 8px; right: auto; left: calc(50% - 4px); }
+  /* The count of urgent areas already says "look here": the unread dot beside it was a second red mark. */
+  .dock-btn.unread[data-alerts]::before { display: none; }
   .dock-btn.suggest::after { top: 8px; left: calc(50% + 2px); }
   #goal-strip:not([hidden]) { top: 72px; left: 10px; right: 10px; }
   #toasts { top: 72px; left: 10px; right: 10px; width: auto; animation: none; }

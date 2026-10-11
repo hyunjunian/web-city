@@ -470,7 +470,7 @@ function budgetTable(b: Budget): string {
   for (const [k, name] of [['R', '주거'], ['C', '상업'], ['I', '산업']] as const) {
     const types = DEV_TYPES.filter((t) => t[0] === k);
     const sum = types.reduce((a, t) => a + b.taxByType[t], 0);
-    const parts = types.filter((t) => b.taxByType[t] > 0.5).map((t) => `${t} §${fmt(b.taxByType[t])}`).join(' · ');
+    const parts = types.filter((t) => b.taxByType[t] > 0.5).map((t) => `${TYPE_NAME[t]} §${fmt(b.taxByType[t])}`).join(' · ');
     add(`${name}세`, sum, false, true, parts);
   }
   add('대중교통 요금·통행료', b.fares, false, true);
