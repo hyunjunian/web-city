@@ -609,9 +609,13 @@ function showGoalStats(id: GoalId | null): void {
   el.hidden = !any && $('#graphs').hidden;
 }
 
-/** Opens a goal's screen and brings one of its reports into sight (the summary's 시장 평점 and 다음 보상). */
-function openGoalAt(id: GoalId, part: string): void {
+/** Opens a goal's screen and brings one of its reports into sight (the summary's 시장 평점 and 다음 보상), on a view of its own. */
+function openGoalAt(id: GoalId, part: string, view?: string): void {
   openGoal(id);
+  if (view && currentView() !== view) {
+    showGoalView(id, view);
+    renderGoal(true);
+  }
   requestAnimationFrame(() => $(part).closest<HTMLElement>('.gs')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
 }
 
@@ -1270,7 +1274,7 @@ export function setupGoals(): void {
     // 시장 평점: what the residents think, topic by topic (each topic's goal shows its share too).
     // (The polls are kept with 환경·쾌적, the goal that watches the rating.)
     if ((e.target as HTMLElement).closest('[data-open-polls]')) {
-      openGoalAt('environment', '#polls');
+      openGoalAt('environment', '#polls', 'mayor'); // (with the rating's own map, not the screen's first view: dirty air)
       return;
     }
     // 다음 보상: the full list of rewards and how far along each is (under 부유층·고급화, with the landmarks).
