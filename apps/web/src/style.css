@@ -1995,11 +1995,26 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
      pushed the × off the bar): the siblings' row first, then the price, then the demand; × and 멈춤 stay whole. */
   #tool-chip { gap: 6px; padding-left: 12px; }
   #tool-chip > :is(#tool-chip-icon, .icon-btn) { flex: none; }
-  #tool-chip-label { flex: 0 1 auto; min-width: 0; overflow: hidden; gap: 6px; }
-  #tool-chip-label > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 0 1 auto; }
-  #tool-chip-label > :is(b, .chip-held, .chip-more) { flex: none; }
+  #tool-chip-label { flex: 0 1 auto; min-width: 0; overflow: hidden; gap: 6px; justify-content: flex-start; }
+  #tool-chip-label > :is(b, span) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #tool-chip-label > span { flex: 0 100 auto; }
+  #tool-chip-label > .zone-demand { flex: 0 20 auto; }
+  #tool-chip-label > b { flex: 0 1 auto; min-width: 3em; }
+  #tool-chip-label > :is(.chip-held, .chip-more) { flex: none; }
+  #tool-chip #tool-alts:empty { display: none; }
+  /* (Room for the name: the siblings' rule and the ×'s margin were a name's worth of width on a phone.) */
+  #tool-chip #tool-alts { padding-left: 4px; border-left: 0; }
+  #tool-chip #tool-chip-close { width: 34px; height: 34px; }
+  /* A phone's bar keeps the name and the demand: 멈춤 is its pause sign alone (its tooltip says the rest), and the
+     ⌄ goes (the name still opens the card). */
+  #tool-chip { left: 62px; right: 62px; }
+  #tool-chip-label { padding-left: 4px; padding-right: 4px; margin-left: -4px; }
+  #tool-chip-label .held-word, #tool-chip-label .chip-more { display: none; }
+  #tool-chip-label .chip-held { padding: 4px 6px; }
   /* A zone's price per tile (§10–§50) gives way to its demand, what decides where to paint. */
   #tool-chip-label:has(.zone-demand) > span:not(.zone-demand, .chip-held) { display: none; }
+  /* A facility's price is said again where it is placed (짓기 §9,000): its name keeps the room. */
+  #tool-chip[data-kind='structure'] #tool-chip-label > span:not(.chip-held) { display: none; }
   #tool-chip #tool-alts { flex: 1 1 0; }
   #view:has(#tool-chip:not([hidden])) #hint { bottom: calc(var(--bb) + 4px); }
   #view:not(.sheet-open):has(#tool-alts:not([hidden])):not(:has(#map-layer.picking)) #hint { bottom: calc(var(--bb) + 4px); }

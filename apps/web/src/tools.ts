@@ -776,6 +776,7 @@ export function refreshToolChip(): void {
     return;
   }
   $('#tool-chip-icon').innerHTML = toolGlyph(tool);
+  chip.dataset.kind = tool.kind; // (a phone's narrow bar drops a facility's price: its confirm bar says it)
   // Facilities: the kind picked in the tray, with its price.
   const kind = tool.kind === 'structure' ? chosen[tool.id]! : null;
   const price = kind ? `§${fmt(STRUCTURES[kind].cost)} · 월 §${fmt(STRUCTURES[kind].upkeep)}`
@@ -783,7 +784,7 @@ export function refreshToolChip(): void {
   const short = !!kind && STRUCTURES[kind].cost > city.state.funds;
   const demand = tool.kind === 'zone' ? zoneDemandChip(tool.zone) : '';
   // (The clock held for building says so here, where the eye is, not up in the status bar.)
-  const held = isHeld() ? `<span class="chip-held" title="짓는 동안 시간이 잠시 멈춥니다 · 도구를 내려놓으면 다시 흐릅니다 · 누르면 지금 흐르게">${icon('pause')}멈춤</span>` : '';
+  const held = isHeld() ? `<span class="chip-held" title="짓는 동안 시간이 잠시 멈춥니다 · 도구를 내려놓으면 다시 흐릅니다 · 누르면 지금 흐르게" aria-label="시간 멈춤">${icon('pause')}<span class="held-word">멈춤</span></span>` : '';
   const html = `<b>${kind ? STRUCTURE_NAME[kind] : toolName(tool)}</b>${price ? `<span${short ? ' class="short" title="자금이 모자랍니다"' : ''}>${price}</span>` : ''}${demand}${icon('chevronDown', 'chip-more')}${held}`;
   if ($('#tool-chip-label').innerHTML !== html) $('#tool-chip-label').innerHTML = html;
   refreshToolAlts();
