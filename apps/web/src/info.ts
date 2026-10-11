@@ -38,7 +38,7 @@ export function showRoutes(x: number, y: number): void {
   setSelected(q?.building ?? q?.structure ?? { x, y, w: 1, h: 1 });
   const total = Object.values(r.byMeans).reduce((a, b) => a + b, 0);
   const what = q?.name ? q.name : q?.building?.type ? `${TYPE_NAME[q.building.type]} 건물` : q?.structure ? STRUCTURE_NAME[q.structure.kind] : q?.network ? NETWORK_NAME[q.network] : '빈 땅';
-  $('#info').innerHTML = `<p><b>경로 조회</b> (${x}, ${y}) · ${escapeHtml(what)}</p>
+  $('#info').innerHTML = `<p><b>경로 조회</b> · ${escapeHtml(what)}</p>
     ${total ? `<table>${(Object.entries(r.byMeans) as [TripMeans, number][]).sort((a, b) => b[1] - a[1])
       .map(([m, v]) => `<tr><td><span class="swatch" style="background:${ROUTE_COLOR[m]}"></span>${MEANS_NAME[m]}</td><td>${v < 10 ? v.toFixed(1) : fmt(v)}${m === 'freight' ? '/일' : '명'}</td></tr>`).join('')}</table>
       <p class="legend">집은 출근하는 사람들, 일터는 도착하는 사람들, 도로는 그 위를 지나는 통행을 보여 줍니다. 진할수록 많은 통행입니다(가장 많은 ${r.trips.length}개 경로).${q?.network && !q.building && !q.structure ? ' 여기 수는 지난달 이 길로 오간 사람이라, 정보 카드의 하루 통행(차량 수, 몇 달 평균, 저녁 퇴근·화물 포함)과 다릅니다.' : ''}</p>`

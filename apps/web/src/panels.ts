@@ -913,7 +913,7 @@ export function advice(): string {
   for (const r of city.takeReports()) {
     const parts = [r.buildings && `건물 ${r.buildings}`, r.structures && `시설 ${r.structures}`, r.networkTiles && `도로·선로 ${r.networkTiles}칸`,
       r.undergroundTiles && `지하 ${r.undergroundTiles}칸`, r.fires && `화재 ${r.fires}`].filter(Boolean).join(' · ');
-    const text = `피해 보고 — ${REPORT_NAME[r.kind]} (${r.x}, ${r.y}): ${parts || '피해 없음'}${r.rebuildCost ? ` · 복구비 약 §${fmt(r.rebuildCost)}` : ''}${r.kind === 'meltdown' ? ' · 방사능은 사라지지 않습니다' : ''}`;
+    const text = `피해 보고 — ${REPORT_NAME[r.kind]}: ${parts || '피해 없음'}${r.rebuildCost ? ` · 복구비 약 §${fmt(r.rebuildCost)}` : ''}${r.kind === 'meltdown' ? ' · 방사능은 사라지지 않습니다' : ''}`;
     pushNotice({ text, until: city.state.day + 90, warn: true, at: [r.x, r.y] });
     // A power plant gone up takes the city's power with it: stopped and told like a fire, to the power screen.
     if (r.kind === 'explosion' || r.kind === 'meltdown') {
