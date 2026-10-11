@@ -680,7 +680,7 @@ kbd {
 .rci-cap .i { width: 11px; height: 11px; }
 #demand details summary { margin: 4px 0; color: var(--muted); font-size: 12.5px; cursor: pointer; }
 .demand-row { cursor: pointer; }
-.demand-row { display: grid; grid-template-columns: 46px minmax(0, 1fr) 48px; align-items: center; gap: 8px; height: 22px; }
+.demand-row { display: grid; grid-template-columns: 66px minmax(0, 1fr) 48px; align-items: center; gap: 8px; height: 22px; }
 .demand-row .label { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .demand-row .value { text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .bar { position: relative; height: 6px; border-radius: 3px; background: var(--surface-3); }

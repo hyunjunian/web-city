@@ -84,6 +84,14 @@ export const TYPE_NAME: Record<DevType, string> = {
   IA: '농업', ID: '공해 산업', IM: '제조업', IHT: '첨단 산업',
 };
 
+/** A type in a word and its wealth, for narrow lists (the demand bars): 상점 $$, not Cs$$. */
+export const TYPE_SHORT: Record<DevType, string> = {
+  'R$': '주거 $', 'R$$': '주거 $$', 'R$$$': '주거 $$$',
+  'Cs$': '상점 $', 'Cs$$': '상점 $$', 'Cs$$$': '상점 $$$',
+  'Co$$': '오피스 $$', 'Co$$$': '오피스 $$$',
+  IA: '농업', ID: '공해 산업', IM: '제조업', IHT: '첨단 산업',
+};
+
 export const FACTOR_NAME: Record<string, string> = {
   // Named as qualities, so a plus reads as good whichever way the factor points.
   air: '공기 질', landValue: '땅값', rProx1: '저소득 주거 근접', rProx2: '중소득 주거 근접', rProx3: '고소득 주거 근접',

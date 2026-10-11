@@ -9,7 +9,7 @@ import { active, autoPause, openGoal, goalToldAt, paneHeld, problemsHtml, refres
 import { buildOrdinances, ordinanceMonth, ordinanceSignature, refreshInfo, setOrdinanceMonth } from './info';
 import { ko } from './messages';
 import { renderMySims } from './mysims';
-import { ABANDON_NAME, ADVICE_TEXT, ADVISOR_NAME, CRIME_NAME, EDGE_NAME, ORDINANCE_NAME, POLL_NAME, REPORT_NAME, RESOURCE_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME } from './names';
+import { ABANDON_NAME, ADVICE_TEXT, ADVISOR_NAME, CRIME_NAME, EDGE_NAME, ORDINANCE_NAME, POLL_NAME, REPORT_NAME, RESOURCE_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME, TYPE_SHORT } from './names';
 import { renderOnboarding } from './onboarding';
 import { renderNeighbours } from './region';
 import { TYPE_COLOR } from './render';
@@ -406,7 +406,7 @@ export function updatePanels(): void {
     const gap = dem.raw[t] >= 0 ? `모자람 ${fmt(dem.raw[t])}${unit}` : `남음 ${fmt(-dem.raw[t])}${unit}`;
     const detail = `${TYPE_NAME[t]} · 수요 지수 ${fmt(Math.round(v))} · ${gap} · ${capText}`;
     return `<div class="demand-row" role="button" tabindex="0" data-type="${t}" aria-expanded="${demandRow === t}" title="${detail}">
-      <span class="label">${t}</span>
+      <span class="label">${TYPE_SHORT[t]}</span>
       <div class="bar"><div class="fill" style="left:${left}%;width:${w}%;background:${TYPE_COLOR[t]}"></div></div>
       <span class="value">${signed(v)}</span></div>${demandRow === t ? `<p class="legend g-detail">${detail}</p>` : ''}`;
   }).join('') + `<p class="legend">중립 세율 ${dem.neutralTax.toFixed(1)}% · 실업 ${byWealth(city.census.unemployed.map(fmt))}<br>
@@ -591,7 +591,7 @@ function renderTaxMood(): void {
   const parts = by.map((v, w) => [Math.round(Math.max(-25, Math.min(25, v))), WEALTH_NAME[w as 0 | 1 | 2]] as const).filter(([v]) => v !== 0);
   const el = $('#tax-mood');
   el.hidden = !parts.length;
-  if (parts.length) el.innerHTML = `최근 주거 세율 변경이 시장 평점에 주는 영향: ${parts.map(([v, name]) => `R${name} <b class="${v < 0 ? 'neg' : 'pos'}">${v > 0 ? '+' : '−'}${Math.abs(v)}</b>`).join(' · ')} (약 ${left}개월에 걸쳐 사라짐)`;
+  if (parts.length) el.innerHTML = `최근 주거 세율 변경이 시장 평점에 주는 영향: ${parts.map(([v, name]) => `주거 ${name} <b class="${v < 0 ? 'neg' : 'pos'}">${v > 0 ? '+' : '−'}${Math.abs(v)}</b>`).join(' · ')} (약 ${left}개월에 걸쳐 사라짐)`;
 }
 
 /** What lifts the demand caps: neighbour connections by kind (first of each kind lifts offices) and freight that reached one. */
@@ -601,7 +601,7 @@ function capRelief(): string {
   const kinds = (Object.keys(NAMES) as (keyof typeof NAMES)[]).map((k) => [NAMES[k], per[k].reduce((a, b) => a + b, 0)] as const).filter(([, v]) => v > 0);
   const dem = city.demand;
   const held = DEV_TYPES.filter((t) => t !== 'IA' && dem.raw[t] > 0 && Number.isFinite(dem.cap[t]) && dem.capPopulation[t] >= 0.95 * dem.cap[t]);
-  const capped = held.length ? `상한에 막힌 유형: ${held.map((t) => `${t} ${fmt(dem.capPopulation[t])}/${fmt(dem.cap[t])}`).join(' · ')}<br>` : '';
+  const capped = held.length ? `상한에 막힌 유형: ${held.map((t) => `${TYPE_SHORT[t]} ${fmt(dem.capPopulation[t])}/${fmt(dem.cap[t])}`).join(' · ')}<br>` : '';
   return `${capped}상한 완화: 이웃 연결 ${kinds.length ? kinds.map(([k, v]) => `${k} ${v}`).join(' · ') : '없음'} · 지난달 도시 밖으로 나간 화물 ${fmt(city.state.freightTrips)}건 (산업 상한에 반영)`;
 }
 
