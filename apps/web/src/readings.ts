@@ -263,7 +263,8 @@ function pollMetric(id: GoalId): Metric[] {
   const key = `${changeKey()}|${Math.floor(city.state.day / 30)}`;
   if (pollMemo?.key !== key) pollMemo = { key, polls: city.opinionPolls() };
   const p = Math.round(pollMemo.polls[topic].approve * 100);
-  return [['주민 만족', `${p}%`, p < 25 ? 'bad' : p < 50 ? 'warn' : '', p, 1, `${POLL_NAME[topic]}에 불만이 없는 주민 비율 (여론 조사: 시장 평점을 움직입니다)`]];
+  // (Named by its topic: "주민 만족 100%" on the money screen read as the whole town's mood.)
+  return [[`주민 만족 (${POLL_NAME[topic]})`, `${p}%`, p < 25 ? 'bad' : p < 50 ? 'warn' : '', p, 1, `${POLL_NAME[topic]}에 불만이 없는 주민 비율 (여론 조사: 시장 평점을 움직입니다)`]];
 }
 
 export function metrics(id: GoalId): Metric[] {
