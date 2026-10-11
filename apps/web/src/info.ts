@@ -495,7 +495,7 @@ export function buildOrdinances(): void {
     const price = cost < 0 ? `+§${fmt(-cost)}` : `§${fmt(cost)}`;
     return `<label class="ordinance ${avail ? '' : 'muted'}">
       <input type="checkbox" data-ord="${id}" ${on ? 'checked' : ''} ${avail ? '' : 'disabled'}>
-      <span><b>${ORDINANCE_NAME[id]}</b> <span class="muted">월 ${price}</span>${goalsOfOrdinance(id).map((g) => ` <button type="button" class="goal-tag" data-goal-open="${g}" title="${GOALS[g].name} 화면에서 보기 (이 조례가 돕는 목적)">${icon(GOALS[g].icon)}${GOALS[g].name}</button>`).join('')}<br><small>${ORDINANCES[id].description}</small>${avail ? '' : `<br><small class="needs">필요: ${ORDINANCE_NEEDS[(ORDINANCES[id] as { requires?: string }).requires ?? ''] ?? '조건 미충족'}</small>`}</span>
+      <span><b>${ORDINANCE_NAME[id]}</b> <span class="muted">월 ${price}</span>${goalsOfOrdinance(id).map((g) => ` <button type="button" class="goal-tag" data-goal-open="${g}" title="${GOALS[g].name} 화면에서 보기 (이 조례가 돕는 분야)">${icon(GOALS[g].icon)}${GOALS[g].name}</button>`).join('')}<br><small>${ORDINANCES[id].description}</small>${avail ? '' : `<br><small class="needs">필요: ${ORDINANCE_NEEDS[(ORDINANCES[id] as { requires?: string }).requires ?? ''] ?? '조건 미충족'}</small>`}</span>
     </label>`;
   }).join('');
   el.querySelectorAll<HTMLInputElement>('input[data-ord]').forEach((box) => {
