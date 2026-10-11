@@ -1259,7 +1259,7 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; margin: 18px 0
 dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* The help's long text scrolls under its close button, not past it. */
 #help-dialog menu { position: sticky; bottom: -24px; margin: 18px -24px -24px; padding: 12px 24px 16px; background: var(--surface); border-top: 1px solid var(--line); }
-#help-dialog { max-width: min(600px, calc(100vw - 32px)); }
+#help-dialog { width: min(680px, calc(100vw - 32px)); max-width: none; }
 #saves-dialog { width: min(540px, calc(100vw - 32px)); }
 #new-dialog { width: min(480px, calc(100vw - 32px)); }
 .new-more { display: grid; gap: 12px; }
@@ -1273,14 +1273,45 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .saves [data-delete] { background: transparent; }
 .saves strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .saves .muted { font-size: 12.5px; }
-.help-tips { display: grid; gap: 6px; margin: 0; padding-left: 18px; font-size: 13px; }
+/* 도움말: the basic loop as five numbered steps, the keys in groups by what they are for (each group a key
+   column and a words column, lined up), and the tips as titles that open. */
+.help-loop { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
+.help-loop li { display: grid; align-content: start; gap: 5px; padding: 11px 10px 12px; border-radius: var(--r-md); background: var(--surface-2); }
+.help-loop .i { width: 20px; height: 20px; color: var(--accent-hi); }
+.help-loop b { display: flex; align-items: center; gap: 5px; font-size: 13.5px; font-weight: 650; }
+.loop-n { display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-hi); font-size: 10.5px; font-weight: 700; }
+.help-loop small { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+@media (max-width: 560px) {
+  .help-loop { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .help-loop li { grid-template-columns: 20px auto minmax(0, 1fr); align-items: center; column-gap: 10px; padding: 9px 12px; }
+}
+.key-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 22px; align-items: start; }
+.key-group h4 { margin: 0 0 7px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.key-list { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: 7px 10px; font-size: 13px; line-height: 1.4; }
+.key-list > span { display: contents; }
+.key-list kbd { justify-self: start; }
+.key-group.wide { grid-column: 1 / -1; }
+.key-group.wide .key-list { grid-template-columns: repeat(3, max-content minmax(0, 1fr)); }
+@media (max-width: 560px) {
+  .key-groups { grid-template-columns: minmax(0, 1fr); }
+  .key-group.wide .key-list { grid-template-columns: repeat(2, max-content minmax(0, 1fr)); }
+}
+.help-tips { display: grid; gap: 6px; }
+.help-tips details { border-radius: var(--r-md); background: var(--surface-2); }
+.help-tips summary {
+  display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-radius: var(--r-md);
+  font-size: 13.5px; font-weight: 600; cursor: pointer; list-style: none;
+}
+.help-tips summary::-webkit-details-marker { display: none; }
+.help-tips summary::after { content: ''; width: 14px; height: 14px; margin-left: auto; background: var(--chevron) center / 14px no-repeat; transition: transform 0.2s var(--ease); }
+.help-tips details[open] > summary::after { transform: rotate(180deg); }
+@media (hover: hover) { .help-tips summary:hover { background: var(--surface-3); } }
+.help-tips p { margin: 0; padding: 0 12px 12px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.help-tips p b { color: var(--text); }
 #help-body > h3.sub:first-child { margin-top: 0; }
 .help-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 8px 16px; margin: 0; font-size: 13.5px; }
 .help-grid dt { color: var(--muted); }
 .help-grid dd { margin: 0; }
-.key-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px 14px; font-size: 13px; }
-.key-grid span { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.key-grid kbd { flex: none; }
 /* Touch screens: no keyboard to list. */
 @media (pointer: coarse) and (hover: none) { .help-keys { display: none; } }
 .seed-row { display: flex; gap: 8px; }
@@ -2186,12 +2217,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* A card's figures in plain ink: the name is its one bold line (bold numbers under every name made a wall of them). */
 .pick-stat, .pick-sub b, .pick-stat b { font-weight: 400; }
 .mg-sec h3 .sec-note { font-weight: 500; }
-/* 도움말's keys: two even columns, every key in one column of its own so the words line up (three ragged
-   columns wrapped half the lines). */
-.key-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 20px; }
-.key-grid span { display: grid; grid-template-columns: 7.2em minmax(0, 1fr); align-items: start; gap: 10px; line-height: 1.4; }
-.key-grid kbd { justify-self: start; }
-@media (max-width: 560px) { .key-grid { grid-template-columns: minmax(0, 1fr); } }
 .fac-line, .fac-line b { font-weight: 400; } /* (the button's bold reached its figures) */
 /* A goal's figures: a ruled grid, not eight grey boxes; colour only on a figure that is off. */
 #pane .mg-metrics { gap: 0 18px; }
