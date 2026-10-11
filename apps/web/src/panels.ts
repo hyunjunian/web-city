@@ -284,7 +284,6 @@ function renderBuildings(): void {
     <tbody>${rows}</tbody></table>` : '<p class="muted">구역을 지정하면 표시됩니다.</p>';
 }
 
-/** Impeachment stops the game: say so once, with what to do. */
 /** The RCI meter's classes: letter, name and zone colour. */
 const RCI_CLASSES = [['R', '주거', 'var(--zone-r)'], ['C', '상업', 'var(--zone-c)'], ['I', '산업', 'var(--zone-i)']] as const;
 
@@ -316,6 +315,7 @@ export function rciMini(): string {
   return `<span class="rci-mini" aria-hidden="true">${bars}</span>`;
 }
 
+/** Impeachment stops the game: say so once, with what to do. */
 let impeachedCity: unknown = null;
 
 export function updatePanels(): void {

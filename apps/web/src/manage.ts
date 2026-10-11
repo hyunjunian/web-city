@@ -184,13 +184,6 @@ const adviceText = (a: ReturnType<typeof adviceFor>[number]) => (a.code === 'wat
 /** Two lines the same but for punctuation and spacing (an advisor's fix often repeats the problem). */
 const same = (a: string, b: string) => a.replace(/[\s.·,]/g, '') === b.replace(/[\s.·,]/g, '');
 
-/**
- * 추천 조치, at the top of a troubled goal's screen, read top down: what is wrong (as its advisor
- * says it), what it costs if left, then the action in a box of its own — the facility or tool with
- * its price and upkeep, what it would do, 해 보기 to take it up and, where the screen has a site
- * for it, 추천 자리에 짓기. Once something was done here, when its result will be told.
- * (A fire or a riot has its banner instead; a sound goal shows nothing here.)
- */
 /** The advisor's word a troubled goal's 추천 조치 leads with (its first sentence), and that word; none for a sound goal or one on fire. */
 function guideSaid(id: GoalId): { said: string; worst?: ReturnType<typeof adviceFor>[number] } {
   if (!goalStatus(id).tone || incidents().some((x) => x.goal === id)) return { said: '' };
@@ -199,6 +192,13 @@ function guideSaid(id: GoalId): { said: string; worst?: ReturnType<typeof advice
   return { said: worst && adviceText(worst) ? firstSentence(adviceText(worst)) : '', worst };
 }
 
+/**
+ * 추천 조치, at the top of a troubled goal's screen, read top down: what is wrong (as its advisor
+ * says it), what it costs if left, then the action in a box of its own — the facility or tool with
+ * its price and upkeep, what it would do, 해 보기 to take it up and, where the screen has a site
+ * for it, 추천 자리에 짓기. Once something was done here, when its result will be told.
+ * (A fire or a riot has its banner instead; a sound goal shows nothing here.)
+ */
 function guideHtml(id: GoalId): string {
   const s = goalStatus(id);
   if (!s.tone || incidents().some((x) => x.goal === id)) return '';
@@ -1081,7 +1081,6 @@ function incidentBanner(id: GoalId): string {
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${inc.at.join(',')}" title="지도에서 그곳 보기">보기</button>${free ? `<button type="button" class="advice-view act-now" data-act="${inc.tool}" title="출동 도구 들기">${icon(inc.goal === 'fire' ? 'flame' : 'shield')}출동</button>` : ''}</span></section>`;
 }
 
-/** The goal's panel. */
 /** How much of a goal's capacity is in use (power, water, beds, seats), as a bar under its figures: read at a glance. */
 function usageBar(id: GoalId): string {
   const st = readStats();
@@ -1111,6 +1110,7 @@ function diagnosis(a: ReturnType<typeof adviceFor>[number], lead: ReturnType<typ
   return `<p class="advice ${level}${echo ? ' echo' : ''}">${icon(a.level === 'bad' ? 'alert' : a.level === 'good' ? 'award' : 'info', 'adv-i')}<b>${ADVISOR_NAME[a.advisor]}</b> ${echo ? `<span class="adv-echo" title="${escapeHtml(lead.said)}">위의 문제:</span> ` : ''}${text}${more}${acts}</p>`;
 }
 
+/** The goal's panel. */
 function goalHtml(id: GoalId): string {
   const g = GOALS[id];
   const s = goalStatus(id);
