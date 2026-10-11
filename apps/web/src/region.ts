@@ -1,6 +1,7 @@
 // Region play: the region map, neighbours and Neighbor Deals.
 
 import { type City, type CitySpan, Region, type SavedRegion } from '@web-city/engine';
+import { icon } from './icons';
 import { ko } from './messages';
 import { EDGE_NAME, KIND_NAME, RESOURCE_NAME, RESOURCE_UNIT, SPAN_NAME } from './names';
 import { updatePanels } from './panels';
@@ -122,6 +123,17 @@ function ownCost(o: { resource: Parameters<typeof city.utility>[0]; direction: '
   return ` <span class="${good ? 'pos' : 'muted'}" title="이 도시가 직접 만드는(처리하는) 단가">(자체 §${own.toFixed(3)}${good ? (o.direction === 'buy' ? ' · 더 쌈' : ' · 이익') : ''})</span>`;
 }
 
+/** The kinds of neighbour in a word or two (the compass's cells are narrow). */
+const KIND_SHORT = { simnation: '심네이션', established: '미개발', developed: '개발됨' } as const;
+
+/** What reaches an edge from this city (roads, rail…): a neighbour is only met where something does. */
+function edgeLinks(edge: 0 | 1 | 2 | 3): string {
+  const per = city.connectionsPerEdge();
+  const NAMES = { road: '도로', highway: '고속도로', rail: '철도', subway: '지하철' } as const;
+  const parts = (Object.keys(NAMES) as (keyof typeof NAMES)[]).filter((k) => per[k][edge] > 0).map((k) => `${NAMES[k]} ${per[k][edge]}`);
+  return `<small class="nb-links${parts.length ? '' : ' none'}">${parts.length ? `연결 ${parts.join(' · ')}` : '연결 없음'}</small>`;
+}
+
 export function renderNeighbours(): void {
   const s = city.state;
   // Offers need a scan of the map's edges: only when the city may have changed.
@@ -140,9 +152,9 @@ export function renderNeighbours(): void {
   const open = offers.filter((o) => o.ok);
   el.innerHTML = `
     ${regionHtml()}
-    ${s.neighbours.map((nb) => `<label class="funding">${EDGE_NAME[nb.edge]} <select data-edge="${nb.edge}" ${region ? 'disabled' : ''}>
-      ${(['simnation', 'established', 'developed'] as const).map((k) => `<option value="${k}" ${nb.kind === k ? 'selected' : ''}>${KIND_NAME[k]}</option>`).join('')}
-    </select></label>`).join('')}
+    <div class="nb-compass" role="group" aria-label="네 변의 이웃">${s.neighbours.map((nb) => `<label class="nb-edge ${'wens'[nb.edge]}"><span class="nb-dir">${EDGE_NAME[nb.edge]}</span><select data-edge="${nb.edge}" ${region ? 'disabled' : ''} aria-label="${EDGE_NAME[nb.edge]} 이웃">
+      ${(['simnation', 'established', 'developed'] as const).map((k) => `<option value="${k}" ${nb.kind === k ? 'selected' : ''} title="${KIND_NAME[k]}">${KIND_SHORT[k]}</option>`).join('')}
+    </select>${edgeLinks(nb.edge)}</label>`).join('')}<div class="nb-me">${icon('zones')}<b>${escapeHtml(s.name)}</b><small>이 도시</small></div></div>
     <p class="legend">심네이션은 화물 출구와 연결 종류별 첫 오피스 상한 완화만 줍니다. 미개발 이웃 도시와는 주민이 오가며 통근합니다. 개발된 이웃은 송전선·수도관·도로로 연결하면 전력·물·쓰레기를 사고팔 수 있고, 성장 수요(인구의 10%)를 보내옵니다.</p>
     <h3 class="sub">거래</h3>
     ${dealRows || '<p class="muted">진행 중인 거래 없음</p>'}

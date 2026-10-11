@@ -2416,3 +2416,24 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 @media (max-width: 860px) { .sb-center { grid-template-areas: 'date speed'; } }
 .s-sub { display: inline-flex; align-items: baseline; gap: 3px; color: var(--muted); }
 .s-sub .k-sub { font-size: 10.5px; }
+
+/* ------------------------------------------------------------------ 지역: the four neighbours round the city */
+
+/* Each edge's neighbour where it lies (north above, west to the left…), with what of this city reaches it. */
+.nb-compass {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: '. n .' 'w me e' '. s .';
+  gap: 8px; margin: 10px 0 12px;
+}
+.nb-edge { display: grid; align-content: center; gap: 5px; min-width: 0; margin: 0; padding: 9px 10px 10px; border-radius: var(--r-md); background: var(--surface-2); color: var(--muted); font-size: 12px; }
+.nb-edge.n { grid-area: n; }
+.nb-edge.s { grid-area: s; }
+.nb-edge.w { grid-area: w; }
+.nb-edge.e { grid-area: e; }
+.nb-dir { font-weight: 650; color: var(--text); }
+.nb-edge select { width: 100%; min-width: 0; min-height: 34px; padding: 4px 26px 4px 10px; background-color: var(--surface); background-position: right 8px center; font-size: 12.5px; }
+.nb-links { font-size: 11px; line-height: 1.35; color: var(--good-ink, var(--good)); }
+.nb-links.none { color: var(--faint); }
+.nb-me { grid-area: me; display: grid; place-items: center; align-content: center; gap: 3px; min-width: 0; padding: 10px 8px; border-radius: var(--r-md); background: var(--accent-soft); color: var(--accent-hi); text-align: center; }
+.nb-me .i { width: 20px; height: 20px; }
+.nb-me b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); font-size: 13px; }
+.nb-me small { font-size: 11px; }
