@@ -362,7 +362,7 @@ export function noteAction(text: string, merge?: string, toolId?: string): void 
 /** The figure each goal is judged by, to report what an action came to (label, as `metrics` names it). */
 const KEY_FIGURE: Record<GoalId, string> = {
   finance: '지난달 수지', growth: '인구', power: '여유', water: '여유', garbage: '못 치움', police: '범죄 (지난달)', fire: '지난달 화재',
-  health: 'HQ 평균', education: 'EQ 평균', traffic: '평균 통근', environment: '대기 오염', wealth: '부유층 ($$$)',
+  health: 'HQ 평균 (0–200)', education: 'EQ 평균 (0–200)', traffic: '평균 통근', environment: '대기 오염', wealth: '부유층 주민',
 };
 /** Days after an action its result is told (a quarter: demand, crime and schooling take that long to move). */
 const FOLLOW_DAYS = 90;
@@ -474,7 +474,7 @@ export function watchGoals(): void {
     // (By what is shown: a figure that reads the same hasn't moved.)
     const d = m[1] === p.value ? 0 : Math.round(m[3]) - Math.round(p.n);
     const better = p.better ? Math.sign(d) === p.better : null;
-    const line = `${p.label} ${p.value} → ${m[1]}`;
+    const line = `${p.label.replace(/ \([^)]*\)$/, '')} ${p.value} → ${m[1]}`; // (its scale, "(0–200)", is for the tile)
     // Told on the goal's log too, under what was done.
     j.done.unshift({ goal: id, day, text: `└ 3개월 뒤: ${line}`, key: 'result' });
     pushNotice({ text: `${GOALS[id].name} · ${p.text}${p.count > 1 ? ` 외 ${p.count - 1}건` : ''} → 3개월 뒤 ${line}`, warn: better === false, goal: id, until: day + 360 });

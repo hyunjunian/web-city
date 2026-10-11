@@ -342,12 +342,12 @@ function goalMetrics(id: GoalId): Metric[] {
     case 'health': {
       const hq = avg(st.hq, st.residents);
       const life = s.history.at(-1)?.lifeExpectancy;
-      return [['HQ 평균', hq.toFixed(0), '', Math.round(hq), 1, `$·$$·$$$ ${st.hq.map((v) => Math.round(v)).join(' · ')}`], ['기대 수명', life ? `${life.toFixed(0)}세` : '—', '', life ? Math.round(life) : undefined, 1],
+      return [['HQ 평균 (0–200)', hq.toFixed(0), '', Math.round(hq), 1, `$·$$·$$$ ${st.hq.map((v) => Math.round(v)).join(' · ')}`], ['기대 수명', life ? `${life.toFixed(0)}세` : '—', '', life ? Math.round(life) : undefined, 1],
         ['환자 / 정원', c ? `${fmt(l)} / ${fmt(c)}` : '—', c && l > c ? 'warn' : ''], ['병원', `${list.length}곳`, '', list.length, 0]];
     }
     case 'education': {
       const eq = avg(st.eq, st.residents);
-      return [['EQ 평균', eq.toFixed(0), '', Math.round(eq), 1, `$·$$·$$$ ${st.eq.map((v) => Math.round(v)).join(' · ')}`], ['학생 / 정원', c ? `${fmt(l)} / ${fmt(c)}` : '—', c && l > c ? 'warn' : ''], ['학교', `${list.length}곳`, '', list.length, 0]];
+      return [['EQ 평균 (0–200)', eq.toFixed(0), '', Math.round(eq), 1, `$·$$·$$$ ${st.eq.map((v) => Math.round(v)).join(' · ')}`], ['학생 / 정원', c ? `${fmt(l)} / ${fmt(c)}` : '—', c && l > c ? 'warn' : ''], ['학교', `${list.length}곳`, '', list.length, 0]];
     }
     case 'traffic': {
       const h = s.history.at(-1);
@@ -366,7 +366,7 @@ function goalMetrics(id: GoalId): Metric[] {
       const d = (t: 'R$$$' | 'Cs$$$' | 'Co$$$'): Metric => [`${RICH_WORD[t]} 수요`, dem[t] >= 1 ? `+${fmt(dem[t])}` : dem[t] <= -1 ? `−${fmt(-dem[t])}` : '0', dem[t] >= 100 ? 'good' : dem[t] < 0 ? 'warn' : ''];
       return [['부유층 주민', `${fmt(st.residents[2])}명 · ${Math.round((st.residents[2] / total) * 100)}%`, '', st.residents[2], 1],
         ['중산층 주민', `${fmt(st.residents[1])}명`, '', st.residents[1], 1], ['평균 땅값', landValue() >= 0.5 ? landValue().toFixed(1) : '차이 없음', '', Math.round(landValue()), 1, '건물이 선 칸의 평균: 물가와 주변보다 높은 땅이 올립니다 (모두 평평한 내륙이면 0)'],
-        d('R$$$'), d('Cs$$$'), d('Co$$$'), ['EQ 평균', avg(st.eq, st.residents).toFixed(0), '', Math.round(avg(st.eq, st.residents)), 1]];
+        d('R$$$'), d('Cs$$$'), d('Co$$$'), ['EQ 평균 (0–200)', avg(st.eq, st.residents).toFixed(0), '', Math.round(avg(st.eq, st.residents)), 1]];
     }
     case 'environment': {
       const h = s.history.at(-1);
