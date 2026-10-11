@@ -113,11 +113,25 @@ export function drawMinimap(force = false): void {
   const w = Math.max(4, Math.round((view.width / cam.scale) * k));
   const h = Math.max(4, Math.round((view.height / cam.scale) * k));
 
-  ctx.fillStyle = 'rgba(77,163,255,0.18)';
-  ctx.fillRect(x, y, w, h);
-  ctx.lineWidth = 2 * dpr;
-  ctx.strokeStyle = '#1d6fd1';
-  ctx.strokeRect(x, y, w, h);
+  // Kept within the map (a view wider than it drew stray lines across), and none at all while the whole map
+  // is in view; the rest of the map dims around it, so the part on screen stands out.
+  const W = canvas.width;
+  const H = canvas.height;
+  const x0 = Math.max(0, x);
+  const y0 = Math.max(0, y);
+  const x1 = Math.min(W, x + w);
+  const y1 = Math.min(H, y + h);
+  const slack = W * 0.03; // (a view a pixel or two short of the whole map is the whole map)
+  if (x0 > slack || y0 > slack || x1 < W - slack || y1 < H - slack) {
+    ctx.fillStyle = 'rgba(10,14,24,0.32)';
+    ctx.fillRect(0, 0, W, y0);
+    ctx.fillRect(0, y1, W, H - y1);
+    ctx.fillRect(0, y0, x0, y1 - y0);
+    ctx.fillRect(x1, y0, W - x1, y1 - y0);
+    ctx.lineWidth = 2 * dpr;
+    ctx.strokeStyle = '#1d6fd1';
+    ctx.strokeRect(x0 + dpr, y0 + dpr, Math.max(2, x1 - x0 - 2 * dpr), Math.max(2, y1 - y0 - 2 * dpr));
+  }
   // An open goal's marks: its troubled facilities as dots, the suggested spot as a ring (found from anywhere).
   for (const m of renderer.marks) {
     if (m.tone === '') continue;
