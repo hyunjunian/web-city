@@ -43,7 +43,7 @@ export function renderAges(): void {
       <div class="bar"><div class="fill" style="width:${Math.round((100 * value(g)) / max)}%"></div></div>
       <span class="value">${text(g)}</span></div>`).join('');
   $('#ages').innerHTML = `<h3 class="sub">나이별 인구 (막대 끝 = 가장 많은 나이대)</h3>${bars((g) => g.residents, top, (g) => fmt(g.residents))}
-    <h3 class="sub">나이별 교육 (EQ, 막대 끝 = 200)</h3>${bars((g) => g.eq, 200, (g) => String(g.eq))}
+    <h3 class="sub">나이별 교육 지수 (막대 끝 = 200)</h3>${bars((g) => g.eq, 200, (g) => String(g.eq))}
     <p class="legend">가구 평균 나이 기준 10년 단위. 학교마다 효과가 큰 나이대가 다릅니다.</p>`;
 }
 

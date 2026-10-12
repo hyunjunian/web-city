@@ -306,8 +306,8 @@ ${paths}${voice}
       ${b?.type && !b.watered && waterNeeded ? `<tr${row('water')}><td>수도</td><td class="neg">끊김 (${b.noWaterMonths}개월째)</td></tr>` : ''}
       ${b?.type?.[0] === 'R' ? `
         <tr><td>평균 나이</td><td>${b.age.toFixed(0)}세</td></tr>
-        <tr${row('education')}><td>교육 지수 (EQ)</td><td>${b.eq.toFixed(0)}</td></tr>
-        <tr${row('health')}><td>건강 지수 (HQ)</td><td>${b.hq.toFixed(0)}</td></tr>` : ''}
+        <tr${row('education')}><td>교육 지수</td><td>${b.eq.toFixed(0)}</td></tr>
+        <tr${row('health')}><td>건강 지수</td><td>${b.hq.toFixed(0)}</td></tr>` : ''}
       ${stRows}
     </table>` : ''}
     ${q.structure && def!.category !== 'park' && def!.category !== 'garbage' && def!.category !== 'water' && def!.category !== 'landmark' && !(def!.category === 'safety' && def!.police?.radius === 0) && !def!.station ? fundingSlider(q.structure) : q.structure ? `<p class="muted">예산은 재정의 부서 예산 "${def!.category === 'garbage' ? '위생' : def!.category === 'water' ? '수도' : def!.station ? '대중교통' : def!.category === 'landmark' ? '랜드마크' : def!.category === 'safety' ? '교도소' : '공원 미화'}"${def!.category === 'garbage' ? '으로' : '로'} 정합니다.</p>` : ''}

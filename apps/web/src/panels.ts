@@ -249,7 +249,7 @@ function eqMix(byEq: readonly (readonly number[])[]): string {
     const bands = row.map((v, b) => [b + 1, Math.round((v / total) * 100)] as const).filter(([, p]) => p > 0);
     return `<b>${w}</b> ${bands.map(([b, p]) => `${b}단계 ${p}%`).join(', ')}`;
   }).filter(Boolean);
-  return rows.length ? `<p class="legend">일하는 사람의 학력(EQ 1~4단계, 4가 가장 높음): ${rows.join(' · ')}<br>오피스와 첨단 산업은 높은 단계의 일꾼을 원합니다(학교·도서관으로 올라감).</p>` : '';
+  return rows.length ? `<p class="legend">일하는 사람의 학력(1~4단계, 4가 가장 높음): ${rows.join(' · ')}<br>오피스와 첨단 산업은 높은 단계의 일꾼을 원합니다(학교·도서관으로 올라감).</p>` : '';
 }
 
 /** Buildings by class: how many, how tall, how many abandoned, and the zone land around them. */
@@ -405,7 +405,7 @@ export function updatePanels(): void {
       <span class="rci-label">${label}</span><span class="rci-value">${signed(v)}</span>${capped ? `<span class="rci-cap">${icon('lock')}상한</span>` : farms ? `<span class="rci-note" title="${factories > 0 ? `공장 수요 지수 ${fmt(Math.round(factories))}` : '공장 수요 없음: 산업 구역은 비어 있게 됩니다. 농업 구역을 지정하세요'}">${factories > 0 ? '농업' : '농업만'}</span>` : ''}</div>`;
   }).join('');
   const demandHtml = `<div class="rci">${summary}</div>
-    <details id="demand-detail" ${demandOpen ? 'open' : ''}><summary>유형별 수요·실업·EQ·HQ</summary>` + DEV_TYPES.map((t) => {
+    <details id="demand-detail" ${demandOpen ? 'open' : ''}><summary>유형별 수요·실업·교육·건강</summary>` + DEV_TYPES.map((t) => {
     const v = dem.demand[t];
     const w = (Math.abs(v) / 1000) * 50;
     const left = v >= 0 ? 50 : 50 - w;
@@ -418,7 +418,7 @@ export function updatePanels(): void {
       <div class="bar"><div class="fill" style="left:${left}%;width:${w}%;background:${TYPE_COLOR[t]}"></div></div>
       <span class="value">${signed(v)}</span></div>${demandRow === t ? `<p class="legend g-detail">${detail}</p>` : ''}`;
   }).join('') + `<p class="legend">중립 세율 ${dem.neutralTax.toFixed(1)}% · 실업 ${byWealth(city.census.unemployed.map(fmt))}<br>
-    평균 EQ ${byWealth(st.eq)} · HQ ${byWealth(st.hq)} · 노동 인구 ${Math.round(st.workforceFraction * 100)}%<br>
+    평균 교육 지수 ${byWealth(st.eq)} · 건강 지수 ${byWealth(st.hq)} · 노동 인구 ${Math.round(st.workforceFraction * 100)}%<br>
     ${capRelief()}</p></details>
     ${emptyZones()}`;
   if (demandHtml !== lastDemand && !paneHeld()) {

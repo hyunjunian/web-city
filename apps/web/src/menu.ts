@@ -111,7 +111,7 @@ export function setupMenu(): void {
       ['시장 평점', (h) => h.mayorRating], ['범죄', (h) => h.crimes], ['체포', (h) => h.arrests], ['수입', (h) => h.income],
       ['지출', (h) => h.expenses], ['통근(시간)', (h) => h.commute], ['전력 수요', (h) => h.powerDemand], ['전력 공급', (h) => h.powerSupply],
       ['물 수요', (h) => h.waterDemand], ['물 공급', (h) => h.waterSupply], ['쓰레기 발생(재활용 전)', (h) => h.garbageProduced], ['쓰레기 남은 처리 여력', (h) => h.garbageCapacity],
-      ['대기 오염', (h) => h.air], ['수질 오염', (h) => h.waterPollution], ['EQ', (h) => h.eq], ['기대 수명', (h) => h.lifeExpectancy], ['버려진 건물', (h) => h.abandoned],
+      ['대기 오염', (h) => h.air], ['수질 오염', (h) => h.waterPollution], ['교육 지수', (h) => h.eq], ['기대 수명', (h) => h.lifeExpectancy], ['버려진 건물', (h) => h.abandoned],
     ];
     const rows = [cols.map(([k]) => k).join(','), ...city.state.history.map((h) => cols.map(([, f]) => f(h) ?? '').join(','))];
     download(new Blob(['\ufeff' + rows.join('\n')], { type: 'text/csv' }), `${fileName()}-기록.csv`);

@@ -44,7 +44,7 @@ const DRIFT: Partial<Record<GoalId, [(p: HistoryPoint) => number | undefined, 1 
   water: [(p) => (p.waterSupply !== undefined && p.waterDemand !== undefined ? p.waterSupply - p.waterDemand : undefined), 1, '물 여유'],
   police: [(p) => p.crimes, -1, '범죄'],
   health: [(p) => p.lifeExpectancy, 1, '기대 수명'],
-  education: [(p) => p.eq, 1, 'EQ'],
+  education: [(p) => p.eq, 1, '교육 지수'],
   traffic: [(p) => p.commute, -1, '통근 시간'],
   environment: [(p) => p.air, -1, '대기 오염'],
 };
@@ -397,7 +397,7 @@ export function noteAction(text: string, merge?: string, toolId?: string): void 
 /** The figure each goal is judged by, to report what an action came to (label, as `metrics` names it). */
 const KEY_FIGURE: Record<GoalId, string> = {
   finance: '지난달 수지', growth: '인구', power: '여유', water: '여유', garbage: '못 치움', police: '범죄 (지난달)', fire: '지난달 화재',
-  health: 'HQ 평균 (0–200)', education: 'EQ 평균 (0–200)', traffic: '평균 통근', environment: '대기 오염', wealth: '부유층 주민',
+  health: '건강 지수 평균 (0–200)', education: '교육 지수 평균 (0–200)', traffic: '평균 통근', environment: '대기 오염', wealth: '부유층 주민',
 };
 /** Days after an action its result is told (a quarter: demand, crime and schooling take that long to move). */
 const FOLLOW_DAYS = 90;

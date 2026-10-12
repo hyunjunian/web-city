@@ -54,7 +54,7 @@ const GRAPHS: GraphDef[] = [
   { key: 'garbage', goal: 'garbage', title: '쓰레기 발생 (월, 재활용·조례 감축 전)', value: (h) => h.garbageProduced ?? 0, format: (v) => `${fmt(v)} t`, optional: true },
   { key: 'air', goal: 'environment', title: '대기 오염 (도시 평균)', value: (h) => h.air ?? 0, format: (v) => dec(v), optional: true, better: -1 },
   { key: 'waterPollution', goal: 'environment', title: '수질 오염 (도시 평균)', value: (h) => h.waterPollution ?? 0, format: (v) => dec(v), optional: true, better: -1 },
-  { key: 'eq', goal: 'education', title: '교육 지수 (EQ 평균)', value: (h) => h.eq ?? 0, format: (v) => v.toFixed(0), optional: true, better: 1 },
+  { key: 'eq', goal: 'education', title: '교육 지수 (평균)', value: (h) => h.eq ?? 0, format: (v) => v.toFixed(0), optional: true, better: 1 },
   { key: 'life', goal: 'health', title: '기대 수명', value: (h) => h.lifeExpectancy ?? 0, format: (v) => `${v.toFixed(0)}세`, optional: true, better: 1 },
   ...TRAFFIC.map(([k, title], i): GraphDef => ({
     key: `trips-${k}`, goal: 'traffic', title, value: (h) => h.trips?.[k] ?? 0, format: (v) => `${v < 10 ? dec(v) : fmt(v)}회/일`, group: i === 0 ? '교통량 (하루 통행)' : undefined, optional: true,

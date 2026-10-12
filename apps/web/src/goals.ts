@@ -80,13 +80,13 @@ export const GOALS: Record<GoalId, Goal> = {
     depts: [], facility: isKind((d) => d.fire),
   },
   health: {
-    name: '보건 (HQ)', icon: 'health', aim: '병원 정원과 반경을 넉넉히 해 건강 지수(HQ)와 수명을 올립니다.',
+    name: '보건', icon: 'health', aim: '병원 정원과 반경을 넉넉히 해 건강 지수(HQ)와 수명을 올립니다.',
     views: [['health', '병원 범위'], ['hq', '건강 지수'], ['air', '대기 오염']],
     tools: ['health'], ordinances: ['freeClinic', 'communityCpr'],
     depts: [], facility: isKind((d) => d.health),
   },
   education: {
-    name: '교육 (EQ)', icon: 'school', aim: '학교 정원과 반경을 넉넉히 해 교육 지수(EQ)를 올립니다: 고급 일자리와 부유층의 바탕.',
+    name: '교육', icon: 'school', aim: '학교 정원과 반경을 넉넉히 해 교육 지수(EQ)를 올립니다: 고급 일자리와 부유층의 바탕.',
     views: [['school', '학교 범위'], ['eq', '교육 지수'], ['age', '평균 나이']],
     tools: ['education'], ordinances: ['proReading'],
     depts: [], facility: isKind((d) => d.school),
