@@ -44,7 +44,7 @@ import {
 import {
   changeWind, computeSafetyFieldsSteps, ignite, igniteTree, monthlyIgnition, runCrimeSteps, stepFires, stepTreeFires, updateSafetyStrikes, type FireContext,
 } from './sim/safety';
-import { LANDFILL_ZONE, runGarbageSteps } from './sim/garbage';
+import { hasOperatingLandfill, hasOperatingLandfillSteps, LANDFILL_ZONE, runGarbageSteps } from './sim/garbage';
 import {
   civicEvent, computeMayor, mayorAt, ordinanceAvailable, ordinanceCost as ordinanceCostOf, ordinanceEffects,
   opinionPolls, riotCheck, stepMobs, taxMoodFor, updateTaxMood, type MayorFactors, type PollTopic,
@@ -1618,9 +1618,11 @@ export class City {
     return { ok: true, cost: due };
   }
 
-  /** Can this ordinance be enacted now (some need a building first)? */
+  /** Can this ordinance be enacted now (some need a building or a road-served landfill first)? */
   ordinanceAvailable(id: OrdinanceId): boolean {
-    return own(ORDINANCES, id) && ordinanceAvailable(this.state, this.cfg, id);
+    if (!own(ORDINANCES, id)) return false;
+    if (id === 'landfillGas') this.refreshIfDirty();
+    return ordinanceAvailable(this.state, this.cfg, id, id === 'landfillGas' && hasOperatingLandfill(this.state, this.fields, this.cfg));
   }
 
   /** Monthly cost of an ordinance at the current population (negative = income). */
@@ -2072,7 +2074,8 @@ export class City {
     const s = this.state;
     // An ordinance whose building is gone lapses (it would otherwise keep
     // working, often at no cost, with nothing to carry it out).
-    const lapsed = s.ordinances.filter((id) => !ordinanceAvailable(s, this.cfg, id));
+    const landfillOperating = s.ordinances.includes('landfillGas') && (yield* hasOperatingLandfillSteps(s, this.fields, this.cfg));
+    const lapsed = s.ordinances.filter((id) => !ordinanceAvailable(s, this.cfg, id, landfillOperating));
     if (lapsed.length) {
       s.ordinances = s.ordinances.filter((id) => !lapsed.includes(id));
       this.repealed.push(...lapsed);

@@ -107,6 +107,25 @@ describe('land value vs. wealth', () => {
 });
 
 describe('ordinances', () => {
+  it('landfill gas needs a landfill joined to the city, and lapses if the road is cut', () => {
+    const city = new City({ size: 32, water: false, config: { safety: { fires: false }, disasters: { simulated: false } } });
+    city.state.funds = 1_000_000;
+    city.placeStructure('gasPlant', 2, 2);
+    city.zone(20, 20, 23, 23, 'landfill');
+    expect(city.ordinanceAvailable('landfillGas')).toBe(false);
+    city.buildNetwork(19, 19, 19, 24, 'road'); // a road stub beside the landfill
+    expect(city.ordinanceAvailable('landfillGas')).toBe(false);
+    city.buildNetwork(1, 2, 1, 19, 'road');
+    city.buildNetwork(1, 19, 19, 19, 'road');
+    expect(city.ordinanceAvailable('landfillGas')).toBe(true);
+    expect(city.enactOrdinance('landfillGas').ok).toBe(true);
+    city.bulldoze(10, 19, 10, 19);
+    expect(city.ordinanceAvailable('landfillGas')).toBe(false);
+    city.step(30);
+    expect(city.state.ordinances).not.toContain('landfillGas');
+    expect(city.takeRepealedOrdinances()).toContain('landfillGas');
+  });
+
   it('gambling pays §100 a month and raises crime', () => {
     const city = town();
     expect(city.enactOrdinance('legalizeGambling').ok).toBe(true);

@@ -370,7 +370,7 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
   if (!Number.isInteger(saved.size) || saved.size < 8 || saved.size > MAX_SIZE) throw new Error('corrupt save: bad map size');
   const fits = (r: { x: number; y: number; w?: number; h?: number }, w: number, h: number) => [r.x, r.y, w, h].every(Number.isInteger)
     && w >= 1 && h >= 1 && w <= MAX_FOOTPRINT && h <= MAX_FOOTPRINT && r.x >= 0 && r.y >= 0 && r.x + w <= saved.size && r.y + h <= saved.size;
-  const whole = (v: unknown) => typeof v === 'number' && Number.isInteger(v) && v >= 0;
+  const whole = (v: unknown) => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
   if (typeof saved.name !== 'string') throw new Error('corrupt save: bad name');
   if (!whole(saved.day) || !whole(saved.seed) || !whole(saved.rngState)) throw new Error('corrupt save: bad day or seed');
   if (typeof saved.funds !== 'number' || !Number.isFinite(saved.funds)) throw new Error('corrupt save: bad funds');
@@ -381,6 +381,12 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
   }
   if (!Array.isArray(saved.structures)) throw new Error('corrupt save: no structures');
   if (saved.taxLog !== undefined && !Array.isArray(saved.taxLog)) throw new Error('corrupt save: bad tax log');
+  if (saved.loans !== undefined && !Array.isArray(saved.loans)) throw new Error('corrupt save: bad loans');
+  for (const loan of saved.loans ?? []) {
+    if (!loan || typeof loan.amount !== 'number' || !Number.isFinite(loan.amount) || loan.amount <= 0
+      || typeof loan.payment !== 'number' || !Number.isFinite(loan.payment) || loan.payment < 0
+      || !whole(loan.monthsLeft) || loan.monthsLeft < 1) throw new Error('corrupt save: bad loan');
+  }
   if (saved.buildingTable && (!Array.isArray(saved.buildingTable.rows) || !Array.isArray(saved.buildingTable.columns))) {
     throw new Error('corrupt save: bad building table');
   }

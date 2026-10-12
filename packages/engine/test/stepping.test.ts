@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { City, loadCity, saveCity, saveCitySteps } from '../src';
 describe('stepping in pieces', () => {
+  it('operational landfill checks have the same result during sliced and synchronous months', () => {
+    const config = { safety: { fires: false }, disasters: { simulated: false } };
+    const a = new City({ size: 32, water: false, config });
+    a.state.funds = 1_000_000;
+    a.placeStructure('gasPlant', 2, 2);
+    a.buildNetwork(1, 2, 1, 19, 'road');
+    a.buildNetwork(0, 19, 31, 19, 'road');
+    a.zone(1, 10, 10, 18, 'R-low');
+    a.zone(20, 20, 23, 23, 'landfill');
+    expect(a.enactOrdinance('landfillGas').ok).toBe(true);
+    const b = loadCity(saveCity(a), { config });
+    a.step(65);
+    b.beginSteps(65);
+    while (b.resume());
+    expect(b.state.ordinances).toContain('landfillGas');
+    expect(saveCity(b)).toEqual(saveCity(a));
+  });
+
   const edits: [string, (city: City) => unknown][] = [
     ['zoning', (c) => c.zone(20, 20, 25, 25, 'R-low')],
     ['roads', (c) => c.buildNetwork(20, 20, 28, 20, 'road')],

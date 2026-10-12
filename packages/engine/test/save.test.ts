@@ -167,6 +167,20 @@ describe('save/load', () => {
     expect(() => loadCity({ ...saved, structures: [facility, { ...facility, id: facility.id + 1, x: facility.x + 1 }] })).toThrow(/corrupt save/);
   });
 
+  it('rejects loan records that would corrupt funds or never finish', () => {
+    const city = new City({ size: 32, water: false });
+    city.takeLoan(50_000);
+    const saved = saveCity(city);
+    for (const bad of [{ amount: null }, { payment: null }, { payment: '100' }, { payment: Infinity }, { monthsLeft: 1.5 }, { monthsLeft: 1e100 }]) {
+      expect(() => loadCity({ ...saved, loans: [{ ...saved.loans![0]!, ...bad }] } as unknown as typeof saved)).toThrow(/corrupt save/);
+    }
+    expect(() => loadCity({ ...saved, day: 1e100 })).toThrow(/corrupt save/);
+    const good = loadCity(saved);
+    good.step(30);
+    expect(Number.isFinite(good.state.funds)).toBe(true);
+    expect(good.state.loans[0]!.monthsLeft).toBe(119);
+  });
+
   it('rejects malformed saves up front, and never reuses an id', () => {
     const city = new City({ size: 32, seed: 5, water: false });
     city.buildNetwork(0, 10, 31, 10, 'road');

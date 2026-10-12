@@ -57,8 +57,8 @@ export function ordinanceEffects(s: { ordinances: readonly OrdinanceId[] }): Ord
   return e;
 }
 
-/** Can the ordinance be enacted right now (some need a building first)? */
-export function ordinanceAvailable(s: CityState, cfg: SimConfig, id: OrdinanceId): boolean {
+/** Can the ordinance be enacted now? The caller supplies the landfill's road-service check. */
+export function ordinanceAvailable(s: CityState, cfg: SimConfig, id: OrdinanceId, landfillOperating = false): boolean {
   const req = (ORDINANCES[id] as OrdinanceDef).requires;
   if (!req) return true;
   const has = (pred: (k: string) => boolean) => [...s.structures.values()].some((st) => pred(st.kind));
@@ -68,7 +68,7 @@ export function ordinanceAvailable(s: CityState, cfg: SimConfig, id: OrdinanceId
     case 'clinic': return has((k) => k === 'medicalClinic');
     case 'library': return has((k) => k === 'localLibrary');
     case 'recycling': return has((k) => k === 'recyclingCenter');
-    case 'landfillAndGas': return s.zone.includes(10) && has((k) => k === 'gasPlant');
+    case 'landfillAndGas': return landfillOperating && has((k) => k === 'gasPlant');
     case 'transit': return has((k) => !!cfg.structures[k as keyof typeof cfg.structures].station);
   }
 }

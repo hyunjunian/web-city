@@ -3,6 +3,7 @@ import { City, loadCity, saveCity } from '../src';
 import { Rng } from '../src/rng';
 import { landfillRegions, landfillRegionsSteps, runGarbage } from '../src/sim/garbage';
 import { drain } from '../src/sim/steps';
+import { SPAN } from '../src/sim/state';
 
 /** Powered town with homes and industry; no garbage service yet. */
 function town(): City {
@@ -17,6 +18,25 @@ function town(): City {
 }
 
 describe('garbage', () => {
+  it('trucks cannot enter a landfill from a tunnel, but can from a low bridge', () => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    city.buildNetwork(0, 10, 31, 10, 'road');
+    city.placeStructure('gasPlant', 1, 11);
+    city.zone(20, 11, 23, 14, 'landfill');
+    for (let x = 20; x <= 23; x++) city.state.tunnel[10 * 32 + x] = SPAN.tunnel;
+    city.refresh();
+    const blocked = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(blocked.landfilled).toBe(0);
+    expect(blocked.landfillSpace).toBe(0);
+    expect(city.ordinanceAvailable('landfillGas')).toBe(false);
+    for (let x = 20; x <= 23; x++) city.state.tunnel[10 * 32 + x] = SPAN.lowBridge;
+    city.refresh();
+    const open = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(open.landfilled).toBeGreaterThan(0);
+    expect(city.ordinanceAvailable('landfillGas')).toBe(true);
+  });
+
   it('picks up reachable piles without shrinking piles on lots cut off from roads', () => {
     const city = new City({ size: 32, water: false });
     city.state.funds = 1_000_000;

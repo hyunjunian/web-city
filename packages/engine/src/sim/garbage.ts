@@ -7,7 +7,7 @@ import type { Rng } from '../rng';
 import { buildingAccess, footprint, frontage, type Fields } from './fields';
 import { ordinanceEffects } from './mayor';
 import { activeDeals } from './region';
-import { isLocalNet, type CityState, type GarbageStats, type Structure } from './state';
+import { atGrade, isLocalNet, type CityState, type GarbageStats, type Structure } from './state';
 import { drain } from './steps';
 
 export const LANDFILL_ZONE = 10;
@@ -66,7 +66,7 @@ export function* landfillRegionsSteps(s: CityState, f: Fields, served: ReadonlyS
       for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as const) {
         if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
         const j = ny * n + nx;
-        if (isLocalNet(s.net[j]!)) {
+        if (isLocalNet(s.net[j]!) && atGrade(s, j)) {
           touchesRoad = true;
           if (served.has(f.component[j]!)) connected = true;
         }
@@ -82,6 +82,37 @@ export function* landfillRegionsSteps(s: CityState, f: Fields, served: ReadonlyS
     out.push({ tiles: roadSide.concat(interior), connected });
   }
   return out;
+}
+
+/** A landfill that garbage trucks can reach from a producing lot or an existing pile. */
+export function hasOperatingLandfill(s: CityState, f: Fields, cfg: SimConfig): boolean {
+  return drain(hasOperatingLandfillSteps(s, f, cfg));
+}
+
+/** The operational check in pieces for monthly simulation work. */
+export function* hasOperatingLandfillSteps(s: CityState, f: Fields, cfg: SimConfig): Generator<void, boolean> {
+  if (!s.zone.includes(LANDFILL_ZONE)) return false;
+  const networks = new Set<number>();
+  const hasPile = (lot: { x: number; y: number; w: number; h: number }) => footprint(s, lot).some((i) => s.garbage[i]! > 0);
+  let piece = 0;
+  for (const b of s.buildings.values()) {
+    if ((++piece & 0x1ff) === 0) yield;
+    if (garbageOf(cfg, b) <= 0 && !hasPile(b)) continue;
+    const road = buildingAccess(s, f, b).road;
+    if (road >= 0) networks.add(f.component[road]!);
+  }
+  for (const st of s.structures.values()) {
+    if ((++piece & 0x1ff) === 0) yield;
+    if (cfg.structures[st.kind].garbage <= 0 && !hasPile(st)) continue;
+    for (const road of frontage(s, st)) networks.add(f.component[road]!);
+  }
+  for (let i = 0; i < s.garbage.length; i++) {
+    if ((i & 0x7fff) === 0x7fff) yield;
+    if (s.garbage[i]! > 0 && s.occupant[i] === 0 && f.access[i]! >= 0) networks.add(f.component[f.access[i]!]!);
+  }
+  if (!networks.size) return false;
+  const landfills = yield* landfillRegionsSteps(s, f, networks);
+  return landfills.some((landfill) => landfill.connected);
 }
 
 /**

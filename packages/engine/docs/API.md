@@ -133,7 +133,7 @@ Pays a loan off early (our own addition; the balance is the remaining principal)
 
 ### `ordinanceAvailable(id: OrdinanceId): boolean`
 
-Can this ordinance be enacted now (some need a building first)?
+Can this ordinance be enacted now (some need a building or a road-served landfill first)?
 
 ### `ordinanceCost(id: OrdinanceId): number`
 
