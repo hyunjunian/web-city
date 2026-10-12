@@ -239,7 +239,10 @@ function guideHtml(id: GoalId): string {
     const short = st.sub.startsWith('자금 부족');
     // A jail serves no area: the mark (a gap in police cover) is a station's place, not its.
     const arealess = !!st.build && STRUCTURES[st.build].police?.radius === 0;
-    const site = st.kind === 'best' && st.site && spot && !spot.crowded && !arealess && (SERVICE_SITE.has(id) || id === 'power' || id === 'water');
+    const mark = st.kind === 'best' && st.site && spot && !spot.crowded && !arealess && (SERVICE_SITE.has(id) || id === 'power' || id === 'water');
+    // The mark was checked for the goal's cheapest facility: the one recommended may be bigger. Where it doesn't
+    // fit (or can't be built now), the nearest place it does, within 6 tiles.
+    const site = mark && (!st.build || !!siteNear(st.build, spot.x, spot.y, 0));
     // No site on the map's mark: one of the facility's own. Beside a school or hospital over its places, room
     // for the one recommended (the mark was found for the one that would relieve it, often smaller); a park
     // for the cap does anywhere, so the free ground nearest the homes (the land was all zoned, and 해 보기 left
@@ -249,6 +252,7 @@ function guideHtml(id: GoalId): string {
     const what = id === 'education' ? '학교' : '병원';
     const one = (at: [number, number] | null, title: string) => (at ? { at: [at], title, labels: [] as string[] } : null);
     const own = site || !st.build ? null
+      : mark ? one(siteNear(st.build, spot.x, spot.y, 6), `지도의 과녁(${SPOT_WORD[id] ?? ''}) 가까이, 길가 빈 땅에 바로 짓기`)
       : arealess ? one(siteAwayFromHomes(st.build), '주거지에서 떨어진 길가 빈 땅에 바로 짓기')
       : spot?.crowded && st.kind === 'best' ? one(siteNear(st.build, spot.x, spot.y), `넘치는 ${what} 가까이, 길가 빈 땅에 바로 짓기`)
       : st.anywhere ? one(siteNearHomes(st.build), '주거지에서 가장 가까운 길가 빈 땅에 바로 짓기')
