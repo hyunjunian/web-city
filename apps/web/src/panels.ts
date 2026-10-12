@@ -2,7 +2,7 @@
 
 import { DEV_TYPES, GROWTH_CODES, STRUCTURES, ZONES, type PollTopic, type StructureKind } from '@web-city/engine';
 import { icon } from './icons';
-import { chooseSpeed, refreshTaxes, showOverlay } from './controls';
+import { chooseSpeed, refreshTaxes, refreshViewSummary, showOverlay } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
 import { capped as atCap, deptEmpty, deptFunded, newReadings, readStats } from './readings';
 import { active, autoPause, openGoal, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
@@ -15,7 +15,7 @@ import { renderNeighbours } from './region';
 import { TYPE_COLOR } from './render';
 import { GROWTH_LABEL } from './views';
 import { checkLeft, checkText, renderAges, renderPolls, renderRewards, rewardShare } from './reports';
-import { centerOn, changeKey, city, cityGeneration, graphs, redraw, speed } from './state';
+import { centerOn, changeKey, city, cityGeneration, graphs, overlay, redraw, speed } from './state';
 import { categoryOf, chosen, openTray, pickStructure, refreshStructureLists, selectTool, structureStat, TOOLS } from './tools';
 import { renderUdi, watchMissions } from './udi';
 import { journal, type Notice } from './journal';
@@ -331,6 +331,8 @@ let impeachedCity: unknown = null;
 export function updatePanels(): void {
   newReadings();
   refreshInfo();
+  // (The view's count too: paused, a pipe laid from the guide left "끊긴 건물 65채" under the legend until time ran.)
+  if (overlay.kind !== 'none' && !city.stepping) refreshViewSummary();
   const st = city.stats();
   if (st.impeached && impeachedCity !== city) {
     impeachedCity = city;

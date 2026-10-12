@@ -17,7 +17,7 @@ import { abandonHint, capBest, capHint, jobHint, pushNotice, rciMini, updatePane
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, flightCount, glideTo, graphs, redraw, renderer, setHover, speed, stopFlight } from './state';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
-import { toast } from './toast';
+import { dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
@@ -780,6 +780,9 @@ function showGoalView(id: GoalId, view: string): void {
 export function openGoal(id: GoalId, at?: [number, number], fromMap = false): void {
   const fresh = !active;
   const changed = active !== id;
+  // Its notice ("수도: 단수 69곳 · 살펴보기") has done its job once the screen is open: on a phone it stayed over the
+  // map where the fix was then laid. (The clock's own buttons, and the screen's 멈춤, still start time again.)
+  dropToasts(`${GOALS[id].name}: `);
   if (changed) {
     if (!active) {
       viewBefore = currentView();
