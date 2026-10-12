@@ -1005,6 +1005,16 @@ export function setupInput(): void {
 
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   canvas.addEventListener('pointerdown', (e) => {
+    // An edge marker pressed (a target out of view): the map goes to the target, nothing else.
+    if (e.button === 0 && pointers.size === 0) {
+      const [ex, ey] = pos(e);
+      const edge = renderer.edgeMarks.find((m) => Math.hypot(m.x - ex, m.y - ey) <= m.r + 8);
+      if (edge) {
+        e.preventDefault();
+        centerOn(Math.floor(edge.tx), Math.floor(edge.ty), 0);
+        return;
+      }
+    }
     pointerAt = { x: e.clientX, y: e.clientY, touch: e.pointerType === 'touch' };
     { const [qx, qy] = pos(e); pressedAt = [cam.x + qx / cam.scale, cam.y + qy / cam.scale]; }
     stopFlight();

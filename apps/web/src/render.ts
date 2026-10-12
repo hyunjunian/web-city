@@ -415,6 +415,8 @@ export class Renderer {
   marks: { x: number; y: number; w: number; h: number; tone: '' | 'warn' | 'bad' | 'spot' | 'area'; label?: string; hot?: boolean }[] = [];
   /** A line the guide offers to lay (tile by tile), drawn dashed between its two targets before it is laid. */
   guidePath: [number, number][] | null = null;
+  /** Edge markers drawn for targets out of view: where (CSS pixels on the canvas) and the tile they point to. */
+  edgeMarks: { x: number; y: number; r: number; tx: number; ty: number }[] = [];
   /** A road in hand on a town not yet joined to its neighbours: the map's edge is where it should reach. */
   edgeHint = false;
   /** Where the keyboard's build cursor is (set by the arrows; a mouse moving takes it away). */
@@ -1937,6 +1939,7 @@ export class Renderer {
       ctx.lineJoin = 'miter'; // (the facility outlines after it keep their square corners)
     }
 
+    if (!this.marks.length) this.edgeMarks = [];
     if (this.marks.length) {
       const pad = 0.35;
       const u = this.dpr / sc; // one CSS pixel, in tiles (the same on a phone's dense screen)
@@ -1999,6 +2002,37 @@ export class Renderer {
         ctx.strokeRect(m.x - pad, m.y - pad, m.w + 2 * pad, m.h + 2 * pad);
       }
       ctx.setLineDash([]);
+      // A target out of view: a marker at the edge pointing to it (a build button hovered lit nothing the eye could
+      // find). Inset from the edges, clear of the tool bar and the corners' panels.
+      // (Below the tool bar, the view's legend and the minimap, which take the top corners; above the hint bar.)
+      const [left, top, right, bottom] = [cam.x + 36 * u, cam.y + 250 * u, cam.x + W / sc - 36 * u, cam.y + H / sc - 96 * u];
+      this.edgeMarks = [];
+      for (const m of this.marks) {
+        if (m.tone !== 'spot') continue;
+        const [cx, cy] = [m.x + m.w / 2, m.y + m.h / 2];
+        if (cx >= left && cx <= right && cy >= top && cy <= bottom) continue;
+        const [px, py] = [Math.min(right, Math.max(left, cx)), Math.min(bottom, Math.max(top, cy))];
+        const len = Math.hypot(cx - px, cy - py) || 1;
+        const [dx, dy] = [(cx - px) / len, (cy - py) / len];
+        const r = (m.hot ? 13 : 11) * u;
+        this.edgeMarks.push({ x: (px - cam.x) * cam.scale, y: (py - cam.y) * cam.scale, r: r / u, tx: cx, ty: cy });
+        ctx.beginPath();
+        ctx.arc(px, py, r + 2 * u, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fillStyle = m.hot ? '#1d5bd6' : '#2f6fe0';
+        ctx.fill();
+        // The arrow: a chevron along the way to the target.
+        ctx.beginPath();
+        ctx.moveTo(px + dx * r * 0.6, py + dy * r * 0.6);
+        ctx.lineTo(px - dx * r * 0.35 - dy * r * 0.45, py - dy * r * 0.35 + dx * r * 0.45);
+        ctx.lineTo(px - dx * r * 0.35 + dy * r * 0.45, py - dy * r * 0.35 - dx * r * 0.45);
+        ctx.closePath();
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+      }
     }
 
     if (selected) {
