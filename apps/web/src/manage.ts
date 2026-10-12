@@ -185,6 +185,8 @@ const RISK_OF: Record<string, string> = {
   potholes: '포트홀이 늘면 길이 느려지고 통근이 길어집니다',
   policeStrike: '파업 중에는 순찰과 체포가 크게 줄어 범죄가 늘어납니다',
   fireStrike: '파업 중에는 불을 끄는 힘이 크게 줄어 불이 번집니다',
+  plantOld: '수명이 다한 발전소는 폭발해 둘레를 태웁니다',
+  plantUnprotected: '불이 나면 발전소가 폭발해 둘레까지 부숩니다',
 };
 
 const RISK: Record<GoalId, string> = {
