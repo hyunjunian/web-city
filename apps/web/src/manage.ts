@@ -312,7 +312,7 @@ function guideHtml(id: GoalId): string {
     // The zone the growth screen wants next (homes, shops, or work for the jobless): a block where it can go, laid in
     // one press (해 보기 handed the zone tool and left the block to be found).
     const zone = !own && !site && !fill && st.kind === 'best' && (st.act === 'R-low' || st.act === 'C-low' || st.act === 'I-medium') && placedMonth.get(st.act) !== month ? st.act : null;
-    const block0 = zone ? zoneSite(zone) : null;
+    const block0 = zone ? zoneSite(zone, st.near) : null;
     const blockCost = block0 && zone ? city.previewZone(block0.x0, block0.y0, block0.x1, block0.y1, zone).cost : 0;
     const block = block0 && blockCost <= city.state.funds ? block0 : null;
     if (block) guideSite = { id, sites: [{ at: [block.x0 + (block.side >> 1), block.y0 + (block.side >> 1)], label: `추천 자리 · ${st.what} ${block.side}×${block.side}` }], rect: [block.x0, block.y0, block.side, block.side] };
@@ -362,6 +362,8 @@ interface GuideStep {
   /** The trouble it mends, when not the card's worst (buildings about to be lost): the headline, and its risk line. */
   said?: string;
   riskCode?: string;
+  /** Where its block is wanted (beside the homes it is for), when not where its kind already is. */
+  near?: [number, number];
 }
 
 
@@ -423,9 +425,12 @@ function goalStep(id: GoalId): GuideStep {
     const name = best.querySelector<HTMLElement>('.act-name');
     const sub = best.querySelector('.act-sub')?.textContent?.trim() ?? '';
     const fx = best.querySelector('.act-fx')?.textContent?.trim() ?? '';
-    return { kind: 'best' as const, fixAct: '', act: best.dataset.act ?? '', what: name?.textContent?.trim() ?? '',
+    const step: GuideStep = { kind: 'best' as const, fixAct: '', act: best.dataset.act ?? '', what: name?.textContent?.trim() ?? '',
       why: fx || sub, glyph: name?.querySelector('.i, .swatch, .pick-swatch')?.outerHTML ?? '', sub, fx, site: !!best.dataset.kind,
       build: best.dataset.kind as StructureKind | undefined, fin: best.dataset.mgFin };
+    // Homes about to be left for want of work, when work is the list's own pick: said as that, the block beside them.
+    const jobs = risk && (step.act === 'C-low' || step.act === 'I-medium') ? jobRisk(risk) : null;
+    return jobs ? { ...step, said: firstSentence(adviceText(risk!)), riskCode: 'atRisk', near: jobs.at, why: `일자리를 못 구한 집이 ${jobs.left}: 가까이에 일터 구역을 내면 됩니다` } : step;
   }
   // A budget that ends the trouble (worn lines, a strike) before a tool for something said after it.
   const lead = adviceFor(id).find((x) => x.level !== 'good' && (adviceTool(x.code) || BUDGET_FIX[x.code]));
@@ -503,6 +508,19 @@ function rescueStep(a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
   }
   const road = roadToFacility(b, 'b');
   return road ? layStep('road', road, `도로가 끊긴 건물이 ${left}: 가장 가까운 도로까지 이으면 됩니다`) : null;
+}
+
+/** The building at risk the advice names, when its countdown furthest along is for want of work: where, and months left. */
+function jobRisk(a: ReturnType<typeof adviceFor>[number]): { at: [number, number]; left: string } | null {
+  const b = a.at ? city.query(a.at[0], a.at[1])?.building : undefined;
+  if (!b?.type || !b.noJobMonths) return null;
+  const c = city.cfg;
+  const lim = c.transport.noJobMonths;
+  if (b.noJobMonths < lim * 0.5) return null;
+  // (Only when work is what ends it soonest: power, water or a road have their own rescue.)
+  const sooner = ([[b.noPowerMonths, c.services.noPowerMonths], [b.noWaterMonths, c.services.noWaterMonths], [b.noRoadMonths, c.development.noRoadMonths]] as const)
+    .some(([m, l]) => m > 0 && l - m < lim - b.noJobMonths);
+  return sooner ? null : { at: [b.x, b.y], left: `${lim - b.noJobMonths}개월 뒤 버려집니다` };
 }
 
 /**
@@ -1165,7 +1183,10 @@ function buildActions(g: Goal): string {
     const top = pool.reduce((a, b) => (want(b) > want(a) ? b : a));
     if (want(top) >= 100) {
       zoneNext = top;
-      zoneWhy = jobless ? `실업 ${Math.round((sum(st.unemployed) / st.population) * 100)}%: 일터부터 내 주세요` : `수요가 가장 높습니다: 낮은 밀도부터`;
+      // (A share of those who work, as the advisor counts it: of all residents it said 5% under its 10%.)
+      const labour = sum(city.census.workers);
+      const rate = labour > 0 ? sum(city.census.unemployed) / labour : sum(st.unemployed) / Math.max(1, st.population);
+      zoneWhy = jobless ? `실업 ${Math.round(rate * 100)}%: 일터부터 내 주세요` : `수요가 가장 높습니다: 낮은 밀도부터`;
     }
   }
   const g2 = st.garbage;

@@ -1100,13 +1100,14 @@ export function landfillSite(): { x0: number; y0: number; x1: number; y1: number
  * with a road along it, shops by the homes, homes and factories each kept 6 tiles from the other's zones, nearest
  * to where that kind (or, for a first one, the homes) already is; its corners, or null.
  */
-export function zoneSite(zone: 'R-low' | 'C-low' | 'I-medium'): { x0: number; y0: number; x1: number; y1: number; side: number } | null {
-  const key = `zone|${zone}|${siteKey()}`;
+export function zoneSite(zone: 'R-low' | 'C-low' | 'I-medium', near?: readonly [number, number]): { x0: number; y0: number; x1: number; y1: number; side: number } | null {
+  const key = `zone|${zone}|${near?.join(',') ?? ''}|${siteKey()}`;
   if (zoneMemo?.key === key) return zoneMemo.at;
   const cls = zone[0]!;
   const has = (c: string) => (b: Building) => b.type?.[0] === c && b.type !== 'IA'; // (farms are not industry)
   const homes = [...city.state.buildings.values()].some(has('R'));
-  const [ax, ay] = centroid(cls === 'C' || !([...city.state.buildings.values()].some(has(cls))) ? (homes ? has('R') : has(cls)) : has(cls));
+  // (Near a given place when there is one: work for homes about to be left for want of it.)
+  const [ax, ay] = near ?? centroid(cls === 'C' || !([...city.state.buildings.values()].some(has(cls))) ? (homes ? has('R') : has(cls)) : has(cls));
   // (Homes and shops clear of a landfill too: it spoils them out to 32 tiles.)
   const avoid = cls === 'I' ? (z: number) => z >= 1 && z <= 3 : cls === 'R' ? (z: number) => z === 7 || z === 8 || z === 10 : (z: number) => z === 10;
   let at: { x0: number; y0: number; x1: number; y1: number; side: number } | null = null;
