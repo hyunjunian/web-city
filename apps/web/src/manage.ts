@@ -21,7 +21,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type AirSource, airSources, edgeRoad, smokeClear, type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type AirSource, airSources, edgeRoad, fillSpan, smokeClear, type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -308,7 +308,9 @@ function guideHtml(id: GoalId): string {
         const pair = stopPair(st.build!);
         return pair ? { at: pair, title: '주민이 가장 많은 곳과 일자리가 가장 많은 곳의 길가에 하나씩 바로 짓기', labels: ['집 쪽', '일터 쪽'] } : null;
       })() : null;
-    const siteTitle = `지도의 과녁(${SPOT_WORD[id] ?? ''})에 바로 짓기`;
+    // (A station's spot is where those it misses gather, not on them: "과녁(경찰이 닿지 않는 건물)에 짓기" read as building
+    // on the buildings.)
+    const siteTitle = SERVICE_SITE.has(id) ? `지도의 과녁에 바로 짓기: ${SPOT_WORD[id]}${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 가까이` : `지도의 과녁(${SPOT_WORD[id] ?? ''})에 바로 짓기`;
     // What the press does: an ordinance or a finance lever takes effect at once (해 보기 sounded like a tool to try).
     const go = st.kind === 'ord' ? '시행하기' : st.fin === 'loan' ? '빌리기' : st.fin || st.kind === 'budget' ? '적용하기' : '해 보기';
     if (own) guideSite = { id, sites: own.at.map((at, k) => ({ at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}${own.labels[k] ? ` (${own.labels[k]})` : ''}` })) };
@@ -340,7 +342,7 @@ function guideHtml(id: GoalId): string {
       <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>${go}</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
         : own ? `<button type="button" class="g-site" data-spot-build="${own.at.map((at) => at.join(',')).join(';')}" data-build-kind="${st.build}" title="${own.title}">${icon('target')}추천 자리에 ${own.at.length > 1 ? `${own.at.length}곳 ` : ''}짓기</button>`
         : block && zone ? `<button type="button" class="g-site" data-zone="${block.x0},${block.y0},${block.x1},${block.y1}" data-zone-kind="${zone}" title="${escapeHtml(st.what)} 구역 ${block.side}×${block.side}을 도로에 닿는 빈 땅에 바로 놓기 · §${fmt(blockCost)}">${icon('target')}추천 자리에 ${block.side}×${block.side} 놓기</button>`
-        : fill ? `<button type="button" class="g-site" data-landfill="${fill.x0},${fill.y0},${fill.x1},${fill.y1}" title="1년쯤의 쓰레기를 묻을 크기로, 도로에 닿고 주거·상업에서 떨어진 빈 땅에 바로 놓기 · §${fmt(fill.cost)} · 월 §${fmt(fill.side * fill.side * city.cfg.garbage.landfill.upkeep)}">${icon('target')}추천 자리에 ${fill.side}×${fill.side} 놓기</button>` : ''}</div></div>`;
+        : fill ? `<button type="button" class="g-site" data-landfill="${fill.x0},${fill.y0},${fill.x1},${fill.y1}" title="${fillSpan(fill.months) ? `${fillSpan(fill.months)}의 쓰레기를 묻을 크기로, ` : ''}도로에 닿고 주거·상업에서 떨어진 빈 땅에 바로 놓기 · §${fmt(fill.cost)} · 월 §${fmt(fill.side * fill.side * city.cfg.garbage.landfill.upkeep)}">${icon('target')}추천 자리에 ${fill.side}×${fill.side} 놓기</button>` : ''}</div></div>`;
   }
   const p = journal().pending[id];
   const wait = p ? `<p class="g-wait">${icon('check')}<span>${escapeHtml(p.text)} · ${Math.max(1, FOLLOW_DAYS - (city.state.day - p.day))}일 뒤 결과를 알려 드립니다</span></p>` : '';
@@ -1298,7 +1300,7 @@ function buildActions(g: Goal): string {
       // incinerator's and recycling centre's priced cards.)
       const lf = city.cfg.garbage.landfill;
       const fill = t.id === 'landfill' ? landfillSite() : null;
-      const fillSub = t.id === 'landfill' ? `§${fmt(lf.zoneCost)}/칸 · 월 §${fmt(lf.upkeep)}/칸${fill ? ` · 1년치 ${fill.side}×${fill.side}` : ''}` : '';
+      const fillSub = t.id === 'landfill' ? `§${fmt(lf.zoneCost)}/칸 · 월 §${fmt(lf.upkeep)}/칸${fill ? ` · ${fillSpan(fill.months) ? `${fillSpan(fill.months)} ` : ''}${fill.side}×${fill.side}` : ''}` : '';
       // Nothing to say beside its name (roads, rail, trees): a compact chip, three to a row.
       // (A zone nobody wants just now says so in its title.)
       const chip = (want === null || want < 1) && !line && t.kind !== 'dispatch' && !fillSub;

@@ -140,6 +140,17 @@ export function centerOn(x: number, y: number, minScale = 8, band?: Band): void 
   requestAnimationFrame(step);
 }
 let flights = 0;
+
+/**
+ * Blinks a rectangle twice once the map has flown there (centerOn takes 350ms): a flash at the press was over before
+ * the flight ended, and what was found went unmarked.
+ */
+export function blinkAt(x: number, y: number, w = 1, h = 1): void {
+  for (const t of [380, 720]) setTimeout(() => {
+    renderer.effect('flash', x, y, w, h);
+    redraw();
+  }, t);
+}
 /** Counts camera flights (one started since another reads a different number). */
 export const flightCount = (): number => flights;
 

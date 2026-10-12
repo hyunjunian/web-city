@@ -338,11 +338,14 @@ function goalMetrics(id: GoalId): Metric[] {
         }
         return dryCount;
       };
+      const thirsty = () => [...s.buildings.values()].some((b) => b.type && !b.watered && b.stage > city.cfg.services.waterStageCap[b.type]);
       const spare = w.supply - w.demand;
       return [['수요', `${fmt(w.demand)} m³`, '', w.demand, 0], ['공급', `${fmt(w.supply)} m³`, '', w.supply, 1],
         ['여유', `${spare < 0 ? '−' : ''}${fmt(Math.abs(spare))} m³`, spare < 0 ? 'bad' : spare < w.demand * 0.15 ? 'warn' : 'good', spare, 1],
         // (With no water at all there are no "shortages" yet: the buildings going without are the count.)
-        ...(w.supply <= 0 && dry() ? [['물 없는 건물', `${fmt(dry())}채`, 'bad', dry(), -1] as Metric] : [['단수', w.shortages ? `${fmt(w.shortages)}곳` : '없음', w.shortages ? 'bad' : '', w.shortages, -1] as Metric]), ['수도 시설', `${list.length}곳`, '', list.length, 0]];
+        // (Red as the row is: from 3,000 people, and only with some of them past the stage that needs water — the view
+        // beside it said 아직은 물 없이 자라는 단계 under a red figure.)
+        ...(w.supply <= 0 && dry() ? [['물 없는 건물', `${fmt(dry())}채`, st.population > 3000 && thirsty() ? 'bad' : 'warn', dry(), -1] as Metric] : [['단수', w.shortages ? `${fmt(w.shortages)}곳` : '없음', w.shortages ? 'bad' : '', w.shortages, -1] as Metric]), ['수도 시설', `${list.length}곳`, '', list.length, 0]];
     }
     case 'garbage': {
       const g = st.garbage;
@@ -393,7 +396,7 @@ function goalMetrics(id: GoalId): Metric[] {
       const parks = [...s.structures.values()].filter((x) => STRUCTURES[x.kind].category === 'park').length;
       const homes = smoggyHomes();
       return [['대기 오염', h?.air !== undefined ? h.air.toFixed(0) : '—', (h?.air ?? 0) > 40 && homes > 0 ? 'warn' : '', h?.air !== undefined ? Math.round(h.air) : undefined, -1],
-        ['공기 나쁜 주거지', `${fmt(homes)}칸`, homes > 0 && (h?.air ?? 0) > 40 ? 'warn' : '', homes, -1, '대기 오염이 40을 넘는 주거 구역 칸 · 공장·발전소·막히는 길 가까이에서 생깁니다'],
+        ['공기 나쁜 주거지', `${fmt(homes)}칸`, homes > 0 && (h?.air ?? 0) > 40 ? 'warn' : '', homes, -1, '대기 오염이 40을 넘는 주거 구역 칸 · 공장·발전소·차가 많은 길 가까이에서 생깁니다'],
         ['수질 오염', h?.waterPollution !== undefined ? h.waterPollution.toFixed(0) : '—', '', h?.waterPollution !== undefined ? Math.round(h.waterPollution) : undefined, -1],
         ['공원', `${parks}곳`, '', parks, 1], ['시장 평점', String(st.mayorRating), st.mayorRating < 0 ? 'bad' : '', st.mayorRating, 1]];
     }
@@ -631,13 +634,13 @@ function smoggyHomes(): number {
  * is short; or null.
  */
 export function edgeRoad(kind: 'road' | 'avenue' = 'road'): { path: [number, number][]; short: boolean; cost: number } | null {
-  const key = `${kind}|${changeKey()}|${Math.floor(city.state.funds / 100)}`;
-  if (edgeMemo?.key === key) return edgeMemo.at;
-  const at = findEdgeRoad(kind);
-  edgeMemo = { key, at };
-  return at;
+  const key = `${kind}|${changeKey()}`;
+  if (edgeMemo?.key !== key) edgeMemo = { key, at: findEdgeRoad(kind) };
+  // (Short of money said against the funds now: kept with the route, 자금 부족 stayed up a week after it was there.)
+  const at = edgeMemo.at;
+  return at ? { ...at, short: at.cost > city.state.funds } : null;
 }
-let edgeMemo: { key: string; at: { path: [number, number][]; short: boolean; cost: number } | null } | null = null;
+let edgeMemo: { key: string; at: { path: [number, number][]; cost: number } | null } | null = null;
 
 /**
  * Is the town's own road network joined to a neighbour: a road or avenue at the map's edge, or a highway there that a
@@ -673,7 +676,7 @@ export function roadLinked(): boolean {
 }
 let linkMemo: { key: string; on: boolean } | null = null;
 
-function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; short: boolean; cost: number } | null {
+function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; cost: number } | null {
   if (roadLinked()) return null;
   const n = city.size;
   const net = city.state.net;
@@ -714,7 +717,7 @@ function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; shor
   }
   // The cheapest the tool takes, money short or not (it is said); the nearest few dozen asked, nearest first.
   tries.sort((a, b) => a.rank - b.rank);
-  let best: { t: Try; cost: number; short: boolean } | null = null;
+  let best: { t: Try; cost: number } | null = null;
   let asked = 0;
   for (const t of tries) {
     if (asked >= 60 || (best && t.rank > best.t.rank * 2 + 8)) break;
@@ -722,7 +725,7 @@ function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; shor
     const p = city.previewNetwork(t.from[0], t.from[1], t.to[0], t.to[1], kind);
     const short = !p.ok && p.message === 'not enough funds';
     if (!p.ok && !short) continue;
-    if (!best || p.cost < best.cost) best = { t, cost: p.cost, short };
+    if (!best || p.cost < best.cost) best = { t, cost: p.cost };
   }
   if (!best) return null;
   const { from, to } = best.t;
@@ -732,7 +735,7 @@ function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; shor
     path.push([x, y]);
     if (x === to[0] && y === to[1]) break;
   }
-  return { path, short: best.short, cost: best.cost };
+  return { path, cost: best.cost };
 }
 
 /** A kind of source of the air over the smoggy homes: its share of it, how many there are, and the worst one (to go to). */
@@ -1596,7 +1599,7 @@ let awayMemo: { key: string; at: [number, number] | null } | null = null;
  * (no building, network or zone) with a road along it, near the industry and with no homes or shops within 10
  * tiles (its smell carries; within 6 if nothing is that far); its corners, tiles and price, or null if none.
  */
-export function landfillSite(): { x0: number; y0: number; x1: number; y1: number; side: number; cost: number } | null {
+export function landfillSite(): { x0: number; y0: number; x1: number; y1: number; side: number; cost: number; months: number } | null {
   const key = `landfill|${siteKey()}`;
   if (fillMemo?.key === key) return fillMemo.at;
   const lf = city.cfg.garbage.landfill;
@@ -1606,9 +1609,12 @@ export function landfillSite(): { x0: number; y0: number; x1: number; y1: number
   const buried = Math.max(0, (g.kept || g.produced - g.recycled) - g.incinerated - (g.exported ?? 0));
   const side = Math.max(4, Math.min(10, Math.ceil(Math.sqrt((buried * 12) / lf.tileCapacity))));
   const cost = side * side * lf.zoneCost; // (the caller checks it against the funds: a loan since would not show here)
+  // (How long it holds, said as that: kept from 4×4 to 10×10, a big city's square held six months under 1년치.)
+  // (Under a ton a month — an incinerator burning the rest — it holds for good: said as nothing, not as a trillion years.)
+  const months = buried >= 1 ? Math.floor((side * side * lf.tileCapacity) / buried) : 0;
   const [ax, ay] = centroid((b) => b.type?.[0] === 'I' && b.type !== 'IA');
   const sq = squareSite(side, ax, ay, (z) => z >= 1 && z <= 6, [10, 6]); // (homes and shops: R and C zones)
-  const at = sq ? { ...sq, side, cost } : null;
+  const at = sq ? { ...sq, side, cost, months } : null;
   fillMemo = { key, at };
   return at;
 }
@@ -1619,6 +1625,11 @@ export function landfillSite(): { x0: number; y0: number; x1: number; y1: number
  * to where that kind (or, for a first one, the homes) already is; its corners, or null.
  * (Any density: only low density takes a volcano's slope.)
  */
+/** How long a landfill holds, in words: N년치 or N개월치 ('' with nothing buried, or past ten years: then it doesn't matter). */
+export function fillSpan(months: number): string {
+  return months > 120 ? '' : months >= 24 ? `${Math.floor(months / 12)}년치` : months >= 12 ? '1년치' : months > 0 ? `${months}개월치` : '';
+}
+
 export function zoneSite(zone: Exclude<ZoneKind, 'none' | 'landfill'>, near?: readonly [number, number]): { x0: number; y0: number; x1: number; y1: number; side: number } | null {
   const key = `zone|${zone}|${near?.join(',') ?? ''}|${siteKey()}`;
   if (zoneMemo?.key === key) return zoneMemo.at;
@@ -1840,8 +1851,16 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
   if (spotMemo?.key === key) return spotMemo.spot;
   // A school or hospital on strike or far over its places: the new one goes beside it, to take some of
   // its load (built where homes were out of reach, a school a month went up and the strike went on).
+  // (Still standing there and still over, read from the map: the advice can be a week behind an edit, and a school
+  // pulled down left its "beside the full school" over empty ground.)
+  const stillOver = (at: readonly [number, number]) => {
+    const occ = city.state.occupant[at[1] * city.size + at[0]]!;
+    const st = occ < 0 ? city.state.structures.get(-occ) : undefined;
+    const d = st ? STRUCTURES[st.kind] : undefined;
+    return !!st && !!(d?.school || d?.health) && (!!st.strike || st.load > st.capacity);
+  };
   const over = id === 'education' || id === 'health'
-    ? adviceFor(id).find((a) => a.at && ['schoolStrike', 'hospitalStrike', 'schoolFull', 'hospitalFull'].includes(a.code)) : undefined;
+    ? adviceFor(id).find((a) => a.at && ['schoolStrike', 'hospitalStrike', 'schoolFull', 'hospitalFull'].includes(a.code) && stillOver(a.at)) : undefined;
   const kind = over ? relieverFor(over.at!) ?? cheapestOf(GOALS[id]) : null;
   // (The nearest site beside a full one where its reliever fits, with a road.)
   // (With where the full one stands, so a site for another level or class is not put beside it.)
@@ -1983,11 +2002,11 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
       spot = { x: at[0], y: at[1], tiles: hits[best]!, ...(lit ? { lit } : {}), ...(blds ? { blds } : {}), ...(plants ? { plants } : {}) };
     }
   }
-  // Every home in reach but the places short (a school level, or the hospitals, past their places): beside the fullest
-  // of them, as a full one the advisor names is (학교 정원의 104% · 넘침 had nowhere to build).
+  // Every home in reach but the places short (a school, or a hospital, past its places): beside the fullest of them,
+  // as a full one the advisor names is (학교 정원의 104% · 넘침 had nowhere to build). Of any level, a new one of its
+  // own beside it: only the level shortest of places overall missed a primary school at 120% beside half-empty ones.
   if (!spot && (id === 'education' || id === 'health')) {
-    const lvl = id === 'education' ? levelShort() : null;
-    const ward = (k: StructureKind) => (id === 'education' ? STRUCTURES[k].school?.curve === lvl?.curve : (STRUCTURES[k].health?.radius ?? Infinity) < 300);
+    const ward = (k: StructureKind) => ((id === 'education' ? STRUCTURES[k].school?.radius : STRUCTURES[k].health?.radius) ?? Infinity) < 300;
     const full = facilities(GOALS[id]).filter((f) => f.capacity > 0 && f.load > f.capacity && ward(f.kind)).sort((a, b) => b.load / b.capacity - a.load / a.capacity)[0];
     const k = full ? relieverFor([full.x, full.y]) : null;
     if (full && k) spot = beside([full.x, full.y], k);

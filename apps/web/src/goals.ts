@@ -92,7 +92,7 @@ export const GOALS: Record<GoalId, Goal> = {
     depts: [], facility: isKind((d) => d.school),
   },
   traffic: {
-    name: '교통', icon: 'route', aim: '막히는 길을 넓히거나 대중교통으로 나눠, 통근 시간을 줄입니다.',
+    name: '교통', icon: 'route', aim: '막힌 길을 넓히거나 대중교통으로 나눠, 통근 시간을 줄입니다.',
     views: [['traffic', '혼잡'], ['commute', '통근 시간'], ['volume:road', '도로 통행량']],
     tools: ['road', 'avenue', 'highway', 'onramp', 'rail', 'subway', 'transport'], ordinances: ['carpool', 'commuterShuttle'],
     depts: [['roads', '도로 유지'], ['transit', '대중교통']], facility: isKind((d) => d.station || d.parking || d.airport || d.seaport),

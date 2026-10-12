@@ -8,7 +8,7 @@ import { TYPE_NAME, TYPE_SHORT } from './names';
 import { updatePanels } from './panels';
 import { type Overlay, type VolumeNetwork } from './render';
 import { ABANDONED_COLOR, buildingRisk, GROWTH_COLOR, GROWTH_LABEL, growthNow, RISK_COLOR, volumeAt } from './views';
-import { centerOn, changeKey, city, cityGeneration, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
+import { blinkAt, centerOn, changeKey, city, cityGeneration, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
 import { refreshToolChip, selectTool, SPEEDS, TOOL_KEYS, toolName, TOOLS } from './tools';
 import { drive } from './udi';
 import { closeInfo, closePane, revealMap } from './tabs';
@@ -84,7 +84,7 @@ export function showHelp(): void {
     ['건물이 안 들어설 때', '건물이 안 들어서면 빈 구역 칸을 조회해 보세요. 전기·도로·일터 연결·수요·쾌적도 중 무엇이 막는지 알려 줍니다.'],
     ['지도 보기와 서비스 범위', '지도 보기를 켠 채로 마우스를 올리면 그 칸의 값이 바로 옆에 나옵니다. 경찰·소방·병원·학교·발전소·수도 시설을 들면 그 서비스가 닿는 범위 보기가 함께 켜져 빈 곳이 보이고, 놓을 자리에는 반경이 원으로, 포인터 옆에는 그 자리에서 새로 닿는 건물 수가 보입니다. 도구를 들면 지을 만한 땅에 파란 <b>추천 자리</b> 과녁이(구역은 블록 테두리, 송전선·수도관은 점선 길이) 나오고, 화면 밖이면 가장자리의 화살표를 눌러 그곳으로 갑니다(키보드: <b>S</b>로 커서를 그 자리에). 범례 아래에는 빠진 곳의 수(전기 없는 건물, 막힌 길 등)가 나오고 <b>찾아가기</b>를 누를 때마다 다음 곳으로 옮겨 갑니다. 지도 보기 목록에서 점이 붙은 보기는 가장 급한 곳을 보여 주는 보기입니다.'],
     ['도시 상태 읽기', '<b>도시 상태</b>에서 조치가 필요한 곳(빨강·주황)을 누르면 그 화면 맨 위에 무엇이 문제인지와 추천 조치가 나오고, 해 보기를 누르면 그 도구가 손에 들리고, <b>추천 자리에 짓기</b>를 누르면 알맞은 빈 땅(서비스가 닿지 않는 곳, 수도관·전력망에 닿는 곳 등)에 바로 지어집니다(매립지·구역은 알맞은 크기로 <b>추천 자리에 N×N 놓기</b>). 과녁이 화면 밖이면 가장자리의 파란 화살표가 그쪽을 가리키고, 누르면 그곳으로 갑니다. 전기·물·도로가 닿지 않는 곳은 지도에 점선으로 그려 둔 가장 짧은 송전선·수도관·도로를 <b>바로 잇기</b>로 한 번에 놓습니다(Ctrl+Z로 되돌리기). 예산·조례·대출을 바꾸는 추천은 적용하기·시행하기·빌리기로 바로 바뀝니다(불·폭동은 도시 상태 위에 출동 카드가 먼저 뜹니다). 어느 항목이 조치 필요로 바뀌면 시간이 멈추고(⋯ 메뉴에서 끄기), 관리 화면에서 한 조치는 3개월 뒤 결과(핵심 수치의 변화)를 알려 줍니다. 도시 상태는 급한 곳(빨강)·살펴볼 곳(주황)이 위에 이유와 함께, 양호한 곳이 아래에 나오고, ▲▼는 지난 3개월의 흐름, "결과 기다리는 중"은 결과를 기다리는 조치입니다. 지나간 알림은 <b>소식</b>에 남고 도시와 함께 저장됩니다.'],
-    ['관리 화면', '왼쪽 도시 상태에서 항목(개발·전력·수도·교육 등)을 누르면 그 분야의 관리 화면이 열립니다: 지도 보기가 그에 맞게 바뀌고, 수치와 최근 추세, 조언자의 진단, 지을 수 있는 시설·예산·조례가 한곳에 모입니다. 수치 옆 ▲▼는 화면을 연 뒤의 변화입니다. 지도에는 그 분야의 시설이 테두리로, 문제가 가장 많이 모인 곳(서비스가 닿지 않는 곳, 막히는 길, 공기가 나쁜 주거지, 부유층이 살 만한 땅 등)이 과녁으로 표시되고, 짓기 버튼은 지으면 여유가 얼마나 될지 알려 줍니다. ← 또는 Esc로 돌아갑니다(M: 가장 급한 분야).'],
+    ['관리 화면', '왼쪽 도시 상태에서 항목(개발·전력·수도·교육 등)을 누르면 그 분야의 관리 화면이 열립니다: 지도 보기가 그에 맞게 바뀌고, 수치와 최근 추세, 조언자의 진단, 지을 수 있는 시설·예산·조례가 한곳에 모입니다. 수치 옆 ▲▼는 화면을 연 뒤의 변화입니다. 지도에는 그 분야의 시설이 테두리로, 문제가 가장 많이 모인 곳(서비스가 닿지 않는 곳, 막힌 길, 공기가 나쁜 주거지, 부유층이 살 만한 땅 등)이 과녁으로 표시되고, 짓기 버튼은 지으면 여유가 얼마나 될지 알려 줍니다. ← 또는 Esc로 돌아갑니다(M: 가장 급한 분야).'],
     ['불·폭동 출동', '불·폭동은 <b>시민 서비스</b>의 소방 출동·경찰 출동 도구로(또는 도시 상태 위 출동 카드의 출동 준비) 그곳을 누르면 가까운 서에서 차가 갑니다(서의 크기만큼 대수 제한). 폭동은 경찰차 3대 이상이 모여야 진압되니(막다른 길 제외) 같은 곳을 여러 번 누르세요. 아무것도 짓기 전의 새 도시에서는 지형 편집이 무료입니다.'],
     ['발전소와 낡은 시설', '발전소는 불타거나 수명이 다하면 폭발합니다: 소방서 반경 안에 두고, 조언자가 수명을 알려 주면 새로 지어 바꾸세요. 송전선·수도관이 낡으면 불꽃·파열이 나니 <b>노후 시설</b> 보기와 부서 예산(위생 포함)을 살피세요.'],
     ['재정·주민·지역·저장', '왼쪽 도시 상태의 항목(B: 재정·정책)을 누르면 그 관리 화면과 통계(그래프·보고서)가 나옵니다. 세율·예산·대출·조례는 재정·정책에서 바꿉니다. 위쪽 막대의 <b>주민</b>(U)·<b>지역</b>(J)에서 My Sim·이웃 도시를 봅니다. 도시 이름은 위쪽 막대에서 눌러 바꾸고, <b>⋯</b> 메뉴에서 저장·불러오기·테마를 고릅니다.'],
@@ -640,8 +640,7 @@ export function refreshViewSummary(): void {
     revealMap();
     const [x, y] = [i % city.size, Math.floor(i / city.size)];
     centerOn(x, y);
-    renderer.effect('flash', x - 1, y - 1, 3, 3); // (what was found, marked where the map lands)
-    redraw();
+    blinkAt(x - 1, y - 1, 3, 3); // (what was found, marked once the map lands)
   });
 }
 let sumSpots: number[] = [];
@@ -866,7 +865,6 @@ function legendGo(e: Event): void {
   const [x, y] = [i % city.size, Math.floor(i / city.size)];
   revealMap();
   centerOn(x, y);
-  renderer.effect('flash', x - 1, y - 1, 3, 3);
-  redraw();
+  blinkAt(x - 1, y - 1, 3, 3);
 }
 

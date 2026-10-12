@@ -56,10 +56,11 @@
   --zone-r: #3fa34d;
   --zone-c: #3b86d1;
   --zone-i: #d9822b;
-  /* Air pollution sources (the environment screen's bar): a hue each, the plants' kinds apart. */
+  /* Air pollution sources (the environment screen's bar): a hue each, the plants' kinds apart — oil darker than coal
+     (the two were alike), and the rest at 2:1 or more on the bar's track. */
   --src-id: #e08a3a; --src-im: #d8b23f; --src-iht: #8fc15c; --src-ia: #b98d55;
-  --src-coal: #e0604c; --src-oil: #c94f6d; --src-gas: #f2938a; --src-burn: #a07ad6;
-  --src-traffic: #3fb5a5; --src-spill: #d65ab0; --src-other: #8d93a1; --src-rest: #5c5f68;
+  --src-coal: #e0604c; --src-oil: #a8456a; --src-gas: #f2938a; --src-burn: #a07ad6;
+  --src-traffic: #3fb5a5; --src-spill: #d65ab0; --src-other: #8d93a1; --src-rest: #73777f;
   --backdrop: rgba(0, 0, 0, 0.55);
   --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238e8e96' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   color-scheme: dark;
@@ -104,8 +105,8 @@
   --backdrop: rgba(23, 26, 32, 0.3);
   /* (Darker on white: the paler ones were under 2:1 against the card.) */
   --src-id: #c4670f; --src-im: #a8860b; --src-iht: #4f8a2a; --src-ia: #8a6436;
-  --src-coal: #b8382a; --src-oil: #a3304e; --src-gas: #d0605a; --src-burn: #7550b0;
-  --src-traffic: #1d8475; --src-spill: #b03590; --src-other: #6b7180; --src-rest: #b4b9c2;
+  --src-coal: #b8382a; --src-oil: #7a2440; --src-gas: #d0605a; --src-burn: #7550b0;
+  --src-traffic: #1d8475; --src-spill: #b03590; --src-other: #6b7180; --src-rest: #959ba6;
   color-scheme: light;
 }
 

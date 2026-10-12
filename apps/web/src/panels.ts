@@ -15,7 +15,7 @@ import { renderNeighbours } from './region';
 import { TYPE_COLOR } from './render';
 import { GROWTH_LABEL } from './views';
 import { checkLeft, checkText, renderAges, renderPolls, renderRewards, rewardShare } from './reports';
-import { centerOn, changeKey, city, cityGeneration, graphs, overlay, redraw, renderer, speed } from './state';
+import { blinkAt, centerOn, changeKey, city, cityGeneration, graphs, overlay, redraw, speed } from './state';
 import { categoryOf, chosen, openTray, pickStructure, refreshStructureLists, selectTool, structureStat, TOOLS } from './tools';
 import { renderUdi, watchMissions } from './udi';
 import { journal, type Notice } from './journal';
@@ -75,10 +75,7 @@ document.addEventListener('click', (e) => {
   // over before the flight ended: the air's sources.)
   if (b.dataset.flash) {
     const [x, y, w, h] = b.dataset.flash.split(',').map(Number);
-    for (const t of [380, 720]) setTimeout(() => {
-      renderer.effect('flash', x!, y!, w, h);
-      redraw();
-    }, t);
+    blinkAt(x!, y!, w, h);
   }
 });
 
