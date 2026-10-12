@@ -11,7 +11,7 @@ import { drawMinimap, setupMinimap } from './minimap';
 import { cancelMySimAction } from './mysims';
 import { updatePanels } from './panels';
 import { leaveRegion } from './region';
-import { cam, city, cityLineage, clampCamera, dirty, fitCamera, mapBand, onCityChange, overlay, redraw, renderer, selected, setCity, setDirty, setSaveSlotId, speed } from './state';
+import { cam, city, cityLineage, clampCamera, dirty, fitCamera, mapBand, mapCovers, onCityChange, overlay, redraw, renderer, selected, setCity, setDirty, setSaveSlotId, speed } from './state';
 import { autosave, autosaveSlot, autosaveSteps, lastAutosave, resumeAutosave } from './storage';
 import { buildTools, closeTray, forgetPreviousTool, refreshEdgeHint, selectTool, SPEEDS } from './tools';
 import { abandonDrive, drive, setupDriving, tickDrive } from './udi';
@@ -145,6 +145,7 @@ function frameBody(now: number): void {
     // (The edge arrows keep to the part nothing covers: measured now and then, not each frame — it reads the layout.)
     if (renderer.marks.length && (t0 - bandAt > 300 || !renderer.band)) {
       renderer.band = mapBand();
+      renderer.covers = mapCovers();
       bandAt = t0;
     }
     renderer.draw(city, cam, overlay, preview, selected);

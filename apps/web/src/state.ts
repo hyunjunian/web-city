@@ -81,6 +81,18 @@ export function mapBand(): Band {
   return { left, top, right: Math.max(left + 1, right), bottom: Math.max(top + 1, bottom) };
 }
 
+/** The cards over the map's top corners — the view's legend under the top bar, 전체 보기 and the minimap (not while
+ *  they fade, the whole city in sight) — in CSS px from its top left: a target under one is out of sight. */
+export function mapCovers(): Band[] {
+  const r = renderer.canvas.getBoundingClientRect();
+  const faded = document.getElementById('view')?.classList.contains('whole-view');
+  return ['map-layer', ...(faded ? [] : ['map-zoom', 'minimap'])].flatMap((id) => {
+    const el = document.getElementById(id);
+    const c = el && !el.classList.contains('off') ? el.getBoundingClientRect() : null;
+    return c?.width && c.height ? [{ left: c.left - r.left, top: c.top - r.top, right: c.right - r.left, bottom: c.bottom - r.top }] : [];
+  });
+}
+
 export function fitCamera(whole = false): void {
   // (A glide under way doesn't carry on over the new framing: closing the phone's pane started one toward the town
   // being left, and the sample city opened framed where it had been.)

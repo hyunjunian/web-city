@@ -423,6 +423,8 @@ export class Renderer {
   edgeMarks: { x: number; y: number; r: number; tx: number; ty: number; label: string }[] = [];
   /** The part of the map nothing covers (CSS px from its top left; see mapBand), where the edge arrows keep. */
   band: { left: number; top: number; right: number; bottom: number } | null = null;
+  /** The cards over its top corners (the same; see mapCovers): a target under one is out of sight. */
+  covers: { left: number; top: number; right: number; bottom: number }[] = [];
   /** A road in hand on a town not yet joined to its neighbours: the map's edge is where it should reach. */
   edgeHint = false;
   /** Where the keyboard's build cursor is (set by the arrows; a mouse moving takes it away). */
@@ -2029,23 +2031,28 @@ export class Renderer {
       ctx.setLineDash([]);
       // A target out of view: a marker at the edge pointing to it (a build button hovered lit nothing the eye could
       // find). Inside the part of the map nothing covers (below the bar row, above a phone's city sheet, beside it held
-      // sideways), and on a tall map below the view's legend and the minimap, which take the top corners, and above
-      // the hint bar. (Fixed insets crossed on a short map: every target got an arrow, in plain sight or not.)
+      // sideways) and above the hint bar; a target under one of the cards over the top corners — the view's legend,
+      // the minimap — is out of view too, and an arrow that would stand under one stands below it. (A quarter of the
+      // band across its top was kept for those cards: a target framed just below the legend got an arrow on itself,
+      // and a press there went to it instead of building. Fixed insets crossed on a short map: every target got an
+      // arrow, in plain sight or not.)
       const [cssW, cssH] = [W / this.dpr, H / this.dpr];
       const b = this.band ?? { left: 0, top: 0, right: cssW, bottom: cssH };
-      const inTop = Math.min(250, b.top + (b.bottom - b.top) * 0.25);
       const inBottom = Math.min(b.bottom - 12, cssH - 96);
-      const [left, top, right, bottom] = [cam.x + (b.left + 36) * u, cam.y + inTop * u, cam.x + (b.right - 36) * u, cam.y + inBottom * u];
-      // (In sight below the corner cards — the view's legend, the minimap — it has none: one in the strip kept for the
-      // hint bar got an arrow drawn on itself. One under a corner card still gets its arrow.)
-      const [vl, vt, vr, vb] = [cam.x + (b.left + 8) * u, top, cam.x + (b.right - 8) * u, cam.y + (b.bottom - 8) * u];
+      const [left, top, right, bottom] = [cam.x + (b.left + 36) * u, cam.y + (b.top + 36) * u, cam.x + (b.right - 36) * u, cam.y + inBottom * u];
+      // (In sight in the strip kept for the hint bar it has none: it got an arrow drawn on itself.)
+      const [vl, vt, vr, vb] = [cam.x + (b.left + 8) * u, cam.y + (b.top + 8) * u, cam.x + (b.right - 8) * u, cam.y + (b.bottom - 8) * u];
+      const under = (x: number, y: number, pad: number) => this.covers.find((c) => x >= cam.x + (c.left - pad) * u && x <= cam.x + (c.right + pad) * u
+        && y >= cam.y + (c.top - pad) * u && y <= cam.y + (c.bottom + pad) * u);
       this.edgeMarks = [];
       // (No room for one: none.)
       if (bottom - top >= 30 * u && right - left >= 30 * u) for (const m of this.marks) {
         if (m.tone !== 'spot') continue;
         const [cx, cy] = [m.x + m.w / 2, m.y + m.h / 2];
-        if (cx >= vl && cx <= vr && cy >= vt && cy <= vb) continue;
-        const [px, py] = [Math.min(right, Math.max(left, cx)), Math.min(bottom, Math.max(top, cy))];
+        if (cx >= vl && cx <= vr && cy >= vt && cy <= vb && !under(cx, cy, 0)) continue;
+        let [px, py] = [Math.min(right, Math.max(left, cx)), Math.min(bottom, Math.max(top, cy))];
+        const card = under(px, py, 16);
+        if (card) py = Math.min(bottom, cam.y + (card.bottom + 24) * u);
         const len = Math.hypot(cx - px, cy - py) || 1;
         const [dx, dy] = [(cx - px) / len, (cy - py) / len];
         const r = (m.hot ? 13 : 11) * u;
