@@ -84,6 +84,11 @@ export const TYPE_NAME: Record<DevType, string> = {
   IA: '농업', ID: '공해 산업', IM: '제조업', IHT: '첨단 산업',
 };
 
+/** Development-type codes in an engine text (a reward's conditions) in words: R$$$ 인구 → 주거 고소득 인구. */
+export const plainCodes = (text: string): string => text
+  .replace(/R\$\$\+R\$\$\$/g, '중·고소득 주거')
+  .replace(/(?:R|Cs|Co)\$+|\bI(?:HT|D|M|A)\b/g, (c) => TYPE_NAME[c as DevType] ?? c);
+
 /** A type in a word and its wealth, for narrow lists (the demand bars): 상점 중소득, not Cs$$ (nor 상점 $$). */
 export const TYPE_SHORT: Record<DevType, string> = {
   'R$': '주거 저소득', 'R$$': '주거 중소득', 'R$$$': '주거 고소득',

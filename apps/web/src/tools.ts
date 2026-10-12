@@ -6,7 +6,7 @@ import { icon, type IconName } from './icons';
 import { hoverUnderMouse, setPreview, updatePreview } from './input';
 import { goalTools, nextStep, openGoal, suggestedKinds } from './manage';
 import { firstStepTool } from './onboarding';
-import { DISASTER_NAME, STRUCTURE_NAME } from './names';
+import { DISASTER_NAME, plainCodes, STRUCTURE_NAME } from './names';
 import { holdForBuilding, isHeld, releaseHold, showHelp, showOverlay } from './controls';
 import { structureColor } from './render';
 import { city, overlay, redraw, renderer, setDrag } from './state';
@@ -730,7 +730,7 @@ export function refreshStructureLists(): void {
         const open = city.isUnlocked(k);
         const placed = open && city.placementsLeft(k) <= 0;
         const earned = city.state.unlocked.filter((u) => u === k).length;
-        const why = def.unlock?.description ?? def.unlockTiers?.[earned]?.description ?? def.offer?.description ?? '';
+        const why = plainCodes(def.unlock?.description ?? def.unlockTiers?.[earned]?.description ?? def.offer?.description ?? '');
         const short = open && !placed && def.cost > city.state.funds;
         const sub = !open ? why : placed ? '이미 지음' : def.cost || def.upkeep ? `${short ? '<b class="short">자금 부족</b> ' : ''}§${fmt(def.cost)} · 월 §${fmt(def.upkeep)}` : '무료';
         const stat = structureStat(k);
@@ -1001,7 +1001,7 @@ function findables(): Found[] {
           const open = city.isUnlocked(k);
           const placed = open && city.placementsLeft(k) <= 0;
           const earned = city.state.unlocked.filter((u) => u === k).length;
-          const why = d.unlock?.description ?? d.unlockTiers?.[earned]?.description ?? d.offer?.description ?? '잠김';
+          const why = plainCodes(d.unlock?.description ?? d.unlockTiers?.[earned]?.description ?? d.offer?.description ?? '잠김');
           out.push({
             key: `${t.id}:${k}`, name: STRUCTURE_NAME[k], where: `${cat.label} · ${g.title}`,
             glyph: `<span class="pick-swatch" style="background:${structureColor(k)}"></span>`,

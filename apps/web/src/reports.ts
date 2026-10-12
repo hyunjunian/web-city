@@ -1,7 +1,7 @@
 // Monthly reports: opinion polls, age bar graphs and reward progress.
 
 import { type DevType, type PollTopic, type StructureKind, type UnlockCheck } from '@web-city/engine';
-import { CHECK_NAME, POLL_NAME, STRUCTURE_NAME, TYPE_NAME } from './names';
+import { CHECK_NAME, plainCodes, POLL_NAME, STRUCTURE_NAME, TYPE_NAME } from './names';
 import { city } from './state';
 import { $, escapeHtml, fmt } from './util';
 
@@ -93,7 +93,7 @@ export function renderRewards(): void {
     const name = city.isUnlocked(r.kind) ? `${STRUCTURE_NAME[r.kind]} (다음 단계)` : STRUCTURE_NAME[r.kind];
     // (What it still wants inside its own row, said as the summary's 다음 보상 says it: under the row it read
     // as the next reward's. The bar and the order are the summary's too, so its 다음 보상 leads the list.)
-    return `<div class="rw-item" title="${escapeHtml(`${name}: ${r.description}${missing.length ? ` · 지금 ${missing.map(checkText).join(' · ')}` : ''}`)}"><div class="poll-row">
+    return `<div class="rw-item" title="${escapeHtml(`${name}: ${plainCodes(r.description)}${missing.length ? ` · 지금 ${missing.map(checkText).join(' · ')}` : ''}`)}"><div class="poll-row">
       <span class="label">${name}</span>
       <div class="bar"><div class="fill" style="width:${(r.share * 100).toFixed(1)}%"></div></div>
       <span class="value">${Math.round(r.share * 100)}%</span></div>

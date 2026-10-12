@@ -9,7 +9,7 @@ import { active, autoPause, openGoal, goalToldAt, paneHeld, problemsHtml, refres
 import { buildOrdinances, ordinanceMonth, ordinanceSignature, refreshInfo, setOrdinanceMonth } from './info';
 import { ko } from './messages';
 import { renderMySims } from './mysims';
-import { ABANDON_NAME, ADVICE_TEXT, ADVISOR_NAME, CRIME_NAME, EDGE_NAME, ORDINANCE_NAME, POLL_NAME, REPORT_NAME, RESOURCE_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME, TYPE_SHORT } from './names';
+import { ABANDON_NAME, ADVICE_TEXT, plainCodes, ADVISOR_NAME, CRIME_NAME, EDGE_NAME, ORDINANCE_NAME, POLL_NAME, REPORT_NAME, RESOURCE_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME, TYPE_SHORT } from './names';
 import { renderOnboarding } from './onboarding';
 import { renderNeighbours } from './region';
 import { TYPE_COLOR } from './render';
@@ -194,7 +194,7 @@ function nextReward(): string {
   const leftFull = best ? best.checks.filter((c) => !c.met).map(checkText) : [];
   // What it gives, for wanting it (its figure, as the tray shows it).
   const gives = best ? structureStat(best.kind) : '';
-  const html = !best || !city.state.buildings.size ? '' : `<button type="button" class="reward sum-next" title="${escapeHtml(`보상 ${STRUCTURE_NAME[best.kind]}: ${best.description}${leftFull.length ? ` · 지금 ${leftFull.join(' · ')}` : ''} · 눌러서 보상 진행 모두 보기`)}">
+  const html = !best || !city.state.buildings.size ? '' : `<button type="button" class="reward sum-next" title="${escapeHtml(`보상 ${STRUCTURE_NAME[best.kind]}: ${plainCodes(best.description)}${leftFull.length ? ` · 지금 ${leftFull.join(' · ')}` : ''} · 눌러서 보상 진행 모두 보기`)}">
     <span class="rw-icon">${icon('award')}</span>
     <span class="rw-name"><small class="rw-label">다음 보상</small><b>${STRUCTURE_NAME[best.kind]}${city.isUnlocked(best.kind) ? ' (다음 단계)' : ''}</b>${gives ? `<small>${gives}</small>` : ''}</span><span class="rw-pct">${Math.round(best.share * 100)}%${icon('chevronRight', 'rw-go')}</span>
     <span class="rw-bar"><i style="width:${(best.share * 100).toFixed(1)}%"></i></span>

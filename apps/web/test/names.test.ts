@@ -1,6 +1,6 @@
 import { City, GROWTH_CODES } from '@web-city/engine';
 import { describe, expect, it } from 'vitest';
-import { ADVICE_TEXT, ADVICE_TOOL, GROWTH_FIX } from '../src/names';
+import { ADVICE_TEXT, ADVICE_TOOL, GROWTH_FIX, plainCodes } from '../src/names';
 import { escapeHtml, josa, pct, short } from '../src/util';
 import { overlayReading } from '../src/views';
 import advisorsSource from '../../../packages/engine/src/sim/advisors.ts?raw';
@@ -69,5 +69,19 @@ describe('data view readings off the map', () => {
     for (const [x, y] of [[-1, 10], [32, 10], [5, 32], [5, -1]] as const) {
       for (const kind of ['traffic', 'radiation', 'landValue'] as const) expect(overlayReading(city, { kind }, x, y)).toBe('');
     }
+  });
+});
+
+describe('codes in words', () => {
+  it("names the development types in the engine's reward conditions", () => {
+    expect(plainCodes('R$$$ 인구 3,000 · 시장 평점 60')).toBe('주거 고소득 인구 3,000 · 시장 평점 60');
+    expect(plainCodes('IHT 일자리 4,000')).toBe('첨단 산업 일자리 4,000');
+    expect(plainCodes('R$$+R$$$ 인구 20,000')).toBe('중·고소득 주거 인구 20,000');
+  });
+
+  it('leaves no type code in any reward or deal condition', async () => {
+    const { STRUCTURES } = await import('@web-city/engine');
+    const texts = Object.values(STRUCTURES).flatMap((d) => [d.unlock?.description, d.offer?.description, ...(d.unlockTiers ?? []).map((t) => t.description)]);
+    for (const t of texts) if (t) expect(plainCodes(t), t).not.toMatch(/\$|\bI(HT|D|M|A)\b/);
   });
 });
