@@ -1926,9 +1926,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* With a tool in hand the view's card folds, but its count stays: where the service is missing is where to place. */
 #view.holding #map-layer:not(.picking) #overlay > #overlay-sum:not([hidden]) { display: flex !important; margin: 4px 8px 2px; }
 #view.holding #map-layer:not(.picking):has(#overlay-sum:not([hidden])) { width: 220px; }
-/* The view picker, closed, dotted when a view would show what needs a look now. */
-
-
 /* Notices: small cards stacked in the map's lower right corner, clear of the bar, the tool and the town's middle. */
 @media (min-width: 861px) {
   #toasts { top: auto; bottom: 14px; left: auto; right: 14px; transform: none; width: min(360px, calc(100% - 28px)); align-content: end; }
