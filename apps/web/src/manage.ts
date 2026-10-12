@@ -19,9 +19,9 @@ import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
-import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
+import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote, straightRuns } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, landfillSite, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, straightRuns, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, landfillSite, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 

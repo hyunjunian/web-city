@@ -191,3 +191,17 @@ export const firstSentence = (t: string) => /^.*?[.!?](?=\s|$)/.exec(t)?.[0] ?? 
 /** Said when the clock was stopped for something (a toast's tail). */
 export const stoppedNote = () => ` · 멈춤 (${touchFirst() ? '▶로 계속' : 'Space로 계속'})`;
 
+/** A path tile by tile as its straight runs, end to end (a line or road tool lays one run at a time). */
+export function straightRuns(path: readonly [number, number][]): [number, number, number, number][] {
+  const runs: [number, number, number, number][] = [];
+  let from = path[0]!;
+  for (let k = 2; k < path.length; k++) {
+    const [a, b, c] = [path[k - 2]!, path[k - 1]!, path[k]!];
+    if (b[0] - a[0] !== c[0] - b[0] || b[1] - a[1] !== c[1] - b[1]) {
+      runs.push([from[0], from[1], b[0], b[1]]);
+      from = b;
+    }
+  }
+  if (path.length) runs.push([from[0], from[1], path.at(-1)![0], path.at(-1)![1]]);
+  return runs;
+}
