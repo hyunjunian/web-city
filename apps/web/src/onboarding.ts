@@ -7,7 +7,7 @@ import { region } from './region';
 import { changeKey, city, cityLineage } from './state';
 import { markSuggested, panTipAt, selectTool } from './tools';
 import { closePane, showTab, type Tab } from './tabs';
-import { $, ask, fmt, touchFirst } from './util';
+import { $, ask, flash, fmt, touchFirst } from './util';
 import { STRUCTURE_NAME } from './names';
 import { dropToasts, toast } from './toast';
 import { type GoalId } from './goals';
@@ -158,9 +158,16 @@ export function renderOnboarding(): void {
   // (Found again on the press: the town may have changed since the list was drawn.)
   $('#onboarding-steps').querySelectorAll<HTMLButtonElement>('.step-lay').forEach((b) => (b.onclick = () => {
     const kind = b.dataset.lay!;
+    // (Nothing found any more — a month turned, the land taken — said, not a press that did nothing.)
+    const gone = () => {
+      flash('그사이 자리가 없어졌습니다 · 단계를 눌러 도구로 놓으세요', 'bad');
+      onboardingKey = ''; // (drawn again: the link goes)
+      updatePanels();
+    };
     if (kind === 'powerline') {
       const now = lineToDark();
-      if (now && layPath('powerline', now, null)) {
+      if (!now) return gone();
+      if (layPath('powerline', now, null)) {
         closePane();
         updatePanels();
       }
@@ -168,11 +175,13 @@ export function renderOnboarding(): void {
     }
     if (kind !== 'road') {
       const at = zoneSite(kind as 'R-low' | 'C-low' | 'I-medium');
-      if (at) layZone(kind as ZoneKind, at.x0, at.y0, at.x1, at.y1);
+      if (!at) return gone();
+      layZone(kind as ZoneKind, at.x0, at.y0, at.x1, at.y1);
       return;
     }
     const now = edgeRoad('road');
-    if (!now || !layPath('road', now.path, null)) return;
+    if (!now) return gone();
+    if (!layPath('road', now.path, null)) return;
     closePane(); // phones: the road laid, seen
     updatePanels();
   }));
