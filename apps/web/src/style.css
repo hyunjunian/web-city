@@ -2652,3 +2652,6 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
   .mission { grid-template-columns: auto minmax(0, 1fr); }
   .mission > button { grid-column: 2; justify-self: start; align-self: start; }
 }
+/* The vehicles one can drive: chips with what each runs on (road, rail, water, air). */
+.udi-vehicles { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 12.5px; }
+.udi-vehicles .chip .i { width: 13px; height: 13px; color: var(--muted); }
