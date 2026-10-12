@@ -3,7 +3,7 @@
 import { closeGoal, handedPlaced, noteAction, toggleFinance, toggleUrgentGoal } from './manage';
 import { DEV_TYPES, GROWTH_CODES, isLocalNet, Net, linePath, type Rect, LIVE_KINDS, NETWORK_KINDS, STRUCTURES, Terrain, ZONES, type StructureKind } from '@web-city/engine';
 import { chooseSpeed, isHeld, resumeAfterBuilding, runningSpeed, showHelp, speedChosen, stepOverlay, toggleFocus, toggleGrowth, toggleNight, toggleOverlay } from './controls';
-import { cancelGlide, keepInView, showInfo, showRoutes } from './info';
+import { aloneReached, cancelGlide, keepInView, showInfo, showRoutes } from './info';
 import { grabDisaster, setSteering, steering } from './live';
 import { ko } from './messages';
 import { interviewAt, mySimAction, mySimClick } from './mysims';
@@ -512,8 +512,13 @@ export function updatePreview(): void {
     if (tool.kind === 'bulldoze' && !touchFirst() && (city.state.occupant[hy * city.size + hx] || city.state.net[hy * city.size + hx])) {
       const plan = city.previewBulldoze(hx, hy, hx, hy);
       if (!plan.message && plan.cost > 0) {
-        const b = plan.buildings ? city.state.buildings.get(city.state.occupant[hy * city.size + hx]!) : undefined;
-        hint.textContent = besidePointer ? `${describeTile(hx, hy).replace(/⚠ /g, '')}${b?.type ? ' · 주민·일자리 시가 포함' : ''}` : `철거 · §${fmt(plan.cost)}${b?.type ? ' (주민·일자리 시가 포함)' : ''} · ${verb}`;
+        const occ = city.state.occupant[hy * city.size + hx]!;
+        const b = plan.buildings ? city.state.buildings.get(occ) : undefined;
+        // (A station some buildings have only it to reach them: how many it leaves out, before the press.)
+        const st = occ < 0 ? city.state.structures.get(-occ) : undefined;
+        const alone = st && !city.stepping ? aloneReached(st) : null;
+        const left = alone?.n ? ` · ⚠ 혼자 맡던 ${alone.what} ${fmt(alone.n)}채가 범위 밖이 됨` : '';
+        hint.textContent = besidePointer ? `${describeTile(hx, hy).replace(/⚠ /g, '')}${b?.type ? ' · 주민·일자리 시가 포함' : ''}${left}` : `철거 · §${fmt(plan.cost)}${b?.type ? ' (주민·일자리 시가 포함)' : ''}${left} · ${verb}`;
         costTag('철거', plan.cost);
       }
     }

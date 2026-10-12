@@ -635,7 +635,7 @@ function goalLink(kind: Structure['kind'] | undefined, zone: string, way = false
  * no other station's of its service, as the views count reach — what clearing it or cutting its budget leaves out.
  * Null for one that serves no area, or where a city-wide one of its service reaches all.
  */
-function aloneReached(st: Structure): { n: number; what: string } | null {
+export function aloneReached(st: Structure): { n: number; what: string } | null {
   // (Schools by their level: a high school takes none of a primary school's pupils.)
   const service = (k: StructureKind) => { const d = STRUCTURES[k]; return d.police?.radius ? 'police' : d.fire?.radius ? 'fire' : d.health ? 'health' : d.school ? `school:${d.school.curve}` : null; };
   const mine = service(st.kind);
