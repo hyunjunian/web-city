@@ -25,8 +25,9 @@ import { type AirSource, airSources, edgeRoad, fillSpan, ratingRated, smokeClear
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
-/** Phones: the list is behind the 도시 button, which carries the count of goals needing action. */
-function refreshBadge(bad = GOAL_ORDER.filter((id) => goalStatus(id).tone === 'bad').length): void {
+/** Phones: the list is behind the 도시 button, which carries the count of goals needing action (the mayor's rating
+ *  counts with them, as in 도시 상태's 급한 일: a goal's screen redrawing it left the rating out). */
+function refreshBadge(bad = GOAL_ORDER.filter((id) => goalStatus(id).tone === 'bad').length + (ratingTone(readStats().mayorRating) === 'bad' ? 1 : 0)): void {
   const dock = document.querySelector<HTMLElement>('.dock-city');
   if (!dock) return;
   if (bad) dock.dataset.alerts = String(bad);
