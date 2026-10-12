@@ -2516,8 +2516,10 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #view #mapbar #map-layer { left: calc(var(--dock-w) + 2px); right: 54px; width: auto; max-width: none; top: calc(100% + 6px); }
   #view #mapbar #map-layer.picking { left: 0; right: 0; width: auto; padding: 10px; }
 
-  /* The build bar: 도시, 철거 and 짓기 down the left under the top bar. */
+  /* The build bar: 도시, 철거 and 짓기 down the left under the top bar (put away while the city pane is up: it
+     cut through the bar's middle; the pane closes with its ×, a swipe down or back). */
   #dock { top: calc(64px + env(safe-area-inset-top)); left: 8px; padding: 3px; gap: 2px; border-radius: 14px; }
+  #app.pane-open #dock { visibility: hidden; }
   #dock-tools { display: contents; }
   .dock-sep, .dock-build-cat { display: none; }
   .dock-city, .dock-build { display: inline-flex; }
