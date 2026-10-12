@@ -2582,6 +2582,7 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .region-grid.dense .square.empty:not(.beside) span { opacity: 0; transition: opacity 0.12s; }
 .region-grid.dense .square.empty:not(.beside):is(:hover, :focus-visible) span { opacity: 1; }
 .region-grid .square.empty:not(.beside) { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 75%, transparent); }
+@media (hover: hover) { .region-grid .square.empty:not(.beside):hover { color: var(--text); box-shadow: inset 0 0 0 1px var(--line-strong); } }
 .region-grid.dense .square.big small { display: block; margin-top: 2px; font-size: 9.5px; opacity: 0.85; }
 .region-key { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 10px; color: var(--muted); font-size: 11.5px; }
 .region-key span { display: inline-flex; align-items: center; gap: 6px; }
@@ -2616,5 +2617,6 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 #advice .advice.news.bad .adv-i { color: var(--danger); }
 #advice .advice.news.neutral .adv-i { color: var(--muted); }
 #advice .advice.news .advice-view { background: var(--surface); }
+@media (hover: hover) { #advice .advice.news .advice-view:hover { background: var(--surface-3); } }
 /* Driving: the building tools and the views step back (they wait for the drive to end). */
 #view.driving :is(#dock, #map-layer) { opacity: 0.35; pointer-events: none; filter: saturate(0.4); transition: opacity 0.2s; }
