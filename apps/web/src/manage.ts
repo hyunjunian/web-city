@@ -1515,21 +1515,41 @@ function spotLine(id: GoalId): string {
 const SERVICE_SITE = new Set<GoalId>(['police', 'fire', 'health', 'education']);
 
 /**
- * A station picked from the build cards, no screen open: the map marks where it fills the biggest gap in its service
- * (the view that comes on with it shows every gap; the mark says which to fill, on ground it fits), and its arrow at
- * the screen's edge leads there.
+ * A facility picked from the build cards, no screen open: the map marks the site the guide would build it on — a
+ * station where it fills the biggest gap in its service (the view that comes on with it shows every gap; the mark
+ * says which to fill, on ground it fits), a plant beside the plants on the grid, a pump touching the pipes with
+ * power, an incinerator or recycling centre clear of the homes — and its arrow at the screen's edge leads there.
  */
 export function markToolSite(): void {
+  // (A moment later: a site search can take a big map tens of milliseconds, and the pick shows first.)
+  if (!toolSiteDue) toolSiteDue = window.setTimeout(placeToolMark, 16);
+}
+let toolSiteDue = 0;
+function placeToolMark(): void {
+  toolSiteDue = 0;
   if (active) return; // (a screen marks its own)
-  const kind = tool.kind === 'structure' ? chosen[tool.id] : undefined;
+  const held = tool.kind === 'structure' ? chosen[tool.id] : undefined;
+  const kind = held && city.isUnlocked(held) && city.placementsLeft(held) > 0 ? held : null;
   const d = kind ? STRUCTURES[kind] : null;
   const id = kind ? goalOfStructure(kind) : null;
+  // Near the goal's own mark (not while something burns: then the fire is the place to look).
+  const nearSpot = (goal: GoalId) => {
+    const spot = kind && !incidents().some((x) => x.goal === goal) ? suggestSpot(goal) : null;
+    if (!kind || !spot) return null;
+    // (Beside a full school only one of its level takes its students: a primary school by a full high school relieved nothing.)
+    const over = spot.crowded && goal === 'education' ? adviceFor(goal).find((a) => a.at && (a.code === 'schoolStrike' || a.code === 'schoolFull')) : undefined;
+    const full = over?.at ? city.query(over.at[0], over.at[1])?.structure?.kind : undefined;
+    if (full && STRUCTURES[full].school?.curve !== d?.school?.curve) return null;
+    return siteNear(kind, spot.x, spot.y, 0) ?? siteNear(kind, spot.x, spot.y, 6);
+  };
   // (Not a jail, nor a library or university that reaches the whole city: where it stands changes nothing.)
   const local = !!d && (d.police ? d.police.radius > 0 : d.school ? d.school.radius < 300 : !!(d.fire || d.health));
-  const spot = kind && id && SERVICE_SITE.has(id) && local && city.isUnlocked(kind) && city.placementsLeft(kind) > 0
-    && !incidents().some((x) => x.goal === id) ? suggestSpot(id) : null;
-  const at = spot && kind ? siteNear(kind, spot.x, spot.y, 0) ?? siteNear(kind, spot.x, spot.y, 6) : null;
-  const marks: typeof renderer.marks = at ? [{ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind!]}` }] : [];
+  const at = !kind || !d || !id ? null
+    : SERVICE_SITE.has(id) ? (local ? nearSpot(id) : null)
+    : d.plant ? siteByPlants(kind) ?? nearSpot('power')
+    : d.pump ? siteOnPipes(kind) ?? nearSpot('water')
+    : d.incinerator || d.recycling ? siteAwayFromHomes(kind) : null;
+  const marks: typeof renderer.marks = at && kind ? [{ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]}` }] : [];
   if (JSON.stringify(marks) === JSON.stringify(renderer.marks)) return;
   renderer.marks = marks;
   redraw();
