@@ -322,7 +322,7 @@ ${paths}${voice}
     ${b || q.structure ? `<input id="bname" maxlength="40" placeholder="이름 붙이기 (${b ? (b.type ? TYPE_NAME[b.type] : '버려진 건물') : STRUCTURE_NAME[q.structure!.kind]})" value="${escapeHtml(q.name ?? '')}">` : ''}
     ${b?.type || (b?.type?.[0] === 'R' && b.occupancy > 0) ? `<div class="info-actions">
       ${b?.type ? `<label class="check" title="역사 건물은 재개발되거나 다른 계층으로 바뀌지 않지만, 버려지거나 불타거나 재해로 무너질 수는 있습니다"><input type="checkbox" id="historical" ${b.historical ? 'checked' : ''}> 역사 건물로 지정</label>` : ''}
-      ${b?.type?.[0] === 'R' && b.occupancy > 0 ? '<button id="mysim-add">마이 심 입주</button>' : ''}
+      ${b?.type?.[0] === 'R' && b.occupancy > 0 ? '<button id="mysim-add">My Sim 입주</button>' : ''}
     </div>` : ''}
 
     ${land ? `<h3 class="sub">서비스와 안전</h3>
