@@ -781,6 +781,7 @@ export function closeGoal(): boolean {
   $('#manage-chip').hidden = true;
   renderer.marks = [];
   marksSig = '';
+  hotSites = []; // (the button that lit them went with the screen)
   if (currentView() === viewSet) showOverlay(viewBefore);
   if (handed && tool.id === handed) selectTool('query');
   handed = '';
