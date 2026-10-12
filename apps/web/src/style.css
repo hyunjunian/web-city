@@ -852,7 +852,8 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 /* The open tool card already shows the same tools: the row comes back when it closes. */
 #view:has(#tray:not([hidden])) #tool-alts { display: none; }
 
-#map-controls { position: absolute; top: 14px; right: 14px; z-index: 3; display: grid; gap: 10px; justify-items: end; transition: right 0.22s var(--ease); }
+#map-controls { position: absolute; top: 14px; right: 14px; z-index: 3; display: grid; gap: 10px; justify-items: end; transition: right 0.22s var(--ease); pointer-events: none; }
+#map-controls > * { pointer-events: auto; } /* (the column is as wide as the minimap: its empty corner beside 전체 보기 lies over the top bar's end) */
 #view.info-open #map-controls { right: calc(var(--info-w) + 28px); }
 /* The view picker gives the zoom buttons, now beside the card, room. */
 /* Too narrow for both: the buttons step aside while the card is open (wheel and pinch still zoom). */
