@@ -500,7 +500,7 @@ function rescueStep(a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
 
 /**
  * Pumps stopped (the advice names one): with no power, the line to it from the grid; with the water budget at 0%,
- * that budget; else null (its water fouled: the screen's views show where, and it has to move).
+ * that budget; else null (its water fouled, or past its life: the screen's views and its card say which).
  */
 function pumpStep(a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
   const f = a.at ? city.query(a.at[0], a.at[1])?.structure : undefined;

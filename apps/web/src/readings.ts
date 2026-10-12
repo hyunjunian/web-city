@@ -1140,6 +1140,11 @@ function squareSite(side: number, ax: number, ay: number, avoid: (zone: number) 
   const busy = new Int32Array(W * W);
   const near = new Int32Array(W * W);
   const road = new Int32Array(W * W);
+  // (A road network, not a stub on its own, as the one-press road wants: a landfill there fills nothing, a zone never grows.)
+  const comp = city.fields.component;
+  const sizes = new Map<number, number>();
+  for (let i = 0; i < n * n; i++) if (comp[i]! >= 0) sizes.set(comp[i]!, (sizes.get(comp[i]!) ?? 0) + 1);
+  const enough = Math.min(10, Math.max(0, ...sizes.values()));
   for (let y = 0; y < n; y++) {
     for (let x = 0; x < n; x++) {
       const i = y * n + x;
@@ -1150,7 +1155,7 @@ function squareSite(side: number, ax: number, ay: number, avoid: (zone: number) 
       const k = (y + 1) * W + x + 1;
       busy[k] = b + busy[k - 1]! + busy[k - W]! - busy[k - W - 1]!;
       near[k] = (avoid(z) ? 1 : 0) + near[k - 1]! + near[k - W]! - near[k - W - 1]!;
-      road[k] = (isLocalNet(s.net[i]!) && !s.tunnel[i] ? 1 : 0) + road[k - 1]! + road[k - W]! - road[k - W - 1]!;
+      road[k] = (isLocalNet(s.net[i]!) && !s.tunnel[i] && (sizes.get(comp[i]!) ?? 0) >= enough ? 1 : 0) + road[k - 1]! + road[k - W]! - road[k - W - 1]!;
     }
   }
   const sum = (t: Int32Array, x0: number, y0: number, x1: number, y1: number) => {
