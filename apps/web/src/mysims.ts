@@ -8,7 +8,7 @@ import { pushNotice, updatePanels } from './panels';
 import { centerOn, city, redraw, setSelected } from './state';
 import { forgetInfo, showInfo } from './info';
 import { closeSheet, revealMap, showTab } from './tabs';
-import { $, escapeHtml, flash, hours, josa } from './util';
+import { $, ask, escapeHtml, flash, hours, josa } from './util';
 import { choice } from './undo';
 
 /** A place on the map as a link that goes there, named (집, 일터) rather than by its coordinates. */
@@ -55,15 +55,20 @@ export function renderMySims(force = false): void {
     const job = sim.job > 0 ? s.buildings.get(sim.job) : sim.job < 0 ? s.structures.get(-sim.job) : undefined;
     const trip = city.mySimCommute(sim.id);
     const pending = mySimAction?.id === sim.id ? mySimAction.kind : null;
-    return `<div class="mysim">
-      <div><b>${escapeHtml(sim.name)}</b>${(sim.generation ?? 1) > 1 ? ` <span class="chip">${sim.generation}대째</span>` : ''} <span class="muted">${WEALTH_NAME[sim.wealth]} · ${home ? goto(home.x, home.y, '집') : '<span class="neg">집 찾는 중</span>'} · ${job ? goto(job.x, job.y, '일터') : '일터 자동'}${trip ? ` · 통근 ${trip.time < 0 ? '<span class="neg">못 감</span>' : hours(trip.time)}` : ''}</span></div>
+    // A face (the name's first letter, tinted by income), the name, where they live and work, their thoughts;
+    // 떠나보내기 apart at the end, as words (it sat among the errands as one more of them).
+    return `<div class="mysim w${sim.wealth}">
+      <span class="sim-face" aria-hidden="true">${escapeHtml([...sim.name][0] ?? '?')}</span>
+      <div class="sim-body">
+      <div class="sim-head"><b>${escapeHtml(sim.name)}</b>${(sim.generation ?? 1) > 1 ? ` <span class="chip">${sim.generation}대째</span>` : ''} <span class="muted">${WEALTH_NAME[sim.wealth]}</span></div>
+      <div class="sim-where">${home ? goto(home.x, home.y, '집') : '<span class="neg">집 찾는 중</span>'} · ${job ? goto(job.x, job.y, '일터') : '일터 자동'}${trip ? ` · 통근 ${trip.time < 0 ? '<span class="neg">못 감</span>' : hours(trip.time)}` : ''}</div>
       <div class="thoughts">${thoughtChips(city.mySimThoughts(sim.id))}</div>
       <div class="mysim-buttons">
         <button data-sim="${sim.id}" data-act="job" class="${pending === 'job' ? 'active' : ''}">일터 지정</button>
         <button data-sim="${sim.id}" data-act="move" class="${pending === 'move' ? 'active' : ''}">이사</button>
         <button data-sim="${sim.id}" data-act="dispatch" class="${pending === 'dispatch' ? 'active' : ''}">보내기</button>
-        <button data-sim="${sim.id}" data-act="remove">떠나보내기</button>
-      </div></div>`;
+        <button data-sim="${sim.id}" data-act="remove" class="link sim-leave">떠나보내기</button>
+      </div></div></div>`;
   }).join('');
   const homes = city.state.mySims.length < city.cfg.mySims.max ? [...city.state.buildings.values()].filter((b) => b.type?.[0] === 'R' && b.occupancy > 0) : [];
   const anyHome = homes.length ? `<button id="mysim-any" class="${rows ? '' : 'primary'}">${icon('users')}아무 집에나 입주</button>` : '';
@@ -95,10 +100,14 @@ export function renderMySims(force = false): void {
     updatePanels();
   };
   el.querySelectorAll<HTMLButtonElement>('button[data-sim]').forEach((btn) => {
-    btn.onclick = () => {
+    btn.onclick = async () => {
       const id = Number(btn.dataset.sim);
       const act = btn.dataset.act as 'job' | 'move' | 'dispatch' | 'remove';
       if (act === 'remove') {
+        // Gone for good (undo doesn't bring a My Sim back): asked first.
+        const sim = city.state.mySims.find((m) => m.id === id);
+        if (!sim || !(await ask(`${sim.name}${josa(sim.name, '을', '를')} 떠나보내면 되돌릴 수 없습니다${(sim.generation ?? 1) > 1 ? ` (${sim.generation}대째 이어 온 가족)` : ''}.`, '떠나보내기'))) return;
+        if (!city.state.mySims.some((m) => m.id === id)) return;
         choice('My Sim', () => city.removeMySim(id));
         mySimAction = null;
       } else mySimAction = mySimAction?.id === id && mySimAction.kind === act ? null : { id, kind: act };
