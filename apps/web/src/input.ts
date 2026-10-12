@@ -863,13 +863,20 @@ export function applyTool(): void {
       }
       dropProposal();
       const [sx, sy] = footprintAt(kind, [x1, y1]);
-      const warn = city.canPlaceStructure(kind, sx, sy).ok ? siteWarnings(kind, sx, sy) : '';
+      const placeable = city.canPlaceStructure(kind, sx, sy).ok;
+      const warn = placeable ? siteWarnings(kind, sx, sy) : '';
+      // (A station: what it now reaches that went without, counted before it stands — the result, said with it.)
+      const def = STRUCTURES[kind];
+      const goal = placeable ? goalOfStructure(kind) : null;
+      const reach = coverageRadius(kind);
+      const gained = reach && (goal === 'police' || goal === 'fire' || goal === 'health' || goal === 'education') ? newlyReached(goal, sx + def.w / 2, sy + def.h / 2, reach) : 0;
       res = city.placeStructure(kind, sx, sy);
       // Say it stands (the hint over it would now read "has a building"), and what it still needs.
       // (Where to take it back, if it landed a tile off: Ctrl+Z, or the ↶ at the top on a touch screen.)
       if (res.ok) {
-        justBuilt = { x: sx, y: sy, w: STRUCTURES[kind].w, h: STRUCTURES[kind].h, kind };
-        built = [`${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 지었습니다 · −§${fmt(res.cost)}${warn}${warn ? '' : touchFirst() ? ' · 위쪽 ↶로 되돌리기' : ' · Ctrl+Z로 되돌리기'}`, warn ? 'bad' : 'info'];
+        justBuilt = { x: sx, y: sy, w: def.w, h: def.h, kind };
+        const reached = gained ? ` · 새로 닿는 ${goal === 'health' || goal === 'education' ? '집' : '건물'} ${fmt(gained)}채` : '';
+        built = [`${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 지었습니다 · −§${fmt(res.cost)}${reached}${warn}${warn ? '' : touchFirst() ? ' · 위쪽 ↶로 되돌리기' : ' · Ctrl+Z로 되돌리기'}`, warn ? 'bad' : 'info'];
         flash(...built);
       }
       break;
