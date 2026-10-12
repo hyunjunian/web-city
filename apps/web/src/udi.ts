@@ -230,13 +230,15 @@ export function useSpecial(): void {
 
 export function setupDriving(): void {
   window.addEventListener('keydown', (e) => {
-    if (drive && e.key === ' ') {
+    // A dialog over the drive (a name to type, a question) has the keys: W, A, S, D and Space are letters there.
+    if (!drive || document.querySelector('dialog[open]')) return;
+    if (e.key === ' ') {
       if (!e.repeat) useSpecial(); // once a press: holding Space would empty the tank in a second
       e.preventDefault();
       e.stopImmediatePropagation();
       return;
     }
-    if (!drive || !KEY_DIR[e.key]) return;
+    if (!KEY_DIR[e.key]) return;
     drive.held.add(KEY_DIR[e.key]!);
     e.preventDefault();
     e.stopImmediatePropagation();

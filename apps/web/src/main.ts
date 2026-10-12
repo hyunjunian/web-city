@@ -58,7 +58,6 @@ let frameFailed = false;
 function frameBody(now: number): void {
   const dt = Math.min(0.25, (now - last) / 1000);
   last = now;
-  if (drive) tickDrive(dt);
   if (!saving && Math.floor(city.state.day / 30) - lastAutosave >= 6) {
     // Written a few milliseconds at a time when the page is idle (a big
     // city's save is a few frames' work), from the end of a day; the next
@@ -91,8 +90,9 @@ function frameBody(now: number): void {
     later(write);
   }
   // A dialog over the game (help, saves, a new city, a question) holds the clock, as the game's menus do
-  // (live disasters too: a tornado went on wrecking behind an undo question).
+  // (live disasters too: a tornado went on wrecking behind an undo question; and a drive's countdown).
   const held = !!document.querySelector('dialog[open]');
+  if (drive && !held) tickDrive(dt);
   if (!held) tickDisasters(dt);
   if (!city.state.liveDisasters.length && renderer.live.length) {
     renderer.live = [];
