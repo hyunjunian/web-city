@@ -5,7 +5,7 @@ import { type Building, DEFAULT_CONFIG, DEV_TYPES, Net, NETWORK_KINDS, type Poll
 import { noRiders } from './info';
 import { ADVICE_TEXT, POLL_NAME, WEALTH_NAME } from './names';
 import { crimeKinds, currentAdvice, garbageFill } from './panels';
-import { changeKey, city } from './state';
+import { changeKey, city, cityGeneration } from './state';
 import { kindsFor, structureStat, TOOLS } from './tools';
 import { coverageRadius } from './views';
 import { fmt, landfillMonths, landfillSpan, money, short } from './util';
@@ -593,7 +593,6 @@ export function cheapestOf(g: Goal): StructureKind | null {
   return best;
 }
 
-/** The biggest patch the goal's service doesn't reach (worked out once a week of game time or after an edit). */
 /** Forgets the sites found since the city last changed (a building grew on one: growth moves no revision). */
 export function forgetSites(): void {
   siteMemo = pipeMemo = nearMemo = plantMemo = awayMemo = pairMemo = spotMemo = null;
@@ -605,26 +604,54 @@ function buildable(kind: StructureKind, count = 1): boolean {
 }
 
 /**
+ * When the sites are found again: an edit, or a month (by the week, as the panels go, a big map's search ran
+ * four times a second at top speed; a site taken meanwhile is found again on the press, see forgetSites).
+ */
+const siteKey = () => `${cityGeneration}|${city.revision}|${Math.floor(city.state.day / 30)}`;
+
+/** Visits the offsets on the square ring of radius r around a point (r = 0: the point), until `visit` says done. */
+function onRing(r: number, visit: (dx: number, dy: number) => boolean): boolean {
+  if (r === 0) return visit(0, 0);
+  for (let d = -r; d <= r; d++) if (visit(d, -r) || visit(d, r)) return true;
+  for (let d = -r + 1; d < r; d++) if (visit(-r, d) || visit(r, d)) return true;
+  return false;
+}
+
+/** A footprint on the map with no building, facility or road on it: worth asking the engine about (that costs more). */
+function footprintOpen(lx: number, ly: number, w: number, h: number): boolean {
+  const n = city.size;
+  if (lx < 0 || ly < 0 || lx + w > n || ly + h > n) return false;
+  const s = city.state;
+  for (let y = ly; y < ly + h; y++) for (let x = lx; x < lx + w; x++) if (s.occupant[y * n + x] || s.net[y * n + x]) return false;
+  return true;
+}
+
+/** The nearest spot to (ax, ay) within `reach` rings where a footprint of `kind` passes `fits` (given its corner): its middle tile. */
+function nearestFit(kind: StructureKind, ax: number, ay: number, reach: number, fits: (lx: number, ly: number) => boolean): [number, number] | null {
+  const d = STRUCTURES[kind];
+  let at: [number, number] | null = null;
+  for (let r = 0; r <= reach && !at; r++) {
+    onRing(r, (dx, dy) => {
+      const [lx, ly] = [ax + dx - ((d.w - 1) >> 1), ay + dy - ((d.h - 1) >> 1)]; // (a spot is the site's middle, as suggestSpot's)
+      if (!footprintOpen(lx, ly, d.w, d.h) || !city.canPlaceStructure(kind, lx, ly).ok || !fits(lx, ly)) return false;
+      at = [ax + dx, ay + dy];
+      return true;
+    });
+  }
+  return at;
+}
+
+/**
  * The free site nearest the homes, beside a road, for a facility whose place doesn't matter to what it is
  * built for (a park lifting the cap does it anywhere; by the homes it pleases them too). Its middle tile, or null.
  */
 export function siteNearHomes(kind: StructureKind): [number, number] | null {
   if (!buildable(kind)) return null;
-  const key = `homes|${kind}|${changeKey()}`;
+  const key = `homes|${kind}|${siteKey()}`;
   if (siteMemo?.key === key) return siteMemo.at;
-  const n = city.size;
   const d = STRUCTURES[kind];
   const [ax, ay] = homesMiddle();
-  let at: [number, number] | null = null;
-  search: for (let r = 0; r < n; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-    if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-    const [x, y] = [ax + dx, ay + dy];
-    const [lx, ly] = [x - ((d.w - 1) >> 1), y - ((d.h - 1) >> 1)]; // (a spot is the site's middle, as suggestSpot's)
-    if (lx < 0 || ly < 0 || lx + d.w > n || ly + d.h > n) continue;
-    if (!city.canPlaceStructure(kind, lx, ly).ok || !city.roadBeside(lx, ly, d.w, d.h)) continue;
-    at = [x, y];
-    break search;
-  }
+  const at = nearestFit(kind, ax, ay, city.size, (lx, ly) => city.roadBeside(lx, ly, d.w, d.h));
   siteMemo = { key, at };
   return at;
 }
@@ -649,7 +676,7 @@ function homesMiddle(): [number, number] {
  */
 export function siteOnPipes(kind: StructureKind): [number, number] | null {
   if (!buildable(kind)) return null;
-  const key = `pipes|${kind}|${changeKey()}`;
+  const key = `pipes|${kind}|${siteKey()}`;
   if (pipeMemo?.key === key) return pipeMemo.at;
   const s = city.state;
   const n = city.size;
@@ -660,21 +687,20 @@ export function siteOnPipes(kind: StructureKind): [number, number] | null {
     for (let y = ly; y < ly + d.h; y++) for (let x = lx; x < lx + d.w; x++) if (city.fields.waterPollution[y * n + x]! > limit) return false;
     return true;
   };
-  let at: [number, number] | null = null;
-  let near = Infinity;
+  // Every open footprint against a pipe tile (on each side of it), nearest the homes first; the engine is
+  // asked about them in that order, until one will do (asking about all of them took 60 ms on a big map).
+  const cands: [number, number, number][] = [];
   for (let i = 0; i < n * n; i++) {
     if (!s.pipe[i]) continue;
     const x = i % n;
     const y = (i - x) / n;
-    // The footprint against the pipe tile, on each side of it.
     for (const [lx, ly] of [[x + 1, y], [x - d.w, y], [x, y + 1], [x, y - d.h]] as const) {
-      if (lx < 0 || ly < 0 || lx + d.w > n || ly + d.h > n) continue;
-      const far = (lx + d.w / 2 - ax) ** 2 + (ly + d.h / 2 - ay) ** 2;
-      if (far >= near || !city.canPlaceStructure(kind, lx, ly).ok || city.powerReach(kind, lx, ly) !== 'powered' || !clean(lx, ly)) continue;
-      near = far;
-      at = [lx + ((d.w - 1) >> 1), ly + ((d.h - 1) >> 1)];
+      if (footprintOpen(lx, ly, d.w, d.h) && clean(lx, ly)) cands.push([(lx + d.w / 2 - ax) ** 2 + (ly + d.h / 2 - ay) ** 2, lx, ly]);
     }
   }
+  cands.sort((a, b) => a[0] - b[0]);
+  const fit = cands.find(([, lx, ly]) => city.canPlaceStructure(kind, lx, ly).ok && city.powerReach(kind, lx, ly) === 'powered');
+  const at: [number, number] | null = fit ? [fit[1] + ((d.w - 1) >> 1), fit[2] + ((d.h - 1) >> 1)] : null;
   pipeMemo = { key, at };
   return at;
 }
@@ -687,17 +713,10 @@ let pipeMemo: { key: string; at: [number, number] | null } | null = null;
  */
 export function siteNear(kind: StructureKind, x: number, y: number, reach = 12): [number, number] | null {
   if (!buildable(kind)) return null;
-  const key = `near|${kind}|${x},${y}|${reach}|${changeKey()}`;
+  const key = `near|${kind}|${x},${y}|${reach}|${siteKey()}`;
   if (nearMemo?.key === key) return nearMemo.at;
   const d = STRUCTURES[kind];
-  let at: [number, number] | null = null;
-  search: for (let r = 0; r <= reach; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-    if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-    const [lx, ly] = [x + dx - ((d.w - 1) >> 1), y + dy - ((d.h - 1) >> 1)];
-    if (!city.canPlaceStructure(kind, lx, ly).ok || !city.roadBeside(lx, ly, d.w, d.h)) continue;
-    at = [x + dx, y + dy];
-    break search;
-  }
+  const at = nearestFit(kind, x, y, reach, (lx, ly) => city.roadBeside(lx, ly, d.w, d.h));
   nearMemo = { key, at };
   return at;
 }
@@ -722,23 +741,21 @@ function homesNear(lx: number, ly: number, w: number, h: number): boolean {
  */
 export function siteByPlants(kind: StructureKind): [number, number] | null {
   if (!buildable(kind)) return null;
-  const key = `plants|${kind}|${changeKey()}`;
+  const key = `plants|${kind}|${siteKey()}`;
   if (plantMemo?.key === key) return plantMemo.at;
   const d = STRUCTURES[kind];
   const smoky = (d.plant?.air[0] ?? 0) > 0;
+  const fits = (lx: number, ly: number) => city.roadBeside(lx, ly, d.w, d.h) && city.powerReach(kind, lx, ly) === 'powered' && !(smoky && homesNear(lx, ly, d.w, d.h));
   let at: [number, number] | null = null;
   let near = Infinity;
   for (const p of city.state.structures.values()) {
     if (!STRUCTURES[p.kind].plant) continue;
     const [cx, cy] = [p.x + (p.w >> 1), p.y + (p.h >> 1)];
-    ring: for (let r = 0; r <= 16 && r < near; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-      const [lx, ly] = [cx + dx - ((d.w - 1) >> 1), cy + dy - ((d.h - 1) >> 1)];
-      if (!city.canPlaceStructure(kind, lx, ly).ok || !city.roadBeside(lx, ly, d.w, d.h) || city.powerReach(kind, lx, ly) !== 'powered'
-        || (smoky && homesNear(lx, ly, d.w, d.h))) continue;
-      [near, at] = [r, [cx + dx, cy + dy]];
-      break ring;
-    }
+    // (Nearest of all the plants': each looked at no further than the best found so far.)
+    const found = nearestFit(kind, cx, cy, Math.min(16, near - 1), fits);
+    if (!found) continue;
+    const r = Math.max(Math.abs(found[0] - cx), Math.abs(found[1] - cy));
+    if (r < near) [near, at] = [r, found];
   }
   plantMemo = { key, at };
   return at;
@@ -752,7 +769,7 @@ let plantMemo: { key: string; at: [number, number] | null } | null = null;
  */
 export function siteAwayFromHomes(kind: StructureKind): [number, number] | null {
   if (!buildable(kind)) return null;
-  const key = `away|${kind}|${changeKey()}`;
+  const key = `away|${kind}|${siteKey()}`;
   if (awayMemo?.key === key) return awayMemo.at;
   const n = city.size;
   const d = STRUCTURES[kind];
@@ -764,15 +781,7 @@ export function siteAwayFromHomes(kind: StructureKind): [number, number] | null 
     count++;
   }
   const [ax, ay] = count ? [Math.round(sx / count), Math.round(sy / count)] : [n >> 1, n >> 1];
-  let at: [number, number] | null = null;
-  search: for (let r = 0; r < n; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-    if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
-    const [lx, ly] = [ax + dx - ((d.w - 1) >> 1), ay + dy - ((d.h - 1) >> 1)];
-    if (lx < 0 || ly < 0 || lx + d.w > n || ly + d.h > n) continue;
-    if (!city.canPlaceStructure(kind, lx, ly).ok || !city.roadBeside(lx, ly, d.w, d.h) || homesNear(lx, ly, d.w, d.h)) continue;
-    at = [ax + dx, ay + dy];
-    break search;
-  }
+  const at = nearestFit(kind, ax, ay, n, (lx, ly) => city.roadBeside(lx, ly, d.w, d.h) && !homesNear(lx, ly, d.w, d.h));
   awayMemo = { key, at };
   return at;
 }
@@ -785,7 +794,7 @@ let awayMemo: { key: string; at: [number, number] | null } | null = null;
  */
 export function stopPair(kind: StructureKind): [[number, number], [number, number]] | null {
   if (!buildable(kind, 2)) return null;
-  const key = `stops|${kind}|${changeKey()}`;
+  const key = `stops|${kind}|${siteKey()}`;
   if (pairMemo?.key === key) return pairMemo.at;
   const n = city.size;
   const B = 12;
@@ -821,6 +830,7 @@ export function stopPair(kind: StructureKind): [[number, number], [number, numbe
 }
 let pairMemo: { key: string; at: [[number, number], [number, number]] | null } | null = null;
 
+/** The biggest patch the goal's service doesn't reach (worked out once a week of game time or after an edit). */
 let spotMemo: { key: string; spot: { x: number; y: number; tiles: number; crowded?: true } | null } | null = null;
 /** Buildings go without water though the pumps make enough for all: their networks aren't joined. */
 export function waterApart(): boolean {
