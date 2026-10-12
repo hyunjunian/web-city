@@ -709,7 +709,7 @@ export function refreshViewSummary(): void {
     // flash marked it. Which one of how many, on the button.)
     centerOn(x, y, 14);
     pingAt(x, y);
-    (e.currentTarget as HTMLButtonElement).textContent = `찾아가기 ${k + 1}/${sumSpots.length}`;
+    (e.currentTarget as HTMLButtonElement).textContent = `찾아가기 ${k + 1}/${sumSpots.length}곳`; // (places: beside 막힌 길 139칸, 1/18 read as tiles)
   });
 }
 let sumSpots: number[] = [];

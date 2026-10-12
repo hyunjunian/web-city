@@ -168,11 +168,15 @@ export function blinkAt(x: number, y: number, w = 1, h = 1): void {
   }, t);
 }
 /** 찾아가기's mark on what it found: a ring closing in on it, twice, once the map has flown there. */
+let pings: number[] = [];
 export function pingAt(x: number, y: number): void {
-  for (const t of [380, 1000]) setTimeout(() => {
+  // (A press on to the next place ends the last one's rings: its second landed after the map had moved on.)
+  for (const id of pings) clearTimeout(id);
+  renderer.effects = renderer.effects.filter((fx) => fx.kind !== 'ping');
+  pings = [380, 1000].map((t) => window.setTimeout(() => {
     renderer.effect('ping', x, y);
     redraw();
-  }, t);
+  }, t));
 }
 /** Counts camera flights (one started since another reads a different number). */
 export const flightCount = (): number => flights;
