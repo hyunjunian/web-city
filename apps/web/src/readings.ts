@@ -448,8 +448,11 @@ export function forecast(k: StructureKind): string {
   // A station: of the area its goal finds uncovered, how much one at the target would reach.
   if (d.police || d.fire) {
     const id: GoalId = d.police ? 'police' : 'fire';
-    const gain = reachAtSpot(id, k);
-    return gain ? `과녁에 지으면 닿지 않던 곳 ${fmt(gain)}칸 해결` : '';
+    // (In buildings, as the view counts what is missed and the build says what it reached: 닿지 않던 곳 116칸 here was
+    // 새로 닿는 건물 82채 once built.)
+    const spot = suggestSpot(id);
+    const gain = spot ? newlyReached(id, spot.x + 0.5, spot.y + 0.5, coverageRadius(k)) : 0;
+    return gain ? `과녁에 지으면 새로 닿는 건물 ${fmt(gain)}채` : '';
   }
   if (d.school && !classroom(k)) return '';
   if (d.health || d.school) {
@@ -463,26 +466,6 @@ export function forecast(k: StructureKind): string {
   return '';
 }
 
-/** Tiles the goal finds uncovered within a facility's radius of its target (none without one). */
-let reachMemo: { key: string; n: number } | null = null;
-function reachAtSpot(id: GoalId, k: StructureKind): number {
-  const key = `${id}|${k}|${changeKey()}`;
-  if (reachMemo?.key === key) return reachMemo.n;
-  const spot = suggestSpot(id);
-  const want = need(id);
-  const r = coverageRadius(k);
-  let n = 0;
-  if (spot && want && r) {
-    const size = city.size;
-    for (let y = Math.max(0, spot.y - r); y <= Math.min(size - 1, spot.y + r); y++) {
-      for (let x = Math.max(0, spot.x - r); x <= Math.min(size - 1, spot.x + r); x++) {
-        if ((x - spot.x) ** 2 + (y - spot.y) ** 2 <= r * r && want(y * size + x) > 0) n++;
-      }
-    }
-  }
-  reachMemo = { key, n };
-  return n;
-}
 
 /** What a goal looks for on the map: the tiles that need it, and whether each has it. */
 function need(id: GoalId): ((i: number) => number) | null {
@@ -560,7 +543,7 @@ export function newlyReached(goal: GoalId, cx: number, cy: number, r: number): n
 }
 
 export const SPOT_WORD: Partial<Record<GoalId, string>> = {
-  police: '경찰이 닿지 않는 곳', fire: '소방이 닿지 않는 곳', health: '병원이 닿지 않는 주거지', education: '학교가 닿지 않는 주거지',
+  police: '경찰이 닿지 않는 건물', fire: '소방이 닿지 않는 건물', health: '병원이 닿지 않는 집', education: '학교가 닿지 않는 집',
   power: '발전소 자리', water: '양수 시설 자리', traffic: '막히는 길', environment: '공기가 나쁜 주거지', garbage: '쓰레기가 쌓인 곳', wealth: '부유층이 살 만한 길가 빈 땅',
 };
 
@@ -1765,7 +1748,7 @@ function litBy(kind: StructureKind, x: number, y: number, dark: { per: Map<numbe
   return sum;
 }
 
-export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; crowded?: true; lit?: number } | null {
+export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; crowded?: true; lit?: number; blds?: number } | null {
   const key = `${id}|${changeKey()}`;
   if (spotMemo?.key === key) return spotMemo.spot;
   // A school or hospital on strike or far over its places: the new one goes beside it, to take some of
@@ -1787,7 +1770,7 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
     }
   }
   const want = need(id);
-  let spot: { x: number; y: number; tiles: number; lit?: number } | null = null;
+  let spot: { x: number; y: number; tiles: number; lit?: number; blds?: number } | null = null;
   let lit = 0;
   if (want) {
     // Counted in blocks of 12 tiles; the fullest block's middle of its needing tiles.
@@ -1890,7 +1873,19 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
           }
         }
       }
-      spot = { x: at[0], y: at[1], tiles: hits[best]!, ...(lit ? { lit } : {}) };
+      // (For a station: the buildings among them, in the unit its view counts.)
+      let blds = 0;
+      if (SERVICE.has(id) || id === 'water') {
+        const seen = new Set<number>();
+        const bx = (best % per) * B;
+        const by = Math.floor(best / per) * B;
+        for (let y = by; y < Math.min(n, by + B); y++) for (let x = bx; x < Math.min(n, bx + B); x++) {
+          const i = y * n + x;
+          if (want(i) > 0 && s.occupant[i]) seen.add(s.occupant[i]!);
+        }
+        blds = seen.size;
+      }
+      spot = { x: at[0], y: at[1], tiles: hits[best]!, ...(lit ? { lit } : {}), ...(blds ? { blds } : {}) };
     }
   }
   spotMemo = { key, spot };
