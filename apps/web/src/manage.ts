@@ -217,6 +217,7 @@ function guideSaid(id: GoalId): { said: string; worst?: ReturnType<typeof advice
  * (A fire or a riot has its banner instead; a sound goal shows nothing here.)
  */
 function guideHtml(id: GoalId): string {
+  guideSite = null;
   const s = goalStatus(id);
   if (!s.tone || incidents().some((x) => x.goal === id)) return '';
   const st = goalStep(id);
@@ -248,6 +249,7 @@ function guideHtml(id: GoalId): string {
       : id === 'water' && STRUCTURES[st.build].pump ? { at: siteOnPipes(st.build), title: '수도관에 닿고 전기가 들어오는 빈 땅에 바로 짓기' }
       : id === 'power' && STRUCTURES[st.build].plant ? { at: siteByPlants(st.build), title: '있는 발전소 옆, 전력망에 닿는 길가 빈 땅에 바로 짓기' } : null;
     const siteTitle = `지도의 과녁(${SPOT_WORD[id] ?? ''})에 바로 짓기`;
+    if (own?.at) guideSite = { id, at: own.at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}` };
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b>${st.sub ? `<small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small>` : ''}</p>
       ${why ? `<p class="${st.fx ? `g-act-fx${/−|모자람/.test(st.fx) ? ' neg' : ''}` : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}
       <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>해 보기</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
@@ -259,6 +261,9 @@ function guideHtml(id: GoalId): string {
   return `<section class="lead ${s.tone} mg-guide" aria-label="추천 조치"><p class="lead-title">${icon('alert')}<span>${title}</span></p>
     <p class="lead-risk">${RISK[id]}</p><p class="g-label">추천 조치</p>${action}${wait}</section>`;
 }
+
+/** The guide's own site (one the map's mark isn't), marked on the map as the 과녁 is: where 추천 자리에 짓기 will build. */
+let guideSite: { id: GoalId; at: [number, number]; label: string } | null = null;
 
 /**
  * A goal's recommendation: what it is, why, the act behind 해 보기; `build` the facility it puts up
@@ -1094,7 +1099,11 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   const spot = incidents().some((x) => x.goal === id) ? null : suggestSpot(id);
   // (Its label says what the panel's line says: next to a full hospital or school, the dry buildings, or the gap.)
   const label = spot?.crowded ? `넘치는 ${id === 'education' ? '학교' : '병원'} 옆` : id === 'water' && spot && waterApart() ? '물이 끊긴 건물' : SPOT_WORD[id];
-  if (spot) marks.push({ x: spot.x, y: spot.y, w: 1, h: 1, tone: 'spot', label });
+  // The guide's own site too, so 추천 자리에 짓기 shows where before it builds (beside a full hospital it takes
+  // the place of the mark it was found near).
+  const own = guideSite?.id === id ? guideSite : null;
+  if (spot && !(spot.crowded && own)) marks.push({ x: spot.x, y: spot.y, w: 1, h: 1, tone: 'spot', label });
+  if (own) marks.push({ x: own.at[0], y: own.at[1], w: 1, h: 1, tone: 'spot', label: own.label });
   const sig = JSON.stringify(marks);
   if (sig === marksSig) return;
   marksSig = sig;
@@ -1297,8 +1306,8 @@ export function renderGoal(force = false): void {
   const el = $('#mg-body');
   // A slider in hand (or focused for the arrow keys) is never rebuilt under the player.
   if (!force && (holding || (document.activeElement as HTMLElement | null)?.matches?.('#mg-body input[type=range]'))) return;
-  refreshMarks(active, facilities(GOALS[active]));
   const html = goalHtml(active);
+  refreshMarks(active, facilities(GOALS[active])); // (after the screen: its guide picks the site to mark)
   if (!force && html === drawn) return;
   const sel = el.contains(document.activeElement) ? focusKey(document.activeElement) : '';
   drawn = html;
