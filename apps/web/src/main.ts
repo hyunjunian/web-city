@@ -41,6 +41,9 @@ const later = (fn: () => void) => ('requestIdleCallback' in window ? requestIdle
 /** How long drawing the map takes, smoothed (ms): the simulation gets what's left of a frame. */
 let drawCost = 8;
 
+/** When the uncovered part of the map was last measured (see mapBand). */
+let bandAt = -Infinity;
+
 export function frame(now: number): void {
   // Asked for first: one exception (a panel, the draw) must not stop the city for good.
   requestAnimationFrame(frame);
@@ -139,7 +142,11 @@ function frameBody(now: number): void {
   if (dirty) {
     const t0 = performance.now();
     clampCamera();
-    if (renderer.marks.length) renderer.band = mapBand(); // (the edge arrows keep to the part nothing covers)
+    // (The edge arrows keep to the part nothing covers: measured now and then, not each frame — it reads the layout.)
+    if (renderer.marks.length && (t0 - bandAt > 300 || !renderer.band)) {
+      renderer.band = mapBand();
+      bandAt = t0;
+    }
     renderer.draw(city, cam, overlay, preview, selected);
     followTag();
     // With the whole city on screen, the minimap and 전체 보기 have nothing to add: they fade out until zoomed in.
