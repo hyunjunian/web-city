@@ -535,6 +535,11 @@ export function layPath(lay: Lay, path: [number, number][], owner: GoalId | null
   if (owner && owner === active) noteAction(`${LAY_WORD[lay]} ${fmt(path.length)}칸 · −§${fmt(laid)}`);
   flash(`${LAY_WORD[lay]} ${fmt(path.length)}칸을 이었습니다 · −§${fmt(laid)}`, 'info');
   for (const [x, y] of path) renderer.effect('flash', x, y);
+  // (Laid off the screen, the map goes to it, at the zoom it had: what was laid is seen.)
+  const [mx, my] = path[path.length >> 1]!;
+  const v = renderer.canvas.getBoundingClientRect();
+  const [sx, sy] = [(mx + 0.5 - cam.x) * cam.scale, (my + 0.5 - cam.y) * cam.scale];
+  if (sx < 0 || sy < 0 || sx > v.width || sy > v.height) centerOn(mx, my, 0);
   redraw();
   updatePanels();
   return true;
