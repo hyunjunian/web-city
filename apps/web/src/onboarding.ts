@@ -10,9 +10,9 @@ import { closePane, showTab, type Tab } from './tabs';
 import { $, ask, flash, fmt, touchFirst } from './util';
 import { STRUCTURE_NAME } from './names';
 import { dropToasts, toast } from './toast';
-import { type GoalId } from './goals';
-import { edgeRoad, layCost, lineToDark, powerToSpare, roadLinked, unpoweredZones, smokeClear, zoneSite } from './readings';
-import { layPath, layZone, openGoal } from './manage';
+import { GOALS, type GoalId } from './goals';
+import { cheapestOf, edgeRoad, layCost, lineToDark, powerToSpare, roadLinked, siteNear, suggestSpot, unpoweredZones, smokeClear, zoneSite } from './readings';
+import { buildAtSite, layPath, layZone, openGoal } from './manage';
 import { updatePanels } from './panels';
 import { showOverlay } from './controls';
 import { unsavedProgress } from './saves';
@@ -123,8 +123,11 @@ export function renderOnboarding(): void {
   const wire0 = steps[3] && !steps[3][0] && kinds.some((d) => d.plant) && powerToSpare() ? lineToDark() : null;
   const wireCost = wire0 ? layCost('powerline', wire0) : null;
   const wire = wire0 && wireCost !== null && wireCost <= s.funds ? { path: wire0, cost: wireCost } : null;
+  // (And the fire station the fire screen would put up, where its mark is: by a plant out of reach first.)
+  const station = steps[4] && !steps[4][0] ? fireSite() : null;
   const sig = steps.map(([ok, text, tool]) => `${+ok}${tool ?? ''}${text}`).join('|') + (region ? 'r' : '') + (fresh ? 'f' : '') + (way ? `w${way.path[0]}${way.cost}${+way.short}` : '')
-    + [...blocks].map(([k, b]) => `${k}${b.x0},${b.y0},${b.side}${b.cost}`).join('') + (wire ? `p${wire.path[0]}${wire.path.length}${wire.cost}` : '');
+    + [...blocks].map(([k, b]) => `${k}${b.x0},${b.y0},${b.side}${b.cost}`).join('') + (wire ? `p${wire.path[0]}${wire.path.length}${wire.cost}` : '')
+    + (station ? `s${station.kind}${station.at.join(',')}` : '');
   if (el.dataset.sig === sig) return;
   // Phones: the checklist sits in the city pane, so its dock button gets a dot until opened.
   if (!el.dataset.sig && !$('#app').classList.contains('pane-open')) document.querySelector('.dock-city')?.classList.add('unread');
@@ -141,7 +144,8 @@ export function renderOnboarding(): void {
     const lay = !ok && tool === 'road' && way && !way.short
       ? `<button type="button" class="link step-lay" data-lay="road" title="지도 가장자리까지 가장 싼 곧은 길을 바로 놓기 (도로를 들면 지도에 점선으로 보이는 그 길 · Ctrl+Z로 되돌리기)">추천 길 바로 놓기 · ${fmt(way.path.length)}칸 §${fmt(way.cost)}</button>`
       : block ? `<button type="button" class="link step-lay" data-lay="${tool}" title="도로에 닿는 빈 땅에 바로 놓기${tool === 'I-medium' ? ' (주거에서 떨어진 곳)' : tool === 'C-low' ? ' (주거 가까이)' : ''} · Ctrl+Z로 되돌리기">추천 자리에 ${block.side}×${block.side} 바로 놓기 · §${fmt(block.cost)}</button>`
-      : !ok && tool === 'goal:power' && wire ? `<button type="button" class="link step-lay" data-lay="powerline" title="전력망에서 전기 없는 가장 가까운 구역까지 가장 짧은 송전선을 바로 잇기 (송전선을 들면 지도에 보이는 그 길 · Ctrl+Z로 되돌리기)">송전선 ${fmt(wire.path.length)}칸 바로 잇기 · §${fmt(wire.cost)}</button>` : '';
+      : !ok && tool === 'goal:power' && wire ? `<button type="button" class="link step-lay" data-lay="powerline" title="전력망에서 전기 없는 가장 가까운 구역까지 가장 짧은 송전선을 바로 잇기 (송전선을 들면 지도에 보이는 그 길 · Ctrl+Z로 되돌리기)">송전선 ${fmt(wire.path.length)}칸 바로 잇기 · §${fmt(wire.cost)}</button>`
+      : !ok && tool === 'goal:fire' && station ? `<button type="button" class="link step-lay" data-lay="fire" title="소방 화면의 과녁 자리(소방이 닿지 않는 발전소·건물 가까이 도로 옆)에 바로 짓기 · Ctrl+Z로 되돌리기">추천 자리에 ${STRUCTURE_NAME[station.kind]} 바로 짓기 · §${fmt(STRUCTURES[station.kind].cost)}</button>` : '';
     return `<li class="${ok ? 'done' : i === 0 && st.population === 0 ? 'next' : ''}">${!ok && tool
       ? `<button type="button" class="step" data-step-tool="${tool}" title="${tool.startsWith('goal:') ? '관리 화면 열기 (지도 보기·지을 곳·추천 시설)' : tool.startsWith('view:') ? '지도 보기 켜기' : '이 도구 고르기'}">${body}${icon('chevronRight', 'step-go')}</button>`
       : `<div class="step">${body}</div>`}${lay}</li>`;
@@ -164,6 +168,12 @@ export function renderOnboarding(): void {
       onboardingKey = ''; // (drawn again: the link goes)
       updatePanels();
     };
+    if (kind === 'fire') {
+      const now = fireSite();
+      if (!now) return gone();
+      buildAtSite(now.kind, now.at[0], now.at[1]);
+      return;
+    }
     if (kind === 'powerline') {
       const now = lineToDark();
       if (!now) return gone();
@@ -198,6 +208,15 @@ export function renderOnboarding(): void {
     } catch { /* storage unavailable */ }
     el.hidden = true;
   };
+}
+
+/** The cheapest fire station and where the fire screen's 추천 자리에 짓기 would put it (at its mark), with the money for it. */
+function fireSite(): { kind: StructureKind; at: [number, number] } | null {
+  const kind = cheapestOf(GOALS.fire);
+  if (!kind || !city.isUnlocked(kind) || city.placementsLeft(kind) <= 0 || STRUCTURES[kind].cost > city.state.funds) return null;
+  const spot = suggestSpot('fire');
+  const at = spot && !spot.crowded ? siteNear(kind, spot.x, spot.y, 0) ?? siteNear(kind, spot.x, spot.y, 6) : null;
+  return at ? { kind, at } : null;
 }
 
 /** Does a step: a service's opens its goal's screen, a view comes on, else its tool is picked (the map left clear). */

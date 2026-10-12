@@ -352,6 +352,33 @@ function guideHtml(id: GoalId): string {
 }
 
 /**
+ * A facility put up in one press on a site (x, y: its middle), as the guide's 추천 자리에 짓기 does — the getting
+ * started list's fire station: refused, and the sites found again, if taken or short of money. One undo.
+ */
+export function buildAtSite(kind: StructureKind, x: number, y: number): boolean {
+  city.settle();
+  const d = STRUCTURES[kind];
+  const r = city.canPlaceStructure(kind, x - ((d.w - 1) >> 1), y - ((d.h - 1) >> 1));
+  const short = d.cost - city.state.funds;
+  if (!r.ok || short > 0) {
+    forgetSites();
+    flash(short > 0 ? `§${fmt(Math.ceil(short))} 모자랍니다` : r.message === 'site has a building on it'
+      ? '그사이 그 자리에 건물이 들어서 추천 자리를 새로 찾았습니다' : ko(r.message ?? ''), 'bad');
+    return false;
+  }
+  centerOn(x, y, Math.max(6, 24 / Math.max(d.w, d.h)));
+  if (!pickStructure(kind)) return false;
+  // (Handed out as the guide's are: placed, it goes down and time runs on.)
+  handed = tool.id;
+  handedPick = toolPicks;
+  handedBy = active;
+  placeAt(x, y);
+  if (phone()) closePane();
+  updatePanels();
+  return true;
+}
+
+/**
  * A zone or landfill block laid in one press — the guide's 추천 자리에 N×N 놓기 and the getting started list's —
  * refused, and found again, if it was taken or the money is short. One undo.
  */
