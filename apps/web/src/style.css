@@ -1367,6 +1367,13 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 
+/* ------------------------------------------------------------------ larger screens */
+
+/* A wide monitor gives the pane and the cards more room (at 340 px on a 2560 px screen its lines wrapped
+   while a third of the screen was dark around the map). */
+@media (min-width: 1800px) { :root { --pane-w: 380px; --info-w: 400px; } }
+@media (min-width: 2300px) { :root { --pane-w: 420px; --info-w: 420px; } }
+
 /* ------------------------------------------------------------------ smaller screens */
 
 @media (max-width: 1360px) {
