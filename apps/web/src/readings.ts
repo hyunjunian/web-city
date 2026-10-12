@@ -1,7 +1,7 @@
 // Reading the city for the goals: each goal's state, figures and forecasts, where its
 // trouble gathers on the map, and what would help (no DOM here: the screen is manage.ts).
 
-import { type Building, DEFAULT_CONFIG, DEV_TYPES, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind } from '@web-city/engine';
+import { type Building, DEFAULT_CONFIG, DEV_TYPES, isLocalNet, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind } from '@web-city/engine';
 import { noRiders } from './info';
 import { ADVICE_TEXT, POLL_NAME, WEALTH_NAME } from './names';
 import { crimeKinds, currentAdvice, garbageFill } from './panels';
@@ -600,7 +600,7 @@ export function cheapestOf(g: Goal): StructureKind | null {
 
 /** Forgets the sites found since the city last changed (a building grew on one: growth moves no revision). */
 export function forgetSites(): void {
-  siteMemo = pipeMemo = plantMemo = awayMemo = pairMemo = spotMemo = lineMemo = null;
+  siteMemo = pipeMemo = plantMemo = awayMemo = pairMemo = spotMemo = lineMemo = roadMemo = null;
   nearMemo = new Map();
 }
 
@@ -706,6 +706,90 @@ export function lineToDark(): [number, number][] | null {
   return at;
 }
 let lineMemo: { key: string; path: [number, number][] | null } | null = null;
+
+/**
+ * The shortest road from a facility's side to the nearest street, road or avenue at grade, over open dry land only
+ * (no building, zone or other network on the way: nothing torn up or rezoned, no bridge), up to 40 tiles; null if none.
+ * (What its 도로에 닿지 않음 wants: garbage trucks, and a station's crews, leave by a road beside it.)
+ */
+export function roadToFacility(f: Structure): [number, number][] | null {
+  const key = `road|${f.id}|${siteKey()}`;
+  if (roadMemo?.key === key) return roadMemo.path;
+  const s = city.state;
+  const n = city.size;
+  const open = (i: number) => !s.occupant[i] && !s.zone[i] && !s.net[i] && s.terrain[i] !== Terrain.Water && s.landform[i] !== 2; // (2: a volcano's cone)
+  const road = (i: number) => isLocalNet(s.net[i]!) && !s.tunnel[i];
+  const from = new Int32Array(n * n).fill(-2); // -2 unseen, -1 beside the facility, else the tile it was reached from
+  const depth = new Uint8Array(n * n);
+  const queue: number[] = [];
+  // From the tiles along its sides (not its corners: a road there doesn't front it).
+  for (let y = f.y - 1; y <= f.y + f.h; y++) {
+    for (let x = f.x - 1; x <= f.x + f.w; x++) {
+      const side = (x === f.x - 1 || x === f.x + f.w) !== (y === f.y - 1 || y === f.y + f.h);
+      if (!side || x < 0 || y < 0 || x >= n || y >= n || !open(y * n + x)) continue;
+      from[y * n + x] = -1;
+      queue.push(y * n + x);
+    }
+  }
+  let hit = -1;
+  for (let h = 0; h < queue.length && hit < 0; h++) {
+    const i = queue[h]!;
+    const x = i % n;
+    for (const j of [x < n - 1 ? i + 1 : -1, x > 0 ? i - 1 : -1, i + n < n * n ? i + n : -1, i - n]) {
+      if (j < 0) continue;
+      if (road(j)) { hit = i; break; }
+      if (from[j] !== -2 || !open(j) || depth[i]! >= 40) continue;
+      from[j] = i;
+      depth[j] = depth[i]! + 1;
+      queue.push(j);
+    }
+  }
+  const path: [number, number][] = [];
+  for (let i = hit; i >= 0; i = from[i]!) path.push([i % n, Math.floor(i / n)]);
+  path.reverse();
+  const at = path.length ? path : null;
+  roadMemo = { key, path: at };
+  return at;
+}
+let roadMemo: { key: string; path: [number, number][] | null } | null = null;
+
+/** What a one-press path lays (the guide's 바로 잇기, the info card's 도로 잇기). */
+export type Lay = 'powerline' | 'road';
+export const LAY_WORD: Record<Lay, string> = { powerline: '송전선', road: '도로' };
+
+/**
+ * What laying a path costs now, or null if it can't be laid as it is: a line's tiles a line or zone already covers
+ * are free (the tool skips them); a road goes only over open land (a zone or a network there since: found again).
+ */
+export function layCost(lay: Lay, line: readonly [number, number][]): number | null {
+  const s = city.state;
+  const n = city.size;
+  if (line.some(([x, y]) => s.occupant[y * n + x] !== 0)) return null;
+  if (lay === 'powerline') return line.filter(([x, y]) => !s.power[y * n + x] && !s.zone[y * n + x]).length * city.cfg.services.powerLineCost.build;
+  if (line.some(([x, y]) => s.zone[y * n + x] || s.net[y * n + x])) return null;
+  let cost = 0;
+  for (const [x0, y0, x1, y1] of straightRuns(line)) {
+    const p = city.previewNetwork(x0, y0, x1, y1, 'road');
+    if (!p.ok && p.message !== 'not enough funds') return null;
+    cost += p.cost;
+  }
+  return cost;
+}
+
+/** A path tile by tile as its straight runs, end to end (a line or road tool lays one run at a time). */
+export function straightRuns(path: readonly [number, number][]): [number, number, number, number][] {
+  const runs: [number, number, number, number][] = [];
+  let from = path[0]!;
+  for (let k = 2; k < path.length; k++) {
+    const [a, b, c] = [path[k - 2]!, path[k - 1]!, path[k]!];
+    if (b[0] - a[0] !== c[0] - b[0] || b[1] - a[1] !== c[1] - b[1]) {
+      runs.push([from[0], from[1], b[0], b[1]]);
+      from = b;
+    }
+  }
+  if (path.length) runs.push([from[0], from[1], path.at(-1)![0], path.at(-1)![1]]);
+  return runs;
+}
 
 /** The middle of the city's homes (the map's middle while there are none). */
 function homesMiddle(): [number, number] {

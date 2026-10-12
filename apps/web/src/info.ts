@@ -2,7 +2,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceId, ORDINANCES, serviceRadius, type Structure, type StructureKind, STRUCTURES, type TripMeans } from '@web-city/engine';
 import { icon } from './icons';
-import { budgetMends, facilityLine, readStats, relieverFor, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
+import { budgetMends, facilityLine, layCost, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
 import { ko } from './messages';
 import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -237,6 +237,9 @@ export function showInfo(x: number, y: number): void {
   const relieve = relieveKind && relieveAt ? { kind: relieveKind, at: relieveAt, text: `옆에 ${STRUCTURE_NAME[relieveKind]} 짓기`, where: '가장 가까운 길가 빈 땅에' }
     : jail && jailAt ? { kind: jail, at: jailAt, text: `${STRUCTURE_NAME[jail]} 짓기`, where: '주거지에서 떨어진 길가 빈 땅에' }
     : moreAt && q.structure ? { kind: q.structure.kind, at: moreAt, text: `${STRUCTURE_NAME[q.structure.kind]} 하나 더 짓기`, where: def!.plant ? '발전소 옆, 전력망에 닿는 길가 빈 땅에' : '수도관에 닿고 전기가 들어오는 빈 땅에' } : null;
+  const offRoad = !!q.structure && !!def && def.garbage > 0 && !city.roadBeside(q.structure.x, q.structure.y, q.structure.w, q.structure.h);
+  const roadPath = offRoad ? roadToFacility(q.structure!) : null;
+  const roadCost = roadPath ? layCost('road', roadPath) : null;
   const chips = [
     b && !b.powered ? `<button type="button" class="chip bad"${go('power')} title="${city.cfg.services.noPowerMonths}개월이 되면 버려집니다 · 눌러서 전력 화면">${icon('zap')}전기 끊김 ${b.noPowerMonths}/${city.cfg.services.noPowerMonths}개월</button>` : '',
     b?.type && !b.watered && waterNeeded ? `<button type="button" class="chip bad"${go('water')} title="${city.cfg.services.noWaterMonths}개월이 되면 버려집니다 · 눌러서 수도 화면">${icon('droplet')}물 끊김 ${b.noWaterMonths}/${city.cfg.services.noWaterMonths}개월</button>` : '',
@@ -248,8 +251,9 @@ export function showInfo(x: number, y: number): void {
     b && !b.type ? `<span class="chip bad">버려짐${b.abandonReason ? `: ${ABANDON_NAME[b.abandonReason]}` : ''}</span>` : '',
     b?.historical ? '<span class="chip gold">역사 건물</span>' : '',
     q.burning ? `<span class="chip bad">${icon('flame')}불타는 중</span>` : '',
-    q.structure && def && def.garbage > 0 && !city.roadBeside(q.structure.x, q.structure.y, q.structure.w, q.structure.h)
-      ? `<span class="chip bad" title="쓰레기를 거둘 수 없어 쌓입니다${def.police || def.fire || def.health || def.school ? '. 경찰차·소방차·구급차·통학버스도 나가지 못합니다' : ''}">${icon('road')}도로에 닿지 않음</span>` : '',
+    offRoad ? `<span class="chip bad" title="쓰레기를 거둘 수 없어 쌓입니다${def!.police || def!.fire || def!.health || def!.school ? '. 경찰차·소방차·구급차·통학버스도 나가지 못합니다' : ''}">${icon('road')}도로에 닿지 않음</span>` : '',
+    // (The road to it, laid in one press: the chip above only said what was missing.)
+    roadPath && roadCost !== null ? `<button type="button" class="chip" data-road-path="${roadPath.map((p) => p.join(',')).join(';')}" data-road-for="${q.structure!.id}" title="가장 가까운 도로까지 ${fmt(roadPath.length)}칸, 빈 땅으로 바로 잇기 (§${fmt(roadCost)})">${icon('road')}도로 ${fmt(roadPath.length)}칸 잇기</button>` : '',
     q.structure && (def?.health || def?.school) && q.structure.load > q.structure.capacity && q.structure.capacity > 0
       ? `<button type="button" class="chip ${q.structure.strike ? 'bad' : 'warn'}"${go(def!.health ? 'health' : 'education')} title="정원을 넘으면 등급이 떨어지고 파업할 수 있습니다. ${shortFunded && !full ? '예산이 모자라 정원이 줄었으니 예산을 올리세요' : '근처에 하나 더 지으세요'} · 눌러서 ${def!.health ? '보건' : '교육'} 화면">${q.structure.strike ? `${icon('alert')}파업 중 · ` : ''}정원 초과 ${Math.round((q.structure.load / q.structure.capacity - 1) * 100)}%</button>` : '',
     // Over its places: one more of its level beside it, built in one press (the chip above only showed where).
