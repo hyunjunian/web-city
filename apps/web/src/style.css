@@ -2564,6 +2564,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #tool-chip #tool-chip-close { width: 34px; height: 34px; }
   #view:has(#tool-chip:not([hidden])) #hint { bottom: calc(var(--bb) + 60px); }
   #view:has(#tray:not([hidden])) #hint { display: none; } /* (it peeked out under the card) */
+  /* The tools' card drops under the top bar: the view's card, hanging there too, waits till it closes. */
+  #view:has(#tray:not([hidden])) #mapbar #map-layer:not(.picking) { display: none; }
 }
 /* Wider than a phone held upright (a tablet; a phone sideways): the top bar at its own width in the corner,
    전체 보기 in the other. */
@@ -2574,6 +2576,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #view #mapbar #map-layer:not(.picking) { right: auto; width: 300px; }
   #view #mapbar #map-layer.picking { right: auto; width: min(560px, calc(100vw - 16px)); }
   #toasts { right: auto; width: min(440px, calc(100% - var(--dock-w) - 72px)); } /* (a card, not a banner across the map) */
+  /* The tool's bar at its own width in the middle of the foot. */
+  #tool-chip { left: 50%; right: auto; transform: translateX(-50%); max-width: min(720px, calc(100% - 16px)); animation-name: chip-in; }
 }
 /* Sideways, the side panels open under that row, so the bar never covers their heads. */
 @media (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
