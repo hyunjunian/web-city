@@ -591,6 +591,39 @@ export function cheapestOf(g: Goal): StructureKind | null {
 }
 
 /** The biggest patch the goal's service doesn't reach (worked out once a week of game time or after an edit). */
+/**
+ * The free site nearest the homes, beside a road, for a facility whose place doesn't matter to what it is
+ * built for (a park lifting the cap does it anywhere; by the homes it pleases them too). Its middle tile, or null.
+ */
+export function siteNearHomes(kind: StructureKind): [number, number] | null {
+  const key = `${kind}|${changeKey()}`;
+  if (siteMemo?.key === key) return siteMemo.at;
+  const s = city.state;
+  const n = city.size;
+  const d = STRUCTURES[kind];
+  let [sx, sy, count] = [0, 0, 0];
+  for (const b of s.buildings.values()) {
+    if (b.type?.[0] !== 'R') continue;
+    sx += b.x + b.w / 2;
+    sy += b.y + b.h / 2;
+    count++;
+  }
+  const [ax, ay] = count ? [Math.round(sx / count), Math.round(sy / count)] : [n >> 1, n >> 1];
+  let at: [number, number] | null = null;
+  search: for (let r = 0; r < n; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+    const [x, y] = [ax + dx, ay + dy];
+    const [lx, ly] = [x - ((d.w - 1) >> 1), y - ((d.h - 1) >> 1)]; // (a spot is the site's middle, as suggestSpot's)
+    if (lx < 0 || ly < 0 || lx + d.w > n || ly + d.h > n) continue;
+    if (!city.canPlaceStructure(kind, lx, ly).ok || !city.roadBeside(lx, ly, d.w, d.h)) continue;
+    at = [x, y];
+    break search;
+  }
+  siteMemo = { key, at };
+  return at;
+}
+let siteMemo: { key: string; at: [number, number] | null } | null = null;
+
 let spotMemo: { key: string; spot: { x: number; y: number; tiles: number; crowded?: true } | null } | null = null;
 /** Buildings go without water though the pumps make enough for all: their networks aren't joined. */
 export function waterApart(): boolean {

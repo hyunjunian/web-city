@@ -16,12 +16,12 @@ import { journal } from './journal';
 import { abandonHint, capBest, capHint, jobHint, pushNotice, rciMini, updatePanels } from './panels';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, flightCount, glideTo, graphs, redraw, renderer, setHover, speed, stopFlight } from './state';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
-import { categoryOf, chosen, kindsFor, openTray, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
+import { categoryOf, chosen, kindsFor, openTray, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { toast } from './toast';
 import { choice } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
+import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, siteNearHomes, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -236,9 +236,13 @@ function guideHtml(id: GoalId): string {
     const why = st.fx || (st.why && !same(firstSentence(st.why), problem) ? firstSentence(st.why) : '');
     const short = st.sub.startsWith('자금 부족');
     const site = st.kind === 'best' && st.site && spot && !spot.crowded && (SERVICE_SITE.has(id) || id === 'power' || id === 'water');
+    // A park for the cap: any free ground does, so the nearest to the homes beside a road (the city's land
+    // was all zoned, and 해 보기 left the player to hunt for a gap).
+    const own = !site && st.build ? siteNearHomes(st.build) : null;
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b>${st.sub ? `<small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small>` : ''}</p>
       ${why ? `<p class="${st.fx ? 'g-act-fx' : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}
-      <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>해 보기</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="지도의 과녁(${escapeHtml(SPOT_WORD[id] ?? '')})에 바로 짓기">${icon('target')}추천 자리에 짓기</button>` : ''}</div></div>`;
+      <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>해 보기</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="지도의 과녁(${escapeHtml(SPOT_WORD[id] ?? '')})에 바로 짓기">${icon('target')}추천 자리에 짓기</button>`
+        : own ? `<button type="button" class="g-site" data-spot-build="${own.join(',')}" data-build-kind="${st.build}" title="주거지에서 가장 가까운 길가 빈 땅에 바로 짓기">${icon('target')}추천 자리에 짓기</button>` : ''}</div></div>`;
   }
   const p = journal().pending[id];
   const wait = p ? `<p class="g-wait">${icon('check')}<span>${escapeHtml(p.text)} · ${Math.max(1, FOLLOW_DAYS - (city.state.day - p.day))}일 뒤 결과를 알려 드립니다</span></p>` : '';
@@ -247,8 +251,15 @@ function guideHtml(id: GoalId): string {
     <p class="lead-risk">${RISK[id]}</p><p class="g-label">추천 조치</p>${action}${wait}</section>`;
 }
 
+/** A goal's recommendation: what it is, why, the act behind 해 보기; `build` a facility with a site of its own (see siteNearHomes). */
+interface GuideStep {
+  kind: 'best' | 'fix' | 'ord' | 'open';
+  what: string; why: string; fixAct: string; act: string; glyph: string; sub: string; fx: string; site: boolean;
+  build?: StructureKind;
+}
+
 /** A goal's own recommendation, read from what its screen would show (one source of truth). */
-function goalStep(id: GoalId) {
+function goalStep(id: GoalId): GuideStep {
   const tpl = document.createElement('template');
   tpl.innerHTML = (id === 'finance' ? financeActions() : '') + buildActions(GOALS[id]);
   const best = tpl.content.querySelector<HTMLElement>('.act.best');
@@ -270,7 +281,7 @@ function goalStep(id: GoalId) {
     if (park) {
       const d = STRUCTURES[park];
       return { kind: 'fix' as const, what: STRUCTURE_NAME[park], why: adviceText(a), fixAct: act, act, glyph: t ? toolGlyph(t) : '',
-        sub: `§${fmt(d.cost)} · 월 §${fmt(d.upkeep)}`, fx: `주거 상한 +${fmt(d.relief[0])}명`, site: false };
+        sub: `§${fmt(d.cost)} · 월 §${fmt(d.upkeep)}`, fx: `주거 상한 +${fmt(d.relief[0])}명`, site: false, build: park };
     }
     return { kind: 'fix' as const, what: adviceTool(a.code)![1], why: adviceText(a), fixAct: act, act, glyph: t ? toolGlyph(t) : '', sub: '', fx: '', site: false };
   }
@@ -1486,12 +1497,16 @@ export function setupGoals(): void {
       // The facility the screen recommends (not whatever is in hand: a school held from before went up on
       // the power plant's site); without one, a facility of this screen's already in hand.
       const best = $('#manage').querySelector<HTMLElement>('.act.best[data-kind]');
-      if (best) {
+      if (site.dataset.buildKind) {
+        if (!pickStructure(site.dataset.buildKind as StructureKind)) return;
+      } else if (best) {
         const kind = best.dataset.kind as StructureKind;
         if (city.isUnlocked(kind) && city.placementsLeft(kind) > 0) chosen[best.dataset.act!] = kind;
         selectTool(best.dataset.act!);
       } else if (tool.kind !== 'structure' || !$('#manage').querySelector(`[data-act="${tool.id}"]`)) return;
-      centerOn(x, y, 6);
+      // Close enough to see what went up: a plant's 4×4 at 6px a tile, a 1×1 park nearer (at 6 it was a dot).
+      const d = STRUCTURES[chosen[tool.id]!];
+      centerOn(x, y, d ? Math.max(6, 24 / Math.max(d.w, d.h)) : 6);
       placeAt(x, y);
       if (phone()) closePane();
       updatePanels();
