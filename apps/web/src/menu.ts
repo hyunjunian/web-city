@@ -8,7 +8,7 @@ import { ko } from './messages';
 import { updatePanels } from './panels';
 import { leaveRegion, region, regionPos, storeRegion } from './region';
 import { cam, city, overlay, redraw, renderer, setCity } from './state';
-import { saveSlot, showSaves } from './saves';
+import { saveSlot, showSaves, unsavedProgress } from './saves';
 import { lastAutosave } from './storage';
 import { $, ask, flash, josa, touchFirst } from './util';
 import { choice } from './undo';
@@ -142,10 +142,7 @@ export function setupMenu(): void {
   dialog.addEventListener('close', async () => {
     if (dialog.returnValue !== 'sample' && dialog.returnValue !== 'ok') return;
     // The city on screen gives way: its progress since the last save goes with it.
-    const s = city.state;
-    // Something built (time alone, on an empty map, loses nothing).
-    const played = s.structures.size > 0 || s.buildings.size > 0 || s.zone.some((z) => z !== 0) || s.net.some((v) => v !== 0);
-    if (played && !(await ask(`지금 도시에서 저장하지 않은 진행은 사라집니다(자동 저장은 6개월마다, 저장은 ${touchFirst() ? '' : 'Ctrl+S 또는 '}⋯ 메뉴). 다른 도시를 열까요?`, dialog.returnValue === 'sample' ? '예시 도시 열기' : '새 도시 만들기'))) return;
+    if (unsavedProgress() && !(await ask(`지금 도시에서 저장하지 않은 진행은 사라집니다(자동 저장은 6개월마다, 저장은 ${touchFirst() ? '' : 'Ctrl+S 또는 '}⋯ 메뉴). 다른 도시를 열까요?`, dialog.returnValue === 'sample' ? '예시 도시 열기' : '새 도시 만들기'))) return;
     if (dialog.returnValue === 'sample') return openSample();
     const f = new FormData(dialog.querySelector('form')!);
     const image = f.get('heightmap');

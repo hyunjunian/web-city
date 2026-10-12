@@ -8,6 +8,7 @@ import { updatePanels } from './panels';
 import { changeKey, city, setCity } from './state';
 import { $, ask, escapeHtml, flash, fmt } from './util';
 import { choice } from './undo';
+import { unsavedProgress } from './saves';
 
 export let neighbourSignature = '';
 /** When the city last changed as renderNeighbours saw it (offers need a map scan). */
@@ -192,9 +193,7 @@ export function renderNeighbours(): void {
   });
   el.querySelector<HTMLButtonElement>('#region-load')?.addEventListener('click', async () => {
     // The city on screen isn't in that region: what wasn't saved of it goes.
-    const s = city.state;
-    const played = s.structures.size > 0 || s.buildings.size > 0 || s.zone.some((z) => z !== 0) || s.net.some((v) => v !== 0);
-    if (!region && played && !(await ask('지금 도시에서 저장하지 않은 진행은 사라집니다. 저장된 지역을 열까요?', '지역 열기'))) return;
+    if (!region && unsavedProgress() && !(await ask('지금 도시에서 저장하지 않은 진행은 사라집니다. 저장된 지역을 열까요?', '지역 열기'))) return;
     try {
       const saved = JSON.parse(localStorage.getItem(REGION_KEY)!) as SavedRegion;
       region = Region.load(saved);

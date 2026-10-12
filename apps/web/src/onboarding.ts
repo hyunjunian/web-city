@@ -14,6 +14,7 @@ import { type GoalId } from './goals';
 import { unpoweredZones } from './readings';
 import { openGoal } from './manage';
 import { showOverlay } from './controls';
+import { unsavedProgress } from './saves';
 
 let shownTip = false;
 export const ONBOARDING_KEY = 'web-city-onboarding-done';
@@ -135,9 +136,7 @@ export function renderOnboarding(): void {
   const sample = document.querySelector<HTMLButtonElement>('#onboarding-sample');
   if (sample) sample.onclick = async () => {
     // Something built is lost without a save (as the menu's way to the sample asks).
-    const s = city.state;
-    const played = s.structures.size > 0 || s.buildings.size > 0 || s.zone.some((z) => z !== 0) || s.net.some((v) => v !== 0);
-    if (played && !(await ask('지금 도시에서 저장하지 않은 진행은 사라집니다. 예시 도시를 열까요?', '예시 도시 열기'))) return;
+    if (unsavedProgress() && !(await ask('지금 도시에서 저장하지 않은 진행은 사라집니다. 예시 도시를 열까요?', '예시 도시 열기'))) return;
     openSample();
   };
   $('#onboarding-hide').onclick = async () => {

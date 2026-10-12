@@ -72,6 +72,21 @@ function ago(ms: number, now = Date.now()): string {
   return stamp(ms);
 }
 
+/** The open city as it was when last saved to a slot or opened from one: nothing since is progress to lose. */
+let savedMark: { city: typeof city; revision: number; day: number } | null = null;
+const markSaved = () => (savedMark = { city, revision: city.revision, day: city.state.day });
+
+/**
+ * Whether leaving the open city loses anything: something built (time alone on a bare map loses nothing),
+ * changed or played on since it was last saved or opened from the list. (Opening a city just saved asked
+ * all the same whether to give up its unsaved progress.)
+ */
+export function unsavedProgress(): boolean {
+  const s = city.state;
+  const built = s.structures.size > 0 || s.buildings.size > 0 || s.zone.some((z) => z !== 0) || s.net.some((v) => v !== 0);
+  return built && !(savedMark?.city === city && savedMark.revision === city.revision && savedMark.day === s.day);
+}
+
 export function saveSlot(): void {
   const list = readIndex();
   const existing = list.find((s) => s.id === saveSlotId);
@@ -101,6 +116,7 @@ export function saveSlot(): void {
     return;
   }
   setSaveSlotId(id);
+  markSaved();
   flash(existing ? `"${slot.name}" 저장을 새로 고쳤습니다` : `"${slot.name}"${josa(slot.name, '을', '를')} 브라우저에 저장했습니다`);
 }
 
@@ -125,10 +141,8 @@ export function showSaves(): void {
   const dialog = $<HTMLDialogElement>('#saves-dialog');
   body.querySelectorAll<HTMLButtonElement>('[data-load]').forEach((btn) => {
     btn.onclick = async () => {
-      // The city on screen gives way: ask when it has anything built (as 새 도시 does).
-      const st = city.state;
-      const built = st.structures.size > 0 || st.buildings.size > 0 || st.zone.some((z) => z !== 0) || st.net.some((v) => v !== 0);
-      if (built && !(await ask('지금 도시에서 저장하지 않은 진행은 사라집니다. 이 저장을 열까요?', '열기'))) return;
+      // The city on screen gives way: ask when something of it would be lost (as 새 도시 does).
+      if (unsavedProgress() && !(await ask('지금 도시에서 저장하지 않은 진행은 사라집니다. 이 저장을 열까요?', '열기'))) return;
       try {
         const raw = localStorage.getItem(slotKey(btn.dataset.load!));
         if (!raw) throw new Error('missing');
@@ -136,6 +150,7 @@ export function showSaves(): void {
         leaveRegion();
         setCity(loaded);
         setSaveSlotId(btn.dataset.load!);
+        markSaved();
         dialog.close();
         flash(`"${city.state.name}"${josa(city.state.name, '을', '를')} 불러왔습니다`);
       } catch {
