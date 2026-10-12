@@ -21,7 +21,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, glue, josa, stoppedNote, straightRuns } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -285,7 +285,7 @@ function guideHtml(id: GoalId): string {
     const overKind = over?.at ? city.query(over.at[0], over.at[1])?.structure?.kind : undefined;
     const relieves = !!st.build && (!overKind || !STRUCTURES[overKind].school || STRUCTURES[overKind].school!.curve === STRUCTURES[st.build].school?.curve);
     const own = site || !st.build ? null
-      : mark ? one(siteNear(st.build, spot.x, spot.y, 6), `지도의 과녁(${SPOT_WORD[id] ?? ''}) 가까이, 길가 빈 땅에 바로 짓기`)
+      : mark ? one(siteNear(st.build, spot.x, spot.y, 6) ?? plantSite(st.build, spot.x, spot.y), `지도의 과녁(${SPOT_WORD[id] ?? ''}) 가까이, 길가 빈 땅에 바로 짓기`)
       : arealess ? one(siteAwayFromHomes(st.build), '주거지에서 떨어진 길가 빈 땅에 바로 짓기')
       : spot?.crowded && st.kind === 'best' ? (relieves ? one(siteNear(st.build, spot.x, spot.y), `넘치는 ${what} 가까이, 길가 빈 땅에 바로 짓기`) : null)
       : st.anywhere ? one(siteNearHomes(st.build), '주거지에서 가장 가까운 길가 빈 땅에 바로 짓기')
@@ -1498,7 +1498,7 @@ function spotLine(id: GoalId): string {
   // the mark was checked for, and failed over and over.)
   const settled = markSite?.id === id ? markSite : null;
   const kind = settled?.kind ?? spotKind(id);
-  const fit = settled ? settled.at : kind ? siteNear(kind, spot.x, spot.y, 0) ?? siteNear(kind, spot.x, spot.y, 6) : null;
+  const fit = settled ? settled.at : kind ? siteNear(kind, spot.x, spot.y, 0) ?? siteNear(kind, spot.x, spot.y, 6) ?? plantSite(kind, spot.x, spot.y) : null;
   // (Built off the mark, up to 6 tiles away, the press put it where nothing showed: the mark goes there, unless
   // the guide's own site already stands on it.)
   if ((SERVICE_SITE.has(id) || site) && fit && kind && (fit[0] !== spot.x || fit[1] !== spot.y)
@@ -1542,11 +1542,16 @@ function placeToolMark(): void {
     if (full && STRUCTURES[full].school?.curve !== d?.school?.curve) return null;
     return siteNear(kind, spot.x, spot.y, 0) ?? siteNear(kind, spot.x, spot.y, 6);
   };
+  // (A plant whose smoke keeps it from the mark: the nearest ground clear of the homes, as the guide's.)
+  const plantNear = (k: StructureKind) => {
+    const spot = suggestSpot('power');
+    return spot ? plantSite(k, spot.x, spot.y) : null;
+  };
   // (Not a jail, nor a library or university that reaches the whole city: where it stands changes nothing.)
   const local = !!d && (d.police ? d.police.radius > 0 : d.school ? d.school.radius < 300 : !!(d.fire || d.health));
   const at = !kind || !d || !id ? null
     : SERVICE_SITE.has(id) ? (local ? nearSpot(id) : null)
-    : d.plant ? siteByPlants(kind) ?? nearSpot('power')
+    : d.plant ? siteByPlants(kind) ?? nearSpot('power') ?? plantNear(kind)
     : d.pump ? siteOnPipes(kind) ?? nearSpot('water')
     : d.incinerator || d.recycling ? siteAwayFromHomes(kind) : null;
   const marks: typeof renderer.marks = at && kind ? [{ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]}` }] : [];

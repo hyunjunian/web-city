@@ -1049,7 +1049,9 @@ export function siteNear(kind: StructureKind, x: number, y: number, reach = 12):
   // (A smoky plant clear of homes, as suggestSpot sites one: the nearest open lot beside a mark among the
   // dark zones was a zoned lot among the homes.)
   const smoky = smokyPlant(kind);
-  const at = nearestFit(kind, x, y, reach, (lx, ly) => city.roadBeside(lx, ly, d.w, d.h) && !(smoky && homesNear(lx, ly, d.w, d.h)));
+  // (Nor a plant on a zone: the mark among dark zones put a coal plant on the shops just zoned.)
+  const at = nearestFit(kind, x, y, reach, (lx, ly) => city.roadBeside(lx, ly, d.w, d.h) && !(d.plant && zonedUnder(lx, ly, d.w, d.h))
+    && !(smoky && homesNear(lx, ly, d.w, d.h, smokeClear(kind))));
   // (A few kept: the mark's own check and its nearest fit, a full school's card, ran by turns and found again each time.)
   if (nearMemo.size >= 8) nearMemo.delete(nearMemo.keys().next().value!);
   nearMemo.set(key, at);
@@ -1064,16 +1066,51 @@ let nearMemo = new Map<string, [number, number] | null>();
  */
 export const smokyPlant = (kind: StructureKind): boolean => (STRUCTURES[kind].plant?.air[0] ?? 0) >= 100;
 
-/** Homes (a residential zone) within 6 tiles of a rectangle: no place for a smoky plant. */
-function homesNear(lx: number, ly: number, w: number, h: number): boolean {
-  const s = city.state;
+/**
+ * How far homes must keep from a facility for its own smoke to fall under the bad-air line (40, as the views count
+ * it), 6 tiles at least: its smoke thins evenly to nothing a tile past its reach (coal: 14 tiles; within 6, as
+ * before, homes beside a coal plant breathed 120).
+ */
+export function smokeClear(kind: StructureKind): number {
+  const d = STRUCTURES[kind];
+  const [amount, reach] = d.plant?.air ?? d.incinerator?.air ?? [0, 0];
+  return Math.max(6, Math.ceil((reach + 1) * (1 - 40 / Math.max(40, amount))));
+}
+
+/** Homes (a residential zone) within R tiles of a rectangle (6, or a smoky facility's smokeClear). */
+function homesNear(lx: number, ly: number, w: number, h: number, R = 6): boolean {
+  return rectCount(homeTiles(), lx - R, ly - R, lx + w + R, ly + h + R) > 0;
+}
+
+/** Any zone under a rectangle (a plant or an incinerator put on one undid the player's zoning). */
+function zonedUnder(lx: number, ly: number, w: number, h: number): boolean {
+  return rectCount(zonedTiles(), lx, ly, lx + w, ly + h) > 0;
+}
+
+/** Residential and all zoned tiles, as rectangle sums (kept by the site key): each check above in O(1). */
+const homeTiles = () => tileSums('homes', (z) => z >= 1 && z <= 3);
+const zonedTiles = () => tileSums('zoned', (z) => z > 0);
+const sums = new Map<string, { key: string; t: Int32Array }>();
+function tileSums(name: string, counts: (zone: number) => boolean): Int32Array {
+  const key = siteKey();
+  const had = sums.get(name);
+  if (had?.key === key) return had.t;
   const n = city.size;
-  const R = 6;
-  for (let y = Math.max(0, ly - R); y < Math.min(n, ly + h + R); y++) for (let x = Math.max(0, lx - R); x < Math.min(n, lx + w + R); x++) {
-    const z = s.zone[y * n + x]!;
-    if (z >= 1 && z <= 3) return true;
+  const W = n + 1;
+  const z = city.state.zone;
+  const t = new Int32Array(W * W);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
+    const k = (y + 1) * W + x + 1;
+    t[k] = (counts(z[y * n + x]!) ? 1 : 0) + t[k - 1]! + t[k - W]! - t[k - W - 1]!;
   }
-  return false;
+  sums.set(name, { key, t });
+  return t;
+}
+function rectCount(t: Int32Array, x0: number, y0: number, x1: number, y1: number): number {
+  const n = city.size;
+  const W = n + 1;
+  [x0, y0, x1, y1] = [Math.max(0, x0), Math.max(0, y0), Math.min(n, x1), Math.min(n, y1)];
+  return x1 <= x0 || y1 <= y0 ? 0 : t[y1 * W + x1]! - t[y0 * W + x1]! - t[y1 * W + x0]! + t[y0 * W + x0]!;
 }
 
 /**
@@ -1087,7 +1124,8 @@ export function siteByPlants(kind: StructureKind): [number, number] | null {
   if (plantMemo?.key === key) return plantMemo.at;
   const d = STRUCTURES[kind];
   const smoky = smokyPlant(kind);
-  const fits = (lx: number, ly: number) => city.roadBeside(lx, ly, d.w, d.h) && city.powerReach(kind, lx, ly) === 'powered' && !(smoky && homesNear(lx, ly, d.w, d.h));
+  const fits = (lx: number, ly: number) => city.roadBeside(lx, ly, d.w, d.h) && city.powerReach(kind, lx, ly) === 'powered' && !zonedUnder(lx, ly, d.w, d.h)
+    && !(smoky && homesNear(lx, ly, d.w, d.h, smokeClear(kind)));
   let at: [number, number] | null = null;
   let near = Infinity;
   for (const p of city.state.structures.values()) {
@@ -1103,6 +1141,24 @@ export function siteByPlants(kind: StructureKind): [number, number] | null {
   return at;
 }
 let plantMemo: { key: string; at: [number, number] | null } | null = null;
+
+/**
+ * A site for a plant where none beside the plants or by the mark will do (a town's first coal plant, its smoke
+ * reaching far): the nearest to (ax, ay) off the zones, beside a road, its smoke clear of the homes, feeding a zone
+ * or a line at once where it can (else a line is still to lay). Its middle tile, or null.
+ */
+export function plantSite(kind: StructureKind, ax: number, ay: number): [number, number] | null {
+  if (!buildable(kind) || !STRUCTURES[kind].plant) return null;
+  const key = `plant|${kind}|${ax},${ay}|${siteKey()}`;
+  if (plantSiteMemo?.key === key) return plantSiteMemo.at;
+  const d = STRUCTURES[kind];
+  const clear = smokyPlant(kind) ? smokeClear(kind) : 0;
+  const base = (lx: number, ly: number) => city.roadBeside(lx, ly, d.w, d.h) && !zonedUnder(lx, ly, d.w, d.h) && !(clear && homesNear(lx, ly, d.w, d.h, clear));
+  const at = nearestFit(kind, ax, ay, 40, (lx, ly) => base(lx, ly) && city.powerReach(kind, lx, ly) !== 'none') ?? nearestFit(kind, ax, ay, 40, base);
+  plantSiteMemo = { key, at };
+  return at;
+}
+let plantSiteMemo: { key: string; at: [number, number] | null } | null = null;
 
 /**
  * A site for a facility that serves no area and that homes would rather not have beside them (a jail):
@@ -1123,7 +1179,8 @@ export function siteAwayFromHomes(kind: StructureKind): [number, number] | null 
     count++;
   }
   const [ax, ay] = count ? [Math.round(sx / count), Math.round(sy / count)] : [n >> 1, n >> 1];
-  const at = nearestFit(kind, ax, ay, n, (lx, ly) => city.roadBeside(lx, ly, d.w, d.h) && !homesNear(lx, ly, d.w, d.h));
+  // (An incinerator as far as its smoke carries; none of them on a zone.)
+  const at = nearestFit(kind, ax, ay, n, (lx, ly) => city.roadBeside(lx, ly, d.w, d.h) && !zonedUnder(lx, ly, d.w, d.h) && !homesNear(lx, ly, d.w, d.h, smokeClear(kind)));
   awayMemo = { key, at };
   return at;
 }
@@ -1403,7 +1460,8 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
           if (!kind) return true;
           const d = STRUCTURES[kind];
           const [lx, ly] = [x - ((d.w - 1) >> 1), y - ((d.h - 1) >> 1)];
-          return city.canPlaceStructure(kind, lx, ly).ok && city.roadBeside(lx, ly, d.w, d.h) && !(clear && homesNear(lx, ly, d.w, d.h));
+          return city.canPlaceStructure(kind, lx, ly).ok && city.roadBeside(lx, ly, d.w, d.h) && !(d.plant && zonedUnder(lx, ly, d.w, d.h))
+            && !(clear && homesNear(lx, ly, d.w, d.h, smokeClear(kind)));
         };
         const reach = id === 'power' || id === 'water' ? 3 * B : B;
         // A plant first where it feeds a zone at once (within its reach, beside the industry as a rule):
