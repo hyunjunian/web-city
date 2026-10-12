@@ -790,13 +790,15 @@ function snapToSpot(px: number, py: number, t: [number, number]): [number, numbe
   const reach = Math.min(touchFirst() ? 24 : 18, Math.max(18, 2.2 * cam.scale)); // (the ring's radius: see render)
   let best: [number, number] | null = null;
   let near = reach;
+  const goal = goalOfStructure(held);
   for (const m of renderer.marks) {
-    if (m.tone !== 'spot' || m.site !== held) continue;
+    if (m.tone !== 'spot' || !m.site) continue;
     const d = Math.hypot(px - (m.x + m.w / 2 - cam.x) * cam.scale, py - (m.y + m.h / 2 - cam.y) * cam.scale);
-    if (d <= near) {
-      near = d;
-      best = [m.x, m.y];
-    }
+    // (Its own facility's site; or another of the same service's where this one fits too: a large fire station on
+    // the small one's site.)
+    if (d > near || (m.site !== held && !(goal && goalOfStructure(m.site) === goal && city.canPlaceStructure(held, ...footprintAt(held, [m.x, m.y])).ok))) continue;
+    near = d;
+    best = [m.x, m.y];
   }
   return best ?? t;
 }
