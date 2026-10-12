@@ -14,7 +14,7 @@ import { closeInfo, closePane, closeSheet, showTab } from './tabs';
 import { cancelMySimAction } from './mysims';
 import { $, endFlash, flash, fmt, touchFirst } from './util';
 import { GOAL_ORDER, GOALS, type GoalId } from './goals';
-import { capped, goalStatus, readStats } from './readings';
+import { capped, goalStatus, readStats, roadLinked } from './readings';
 
 export type Category = 'power' | 'water' | 'garbage' | 'safety' | 'health' | 'education' | 'park' | 'transport' | 'reward' | 'deal' | 'landmark';
 
@@ -1239,9 +1239,12 @@ export function markSuggested(): void {
   });
 }
 
-/** A road in hand on a town with no way to its neighbours yet: the map's edge is outlined (see renderer.edgeHint). */
+/**
+ * A road in hand on a town with no way to its neighbours yet: the map's edge is outlined (see renderer.edgeHint).
+ * (A road or an avenue: a street or a one-way at the edge links nothing, and a highway needs its ramps besides.)
+ */
 export function refreshEdgeHint(): void {
-  const on = tool.kind === 'network' && tool.network !== 'onramp' && !city.fields.connections.length;
+  const on = tool.kind === 'network' && (tool.network === 'road' || tool.network === 'avenue') && !roadLinked();
   if (on !== renderer.edgeHint) {
     renderer.edgeHint = on;
     redraw();

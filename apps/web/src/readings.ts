@@ -639,8 +639,42 @@ export function edgeRoad(kind: 'road' | 'avenue' = 'road'): { path: [number, num
 }
 let edgeMemo: { key: string; at: { path: [number, number][]; short: boolean; cost: number } | null } | null = null;
 
+/**
+ * Is the town's own road network joined to a neighbour: a road or avenue at the map's edge, or a highway there that a
+ * ramp joins to them? (Not a highway with no ramp, which joins none of the town's roads, nor rail: 이웃 도시로 가는 도로
+ * was ticked by either, and the route to the edge went for good. A street or a one-way at the edge links nothing.)
+ */
+export function roadLinked(): boolean {
+  const key = `${cityGeneration}|${city.revision}`;
+  if (linkMemo?.key === key) return linkMemo.on;
+  const s = city.state;
+  const f = city.fields;
+  let on = false;
+  let local: Set<number> | null = null;
+  for (const i of f.connections) {
+    const code = s.net[i]!;
+    if (code === Net.Road || code === Net.Avenue) {
+      on = true;
+      break;
+    }
+    if (code !== Net.Highway) continue;
+    // (The networks a local road is part of, found once: a ramp puts the highway in one of them.)
+    if (!local) {
+      local = new Set();
+      for (let j = 0; j < s.net.length; j++) if (f.component[j]! >= 0 && isLocalNet(s.net[j]!)) local.add(f.component[j]!);
+    }
+    if (local.has(f.component[i]!)) {
+      on = true;
+      break;
+    }
+  }
+  linkMemo = { key, on };
+  return on;
+}
+let linkMemo: { key: string; on: boolean } | null = null;
+
 function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; short: boolean; cost: number } | null {
-  if (city.fields.connections.length) return null;
+  if (roadLinked()) return null;
   const n = city.size;
   const net = city.state.net;
   // (rank: how far it runs from the town's roads — or, on a new map, how far off the middle row or column it lies.)

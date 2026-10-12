@@ -11,7 +11,7 @@ import { ABANDON_NAME, DISASTER_NAME, NETWORK_NAME, STRUCTURE_NAME, TYPE_NAME, Z
 import { updatePanels } from './panels';
 import { type Preview, zoneTint } from './render';
 import { coverageRadius, GROWTH_LABEL, growthNow, overlayReading } from './views';
-import { facilityLine, newlyReached, plantsReached, smokeClear } from './readings';
+import { facilityLine, newlyReached, plantsReached, roadLinked, smokeClear } from './readings';
 import { goalOfStructure } from './goals';
 import { cam, centerOn, city, drag, fitCamera, glideTo, hover, mapBand, overlay, redraw, renderer, selected, setDrag, setHover, speed, stopFlight } from './state';
 import { drive, SPECIAL } from './udi';
@@ -680,7 +680,7 @@ function toEdge(start: readonly [number, number], at: [number, number]): [number
   const n = city.size;
   // Near the edge counts as at it: more so for the first road out (a drag three tiles short left the town
   // without a neighbour, unexplained) and zoomed out, where a finger covers several tiles.
-  const SNAP = Math.max(2, city.fields.connections.length ? 0 : 5, Math.ceil(10 / cam.scale));
+  const SNAP = Math.max(2, roadLinked() ? 0 : 5, Math.ceil(10 / cam.scale));
   const [x, y] = at;
   const along = Math.abs(x - start[0]) >= Math.abs(y - start[1]);
   if (along && x !== start[0]) {

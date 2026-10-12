@@ -11,7 +11,7 @@ import { $, ask, fmt, touchFirst } from './util';
 import { STRUCTURE_NAME } from './names';
 import { dropToasts, toast } from './toast';
 import { type GoalId } from './goals';
-import { edgeRoad, layCost, lineToDark, powerToSpare, unpoweredZones, smokeClear, zoneSite } from './readings';
+import { edgeRoad, layCost, lineToDark, powerToSpare, roadLinked, unpoweredZones, smokeClear, zoneSite } from './readings';
 import { layPath, layZone, openGoal } from './manage';
 import { updatePanels } from './panels';
 import { showOverlay } from './controls';
@@ -64,7 +64,7 @@ export function renderOnboarding(): void {
   const jobWant = jobZone === 'I-medium' ? Math.max(d.ID, d.IM, d.IHT) : Math.max(d['Cs$'], d['Cs$$'], d['Co$$'], d['Co$$$']);
   // [done, text, the tool that does it]
   const steps: [boolean, string, string | null][] = [
-    [city.fields.connections.length > 0, '이웃 도시로 가는 도로 (지도 가장자리까지)', 'road'],
+    [roadLinked(), '이웃 도시로 가는 도로 (지도 가장자리까지)', 'road'],
     [zoned((z) => z >= 1 && z <= 3), '주거 구역 (도로 옆에)', 'R-low'],
     // The tool for whichever kind of job is wanted (an industrial zone with only farm demand stays empty).
     // (Which of the two the button picks, said: the step read as either.)
