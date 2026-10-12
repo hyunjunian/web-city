@@ -2609,3 +2609,5 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 #advice .advice.news.bad .adv-i { color: var(--danger); }
 #advice .advice.news.neutral .adv-i { color: var(--muted); }
 #advice .advice.news .advice-view { background: var(--surface); }
+/* Driving: the building tools and the views step back (they wait for the drive to end). */
+#view.driving :is(#dock, #map-layer) { opacity: 0.35; pointer-events: none; filter: saturate(0.4); transition: opacity 0.2s; }

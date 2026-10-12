@@ -61,6 +61,7 @@ export function startDrive(id: MissionId): void {
   }
   const n = city.size;
   drive = { plan, x: plan.start % n, y: Math.floor(plan.start / n), left: plan.seconds, held: new Set(), step: 0, speedBefore: speed, dir: [1, 0], ammo: TANK_AMMO, camBefore: { x: cam.x, y: cam.y, scale: cam.scale } };
+  $('#view').classList.add('driving'); // (the building tools wait: drawn back, out of the way of the drive)
   const special = SPECIAL[plan.vehicle];
   const btn = $<HTMLButtonElement>('#drive-special');
   btn.hidden = !special;
@@ -108,6 +109,7 @@ export function abandonDrive(): void {
   drive = null;
   renderer.drive = null;
   $('#drive-hud').hidden = true;
+  $('#view').classList.remove('driving');
   setSpeed(before);
   updatePreview();
 }
@@ -120,6 +122,7 @@ export function endDrive(success: boolean, quit = false): void {
   drive = null;
   renderer.drive = null;
   $('#drive-hud').hidden = true;
+  $('#view').classList.remove('driving');
   // Given up: no result either way (giving up spares the failure penalty).
   if (quit) {
     city.abortMission();
