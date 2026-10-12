@@ -1164,7 +1164,7 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 #sheet[data-tab='region'] { width: min(760px, calc(100% - 28px)); } /* one card: lines stay readable */
 /* While a sheet covers the map, its floating controls step back (unless the screen leaves room beside it). */
 @media (max-width: 1700px) {
-  #view.sheet-open #map-controls, #view.sheet-open #map-layer, #view.sheet-open #tool-chip { visibility: hidden; }
+  #view.sheet-open #map-controls, #view.sheet-open #map-layer:not(.picking), #view.sheet-open #tool-chip { visibility: hidden; } /* (the view's list, asked for, still opens) */
 }
 
 /* Budget, taxes, ordinances, loans */
