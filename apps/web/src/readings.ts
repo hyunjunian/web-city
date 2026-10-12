@@ -121,10 +121,11 @@ function readStatus(id: GoalId): Status {
       if (!p.supply && !p.demand) return pick('', '—', list0('발전소'));
       // Plenty made but not reaching the zones (a plant across a road from them): growth stops all the same.
       const z = unpoweredZones();
-      if (z.off >= 10 && z.off >= z.all * 0.1) return pick('bad', `${short(p.demand)} / ${short(p.supply)}`, `전기 없는 구역 ${fmt(z.off)}칸 → 송전선으로 이으세요`);
+      if (z.off >= 10 && z.off >= z.all * 0.1) return pick('bad', `${short(p.demand)} / ${short(p.supply)} MWh`, `전기 없는 구역 ${fmt(z.off)}칸 → 송전선으로 이으세요`);
       const r = p.supply > 0 ? p.demand / p.supply : p.demand > 0 ? 2 : 0;
-      return pick(p.blackedOut > 0 || r > 1 ? 'bad' : r > 0.85 ? 'warn' : '', `${short(p.demand)} / ${short(p.supply)}`,
-        p.blackedOut ? `정전 ${fmt(p.blackedOut)}채` : r > 0.85 ? `여유 ${Math.max(0, Math.round((1 - r) * 100))}% · 곧 모자람` : 'MWh 수요 / 공급', r);
+      // (With its unit: a sound row has no line under it, and "9.7k / 14k" said nothing of what.)
+      return pick(p.blackedOut > 0 || r > 1 ? 'bad' : r > 0.85 ? 'warn' : '', `${short(p.demand)} / ${short(p.supply)} MWh`,
+        p.blackedOut ? `정전 ${fmt(p.blackedOut)}채` : r > 0.85 ? `여유 ${Math.max(0, Math.round((1 - r) * 100))}% · 곧 모자람` : '수요 / 공급', r);
     }
     case 'water': {
       const w = st.water;
@@ -133,9 +134,9 @@ function readStatus(id: GoalId): Status {
       const r = w.supply > 0 ? w.demand / w.supply : w.demand > 0 ? 2 : 0;
       // (A problem from 3,000 people, as the utilities advisor has it: before, low buildings do without, and a
       // new town was stopped on its first day for it.)
-      if (!w.supply && w.demand > 0) return pick(st.population > 3000 ? 'bad' : 'warn', `${short(w.demand)} / 0`, '양수 시설이 없어 물을 쓰는 건물에 물이 없습니다', r);
-      return pick(w.shortages > 0 ? 'bad' : r > 0.85 ? 'warn' : '', `${short(w.demand)} / ${short(w.supply)}`,
-        w.shortages ? `단수 ${fmt(w.shortages)}곳` : r > 0.85 ? `여유 ${Math.max(0, Math.round((1 - r) * 100))}% · 곧 모자람` : 'm³ 수요 / 공급', r);
+      if (!w.supply && w.demand > 0) return pick(st.population > 3000 ? 'bad' : 'warn', `${short(w.demand)} / 0 m³`, '양수 시설이 없어 물을 쓰는 건물에 물이 없습니다', r);
+      return pick(w.shortages > 0 ? 'bad' : r > 0.85 ? 'warn' : '', `${short(w.demand)} / ${short(w.supply)} m³`,
+        w.shortages ? `단수 ${fmt(w.shortages)}곳` : r > 0.85 ? `여유 ${Math.max(0, Math.round((1 - r) * 100))}% · 곧 모자람` : '수요 / 공급', r);
     }
     case 'garbage': {
       const g = st.garbage;
