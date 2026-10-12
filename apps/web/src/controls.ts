@@ -8,7 +8,7 @@ import { TYPE_NAME, TYPE_SHORT } from './names';
 import { updatePanels } from './panels';
 import { type Overlay, type VolumeNetwork } from './render';
 import { ABANDONED_COLOR, buildingRisk, GROWTH_COLOR, GROWTH_LABEL, growthNow, RISK_COLOR, volumeAt } from './views';
-import { blinkAt, centerOn, changeKey, city, cityGeneration, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
+import { centerOn, pingAt, changeKey, city, cityGeneration, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
 import { refreshToolChip, selectTool, SPEEDS, TOOL_KEYS, toolName, TOOLS } from './tools';
 import { drive } from './udi';
 import { closeInfo, closePane, revealMap } from './tabs';
@@ -699,13 +699,17 @@ export function refreshViewSummary(): void {
   box.className = `overlay-sum${tone ? ` ${tone}` : ''}`;
   // Where some go without: a way to each of them in turn.
   box.innerHTML = `<span>${text}</span>${spots.length ? '<button type="button" class="link sum-go" title="하나씩 차례로 지도에서 보기">찾아가기</button>' : ''}`;
-  box.querySelector<HTMLButtonElement>('.sum-go')?.addEventListener('click', () => {
+  box.querySelector<HTMLButtonElement>('.sum-go')?.addEventListener('click', (e) => {
     if (!sumSpots.length) return;
-    const i = sumSpots[sumNext++ % sumSpots.length]!;
+    const k = sumNext++ % sumSpots.length;
+    const i = sumSpots[k]!;
     revealMap();
     const [x, y] = [i % city.size, Math.floor(i / city.size)];
-    centerOn(x, y);
-    blinkAt(x - 1, y - 1, 3, 3); // (what was found, marked once the map lands)
+    // (Close enough to see the tile, and ringed once the map lands: at the usual zoom it only panned, and a faint
+    // flash marked it. Which one of how many, on the button.)
+    centerOn(x, y, 14);
+    pingAt(x, y);
+    (e.currentTarget as HTMLButtonElement).textContent = `찾아가기 ${k + 1}/${sumSpots.length}`;
   });
 }
 let sumSpots: number[] = [];
@@ -929,7 +933,7 @@ function legendGo(e: Event): void {
   const i = tiles[k % tiles.length]!;
   const [x, y] = [i % city.size, Math.floor(i / city.size)];
   revealMap();
-  centerOn(x, y);
-  blinkAt(x - 1, y - 1, 3, 3);
+  centerOn(x, y, 14);
+  pingAt(x, y); // (as 찾아가기 marks what it found)
 }
 

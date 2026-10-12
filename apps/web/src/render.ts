@@ -407,7 +407,7 @@ export class Renderer {
   /** True when the last frame drew moving cars, so the caller keeps redrawing. */
   animating = false;
   /** Short-lived build feedback drawn over the map (see `draw`); kept running by `animatingEffects`. */
-  effects: { kind: 'flash' | 'dust' | 'cost'; x: number; y: number; w: number; h: number; t0: number; text?: string }[] = [];
+  effects: { kind: 'flash' | 'dust' | 'cost' | 'ping'; x: number; y: number; w: number; h: number; t0: number; text?: string }[] = [];
   /**
    * A goal's screen marks its facilities on the map (amber or red where one
    * is in trouble) and the spots it points to (a problem, a place to build).
@@ -424,7 +424,7 @@ export class Renderer {
   /** Where the keyboard's build cursor is (set by the arrows; a mouse moving takes it away). */
   cursor: { x: number; y: number } | null = null;
   /** Adds build feedback: a flash or dust over a rectangle, or a cost rising from a point. */
-  effect(kind: 'flash' | 'dust' | 'cost', x: number, y: number, w = 1, h = 1, text?: string): void {
+  effect(kind: 'flash' | 'dust' | 'cost' | 'ping', x: number, y: number, w = 1, h = 1, text?: string): void {
     this.effects.push({ kind, x, y, w, h, t0: performance.now(), text });
   }
   /** The cached zoomed-out image still has chunks to repaint: draw again next frame. */
@@ -1850,11 +1850,26 @@ export class Renderer {
     // and the cost rising from where the drag ended (a build used to change only a number).
     if (this.effects.length) {
       const now = performance.now();
-      this.effects = this.effects.filter((fx) => now - fx.t0 < 900);
+      this.effects = this.effects.filter((fx) => now - fx.t0 < (fx.kind === 'ping' ? 1100 : 900));
       for (const fx of this.effects) {
-        const k = (now - fx.t0) / (fx.kind === 'cost' ? 900 : fx.kind === 'dust' ? 450 : 280);
+        const k = (now - fx.t0) / (fx.kind === 'cost' ? 900 : fx.kind === 'dust' ? 450 : fx.kind === 'ping' ? 1100 : 280);
         if (k >= 1) continue;
-        if (fx.kind === 'flash') {
+        if (fx.kind === 'ping') {
+          // What 찾아가기 found: a ring closing in on it, in the 추천 자리's colours (a pale flash went unseen on a
+          // pale view, and at once).
+          const e = 1 - (1 - Math.min(1, k / 0.7)) ** 3;
+          const r = ((48 - 32 * e) * this.dpr) / sc;
+          const a = k < 0.75 ? 1 : (1 - k) / 0.25;
+          const [cx, cy] = [fx.x + fx.w / 2, fx.y + fx.h / 2];
+          ctx.setLineDash([]);
+          for (const [w, colour] of [[6, `rgba(255,255,255,${(0.9 * a).toFixed(3)})`], [3, `rgba(47,111,224,${a.toFixed(3)})`]] as const) {
+            ctx.lineWidth = (w * this.dpr) / sc;
+            ctx.strokeStyle = colour;
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+        } else if (fx.kind === 'flash') {
           ctx.fillStyle = `rgba(255,255,255,${(0.4 * (1 - k)).toFixed(3)})`;
           ctx.fillRect(fx.x, fx.y, fx.w, fx.h);
         } else if (fx.kind === 'dust') {

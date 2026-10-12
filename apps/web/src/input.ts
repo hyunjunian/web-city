@@ -776,6 +776,27 @@ export function placeAt(x: number, y: number): void {
   updatePreview();
 }
 
+/**
+ * A facility in hand: a press (or the pointer) inside a suggested site's ring lands on the site. The ring is a
+ * finger wide while its tile may be a few pixels: a press just beside the middle built a station off the road, or
+ * was told a building stood there. (Within the ring's on-screen size only: zoomed in, that is the tile itself.)
+ */
+function snapToSpot(px: number, py: number, t: [number, number]): [number, number] {
+  if (tool.kind !== 'structure') return t;
+  const reach = touchFirst() ? 24 : 18;
+  let best: [number, number] | null = null;
+  let near = reach;
+  for (const m of renderer.marks) {
+    if (m.tone !== 'spot') continue;
+    const d = Math.hypot(px - (m.x + m.w / 2 - cam.x) * cam.scale, py - (m.y + m.h / 2 - cam.y) * cam.scale);
+    if (d <= near) {
+      near = d;
+      best = [m.x, m.y];
+    }
+  }
+  return best ?? t;
+}
+
 /** What a station being bulldozed alone reached (said with the result). */
 let lostCover: { n: number; what: string } | null = null;
 
@@ -1094,7 +1115,7 @@ export function setupInput(): void {
       setDrag({ start: [0, 0], end: [0, 0], pan: { x: cam.x, y: cam.y, cx: (a![0] + b![0]) / 2, cy: (a![1] + b![1]) / 2 } });
       return;
     }
-    const t = renderer.toTile(cam, px, py);
+    const t = snapToSpot(px, py, renderer.toTile(cam, px, py));
     const looking = tool.kind === 'query' || tool.kind === 'route' || tool.kind === 'mic';
     // (A looking tool may look at once: only building waits for a second touch.)
     const panning = e.button === 1 || e.button === 2 || !!drive || (dismissed && !looking); // while driving the map only pans
@@ -1130,7 +1151,7 @@ export function setupInput(): void {
       redraw();
       return;
     }
-    const at = renderer.toTile(cam, px, py);
+    const at = snapToSpot(px, py, renderer.toTile(cam, px, py));
     renderer.cursor = null; // the pointer has the map again
     // On to another tile: an informative message gives way to that tile's reading.
     if ((!hover || hover[0] !== at[0] || hover[1] !== at[1]) && flashYields()) endFlash();

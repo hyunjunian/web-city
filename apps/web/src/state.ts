@@ -155,6 +155,13 @@ export function blinkAt(x: number, y: number, w = 1, h = 1): void {
     redraw();
   }, t);
 }
+/** 찾아가기's mark on what it found: a ring closing in on it, twice, once the map has flown there. */
+export function pingAt(x: number, y: number): void {
+  for (const t of [380, 1000]) setTimeout(() => {
+    renderer.effect('ping', x, y);
+    redraw();
+  }, t);
+}
 /** Counts camera flights (one started since another reads a different number). */
 export const flightCount = (): number => flights;
 
