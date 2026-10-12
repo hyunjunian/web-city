@@ -564,8 +564,8 @@ const DRAW_KINDS: string[] = ['network', 'zone'];
 
 export function openTray(cat: CategoryId, fromDock = false): void {
   openCat = cat;
-  // With a tool in hand the menu is away and the tool's bar stands in its place: its card covers that bar.
-  $('#tray').classList.toggle('at-top', !fromDock && tool.id !== 'query');
+  // Opened from the tool's bar (a tool in hand), the card goes when that tool is put down.
+  $('#tray').classList.toggle('from-bar', !fromDock && tool.id !== 'query');
   // One card at a time where they share the space: the app sheet and info card (the tray
   // reaches across under it on wide screens too), and on phones the pane.
   closeSheet();
@@ -943,7 +943,7 @@ export function selectTool(id: string): void {
   document.getElementById('view')?.classList.toggle('holding', tool.kind !== 'query' && tool.kind !== 'route' && tool.kind !== 'mic');
   const cat = categoryOf(tool.id);
   // A tool of another category (a key, a goal's button) puts away a card that shows something else.
-  if (openCat && ((openCat !== cat && tool.id !== 'query') || (tool.id === 'query' && $('#tray').classList.contains('at-top')))) closeTray(); // (the bar's card goes with the tool put down)
+  if (openCat && ((openCat !== cat && tool.id !== 'query') || (tool.id === 'query' && $('#tray').classList.contains('from-bar')))) closeTray(); // (the bar's card goes with the tool put down)
   lastTool[cat] = tool.id;
   noteRecent();
   if (BUILD_CATS.includes(cat)) lastBuildCat = cat;
