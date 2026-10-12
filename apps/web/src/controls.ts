@@ -279,7 +279,7 @@ export function buildOverlay(): void {
       <option value="none">없음</option>
       ${VIEW_GROUPS.map(([label, , views]) => `<optgroup label="${label}">${views.map(([v, , full]) => `<option value="${v}">${full ?? ''}</option>`).join('')}</optgroup>`).join('')}
     </select>
-    <select id="overlay-type" aria-label="개발 유형">${DEV_TYPES.map((t) => `<option value="${t}">${t} · ${TYPE_NAME[t]}</option>`).join('')}</select>
+    <select id="overlay-type" aria-label="개발 유형">${(['R', 'C', 'I'] as const).map((k) => `<optgroup label="${({ R: '주거', C: '상업', I: '산업·농업' })[k]}">${DEV_TYPES.filter((t) => t[0] === k).map((t) => `<option value="${t}">${TYPE_NAME[t]}</option>`).join('')}</optgroup>`).join('')}</select>
     <div class="overlay-scale" id="overlay-scale" hidden><div class="scale-bar"></div><div class="ends"><span></span><span></span></div></div>
     <div class="legend" id="overlay-legend"></div>
     <p class="overlay-sum" id="overlay-sum" hidden></p>`;
