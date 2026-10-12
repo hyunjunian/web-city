@@ -167,6 +167,40 @@ describe('save/load', () => {
     expect(() => loadCity({ ...saved, structures: [facility, { ...facility, id: facility.id + 1, x: facility.x + 1 }] })).toThrow(/corrupt save/);
   });
 
+  it.each(['mySims', 'units', 'mobs', 'liveDisasters'] as const)('rejects invalid and duplicate %s ids before they affect the next object', (key) => {
+    const city = new City({ size: 32, water: false });
+    city.placeStructure('smallPoliceStation', 3, 3);
+    const saved = saveCity(city);
+    for (const id of [undefined, null, 0, -1, 1.5, '2', NaN, Infinity, 2 ** 31, saved.structures[0]!.id]) {
+      expect(() => loadCity({ ...saved, [key]: [{ id }] } as unknown as typeof saved)).toThrow(/corrupt save/);
+    }
+    expect(() => loadCity({ ...saved, [key]: [{ id: 700 }, { id: 700 }] } as unknown as typeof saved)).toThrow(/corrupt save/);
+    expect(() => loadCity({ ...saved, [key]: {} } as unknown as typeof saved)).toThrow(/corrupt save/);
+  });
+
+  it('a stale counter also reserves dispatched units and active disasters', () => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 100_000;
+    city.placeStructure('smallPoliceStation', 3, 3);
+    const station = [...city.state.structures.values()][0]!;
+    city.state.units.push({ id: 700, kind: 'police', air: false, station: station.id, x: 4, y: 4, travel: 1, onSite: 3, competence: 1 });
+    city.state.nextId = 800;
+    expect('id' in city.unleash('tornado', 24, 24, 0.1)).toBe(true);
+    const saved = saveCity(city);
+    saved.nextId = 1;
+    const copy = loadCity(saved);
+    expect(copy.state.nextId).toBe(801);
+    expect(copy.placeStructure('smallFireStation', 12, 3).ok).toBe(true);
+    const facility = [...copy.state.structures.values()].find(st => st.kind === 'smallFireStation')!;
+    expect(facility.id).toBe(801);
+    expect(copy.state.occupant[facility.y * copy.size + facility.x]).toBe(-facility.id);
+  });
+
+  it('refuses a counter that would overflow the signed occupancy grid', () => {
+    const saved = saveCity(new City({ size: 32, water: false }));
+    for (const nextId of [2 ** 31, Number.MAX_SAFE_INTEGER]) expect(() => loadCity({ ...saved, nextId })).toThrow(/corrupt save/);
+  });
+
   it('rejects loan records that would corrupt funds or never finish', () => {
     const city = new City({ size: 32, water: false });
     city.takeLoan(50_000);

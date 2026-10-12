@@ -364,6 +364,8 @@ export function* saveCitySteps(city: City): Generator<void, SavedCity> {
 
 /** Largest building or facility side (the biggest is well under this). */
 const MAX_FOOTPRINT = 32;
+/** Occupancy stores a building id or the negated facility id in a signed 32-bit cell. */
+const MAX_OBJECT_ID = 0x7fffffff;
 
 export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {}): City {
   if (saved.format !== 'web-city' || ![1, 2, 3, 4, 5, 6, 7, 8].includes(saved.version)) {
@@ -375,6 +377,7 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
   const fits = (r: { x: number; y: number; w?: number; h?: number }, w: number, h: number) => [r.x, r.y, w, h].every(Number.isInteger)
     && w >= 1 && h >= 1 && w <= MAX_FOOTPRINT && h <= MAX_FOOTPRINT && r.x >= 0 && r.y >= 0 && r.x + w <= saved.size && r.y + h <= saved.size;
   const whole = (v: unknown) => typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
+  if (whole(saved.nextId) && saved.nextId > MAX_OBJECT_ID) throw new Error('corrupt save: overflowing id counter');
   if (typeof saved.name !== 'string') throw new Error('corrupt save: bad name');
   if (!whole(saved.day) || !whole(saved.seed) || !whole(saved.rngState)) throw new Error('corrupt save: bad day or seed');
   if (typeof saved.funds !== 'number' || !Number.isFinite(saved.funds)) throw new Error('corrupt save: bad funds');
@@ -401,10 +404,13 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
   const structures = new Map<number, Structure>();
   const ids = new Set<number>();
   let nextId = 1;
+  const rememberId = (id: number) => {
+    if (!Number.isInteger(id) || id <= 0 || id > MAX_OBJECT_ID || ids.has(id)) throw new Error('corrupt save: bad or duplicate id');
+    ids.add(id);
+    nextId = Math.max(nextId, id + 1);
+  };
   const claim = (r: { id: number; x: number; y: number; w: number; h: number }, sign: 1 | -1) => {
-    if (!Number.isInteger(r.id) || r.id <= 0 || r.id > 0x7fffffff || ids.has(r.id)) throw new Error('corrupt save: bad or duplicate id');
-    ids.add(r.id);
-    nextId = Math.max(nextId, r.id + 1);
+    rememberId(r.id);
     for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
       const i = y * saved.size + x;
       if (occupant[i] !== 0) throw new Error('corrupt save: overlapping lots');
@@ -431,7 +437,14 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     claim(full, -1);
     structures.set(full.id, full);
   }
-  for (const sim of saved.mySims ?? []) nextId = Math.max(nextId, sim.id + 1);
+  // Followed residents, dispatched units, mobs and moving disasters use the same counter.
+  for (const key of ['mySims', 'units', 'mobs', 'liveDisasters'] as const) {
+    const records = saved[key];
+    if (records === undefined) continue;
+    if (!Array.isArray(records)) throw new Error(`corrupt save: bad ${key}`);
+    for (const record of records) rememberId(record?.id);
+  }
+  if (nextId > MAX_OBJECT_ID) throw new Error('corrupt save: exhausted ids');
   const state: CityState = {
     version: 1,
     name: saved.name,
