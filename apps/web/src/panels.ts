@@ -4,7 +4,7 @@ import { DEV_TYPES, GROWTH_CODES, STRUCTURES, ZONES, type PollTopic, type Struct
 import { icon } from './icons';
 import { chooseSpeed, refreshTaxes, showOverlay } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
-import { deptEmpty, deptFunded, newReadings, readStats } from './readings';
+import { capped as atCap, deptEmpty, deptFunded, newReadings, readStats } from './readings';
 import { active, autoPause, openGoal, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
 import { buildOrdinances, ordinanceMonth, ordinanceSignature, refreshInfo, setOrdinanceMonth } from './info';
 import { ko } from './messages';
@@ -303,7 +303,8 @@ export function classDemand(k: 'R' | 'C' | 'I'): { v: number; capped: boolean; f
   const dem = city.demand;
   const vals = DEV_TYPES.filter((t) => t[0] === k).map((t) => dem.demand[t]);
   // Sims want in but the class's cap holds them back (the bar alone would read as no demand).
-  const capped = DEV_TYPES.some((t) => t[0] === k && t !== 'IA' && dem.raw[t] > 0 && Number.isFinite(dem.cap[t]) && dem.capPopulation[t] >= 0.95 * dem.cap[t]);
+  // (By the cap test the rest of the pane uses.)
+  const capped = DEV_TYPES.some((t) => t[0] === k && t !== 'IA' && atCap(t) && dem.raw[t] > 0);
   // Strongest demand, else weakest; a capped class reads 0 rather than another type's surplus.
   const v = Math.max(...vals) > 0 ? Math.max(...vals) : capped ? 0 : Math.min(...vals);
   // The I bar counts farms too: say when they are what's wanted.
@@ -608,7 +609,7 @@ function capRelief(): string {
   const NAMES = { road: '도로', highway: '고속도로', rail: '철도', subway: '지하철' } as const;
   const kinds = (Object.keys(NAMES) as (keyof typeof NAMES)[]).map((k) => [NAMES[k], per[k].reduce((a, b) => a + b, 0)] as const).filter(([, v]) => v > 0);
   const dem = city.demand;
-  const held = DEV_TYPES.filter((t) => t !== 'IA' && dem.raw[t] > 0 && Number.isFinite(dem.cap[t]) && dem.capPopulation[t] >= 0.95 * dem.cap[t]);
+  const held = DEV_TYPES.filter((t) => t !== 'IA' && atCap(t) && dem.raw[t] > 0);
   const capped = held.length ? `상한에 막힌 유형: ${held.map((t) => `${TYPE_SHORT[t]} ${fmt(dem.capPopulation[t])}/${fmt(dem.cap[t])}`).join(' · ')}<br>` : '';
   return `${capped}상한 완화: 이웃 연결 ${kinds.length ? kinds.map(([k, v]) => `${k} ${v}`).join(' · ') : '없음'} · 지난달 도시 밖으로 나간 화물 ${fmt(city.state.freightTrips)}건 (산업 상한에 반영)`;
 }
