@@ -33,7 +33,8 @@ export function crimeKinds(byType: Record<string, number> | undefined): string {
 // The panel is rebuilt often, so one listener serves every 보기 button.
 document.addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.advice-view');
-  if (!b) return;
+  // (A tax or budget changed from the diagnosis: done in the panel, nothing on the map to step aside for.)
+  if (!b || b.matches('[data-tax-to], .mg-guide-go')) return;
   // A reward or deal from the news: its building in hand.
   if (b.dataset.build) {
     revealMap();
@@ -625,7 +626,18 @@ let lastAdvice = '';
 let lastDemand = '';
 let adviceCache: ReturnType<typeof city.advisors> = [];
 /** The advisors' last reading (the manage panel sorts it by goal). */
-export const currentAdvice = () => (adviceCity === city ? adviceCache : []);
+export const currentAdvice = (): typeof adviceCache => {
+  if (adviceCity !== city) return [];
+  // A tax already cut to neutral still costs demand while the old rate is remembered (90 days): said as that,
+  // as good news, not "세율을 조금 내려 보세요" with no button for it, which had players cut further for nothing.
+  const sig = `${Object.values(city.state.taxRates).join('|')}|${city.demand.neutralTax}`;
+  if (eased?.from !== adviceCache || eased.sig !== sig) {
+    eased = { from: adviceCache, sig, out: adviceCache.map((a) => (a.code === 'taxHigh' && a.type && city.state.taxRates[a.type] <= city.demand.neutralTax
+      ? { ...a, code: 'taxEasing', level: 'good' as const } : a)) };
+  }
+  return eased.out;
+};
+let eased: { from: typeof adviceCache; sig: string; out: typeof adviceCache } | null = null;
 /** Advisor problems already announced (a toast when one turns bad), for the city they belong to. */
 let alarmed: { owner: typeof city | null; codes: Set<string>; last: Map<string, number> } = { owner: null, codes: new Set(), last: new Map() };
 
@@ -977,7 +989,7 @@ export function advice(): string {
     else adviceCache = city.advisors();
     adviceCity = city;
   }
-  const sorted = [...adviceCache].sort((a, b) => rank[a.level] - rank[b.level]);
+  const sorted = [...currentAdvice()].sort((a, b) => rank[a.level] - rank[b.level]);
   // A problem that turns bad (a water shortage, a deficit, homes about to be
   // abandoned) is announced once, like the damage reports; the pane alone was
   // easy to miss below the fold. A city just opened announces nothing.

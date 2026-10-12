@@ -905,6 +905,17 @@ export function waterApart(): boolean {
  * For a school or hospital at (x, y) that is over its places: the cheapest unlocked kind of the same
  * level (an elementary school took nothing from a striking high school, and the strike went on).
  */
+/**
+ * Would full funding mend a school or hospital's trouble (the info card's 예산 100%로 and the guide's say the same)?
+ * Back within its places at 100%, or, on strike, its grade there reaching the strike's end; past that, one more
+ * beside it is the fix. (Police and fire stations have no places: their budget alone ends a strike.)
+ */
+export function budgetMends(f: Structure, strike: boolean): boolean {
+  const svc = STRUCTURES[f.kind].health ?? STRUCTURES[f.kind].school;
+  if (f.funding >= 100) return false;
+  return !svc || f.load * (strike ? city.cfg.services.strikeEndGrade : 1) <= svc.capacity;
+}
+
 export function relieverFor(at: readonly [number, number]): StructureKind | null {
   const kind = city.query(at[0], at[1])?.structure?.kind;
   if (!kind) return null;
@@ -1008,7 +1019,8 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
         // Passes, best first: feeding and clear of homes; feeding, near homes if it isn't coal or oil (a town
         // of homes alone had no site both, and its gas plant went out of reach and powered nothing — the
         // placement still warns of the smoke); clear of homes, a line still to lay.
-        const passes = id === 'power' ? [{ feed: true, clear: dirty }, { feed: true, clear: smoky }, { feed: false, clear: dirty }] : [{ feed: false, clear: false }];
+        // (The second pass only where it differs from the first: for coal, oil or a clean plant it was the same scan again.)
+  const passes = id === 'power' ? [{ feed: true, clear: dirty }, ...(smoky !== dirty ? [{ feed: true, clear: smoky }] : []), { feed: false, clear: dirty }] : [{ feed: false, clear: false }];
         search: for (const { feed, clear } of passes) {
           for (let r = 0; r <= reach; r++) {
             for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {

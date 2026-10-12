@@ -211,6 +211,7 @@ export const ADVICE_TEXT: Record<string, (v: number, type?: DevType) => string> 
   noParks: () => '공원이 하나도 없습니다. 공원은 주거 상한을 풀고 쾌적도를 높입니다.',
   broke: () => '자금이 바닥났습니다. 지출을 줄이거나 대출을 받으세요.',
   deficit: (v) => `지난달 §${fmt(v)} 적자였습니다.`,
+  taxEasing: (v, t) => `${t ? `${TYPE_NAME[t]} ` : ''}세율은 이미 내렸습니다. 심들이 지난 90일 동안 가장 높았던 세율을 기억해, 깎인 수요 ${fmt(v)}%는 그 기간이 지나면 돌아옵니다.`,
   taxHigh: (v, t) => `세율이 높아 ${t ? TYPE_NAME[t] : ''} 수요가 ${fmt(v)}% 깎이고 있습니다. 들어오려는 심이 있는데 세금이 막고 있으니, 세율을 조금 내려 보세요.`,
   surplus: (v) => `지난달 §${fmt(v)} 흑자였습니다.`,
   zoneR: () => '주거 수요가 높은데 빈 주거 구역이 거의 없습니다. 구역을 더 칠하세요.',

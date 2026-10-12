@@ -2,7 +2,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceId, ORDINANCES, serviceRadius, type Structure, type StructureKind, STRUCTURES, type TripMeans } from '@web-city/engine';
 import { icon } from './icons';
-import { facilityLine, readStats, relieverFor, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
+import { budgetMends, facilityLine, readStats, relieverFor, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
 import { ko } from './messages';
 import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -216,7 +216,10 @@ export function showInfo(x: number, y: number): void {
   const places = q.structure ? (def?.health ?? def?.school)?.capacity ?? 0 : 0;
   const over = q.structure && places > 0 && q.structure.load > q.structure.capacity && q.structure.capacity > 0 ? q.structure : null;
   const full = over && over.load > places ? over : null;
-  const shortFunded = over && !full && over.funding < 100 ? over : null;
+  // (Full funding mends it, as the guide judges: back within its places, or a strike's grade reached, then
+  // beside one more if it is still over; a strike for want of funds alone has the budget too.)
+  const fundable = q.structure && places > 0 && q.structure.capacity > 0 && (over || q.structure.strike) ? q.structure : null;
+  const shortFunded = fundable && budgetMends(fundable, !!fundable.strike) ? fundable : null;
   const relieveKind = full ? relieverFor([full.x, full.y]) : null;
   const relieveAt = full && relieveKind ? siteNear(relieveKind, full.x + (full.w >> 1), full.y + (full.h >> 1)) : null;
   // A station's cells full and criminals let go for want of a jail (with room in one, arrests go there).
@@ -248,7 +251,7 @@ export function showInfo(x: number, y: number): void {
     q.structure && def && def.garbage > 0 && !city.roadBeside(q.structure.x, q.structure.y, q.structure.w, q.structure.h)
       ? `<span class="chip bad" title="쓰레기를 거둘 수 없어 쌓입니다${def.police || def.fire || def.health || def.school ? '. 경찰차·소방차·구급차·통학버스도 나가지 못합니다' : ''}">${icon('road')}도로에 닿지 않음</span>` : '',
     q.structure && (def?.health || def?.school) && q.structure.load > q.structure.capacity && q.structure.capacity > 0
-      ? `<button type="button" class="chip ${q.structure.strike ? 'bad' : 'warn'}"${go(def!.health ? 'health' : 'education')} title="정원을 넘으면 등급이 떨어지고 파업할 수 있습니다. 근처에 하나 더 지으세요 · 눌러서 어디에 지을지 보기">${q.structure.strike ? `${icon('alert')}파업 중 · ` : ''}정원 초과 ${Math.round((q.structure.load / q.structure.capacity - 1) * 100)}%</button>` : '',
+      ? `<button type="button" class="chip ${q.structure.strike ? 'bad' : 'warn'}"${go(def!.health ? 'health' : 'education')} title="정원을 넘으면 등급이 떨어지고 파업할 수 있습니다. ${shortFunded && !full ? '예산이 모자라 정원이 줄었으니 예산을 올리세요' : '근처에 하나 더 지으세요'} · 눌러서 ${def!.health ? '보건' : '교육'} 화면">${q.structure.strike ? `${icon('alert')}파업 중 · ` : ''}정원 초과 ${Math.round((q.structure.load / q.structure.capacity - 1) * 100)}%</button>` : '',
     // Over its places: one more of its level beside it, built in one press (the chip above only showed where).
     tight ? `<button type="button" class="chip ${tight.have < tight.need ? 'bad' : 'warn'}"${go(tight.goal)} title="도시 전체의 ${tight.what} 공급 / 수요 · 눌러서 ${GOALS[tight.goal].name} 화면">${icon(tight.goal === 'power' ? 'zap' : 'droplet')}${tight.have < tight.need ? `${tight.what} 모자람` : `${tight.what} 여유 ${Math.max(0, Math.round((1 - tight.need / tight.have) * 100))}%`}</button>` : '',
     paroled > 0 ? `<button type="button" class="chip warn"${go('police')} title="감방이 차면 잡은 범인을 풀어 주고, 풀려난 범인은 다시 범죄를 저지릅니다 · 눌러서 치안 화면">${icon('alert')}감방 가득 · 지난달 ${fmt(paroled)}명 풀려남</button>` : '',
@@ -256,7 +259,7 @@ export function showInfo(x: number, y: number): void {
     q.structure && (def?.fire || def?.police?.radius) && q.structure.strike ? `<span class="chip bad" title="예산이 100%보다 낮으면 파업할 수 있습니다. 90%보다 높게(95% 이상) 올리면 다음 달 끝납니다.">${icon('alert')}파업 중 (효과 20%)</span>` : '',
     q.structure && (def?.fire || def?.police?.radius) && q.structure.strike && q.structure.funding < 100
       ? `<button type="button" class="chip" data-fund-full="${q.structure.id}" title="예산을 100%로 올리면 다음 달 파업이 끝납니다">${icon('wallet')}예산 100%로</button>` : '',
-    shortFunded ? `<button type="button" class="chip" data-fund-full="${shortFunded.id}" title="예산을 100%로 올리면 정원이 ${fmt(places)}명으로 늘어 넘치지 않습니다">${icon('wallet')}예산 100%로</button>` : '',
+    shortFunded ? `<button type="button" class="chip" data-fund-full="${shortFunded.id}" title="${shortFunded.strike ? '예산을 100%로 올리면 다음 달 파업이 끝납니다' : `예산을 100%로 올리면 정원이 ${fmt(places)}명으로 늘어납니다`}">${icon('wallet')}예산 100%로</button>` : '',
     q.garbage > 0.1 ? `<span class="chip warn">${icon('trash')}쓰레기 ${q.garbage.toFixed(1)} t</span>` : '',
   ].join('');
   // Who comes and goes here, drawn on the map whenever a building or road is looked at (no separate tool);

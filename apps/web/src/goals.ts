@@ -116,7 +116,7 @@ export const GOAL_ORDER = Object.keys(GOALS) as GoalId[];
 
 /** Which goal each advisor's word belongs to (else the advisor's own). */
 const ADVICE_GOAL: Record<string, GoalId> = {
-  broke: 'finance', deficit: 'finance', taxHigh: 'finance', surplus: 'finance',
+  broke: 'finance', deficit: 'finance', taxHigh: 'finance', taxEasing: 'finance', surplus: 'finance',
   noPower: 'power', powerShort: 'power', powerCutOff: 'power', powerSurplus: 'power', plantOld: 'power', idlePlant: 'power',
   noWater: 'water', waterShort: 'water', pumpsOff: 'water', pipesNoSource: 'water', pumpOld: 'water', idlePump: 'water', dryBuildings: 'water',
   landfillFull: 'garbage', landfillSoon: 'garbage', garbagePiling: 'garbage', landfillNoRoad: 'garbage',

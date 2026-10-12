@@ -21,7 +21,7 @@ import { toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, lineToDark, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
+import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, lineToDark, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -299,7 +299,9 @@ function guideHtml(id: GoalId): string {
     if (mark) markSite = { id, at: site ? [spot.x, spot.y] : own?.at[0] ?? null, kind: st.build };
     // (A jail recommended: the mark's 여기에 짓기 puts up a station on the gap in cover, and says so.)
     const station = arealess ? cheapestOf(GOALS.police) : null;
-    if (station && spot) markSite = { id, at: [spot.x, spot.y], kind: station, name: STRUCTURE_NAME[station] };
+    // (Where it fits, as the mark's own line finds it: the gap's middle was often a building, and each press
+    // was refused with "taken meanwhile".)
+    if (station && spot) markSite = { id, at: siteNear(station, spot.x, spot.y, 0) ?? siteNear(station, spot.x, spot.y, 6), kind: station, name: STRUCTURE_NAME[station] };
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b>${st.sub ? `<small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small>` : ''}</p>
       ${why ? `<p class="${st.fx ? `g-act-fx${/−|모자람/.test(st.fx) ? ' neg' : ''}` : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}
       <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>${go}</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
@@ -419,6 +421,8 @@ const ORD_FIX: Partial<Record<GoalId, readonly OrdinanceId[]>> = {
 const BUDGET_FIX: Record<string, Dept | 'facility'> = {
   linesWorn: 'power', pipesWorn: 'water', potholes: 'roads',
   policeStrike: 'facility', fireStrike: 'facility', hospitalStrike: 'facility', schoolStrike: 'facility',
+  // (Over its places for want of funds: the budget too, where full funding brings it back within them.)
+  schoolFull: 'facility', hospitalFull: 'facility',
 };
 
 /** The budget step for advice that a budget ends, while that budget is under 100% (else nothing: the cause is elsewhere). */
@@ -433,9 +437,7 @@ function budgetStep(id: GoalId, a: ReturnType<typeof adviceFor>[number]): GuideS
   const f = a.at ? city.query(a.at[0], a.at[1])?.structure : undefined;
   // (A school or hospital over its places strikes for that too: then one more beside it is the fix, not the budget.)
   // (Over by what even full funding wouldn't cover: at 100% the grade must reach the strike's end.)
-  const svc = f ? STRUCTURES[f.kind].health ?? STRUCTURES[f.kind].school : undefined;
-  const crowded = !!f && !!svc && f.load * city.cfg.services.strikeEndGrade > svc.capacity;
-  return f && f.funding < 100 && !crowded ? { ...base, what: `${STRUCTURE_NAME[f.kind]} 예산 100%로`, fixAct: `fac:${f.id}`, sub: `시설 예산 · 지금 ${f.funding}%` } : null;
+  return f && budgetMends(f, a.code.endsWith('Strike')) ? { ...base, what: `${STRUCTURE_NAME[f.kind]} 예산 100%로`, fixAct: `fac:${f.id}`, sub: `시설 예산 · 지금 ${f.funding}%` } : null;
 }
 
 function nextHtml(tones: Tone[]): Step {
@@ -525,7 +527,8 @@ let baselineCity = -1;
 export function noteAction(text: string, merge?: string, toolId?: string): void {
   if (!active) return;
   // A build counts here only with a tool of this goal (a road laid while the budget is open isn't the budget's doing).
-  if (toolId && !GOALS[active].tools.includes(toolId) && toolId !== handed) return;
+  // (Nor one handed out elsewhere: a school built from the info card while 재정 was open is not 재정's doing.)
+  if (toolId && !GOALS[active].tools.includes(toolId) && !(toolId === handed && handedBy === active)) return;
   const done = journal().done;
   // The same slider moved again replaces its line.
   const last = done[0];
@@ -668,9 +671,10 @@ export function watchGoals(): void {
   }
 }
 
-/** The tool the goal's panel put in hand (put down again when the goal closes). */
+/** The tool the goal's panel (or the info card) put in hand (put down again when the goal closes), and whose screen it was. */
 let handed = '';
 let handedPick = 0;
+let handedBy: GoalId | null = null;
 
 /** A facility handed out by a suggestion has been placed: its job is done (true once; the tool is then put down). */
 export function handedPlaced(toolId: string): boolean {
@@ -1236,10 +1240,12 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   // The guide's own site too, so 추천 자리에 짓기 shows where before it builds (beside a full hospital it takes
   // the place of the mark it was found near).
   const own = guideSite?.id === id ? guideSite : null;
+  // (On the site its 여기에 짓기 builds, where that is off the spot: what lights up is where it goes.)
+  const at: [number, number] | null = spot ? (spotFit?.id === id ? spotFit.at : [spot.x, spot.y]) : null;
   // (Nor where a site of the guide's is within 4 tiles of it: the two labels ran into each other.)
   // (Nor a plant's site while the guide lays a line instead: the power is there, it only has to reach.)
-  const crowdedOut = !!spot && (!!own?.path || !!own?.sites.some((o) => Math.max(Math.abs(o.at[0] - spot.x), Math.abs(o.at[1] - spot.y)) <= 4));
-  if (spot && !(spot.crowded && own) && !crowdedOut) marks.push({ x: spot.x, y: spot.y, w: 1, h: 1, tone: 'spot', label });
+  const crowdedOut = !!at && (!!own?.path || !!own?.sites.some((o) => Math.max(Math.abs(o.at[0] - at[0]), Math.abs(o.at[1] - at[1])) <= 4));
+  if (spot && at && !(spot.crowded && own) && !crowdedOut) marks.push({ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label });
   for (const o of own?.sites ?? []) marks.push({ x: o.at[0], y: o.at[1], w: 1, h: 1, tone: 'spot', label: o.label });
   // (Lit while the button that builds there is under the pointer or focused.)
   for (const m of marks) if (m.tone === 'spot' && hotSites.includes(`${m.x},${m.y}`)) m.hot = true;
@@ -1252,8 +1258,12 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   redraw();
 }
 
+/** Where the spot line's 여기에 짓기 builds, when that is off the spot itself (its mark moves there: see refreshMarks). */
+let spotFit: { id: GoalId; at: [number, number] } | null = null;
+
 /** The suggested spot as a line on the panel, with a way to go there. */
 function spotLine(id: GoalId): string {
+  spotFit = null;
   const spot = incidents().some((x) => x.goal === id) ? null : suggestSpot(id);
   // (Not a plant's site while the guide lays a line: the power is there, it only has to reach.)
   if (!spot || (guideSite?.id === id && guideSite.path)) return '';
@@ -1275,6 +1285,10 @@ function spotLine(id: GoalId): string {
   const settled = markSite?.id === id ? markSite : null;
   const kind = settled?.kind ?? spotKind(id);
   const fit = settled ? settled.at : kind ? siteNear(kind, spot.x, spot.y, 0) ?? siteNear(kind, spot.x, spot.y, 6) : null;
+  // (Built off the mark, up to 6 tiles away, the press put it where nothing showed: the mark goes there, unless
+  // the guide's own site already stands on it.)
+  if ((SERVICE_SITE.has(id) || site) && fit && kind && (fit[0] !== spot.x || fit[1] !== spot.y)
+    && !(guideSite?.id === id && guideSite.sites.some((o) => o.at[0] === fit[0] && o.at[1] === fit[1]))) spotFit = { id, at: fit };
   const build = (SERVICE_SITE.has(id) || site) && fit && kind
     ? `<button type="button" class="advice-view spot-build" data-spot-build="${fit.join(',')}" data-build-kind="${kind}" title="${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 이 자리에 짓기">${icon('plus')}여기에 짓기</button>` : '';
   return `<p class="mg-spot">${icon('target')}<span>${site
@@ -1597,8 +1611,7 @@ export function setupGoals(): void {
       choice('시설 예산', () => city.setFunding(f.id, 100));
       // (Logged under its own goal's screen only: another one open would wait 90 days for a result not its own.)
       if (active && active === goalOfStructure(f.kind)) noteAction(`시설 예산: ${STRUCTURE_NAME[f.kind]} 100%`, `fund:${f.id}`);
-      const def = STRUCTURES[f.kind];
-      flash(`${STRUCTURE_NAME[f.kind]} 예산을 100%로 올렸습니다 · ${def.fire || def.police ? '다음 달 파업이 끝납니다' : '정원이 늘어납니다'}`, 'info');
+      flash(`${STRUCTURE_NAME[f.kind]} 예산을 100%로 올렸습니다 · ${f.strike ? '다음 달 파업이 끝납니다' : '정원이 늘어납니다'}`, 'info');
       redrawInfo();
       updatePanels();
       return;
@@ -1623,6 +1636,7 @@ export function setupGoals(): void {
       if (!pickStructure(kind)) return;
       handed = tool.id; // (placed, the facility goes down and time runs on, as a handed-out one does)
       handedPick = toolPicks;
+      handedBy = goalOfStructure(kind); // (its log is its own goal's, if that is the screen open)
       centerOn(x, y, Math.max(6, 24 / Math.max(d.w, d.h)));
       placeAt(x, y);
       redrawInfo();
@@ -1702,6 +1716,7 @@ export function setupGoals(): void {
       selectTool(act.dataset.act!);
       handed = act.dataset.act!;
       handedPick = toolPicks;
+      handedBy = active;
       // Phones: the pane steps aside for the map; the goal's chip brings it back.
       if (phone()) {
         closePane();
@@ -1782,7 +1797,8 @@ export function setupGoals(): void {
       const to = city.demand.neutralTax;
       choice('세율', () => city.setTaxRate(type, to));
       noteAction(`세율: ${TYPE_NAME[type]} ${to.toFixed(1)}%`);
-      flash(`${TYPE_NAME[type]} 세율을 ${to.toFixed(1)}%로 내렸습니다 · 수요가 다시 늘어납니다`, 'info');
+      // (Demand goes by the highest rate of the last 90 days: it comes back once the old rate is forgotten.)
+      flash(`${TYPE_NAME[type]} 세율을 ${to.toFixed(1)}%로 내렸습니다 · 높았던 세율을 심들이 90일 동안 기억해, 수요는 그 뒤에 돌아옵니다`, 'info');
       refreshTaxes();
       updatePanels();
       renderGoal(true);
@@ -1821,6 +1837,7 @@ export function setupGoals(): void {
         if (!pickStructure(kind)) break;
         handed = tool.id;
         handedPick = toolPicks;
+        handedBy = active;
         placeAt(sx, sy);
       }
       if (phone()) closePane();
