@@ -703,7 +703,12 @@ function viewSummary(v: string): [string, '' | 'bad' | 'good', number[]] {
       markLegend(growthSum.byColor);
       const h = growthSum.held;
       if (!h.length && !growthSum.byColor.size) return ['', '', []]; // (no zones at all: no all-clear to give)
-      return h.length ? [`개발이 막힌 빈 구역 ${fmt(h.length)}칸 · ${growthSum.top.join(' · ')}`, 'bad', h.filter((_, k) => k % 8 === 0)] : ['막힌 빈 구역이 없습니다', 'good', []];
+      if (h.length) return [`개발이 막힌 빈 구역 ${fmt(h.length)}칸 · ${growthSum.top.join(' · ')}`, 'bad', h.filter((_, k) => k % 8 === 0)];
+      // A cap holds a class back city-wide while its zones still take the others: no tile reads as held, and
+      // 막힌 빈 구역이 없습니다 sat beside 주거 상한 in red. (The farms' cap counts other jobs: not one to lift.)
+      const d = city.demand;
+      const capped = DEV_TYPES.filter((t) => t !== 'IA' && d.raw[t] > 0 && Number.isFinite(d.cap[t]) && d.capPopulation[t] >= 0.95 * d.cap[t]);
+      return capped.length ? [`${capped.map((t) => TYPE_NAME[t]).join('·')} 인구가 상한에 닿아 빈 구역이 더 차지 않습니다`, 'bad', []] : ['막힌 빈 구역이 없습니다', 'good', []];
     }
     default: return ['', '', []];
   }
