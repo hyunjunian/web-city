@@ -1230,15 +1230,20 @@ function buildActions(g: Goal): string {
     } else {
       const want = wantOf(t);
       const line = (lineFirst && t.id === 'powerline') || (connect === 'pipe' && t.id === 'pipe') || (roadFirst && t.id === 'road') || zoneNext === t.id || (landfillFirst && t.id === 'landfill');
+      // (A landfill's price and the size a year of the town's rubbish takes: a bare chip of its name sat beside the
+      // incinerator's and recycling centre's priced cards.)
+      const lf = city.cfg.garbage.landfill;
+      const fill = t.id === 'landfill' ? landfillSite() : null;
+      const fillSub = t.id === 'landfill' ? `§${fmt(lf.zoneCost)}/칸 · 월 §${fmt(lf.upkeep)}/칸${fill ? ` · 1년치 ${fill.side}×${fill.side}` : ''}` : '';
       // Nothing to say beside its name (roads, rail, trees): a compact chip, three to a row.
       // (A zone nobody wants just now says so in its title.)
-      const chip = (want === null || want < 1) && !line && t.kind !== 'dispatch';
+      const chip = (want === null || want < 1) && !line && t.kind !== 'dispatch' && !fillSub;
       items.push(`<button type="button" class="act${chip ? ' act-chip' : ''}${want !== null && want >= 100 ? ' wanted' : ''}${line ? ' best' : ''}" data-act="${t.id}" title="${toolName(t)}${want !== null && want < 1 ? ' · 지금 수요 없음' : ''}">
         <span class="act-name">${toolGlyph(t)}${toolName(t)}${line ? `<em class="act-best">추천</em>` : ''}</span>${line ? `<span class="act-fx">${t.id === 'road' ? '먼저 도로부터: 구역은 도로에 닿아야 개발됩니다 · 지도 가장자리까지 이으면 이웃 도시와 오갑니다'
           : t.id === 'landfill' ? '쓰레기를 묻을 곳: 도로 옆, 주거에서 먼 곳에'
           : zoneNext === t.id ? zoneWhy
           : connect ? `${idleName}${josa(idleName, '이', '가')} 아직 ${connect === 'pipe' ? '수도망' : '전력망'}에 이어지지 않아 아무 데도 보내지 못합니다: 먼저 이으세요`
-          : `전기 없는 구역 ${fmt(unpoweredZones().off)}칸에 이어 주기 · 칸당 §2`}</span>` : ''}<span class="act-sub">${want !== null ? (want >= 1 ? `수요 +${fmt(want)}` : '수요 없음') : t.kind === 'dispatch' ? `출동 가능 ${city.freeUnits(t.unit)}대` : ''}</span></button>`);
+          : `전기 없는 구역 ${fmt(unpoweredZones().off)}칸에 이어 주기 · 칸당 §2`}</span>` : ''}<span class="act-sub">${fillSub || (want !== null ? (want >= 1 ? `수요 +${fmt(want)}` : '수요 없음') : t.kind === 'dispatch' ? `출동 가능 ${city.freeUnits(t.unit)}대` : '')}</span></button>`);
     }
   }
   // The recommended choice in sight, the other choices folded (four or five cards read as a catalogue).
