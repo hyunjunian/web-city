@@ -676,7 +676,7 @@ const smogRow = (x: number, y: number, air: number): string => {
   if (!(air > 40)) return '';
   const [a, b] = airSourcesAt(x, y).filter((s) => s.key !== 'rest');
   if (!a) return '';
-  const what = a.key === 'traffic' ? '길 위의 차' : a.key.startsWith('st:') || a.key === 'spill' ? a.label : a.key === 'IA' ? '농장' : `${a.label} 공장`;
+  const what = a.key === 'traffic' ? '교통' : a.key.startsWith('st:') || a.key === 'spill' ? a.label : a.key === 'IA' ? '농장' : `${a.label} 공장`;
   const from = a.share >= 0.6 || !b ? `주로 ${what}` : `${what}·${b.key === 'traffic' ? '교통' : b.label}`;
   const go = a.at && a.lot ? ` <button type="button" class="advice-view" data-at="${a.at.join(',')}" data-flash="${[a.lot.x, a.lot.y, a.lot.w, a.lot.h].join(',')}" title="이 집의 공기를 가장 더럽히는 ${a.key === 'traffic' ? '길' : '곳'} 보기">보기</button>` : '';
   return `<tr><td title="대기 오염이 40을 넘으면 주민의 건강과 시장 평점이 떨어집니다">공기</td><td class="neg">나쁨 ${air.toFixed(0)} · ${escapeHtml(from)}${go}</td></tr>`;
@@ -703,7 +703,7 @@ const pumpWaterRow = (st: Structure): string => {
 const smokeRow = (code: number, row: string): string => {
   const share = code ? airShareOf(code) : 0;
   if (share < 0.005) return '';
-  return `<tr${row}><td title="대기 오염이 40을 넘는 주거 구역에 이곳의 연기가 보태는 몫">공기 나쁜 주거지 오염</td><td class="${share >= 0.2 ? 'neg' : ''}">${share >= 0.995 ? '모두' : `${share < 0.01 ? '1% 미만' : `${Math.round(share * 100)}%`}`}가 이곳에서</td></tr>`;
+  return `<tr${row}><td title="대기 오염이 40을 넘는 주거 구역에 이곳의 연기가 보태는 몫">공기 나쁜 주거지 오염</td><td class="${share >= 0.2 ? 'neg' : ''}">${share >= 0.995 ? '모두가' : share < 0.01 ? '1% 미만이' : `${Math.round(share * 100)}%가`} 이곳에서</td></tr>`;
 };
 
 const aloneRow = (st: Structure) => {

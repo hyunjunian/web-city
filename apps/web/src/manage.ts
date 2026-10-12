@@ -1520,6 +1520,8 @@ function spotLine(id: GoalId): string {
   const fit = settled ? settled.at : kind ? siteNear(kind, spot.x, spot.y, 0) ?? siteNear(kind, spot.x, spot.y, 6) ?? plantSite(kind, spot.x, spot.y) : null;
   // (A plant's site well off the mark, its smoke kept from the homes: not said to be by the dark zones.)
   const far = !!fit && Math.max(Math.abs(fit[0] - spot.x), Math.abs(fit[1] - spot.y)) > 8;
+  // (How many dark tiles it lights at once: only for the plant the spot was weighed for, built on the spot itself.)
+  const lit = id === 'power' && spot.lit && fit && fit[0] === spot.x && fit[1] === spot.y && kind === spotKind(id) ? spot.lit : 0;
   // (Built off the mark, up to 6 tiles away, the press put it where nothing showed: the mark goes there, unless
   // the guide's own site already stands on it.)
   if ((SERVICE_SITE.has(id) || site) && fit && kind && (fit[0] !== spot.x || fit[1] !== spot.y)
@@ -1527,7 +1529,7 @@ function spotLine(id: GoalId): string {
   const build = (SERVICE_SITE.has(id) || site) && fit && kind
     ? `<button type="button" class="advice-view spot-build" data-spot-build="${fit.join(',')}" data-build-kind="${kind}" title="${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 이 자리에 짓기">${icon('plus')}여기에 짓기</button>` : '';
   return `<p class="mg-spot">${icon('target')}<span>${site
-    ? `<b>${SPOT_WORD[id]}</b>: ${id === 'power' ? '전기 없는 구역' : '물이 없는 건물'} ${id === 'water' && spot.blds ? `${fmt(spot.blds)}채` : `${fmt(spot.lit && !far ? spot.lit : spot.tiles)}칸`}${far ? (kind && smokyPlant(kind) ? '에서 연기가 주거에 닿지 않을 만큼 떨어진' : '에서 가장 가까운') : spot.lit ? '에 한 번에 닿는' : ' 가까이,'} 도로 옆${!far && id === 'power' && kind && smokyPlant(kind) ? ' · 주거에서 떨어진' : ''} 빈 땅 (지도의 과녁)`
+    ? `<b>${SPOT_WORD[id]}</b>: ${id === 'power' ? '전기 없는 구역' : '물이 없는 건물'} ${id === 'water' && spot.blds ? `${fmt(spot.blds)}채` : `${fmt(lit || spot.tiles)}칸`}${far ? (kind && smokyPlant(kind) ? '에서 연기가 주거에 닿지 않을 만큼 떨어진' : '에서 가장 가까운') : lit ? '에 한 번에 닿는,' : ' 가까이,'} 도로 옆${!far && id === 'power' && kind && smokyPlant(kind) ? ' · 주거에서 떨어진' : ''} 빈 땅 (지도의 과녁)`
     : `<b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${spot.blds ? `${fmt(spot.blds)}채` : `${fmt(spot.tiles)}칸`} (지도의 과녁)`}</span>
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button>${build}</span></p>`;
 }
@@ -1606,13 +1608,14 @@ function placeToolMark(): void {
   // straight run to the nearest map edge, dashed end to end, labelled at the town's end (the edge's is often off the
   // screen; its arrow points there). (Not a highway: without ramps it joins none of the town's roads.)
   if (tool.kind === 'network' && (tool.network === 'road' || tool.network === 'avenue')) {
-    const path = edgeRoad();
+    const way = edgeRoad(tool.network);
+    const path = way?.path;
     const [a, b] = path ? [path[0]!, path.at(-1)!] : [];
-    const marks: typeof renderer.marks = a && b ? [
-      { x: a[0], y: a[1], w: 1, h: 1, tone: 'spot', label: `추천 · 이웃 도시까지 ${fmt(path!.length)}칸` },
+    const marks: typeof renderer.marks = a && b && path ? [
+      { x: a[0], y: a[1], w: 1, h: 1, tone: 'spot', label: `추천 · 이웃 도시까지 ${fmt(path.length)}칸${way.short ? ' · 자금 부족' : ''}` },
       { x: b[0], y: b[1], w: 1, h: 1, tone: 'spot', label: '' },
     ] : [];
-    showToolMarks(marks, marks.length ? path : null);
+    showToolMarks(marks, marks.length && path ? path : null);
     return;
   }
   // (The landfill zone: the square the garbage screen would lay, sized to a year of the city's rubbish, clear of the
@@ -1750,12 +1753,13 @@ function usageBar(id: GoalId): string {
   return `<div class="mg-usage ${tone}" role="img" aria-label="${of}의 ${pct}%${tail}"><span class="mg-usage-bar"><i style="width:${Math.min(100, pct)}%"></i></span><span class="mg-usage-text">${of}의 <b>${pct}%</b>${tail}</span></div>`;
 }
 
-/** Each kind of source's colour in the bar: the map's own where it has one (industry orange, paler the cleaner). */
-const CAUSE_TONE: Record<string, string> = { ID: 'var(--zone-i)', IM: '#e6a565', IHT: '#efcc9f', IA: '#b8963a', traffic: '#7d8796', spill: '#c0479a', rest: 'var(--faint)' };
+/** Each kind of source's colour in the bar (theme tokens, a hue each; the plants' kinds apart). */
+const CAUSE_TONE: Record<string, string> = { ID: 'var(--src-id)', IM: 'var(--src-im)', IHT: 'var(--src-iht)', IA: 'var(--src-ia)', traffic: 'var(--src-traffic)', spill: 'var(--src-spill)', rest: 'var(--src-rest)',
+  'st:coalPlant': 'var(--src-coal)', 'st:oilPlant': 'var(--src-oil)', 'st:gasPlant': 'var(--src-gas)' };
 const causeTone = (key: string): string => {
   if (CAUSE_TONE[key]) return CAUSE_TONE[key];
   const def = key.startsWith('st:') ? STRUCTURES[key.slice(3) as StructureKind] : undefined;
-  return def?.plant ? '#c2554a' : def?.incinerator ? '#8e6cc0' : '#9a9aa2';
+  return def?.plant ? 'var(--src-coal)' : def?.incinerator ? 'var(--src-burn)' : 'var(--src-other)';
 };
 
 /**
@@ -1767,7 +1771,7 @@ function airCauses(id: GoalId): string {
   const list = airSources();
   if (!list.length) return '';
   const pct = (v: number) => (v >= 0.995 ? '100%' : v < 0.01 ? '1% 미만' : `${Math.round(v * 100)}%`);
-  const unit = (x: AirSource) => (x.key === 'traffic' ? `길 ${fmt(x.count)}칸` : x.key.startsWith('st:') ? `${fmt(x.count)}곳` : `건물 ${fmt(x.count)}채`);
+  const unit = (x: AirSource) => (x.key === 'traffic' ? `길 ${fmt(x.count)}칸` : x.key.startsWith('st:') || x.key === 'spill' ? `${fmt(x.count)}곳` : `건물 ${fmt(x.count)}채`);
   // (Each part grows by its share, the gaps between taken out first: widths in % ran past the end.)
   const bar = list.map((x) => `<i style="flex-grow:${x.share.toFixed(3)};background:${causeTone(x.key)}"></i>`).join('');
   const items = list.map((x) => {
@@ -1785,7 +1789,8 @@ function airCauses(id: GoalId): string {
   const tip = top.share < 0.3 ? ''
     : reach !== undefined ? `${top.key === 'IA' ? '농장의 먼지' : `${top.label} 공장의 연기`}가 가장 큽니다 · 주거 구역을 ${fmt(reach + 1)}칸 넘게 떼어 두면 닿지 않습니다`
     : kind && (STRUCTURES[kind].plant || STRUCTURES[kind].incinerator) ? `${top.label}의 연기가 가장 큽니다 · 주거지에서 ${fmt(smokeClear(kind))}칸 넘게 떨어진 곳으로 옮기면 그 연기로는 공기가 나빠지지 않습니다`
-    : top.key === 'traffic' ? '길 위의 차가 가장 큽니다 · 대중교통을 놓거나 막힌 길을 넓히면 줄어듭니다'
+    // (Not widening: the engine's traffic smoke is the volume on a road, and a wider one draws more of it.)
+    : top.key === 'traffic' ? '교통이 가장 큽니다 · 버스·지하철로 차를 줄이면 줄어듭니다 (길을 넓히면 차가 더 몰립니다)'
     : top.key === 'spill' ? '쏟아진 유독 물질이 가장 큽니다 · 소방서가 닿으면 치워집니다' : '';
   return `<div class="mg-causes"><p class="mg-causes-title">공기 나쁜 주거지의 오염원<small>눌러서 지도에서 보기</small></p><span class="mg-causes-bar" role="img" aria-label="${escapeHtml(said)}">${bar}</span><div class="mg-causes-list">${items}</div>${tip ? `<p class="mg-causes-tip">${escapeHtml(glue(tip))}</p>` : ''}</div>`;
 }

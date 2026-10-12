@@ -593,66 +593,80 @@ function smoggyHomes(): number {
 
 /**
  * The road the town wants to its neighbours while it has none (no road, avenue or highway at a map edge): a straight
- * run to the nearest edge — from its roads if it has some, else from the edge to the middle of the map — over land the
- * road tool takes, a bridge only where there is no way round. Its tiles from the town's end to the edge, or null.
+ * run of the tool's kind to a map edge — from the town's roads if it has some, else from the edge to the middle of the
+ * map — the cheapest the tool lays (a bridge costs what it costs). At least two tiles, the last two road (a lone edge
+ * tile with a street inside is no link to the engine). Its tiles from the town's end to the edge, and whether the money
+ * is short; or null.
  */
-export function edgeRoad(): [number, number][] | null {
-  const key = changeKey();
-  if (edgeMemo?.key === key) return edgeMemo.path;
-  const path = findEdgeRoad();
-  edgeMemo = { key, path };
-  return path;
+export function edgeRoad(kind: 'road' | 'avenue' = 'road'): { path: [number, number][]; short: boolean } | null {
+  const key = `${kind}|${changeKey()}|${Math.floor(city.state.funds / 100)}`;
+  if (edgeMemo?.key === key) return edgeMemo.at;
+  const at = findEdgeRoad(kind);
+  edgeMemo = { key, at };
+  return at;
 }
-let edgeMemo: { key: string; path: [number, number][] | null } | null = null;
+let edgeMemo: { key: string; at: { path: [number, number][]; short: boolean } | null } | null = null;
 
-function findEdgeRoad(): [number, number][] | null {
+function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; short: boolean } | null {
   if (city.fields.connections.length) return null;
   const n = city.size;
   const net = city.state.net;
-  type Try = { from: [number, number]; to: [number, number]; d: number };
+  // (rank: how far it runs from the town's roads — or, on a new map, how far off the middle row or column it lies.)
+  type Try = { from: [number, number]; to: [number, number]; rank: number };
   const tries: Try[] = [];
+  // (A run that would start on the edge itself starts a tile in: the inward tile becomes road too.)
+  const run = (x: number, y: number, edge: 0 | 1 | 2 | 3, rank?: number): Try => {
+    const to: [number, number] = edge === 0 ? [0, y] : edge === 1 ? [n - 1, y] : edge === 2 ? [x, 0] : [x, n - 1];
+    const d = Math.abs(to[0] - x) + Math.abs(to[1] - y);
+    const from: [number, number] = d > 0 ? [x, y] : edge === 0 ? [1, y] : edge === 1 ? [n - 2, y] : edge === 2 ? [x, 1] : [x, n - 2];
+    return { from, to, rank: rank ?? Math.max(1, d) };
+  };
+  // The town's outermost road tile in each row and column, toward each of the four edges.
+  const minX = new Int32Array(n).fill(-1), maxX = new Int32Array(n).fill(-1), minY = new Int32Array(n).fill(-1), maxY = new Int32Array(n).fill(-1);
   let roads = false;
   for (let i = 0; i < net.length; i++) {
     if (!isLocalNet(net[i]!)) continue;
     roads = true;
-    // (Each road tile toward its nearest edge: the shortest run is among them.)
     const x = i % n;
     const y = (i - x) / n;
-    const ways: Try[] = [{ from: [x, y], to: [0, y], d: x }, { from: [x, y], to: [n - 1, y], d: n - 1 - x }, { from: [x, y], to: [x, 0], d: y }, { from: [x, y], to: [x, n - 1], d: n - 1 - y }];
-    tries.push(ways.reduce((a, b) => (b.d < a.d ? b : a)));
+    if (minX[y]! < 0 || x < minX[y]!) minX[y] = x;
+    if (x > maxX[y]!) maxX[y] = x;
+    if (minY[x]! < 0 || y < minY[x]!) minY[x] = y;
+    if (y > maxY[x]!) maxY[x] = y;
   }
-  if (!roads) {
+  if (roads) {
+    for (let c = 0; c < n; c++) {
+      if (minX[c]! >= 0) tries.push(run(minX[c]!, c, 0), run(maxX[c]!, c, 1));
+      if (minY[c]! >= 0) tries.push(run(c, minY[c]!, 2), run(c, maxY[c]!, 3));
+    }
+  } else {
     // From the middle out to each edge, the middle row or column first, then a little either side of it.
     const mid = n >> 1;
     for (let o = 0; o <= n >> 2; o += 2) {
-      for (const c of o ? [mid - o, mid + o] : [mid]) {
-        tries.push({ from: [mid, c], to: [0, c], d: o }, { from: [mid, c], to: [n - 1, c], d: o }, { from: [c, mid], to: [c, 0], d: o }, { from: [c, mid], to: [c, n - 1], d: o });
-      }
+      for (const c of o ? [mid - o, mid + o] : [mid]) tries.push(run(mid, c, 0, o), run(mid, c, 1, o), run(c, mid, 2, o), run(c, mid, 3, o));
     }
   }
-  tries.sort((a, b) => a.d - b.d);
-  // The shortest the tool lays without a bridge (or a tunnel), else the shortest it lays at all. (Ties: the cheaper.)
-  let best: { t: Try; cost: number; d: number } | null = null;
-  let bridged: Try | null = null;
+  // The cheapest the tool takes, money short or not (it is said); the nearest few dozen asked, nearest first.
+  tries.sort((a, b) => a.rank - b.rank);
+  let best: { t: Try; cost: number; short: boolean } | null = null;
+  let asked = 0;
   for (const t of tries) {
-    if (best && t.d > best.d) break;
-    const p = city.previewNetwork(t.from[0], t.from[1], t.to[0], t.to[1], 'road');
-    if (!p.ok) continue;
-    if (p.bridges || p.tunnels) {
-      bridged ??= t;
-      continue;
-    }
-    if (!best || p.cost < best.cost) best = { t, cost: p.cost, d: t.d };
+    if (asked >= 60 || (best && t.rank > best.t.rank * 2 + 8)) break;
+    asked++;
+    const p = city.previewNetwork(t.from[0], t.from[1], t.to[0], t.to[1], kind);
+    const short = !p.ok && p.message === 'not enough funds';
+    if (!p.ok && !short) continue;
+    if (!best || p.cost < best.cost) best = { t, cost: p.cost, short };
   }
-  const t = best?.t ?? bridged;
-  if (!t) return null;
-  const [dx, dy] = [Math.sign(t.to[0] - t.from[0]), Math.sign(t.to[1] - t.from[1])];
+  if (!best) return null;
+  const { from, to } = best.t;
+  const [dx, dy] = [Math.sign(to[0] - from[0]), Math.sign(to[1] - from[1])];
   const path: [number, number][] = [];
-  for (let [x, y] = t.from; ; x += dx, y += dy) {
+  for (let [x, y] = from; ; x += dx, y += dy) {
     path.push([x, y]);
-    if (x === t.to[0] && y === t.to[1]) break;
+    if (x === to[0] && y === to[1]) break;
   }
-  return path;
+  return { path, short: best.short };
 }
 
 /** A kind of source of the air over the smoggy homes: its share of it, how many there are, and the worst one (to go to). */
@@ -1549,13 +1563,18 @@ export function zoneSite(zone: 'R-low' | 'C-low' | 'I-medium' | 'A', near?: read
   const [ax, ay] = near ?? centroid(cls === 'C' || !([...city.state.buildings.values()].some(has(cls))) ? (homes ? has('R') : has(cls)) : has(cls));
   // (Homes and shops clear of a landfill too: it spoils them out to 32 tiles.)
   const avoid = cls === 'I' ? (z: number) => z >= 1 && z <= 3 : cls === 'R' ? (z: number) => z === 7 || z === 8 || z === 10 : (z: number) => z === 10;
-  // (Homes and industry apart past where dirty industry's smoke reaches, where there is room: 6 tiles let a block of
-  // factories foul the homes beside it from the day it grew. Else the 6.)
+  // (Homes and industry apart past where dirty industry's smoke reaches, where there is room near at hand: 6 tiles let
+  // a block of factories foul the homes beside it from the day it grew. Only a few rings past the nearest block 6 tiles
+  // clear, though — the nearest clear of the smoke anywhere sent work for homes about to be left to the outskirts — and
+  // not for work beside a given place at all.)
   const smoke = (city.cfg.development.airPollution.ID?.radius ?? 5) + 1;
-  const reach = cls === 'I' || cls === 'R' ? [Math.max(6, smoke), 6] : [6];
+  const apart = (cls === 'I' || cls === 'R') && !near && smoke > 6;
   let at: { x0: number; y0: number; x1: number; y1: number; side: number } | null = null;
   for (const side of [8, 6]) {
-    const sq = squareSite(side, ax, ay, avoid, reach, zone !== 'I-medium');
+    const sq6 = squareSite(side, ax, ay, avoid, [6], zone !== 'I-medium');
+    if (!sq6) continue;
+    const r6 = Math.max(Math.abs(sq6.x0 + (side >> 1) - ax), Math.abs(sq6.y0 + (side >> 1) - ay));
+    const sq = (apart ? squareSite(side, ax, ay, avoid, [smoke], zone !== 'I-medium', r6 + 8) : null) ?? sq6;
     if (sq) { at = { ...sq, side }; break; }
   }
   zoneMemo = { key, at };
@@ -1581,7 +1600,7 @@ function centroid(test: (b: Building) => boolean): [number, number] {
  * along it and no zone `avoid` takes within R tiles (each R of `reach` in turn, the first that finds one); its
  * corners, or null. (Rectangle sums keep each try O(1): a few milliseconds on a large map.)
  */
-function squareSite(side: number, ax: number, ay: number, avoid: (zone: number) => boolean, reach: number[], low = false): { x0: number; y0: number; x1: number; y1: number } | null {
+function squareSite(side: number, ax: number, ay: number, avoid: (zone: number) => boolean, reach: number[], low = false, rings = Infinity): { x0: number; y0: number; x1: number; y1: number } | null {
   const s = city.state;
   const n = city.size;
   const W = n + 1;
@@ -1612,7 +1631,7 @@ function squareSite(side: number, ax: number, ay: number, avoid: (zone: number) 
   };
   let at: { x0: number; y0: number; x1: number; y1: number } | null = null;
   for (const R of reach) {
-    for (let r = 0; r <= n && !at; r++) {
+    for (let r = 0; r <= Math.min(n, rings) && !at; r++) {
       onRing(r, (dx, dy) => {
         const [lx, ly] = [ax + dx - (side >> 1), ay + dy - (side >> 1)];
         if (lx < 0 || ly < 0 || lx + side > n || ly + side > n) return false;
@@ -1852,7 +1871,7 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
         search: for (const { feed, clear } of passes) {
           let top: { at: [number, number]; lit: number } | null = null;
           let until = reach;
-          for (let r = 0; r <= until; r++) {
+          rings: for (let r = 0; r <= until; r++) {
             for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
               if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || !fits(cx + dx, cy + dy, clear) || (feed && !feeds(cx + dx, cy + dy))) continue;
               if (!feed || !dark || !kind) {
@@ -1862,9 +1881,8 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
               const got = litBy(kind, cx + dx, cy + dy, dark);
               if (!top) until = Math.min(reach, r + 8);
               if (!top || got > top.lit) top = { at: [cx + dx, cy + dy], lit: got };
-              if (got >= dark.total) break; // (every dark tile in reach: none does better)
+              if (got >= dark.total) break rings; // (every dark tile in reach: none does better)
             }
-            if (top && top.lit >= dark!.total) break;
           }
           if (top) {
             at = top.at;
