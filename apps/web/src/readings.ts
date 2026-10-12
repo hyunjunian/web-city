@@ -886,6 +886,25 @@ export function pipeToDry(): [number, number][] | null {
 }
 let pipeLineMemo: { key: string; path: [number, number][] | null } | null = null;
 
+/**
+ * The straight stretch of jammed street or road through (x, y), along the axis it runs further: each tile the same
+ * kind, at grade, past 90% of its capacity; its ends, or null. (What 대로로 넓히기 widens in one press.)
+ */
+export function jamRun(x: number, y: number): [number, number, number, number] | null {
+  const s = city.state;
+  const f = city.fields;
+  const n = city.size;
+  const kind = NETWORK_KINDS[s.net[y * n + x]!];
+  if (kind !== 'street' && kind !== 'road') return null;
+  const cap = city.cfg.transport.speed[kind].capacity;
+  const jammed = (tx: number, ty: number) => tx >= 0 && ty >= 0 && tx < n && ty < n && NETWORK_KINDS[s.net[ty * n + tx]!] === kind
+    && !s.tunnel[ty * n + tx] && f.traffic[ty * n + tx]! > cap * 0.9;
+  if (!jammed(x, y)) return null;
+  const reach = (dx: number, dy: number) => { let k = 0; while (k < 64 && jammed(x + (k + 1) * dx, y + (k + 1) * dy)) k++; return k; };
+  const [w, e, nn, sth] = [reach(-1, 0), reach(1, 0), reach(0, -1), reach(0, 1)];
+  return w + e >= nn + sth ? [x - w, y, x + e, y] : [x, y - nn, x, y + sth];
+}
+
 /** Does a building reach a road now (homes and shops fronting one, industry and farms within reach of one)? Its
  * countdown resets only at the month's end: without this, a road laid to it was offered again at once. */
 export function hasRoadNow(b: Building): boolean {

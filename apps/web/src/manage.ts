@@ -1825,6 +1825,34 @@ export function setupGoals(): void {
       updatePanels();
       return;
     }
+    // A jammed road's 이 구간 대로로 넓히기: the stretch upgraded at once, as one step to undo.
+    const widen = (e.target as HTMLElement).closest<HTMLElement>('#info [data-widen]');
+    if (widen) {
+      const [x0, y0, x1, y1] = widen.dataset.widen!.split(',').map(Number) as [number, number, number, number];
+      city.settle();
+      const p = city.previewNetwork(x0, y0, x1, y1, 'avenue');
+      if (!p.ok) {
+        flash(p.message === 'not enough funds' ? `§${fmt(Math.ceil(p.cost - city.state.funds))} 모자랍니다` : ko(p.message ?? ''), 'bad');
+        redrawInfo();
+        return;
+      }
+      const drop = remember('대로');
+      const res = city.buildNetwork(x0, y0, x1, y1, 'avenue');
+      if (!res.ok) {
+        drop();
+        flash(ko(res.message ?? ''), 'bad');
+        return;
+      }
+      city.refreshIfDirty();
+      const tiles = Math.abs(x1 - x0) + Math.abs(y1 - y0) + 1;
+      if (active === 'traffic') noteAction(`대로 ${fmt(tiles)}칸 · −§${fmt(res.cost)}`);
+      flash(`막힌 구간 ${fmt(tiles)}칸을 대로로 넓혔습니다 · −§${fmt(res.cost)}`, 'info');
+      renderer.effect('flash', Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0) + 1, Math.abs(y1 - y0) + 1);
+      redraw();
+      redrawInfo();
+      updatePanels();
+      return;
+    }
     // The card's 도로·송전선 잇기 (a facility off the road, a building counting down): laid at once, logged under
     // its own goal's screen only.
     const layTo = (e.target as HTMLElement).closest<HTMLElement>('#info [data-lay-path]');

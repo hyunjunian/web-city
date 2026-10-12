@@ -2,7 +2,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceId, ORDINANCES, serviceRadius, type Structure, type StructureKind, STRUCTURES, type TripMeans } from '@web-city/engine';
 import { icon } from './icons';
-import { budgetMends, facilityLine, hasRoadNow, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
+import { budgetMends, facilityLine, hasRoadNow, jamRun, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
 import { ko } from './messages';
 import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -300,8 +300,7 @@ export function showInfo(x: number, y: number): void {
         <div class="fill" style="width:${Math.min(100, Math.round(load * 100))}%;background:${load > 1 ? 'var(--danger)' : load > 0.7 ? 'var(--warn)' : 'var(--data)'}"></div>
       </div>
       <div class="info-meter-label"><span>하루 통행 ${fmt(flow)} / 용량 ${fmt(cap)}</span><span>${pct(load)}</span></div>
-      ${load > 1 && !onRail ? `<p class="legend">막힙니다. ${q.network === 'street' || q.network === 'road'
-        ? `<button type="button" class="advice-view" data-tool="avenue" title="대로 도구 고르기: 기존 길 위로 그으면 넓어집니다">${icon('plus')}대로로 넓히기 (용량 ${fmt(DEFAULT_CONFIG.transport.speed.avenue.capacity)})</button> ` : ''}버스·지하철로 일터까지 이어 주면 차가 줄어듭니다.</p>` : ''}` : '';
+      ${load > 1 && !onRail ? `<p class="legend">막힙니다. 버스·지하철로 일터까지 이어 주면 차가 줄어듭니다.</p>${q.network === 'street' || q.network === 'road' ? `<div class="chips">${widenButton(x, y)}</div>` : ''}` : ''}` : '';
   // Road traffic is in the meter above when there is one; other modes always list here.
   const traffic = [
     cap ? null : fmt(q.traffic), q.railTraffic && !onRail ? `열차 ${fmt(q.railTraffic)}` : null, q.subwayTraffic ? `지하철 ${fmt(q.subwayTraffic)}` : null,
@@ -718,4 +717,19 @@ export function ordinanceSignature(): string {
 function lifeLeft(life: number, years: number): string {
   const months = Math.max(0, Math.round((100 - life) / (100 / (years * 12))));
   return months >= 24 ? `${Math.floor(months / 12)}년` : `${months}개월`;
+}
+
+/**
+ * A jammed street or road's 대로로 넓히기: the jammed straight stretch through it widened in one press, with its
+ * length and price, else (nothing jammed beyond it, a bridge refused) the avenue tool to draw it by hand.
+ */
+function widenButton(x: number, y: number): string {
+  const run = jamRun(x, y);
+  const p = run ? city.previewNetwork(run[0], run[1], run[2], run[3], 'avenue') : null;
+  const cap = fmt(DEFAULT_CONFIG.transport.speed.avenue.capacity);
+  if (run && p && (p.ok || p.message === 'not enough funds')) {
+    const tiles = Math.abs(run[2] - run[0]) + Math.abs(run[3] - run[1]) + 1;
+    return `<button type="button" class="chip" data-widen="${run.join(',')}" title="막힌 구간 ${fmt(tiles)}칸을 대로(용량 ${cap})로 바로 넓히기 · §${fmt(p.cost)}${p.ok ? '' : ' · 자금 부족'}">${icon('plus')}이 구간 대로로 넓히기 · ${fmt(tiles)}칸 §${fmt(p.cost)}</button> `;
+  }
+  return `<button type="button" class="advice-view" data-tool="avenue" title="대로 도구 고르기: 기존 길 위로 그으면 넓어집니다">${icon('plus')}대로로 넓히기 (용량 ${cap})</button> `;
 }
