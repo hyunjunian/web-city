@@ -1582,6 +1582,9 @@ export function setupGoals(): void {
   // A build button under the pointer (or focused) lights its target on the map: where it will build, before it does.
   const light = (e: Event) => {
     const b = (e.target as HTMLElement).closest?.<HTMLElement>('[data-spot-build]');
+    // (Moving between the button's icon and its words is still on the button: no flicker.)
+    const to = (e as PointerEvent | FocusEvent).relatedTarget as Node | null;
+    if ((e.type === 'pointerout' || e.type === 'focusout') && b && to && b.contains(to)) return;
     const next = e.type === 'pointerover' || e.type === 'focusin' ? b?.dataset.spotBuild?.split(';') ?? [] : [];
     if (next.join(';') === hotSites.join(';') || !active) return;
     hotSites = next;
