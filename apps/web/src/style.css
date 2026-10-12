@@ -2432,7 +2432,10 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #mapbar.fit3 #map-layer .legend-toggle { display: inline-flex; margin-left: 0; color: var(--muted); transition: transform 0.2s var(--ease); }
 #mapbar.fit3 #map-layer.open .legend-toggle { transform: rotate(180deg); }
 #mapbar.fit3 #map-layer:not(.off):not(.picking) .layer-off { display: inline-flex; order: 0; flex: none; width: 36px; height: 36px; }
-#view:has(#manage-chip:not([hidden])) #mapbar.fit3 #map-layer .layer-off { display: none; } /* (a goal's chip has the × then: two alike that did different things) */
+/* (A goal's chip in sight has its own ×: two alike that did different things. In sight on a wide screen only map-only
+   (F); on a phone while its sheet is down.) */
+@media (min-width: 861px) { #app.focus #view:has(#manage-chip:not([hidden])) #mapbar.fit3 #map-layer .layer-off { display: none; } }
+@media (max-width: 860px) { #app:not(.pane-open) #view:has(#manage-chip:not([hidden])) #mapbar.fit3 #map-layer .layer-off { display: none; } }
 #mapbar.fit3 #overlay { order: 1; flex: 1 0 100%; min-width: 0; }
 #mapbar.fit3 #map-layer:not(.off):not(.picking) #overlay { gap: 6px; }
 #mapbar.fit3 #map-layer:not(.open) :is(#overlay-legend, #overlay-scale) { display: none !important; }
