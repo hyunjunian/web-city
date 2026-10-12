@@ -20,7 +20,7 @@ export function dropToasts(prefix: string): void {
 }
 
 /** `at`: a tile the notice is about; clicking the notice then shows it. */
-export function toast(text: string, tone: 'good' | 'bad' | 'info' = 'good', at?: [number, number], open?: () => void, sticky = false, label?: string): void {
+export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'good', at?: [number, number], open?: () => void, sticky = false, label?: string): void {
   const box = document.querySelector('#toasts');
   if (!box) return;
   // The same words about the same place already showing: not again (picking two checklist steps stacked two of
@@ -36,7 +36,8 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' = 'good', at?:
   // A tone badge, the text (its subject in bold: "개발·수요: …"), and a chevron when it leads somewhere.
   const badge = document.createElement('span');
   badge.className = 'toast-badge';
-  badge.innerHTML = icon(tone === 'bad' ? 'alert' : tone === 'info' ? 'info' : 'award'); // news that is neither: no award
+  // (gold: a milestone the city reached, with the stage's trophy; news that is neither good nor bad: no award)
+  badge.innerHTML = icon(tone === 'bad' ? 'alert' : tone === 'info' ? 'info' : tone === 'gold' ? 'trophy' : 'award');
   const body = document.createElement('span');
   body.className = 'toast-text';
   // (The stopped clock is said by the 계속 button, not in words at the end.)

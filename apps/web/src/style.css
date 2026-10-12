@@ -2174,6 +2174,11 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 }
 .toast.bad.timed::after { color: var(--danger); }
 .toast.info.timed::after { color: var(--accent); }
+/* A new stage: the scoreboard's gold, the badge lit as the toast arrives. */
+.toast.gold .toast-badge { background: var(--gold-soft); color: var(--gold); animation: gold-glow 1.6s var(--ease) 0.2s 2; }
+.toast.gold.timed::after { color: var(--gold); }
+@keyframes gold-glow { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--gold) 22%, transparent); } }
+@media (prefers-reduced-motion: reduce) { .toast.gold .toast-badge { animation: none; } }
 @keyframes toast-life { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 /* Put away without going anywhere: a small ×, there when pointed at. */
 .toast-x {

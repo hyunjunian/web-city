@@ -136,7 +136,7 @@ function checkMilestone(population: number): void {
   if (reached > milestone) {
     const text = `인구 ${fmt(reached)}명을 넘어 ${city.state.name}${josa(city.state.name, '이', '가')} '${STAGES.find(([m]) => m === reached)![1]}'${josa(STAGES.find(([m]) => m === reached)![1], '이', '가')} 되었습니다!`;
     pushNotice({ text, until: city.state.day + 90 });
-    toast(text);
+    toast(text, 'gold'); // (in the stage's gold, with its trophy: the reward the pane's headline counts toward)
   }
   milestone = Math.max(milestone, reached);
 }
