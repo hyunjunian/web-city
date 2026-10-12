@@ -983,9 +983,32 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
   $('#manage-chip').hidden = false;
   refreshChip();
   if (at) centerOn(at[0], at[1]);
+  else if (changed && !phone()) clearOfCards();
   // Its policy and statistics are drawn only while shown.
   if (fresh || changed) updatePanels();
   redraw();
+}
+
+/**
+ * The screen's first target, on the map but under a corner card (the view's legend, the minimap): the map moves it
+ * out from under, at the zoom it has. (The 개발 막힘 legend hid the 추천 자리's label just beside it.)
+ */
+function clearOfCards(): void {
+  const spot = renderer.marks.find((m) => m.tone === 'spot');
+  if (!spot) return;
+  const r = renderer.canvas.getBoundingClientRect();
+  const [sx, sy] = [(spot.x + spot.w / 2 - cam.x) * cam.scale + r.left, (spot.y + spot.h / 2 - cam.y) * cam.scale + r.top];
+  if (sx < r.left || sx > r.right || sy < r.top || sy > r.bottom) return; // (off the map: its edge arrow points there)
+  const cards = ['map-layer', 'minimap'].flatMap((k) => {
+    const el = document.getElementById(k);
+    const c = el && !el.hidden && el.offsetParent ? el.getBoundingClientRect() : null;
+    return c && c.width > 0 ? [c] : [];
+  });
+  // (Its label runs beside it and above: some room around.)
+  if (!cards.some((c) => sx > c.left - 80 && sx < c.right + 80 && sy > c.top - 16 && sy < c.bottom + 28)) return;
+  const [left, right] = [Math.max(0, ...cards.filter((c) => c.left - r.left < r.width / 2).map((c) => c.right - r.left)),
+    Math.min(r.width, ...cards.filter((c) => c.left - r.left >= r.width / 2).map((c) => c.left - r.left))];
+  centerOn(spot.x + (spot.w >> 1), spot.y + (spot.h >> 1), cam.scale, { left, top: 0, right: Math.max(left + 1, right), bottom: r.height });
 }
 
 /** 재정·정책: opens it, or on it already brings its policy into sight (an advisor's "재정 열기", the policy links). */

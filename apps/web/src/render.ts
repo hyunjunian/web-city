@@ -1947,7 +1947,8 @@ export class Renderer {
     if (this.marks.length) {
       const pad = 0.35;
       const u = this.dpr / sc; // one CSS pixel, in tiles (the same on a phone's dense screen)
-      for (const m of this.marks) {
+      // (The targets and their labels last, over the outlines: a block's dashed edge ran through its own label.)
+      for (const m of [...this.marks.filter((k) => k.tone !== 'spot'), ...this.marks.filter((k) => k.tone === 'spot')]) {
         if (m.tone === 'spot') {
           // A target: rings round the point, and its label above.
           const cx = m.x + m.w / 2;
