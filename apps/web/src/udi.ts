@@ -4,7 +4,7 @@ import { type ActiveMission, type MissionDef, type MissionId, MISSIONS, PARTIAL_
 import { setSpeed } from './controls';
 import { ko } from './messages';
 import { icon } from './icons';
-import { ALIGNMENT_NAME, CLASS_ICON, DIFFICULTY_NAME, STRUCTURE_NAME, TRAINING_NAME } from './names';
+import { CLASS_ICON, DIFFICULTY_NAME, STRUCTURE_NAME, TRAINING_NAME } from './names';
 import { pushNotice, updatePanels } from './panels';
 import { cam, city, redraw, renderer, speed } from './state';
 import { closeTopLayer, showTab } from './tabs';
@@ -24,9 +24,24 @@ export let udiSignature = '';
 const partialCount = (kind: string, got: number) => `${got}/${PARTIAL_UNLOCKS[kind as StructureKind] ?? 1}회`;
 
 export const resultText = (r: MissionDef['success']) => [
-  r.mr ? `평점 ${r.mr > 0 ? '+' : ''}${r.mr}(${r.radius}칸)` : '', r.cash ? `${r.cash > 0 ? '+' : '−'}§${fmt(Math.abs(r.cash))}` : '',
+  // (The rating moves in the blocks around where it ended: 평점 +110(32칸) left the 32 to guess.)
+  r.mr ? `평점 ${r.mr > 0 ? '+' : '−'}${Math.abs(r.mr)} (반경 ${r.radius}칸)` : '', r.cash ? `${r.cash > 0 ? '+' : '−'}§${fmt(Math.abs(r.cash))}` : '',
   ...(r.unlocks ?? []).map((k) => `${STRUCTURE_NAME[k]} 해제`), r.partial ? `${STRUCTURE_NAME[r.partial]} 부분 해제` : '',
 ].filter(Boolean).join(' · ');
+
+/** A mission's side, as its tag reads (선·악 alone read as nothing). */
+const SIDE = { good: '선한 일', evil: '나쁜 일', neutral: '중립' } as const;
+
+/** Training first (it opens the rest), then the good, the neutral and the bad, each easiest first (they came by code name). */
+function sortMissions(ids: MissionId[]): MissionId[] {
+  const side = { good: 0, neutral: 1, evil: 2 };
+  const level = { easy: 0, medium: 1, hard: 2 };
+  return [...ids].sort((a, b) => {
+    const ma: MissionDef = MISSIONS[a];
+    const mb: MissionDef = MISSIONS[b];
+    return +!ma.training - +!mb.training || side[ma.alignment] - side[mb.alignment] || level[ma.difficulty] - level[mb.difficulty];
+  });
+}
 
 export function renderUdi(force = false): void {
   const ids = city.availableMissions();
@@ -38,13 +53,19 @@ export function renderUdi(force = false): void {
   const progress = Object.entries(s.udi.partial).map(([k, v]) => `${STRUCTURE_NAME[k as StructureKind]} ${city.isUnlocked(k as StructureKind) ? '해제됨' : partialCount(k, v ?? 0)}`).join(' · ');
   $('#udi').innerHTML = `
     <p class="legend">탈것: ${vehicles.length ? vehicles.map((v) => VEHICLE_NAME_KO[v]).join(', ') : '없음 — 경찰서·소방서·학교·버스 정류장 등을 지으면 생깁니다'}</p>
-    ${ids.map((id) => {
+    ${sortMissions(ids).map((id) => {
       const m: MissionDef = MISSIONS[id];
-      return `<div class="mission">
-        <div><b title="${m.name}">${MISSION_NAME_KO[id]}</b> <span class="muted">${icon(CLASS_ICON[VEHICLES[m.vehicle].class], 'inline-i')}${m.anyMySim ? 'My Sim 차량 아무거나' : m.training ? `${TRAINING_NAME[m.training]} 탈것 아무거나` : VEHICLE_NAME_KO[m.vehicle]} · 난이도 ${DIFFICULTY_NAME[m.difficulty]} ·</span>
-          <span class="${m.alignment}" title="임무의 성향 (선한 일·나쁜 일·어느 쪽도 아님)">성향 ${ALIGNMENT_NAME[m.alignment]}</span></div>
-        <div class="legend">성공: ${resultText(m.success) || (m.training ? `${TRAINING_NAME[m.training]} 탈것 임무가 열립니다` : '없음')}<br>실패: ${resultText(m.failure) || '없음'}</div>
-        <button data-mission="${id}" ${drive ? 'disabled' : ''}>출발</button></div>`;
+      // A card a mission: what drives it and how hard, its side, what winning and losing do; 출발 at its end
+      // (on a line of its own under each, thirteen missions ran to a long scroll).
+      return `<div class="mission ${m.alignment}">
+        <span class="ms-i" aria-hidden="true">${icon(CLASS_ICON[VEHICLES[m.vehicle].class])}</span>
+        <div class="ms-body">
+          <div class="ms-head"><b title="${m.name}">${MISSION_NAME_KO[id]}</b><span class="ms-side" title="임무의 성향 (선한 일·나쁜 일·어느 쪽도 아님)">${SIDE[m.alignment]}</span></div>
+          <div class="ms-sub">${m.anyMySim ? 'My Sim 차량 아무거나' : m.training ? `${TRAINING_NAME[m.training]} 탈것 아무거나` : VEHICLE_NAME_KO[m.vehicle]} · 난이도 ${DIFFICULTY_NAME[m.difficulty]}</div>
+          <dl class="ms-out"><dt class="win">성공</dt><dd>${resultText(m.success) || (m.training ? `${TRAINING_NAME[m.training]} 탈것 임무가 열립니다` : '없음')}</dd>
+            <dt class="lose">실패</dt><dd>${resultText(m.failure) || '없음'}</dd></dl>
+        </div>
+        <button data-mission="${id}" ${drive ? 'disabled' : ''}>${icon('play')}출발</button></div>`;
     }).join('') || '<p class="muted">지금 할 수 있는 임무가 없습니다.</p>'}
     ${progress ? `<p class="legend">여러 번 해야 하는 보상: ${progress}</p>` : ''}
     <p class="legend">탈것 종류마다 운전 연습을 먼저 통과해야 그 종류의 임무가 열립니다. 출발하면 시뮬레이션이 멈추고, 방향키·WASD(또는 화면의 방향 버튼)로 노란 목표까지 시간 안에 가면 성공입니다. 차는 도로로, 열차는 선로로, 배는 물 위로, 비행기는 어디로든 갑니다.</p>`;

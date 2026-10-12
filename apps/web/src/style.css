@@ -983,10 +983,26 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #drive-quit .i { width: 16px; height: 16px; }
 #view:has(#drive-hud:not([hidden])) #hint { bottom: 196px; }
 .goal-arrow { display: inline-block; color: var(--warn); font-weight: 700; }
-.mission { padding: 10px 0; border-bottom: 1px solid var(--line); }
-.mission:last-child { border-bottom: none; }
-.mission .good { color: var(--good); }
-.mission .evil { color: var(--danger); }
+/* A mission: its vehicle in a tile tinted by its side, the name and side tag, what winning and losing do; 출발 at the end. */
+.mission { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.mission:last-of-type { border-bottom: none; }
+.mission .ms-i { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--surface-2); color: var(--muted); }
+.mission .ms-i .i { width: 18px; height: 18px; }
+.mission.good .ms-i { background: var(--good-soft); color: var(--good-ink); }
+.mission.evil .ms-i { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+.mission .ms-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.mission .ms-head b { font-weight: 650; }
+.mission .ms-side { padding: 1px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11.5px; font-weight: 600; }
+.mission.good .ms-side { background: var(--good-soft); color: var(--good-ink); }
+.mission.evil .ms-side { background: color-mix(in srgb, var(--danger) 16%, transparent); color: var(--danger); }
+.mission .ms-sub { margin-top: 2px; color: var(--muted); font-size: 12.5px; }
+.mission .ms-out { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 8px; margin: 8px 0 0; font-size: 12.5px; }
+.mission .ms-out dt { font-weight: 650; }
+.mission .ms-out dt.win { color: var(--good); }
+.mission .ms-out dt.lose { color: var(--muted); }
+.mission .ms-out dd { margin: 0; color: var(--text); }
+.mission > button { align-self: center; display: inline-flex; align-items: center; gap: 4px; }
+.mission > button .i { width: 14px; height: 14px; }
 
 /* ------------------------------------------------------------------ cards over the map */
 
