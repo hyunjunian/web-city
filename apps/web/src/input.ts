@@ -136,7 +136,10 @@ export function describeTile(x: number, y: number): string {
     const cap = kind ? city.cfg.transport.speed[kind]?.capacity : undefined;
     const load = cap ? flow / cap : 0;
     const busy = load > 1 ? ` · ⚠ 막힘 ${Math.round(load * 100)}%` : load > 0.7 ? ` · 붐빔 ${Math.round(load * 100)}%` : '';
-    return `${label} · 하루 통행 ${fmt(flow)}${busy}${s.terrain[i] === Terrain.Water ? ' · 다리' : ''}`;
+    // The ringed "!" on it: a pileup or a derailment this month (the mark said nothing of itself).
+    const inc = s.incidents.find((e) => e.i === i);
+    const crash = inc ? (inc.kind === 'pileup' ? ' · ⚠ 교통사고 (붐비는 교차로에서 남)' : ' · ⚠ 탈선 (손상된 선로: 대중교통 예산을 100% 넘게 올리면 고쳐짐)') : '';
+    return `${label} · 하루 통행 ${fmt(flow)}${busy}${crash}${s.terrain[i] === Terrain.Water ? ' · 다리' : ''}`;
   }
   if (s.terrain[i] === Terrain.Water) return '물';
   const zone = ZONE_NAME[ZONES[s.zone[i]!]!];
