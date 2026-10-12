@@ -1527,8 +1527,9 @@ const SERVICE_SITE = new Set<GoalId>(['police', 'fire', 'health', 'education']);
  * A facility picked from the build cards, no screen open: the map marks the site the guide would build it on — a
  * station where it fills the biggest gap in its service (the view that comes on with it shows every gap; the mark
  * says which to fill, on ground it fits), a plant beside the plants on the grid, a pump touching the pipes with
- * power, an incinerator or recycling centre clear of the homes, bus stops by the homes and by the work, a park by
- * the homes; a zone whose class is wanted, the block to draw over — and its arrow at the screen's edge leads there.
+ * power, an incinerator or recycling centre clear of the homes, bus stops by the homes and by the work, a park, a
+ * reward or a deal by the homes or clear of them as they take to it; a zone whose class is wanted, the block to draw
+ * over — and its arrow at the screen's edge leads there.
  */
 export function markToolSite(): void {
   // (A moment later: a site search can take a big map tens of milliseconds, and the pick shows first.)
@@ -1589,7 +1590,12 @@ function placeToolMark(): void {
     : d.pump ? siteOnPipes(kind) ?? nearSpot('water')
     : d.incinerator || d.recycling ? siteAwayFromHomes(kind)
     // (A park: by the homes, where it pleases the most, as the guide puts the one that lifts the cap.)
-    : d.category === 'park' ? siteNearHomes(kind) : null;
+    : d.category === 'park' ? siteNearHomes(kind)
+    // (A reward, a landmark or a deal by what it does to the homes around it: welcome by them (or pleasing those near it
+    // with the mayor), a casino or an army base clear of them; one that does neither, anywhere.)
+    : d.category === 'reward' || d.category === 'landmark' || d.category === 'deal'
+      ? (d.res[0] < 0 ? siteAwayFromHomes(kind) : d.res[0] > 0 || ((d.mayor?.[0] ?? 0) > 0 && (d.mayor?.[1] ?? 0) < city.size) ? siteNearHomes(kind) : null)
+    : null;
   const marks: typeof renderer.marks = at && kind ? [{ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]}` }] : [];
   // A bus stop: the pair the traffic screen builds, one where the most live and one where the most work (a stop alone
   // carries no one) — a side already with a stop within 8 tiles left out, so the next goes to the other side.
