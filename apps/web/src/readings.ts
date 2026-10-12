@@ -596,19 +596,11 @@ export function cheapestOf(g: Goal): StructureKind | null {
  * built for (a park lifting the cap does it anywhere; by the homes it pleases them too). Its middle tile, or null.
  */
 export function siteNearHomes(kind: StructureKind): [number, number] | null {
-  const key = `${kind}|${changeKey()}`;
+  const key = `homes|${kind}|${changeKey()}`;
   if (siteMemo?.key === key) return siteMemo.at;
-  const s = city.state;
   const n = city.size;
   const d = STRUCTURES[kind];
-  let [sx, sy, count] = [0, 0, 0];
-  for (const b of s.buildings.values()) {
-    if (b.type?.[0] !== 'R') continue;
-    sx += b.x + b.w / 2;
-    sy += b.y + b.h / 2;
-    count++;
-  }
-  const [ax, ay] = count ? [Math.round(sx / count), Math.round(sy / count)] : [n >> 1, n >> 1];
+  const [ax, ay] = homesMiddle();
   let at: [number, number] | null = null;
   search: for (let r = 0; r < n; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
     if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
@@ -623,6 +615,77 @@ export function siteNearHomes(kind: StructureKind): [number, number] | null {
   return at;
 }
 let siteMemo: { key: string; at: [number, number] | null } | null = null;
+
+/** The middle of the city's homes (the map's middle while there are none). */
+function homesMiddle(): [number, number] {
+  let [sx, sy, count] = [0, 0, 0];
+  for (const b of city.state.buildings.values()) {
+    if (b.type?.[0] !== 'R') continue;
+    sx += b.x + b.w / 2;
+    sy += b.y + b.h / 2;
+    count++;
+  }
+  return count ? [Math.round(sx / count), Math.round(sy / count)] : [city.size >> 1, city.size >> 1];
+}
+
+/**
+ * A site for one more water source where its water counts: touching a pipe (a pump or tower joins the
+ * network of the pipe beside it; one standing alone waters only what is around it), in reach of power
+ * (a pump without it gives nothing) and on clean water, nearest the homes. Its middle tile, or null.
+ */
+export function siteOnPipes(kind: StructureKind): [number, number] | null {
+  const key = `pipes|${kind}|${changeKey()}`;
+  if (pipeMemo?.key === key) return pipeMemo.at;
+  const s = city.state;
+  const n = city.size;
+  const d = STRUCTURES[kind];
+  const limit = city.cfg.services.pumpPollutionLimit;
+  const [ax, ay] = homesMiddle();
+  const clean = (lx: number, ly: number) => {
+    for (let y = ly; y < ly + d.h; y++) for (let x = lx; x < lx + d.w; x++) if (city.fields.waterPollution[y * n + x]! > limit) return false;
+    return true;
+  };
+  let at: [number, number] | null = null;
+  let near = Infinity;
+  for (let i = 0; i < n * n; i++) {
+    if (!s.pipe[i]) continue;
+    const x = i % n;
+    const y = (i - x) / n;
+    // The footprint against the pipe tile, on each side of it.
+    for (const [lx, ly] of [[x + 1, y], [x - d.w, y], [x, y + 1], [x, y - d.h]] as const) {
+      if (lx < 0 || ly < 0 || lx + d.w > n || ly + d.h > n) continue;
+      const far = (lx + d.w / 2 - ax) ** 2 + (ly + d.h / 2 - ay) ** 2;
+      if (far >= near || !city.canPlaceStructure(kind, lx, ly).ok || city.powerReach(kind, lx, ly) !== 'powered' || !clean(lx, ly)) continue;
+      near = far;
+      at = [lx + ((d.w - 1) >> 1), ly + ((d.h - 1) >> 1)];
+    }
+  }
+  pipeMemo = { key, at };
+  return at;
+}
+let pipeMemo: { key: string; at: [number, number] | null } | null = null;
+
+/**
+ * The nearest spot to (x, y), within `reach` tiles, where `kind` fits with a road beside it (as suggestSpot's
+ * sites do): its middle tile, or null. (Beside an overfull hospital: the spot was found for the facility that
+ * would relieve it, and the one recommended may be bigger.)
+ */
+export function siteNear(kind: StructureKind, x: number, y: number, reach = 12): [number, number] | null {
+  const key = `near|${kind}|${x},${y}|${reach}|${changeKey()}`;
+  if (nearMemo?.key === key) return nearMemo.at;
+  const d = STRUCTURES[kind];
+  let at: [number, number] | null = null;
+  search: for (let r = 0; r <= reach; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+    const [lx, ly] = [x + dx - ((d.w - 1) >> 1), y + dy - ((d.h - 1) >> 1)];
+    if (!city.canPlaceStructure(kind, lx, ly).ok || !city.roadBeside(lx, ly, d.w, d.h)) continue;
+    at = [x + dx, y + dy];
+    break search;
+  }
+  nearMemo = { key, at };
+  return at;
+}
+let nearMemo: { key: string; at: [number, number] | null } | null = null;
 
 let spotMemo: { key: string; spot: { x: number; y: number; tiles: number; crowded?: true } | null } | null = null;
 /** Buildings go without water though the pumps make enough for all: their networks aren't joined. */

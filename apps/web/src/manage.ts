@@ -21,7 +21,7 @@ import { toast } from './toast';
 import { choice } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, siteNearHomes, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
+import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, siteNear, siteNearHomes, siteOnPipes, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -236,13 +236,21 @@ function guideHtml(id: GoalId): string {
     const why = st.fx || (st.why && !same(firstSentence(st.why), problem) ? firstSentence(st.why) : '');
     const short = st.sub.startsWith('자금 부족');
     const site = st.kind === 'best' && st.site && spot && !spot.crowded && (SERVICE_SITE.has(id) || id === 'power' || id === 'water');
-    // A park for the cap: any free ground does, so the nearest to the homes beside a road (the city's land
-    // was all zoned, and 해 보기 left the player to hunt for a gap).
-    const own = !site && st.build ? siteNearHomes(st.build) : null;
+    // No site on the map's mark: one of the facility's own. Beside a school or hospital over its places, room
+    // for the one recommended (the mark was found for the one that would relieve it, often smaller); a park
+    // for the cap does anywhere, so the free ground nearest the homes (the land was all zoned, and 해 보기 left
+    // the player to hunt for a gap); a water source where its water counts, touching the pipes (one standing
+    // alone added nothing to the shortage).
+    const what = id === 'education' ? '학교' : '병원';
+    const own = site || !st.build ? null
+      : spot?.crowded && st.kind === 'best' ? { at: siteNear(st.build, spot.x, spot.y), title: `넘치는 ${what} 가까이, 길가 빈 땅에 바로 짓기` }
+      : st.anywhere ? { at: siteNearHomes(st.build), title: '주거지에서 가장 가까운 길가 빈 땅에 바로 짓기' }
+      : id === 'water' && STRUCTURES[st.build].pump ? { at: siteOnPipes(st.build), title: '수도관에 닿고 전기가 들어오는 빈 땅에 바로 짓기' } : null;
+    const siteTitle = `지도의 과녁(${SPOT_WORD[id] ?? ''})에 바로 짓기`;
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b>${st.sub ? `<small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small>` : ''}</p>
       ${why ? `<p class="${st.fx ? 'g-act-fx' : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}
-      <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>해 보기</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="지도의 과녁(${escapeHtml(SPOT_WORD[id] ?? '')})에 바로 짓기">${icon('target')}추천 자리에 짓기</button>`
-        : own ? `<button type="button" class="g-site" data-spot-build="${own.join(',')}" data-build-kind="${st.build}" title="주거지에서 가장 가까운 길가 빈 땅에 바로 짓기">${icon('target')}추천 자리에 짓기</button>` : ''}</div></div>`;
+      <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>해 보기</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
+        : own?.at ? `<button type="button" class="g-site" data-spot-build="${own.at.join(',')}" data-build-kind="${st.build}" title="${own.title}">${icon('target')}추천 자리에 짓기</button>` : ''}</div></div>`;
   }
   const p = journal().pending[id];
   const wait = p ? `<p class="g-wait">${icon('check')}<span>${escapeHtml(p.text)} · ${Math.max(1, FOLLOW_DAYS - (city.state.day - p.day))}일 뒤 결과를 알려 드립니다</span></p>` : '';
@@ -251,11 +259,14 @@ function guideHtml(id: GoalId): string {
     <p class="lead-risk">${RISK[id]}</p><p class="g-label">추천 조치</p>${action}${wait}</section>`;
 }
 
-/** A goal's recommendation: what it is, why, the act behind 해 보기; `build` a facility with a site of its own (see siteNearHomes). */
+/**
+ * A goal's recommendation: what it is, why, the act behind 해 보기; `build` the facility it puts up
+ * (`anywhere`: its place doesn't matter to what it is for, as a park lifting the cap).
+ */
 interface GuideStep {
   kind: 'best' | 'fix' | 'ord' | 'open';
   what: string; why: string; fixAct: string; act: string; glyph: string; sub: string; fx: string; site: boolean;
-  build?: StructureKind;
+  build?: StructureKind; anywhere?: true;
 }
 
 /** A goal's own recommendation, read from what its screen would show (one source of truth). */
@@ -269,7 +280,8 @@ function goalStep(id: GoalId): GuideStep {
     const sub = best.querySelector('.act-sub')?.textContent?.trim() ?? '';
     const fx = best.querySelector('.act-fx')?.textContent?.trim() ?? '';
     return { kind: 'best' as const, fixAct: '', act: best.dataset.act ?? '', what: name?.textContent?.trim() ?? '',
-      why: fx || sub, glyph: name?.querySelector('.i, .swatch, .pick-swatch')?.outerHTML ?? '', sub, fx, site: !!best.dataset.kind };
+      why: fx || sub, glyph: name?.querySelector('.i, .swatch, .pick-swatch')?.outerHTML ?? '', sub, fx, site: !!best.dataset.kind,
+      build: best.dataset.kind as StructureKind | undefined };
   }
   const a = adviceFor(id).find((x) => x.level !== 'good' && adviceTool(x.code));
   if (a) {
@@ -281,7 +293,7 @@ function goalStep(id: GoalId): GuideStep {
     if (park) {
       const d = STRUCTURES[park];
       return { kind: 'fix' as const, what: STRUCTURE_NAME[park], why: adviceText(a), fixAct: act, act, glyph: t ? toolGlyph(t) : '',
-        sub: `§${fmt(d.cost)} · 월 §${fmt(d.upkeep)}`, fx: `주거 상한 +${fmt(d.relief[0])}명`, site: false, build: park };
+        sub: `§${fmt(d.cost)} · 월 §${fmt(d.upkeep)}`, fx: `주거 상한 +${fmt(d.relief[0])}명`, site: false, build: park, anywhere: true };
     }
     return { kind: 'fix' as const, what: adviceTool(a.code)![1], why: adviceText(a), fixAct: act, act, glyph: t ? toolGlyph(t) : '', sub: '', fx: '', site: false };
   }
