@@ -1096,6 +1096,7 @@ function squareSite(side: number, ax: number, ay: number, avoid: (zone: number) 
   const W = n + 1;
   const busy = new Int32Array(W * W);
   const near = new Int32Array(W * W);
+  const road = new Int32Array(W * W);
   for (let y = 0; y < n; y++) {
     for (let x = 0; x < n; x++) {
       const i = y * n + x;
@@ -1104,6 +1105,7 @@ function squareSite(side: number, ax: number, ay: number, avoid: (zone: number) 
       const k = (y + 1) * W + x + 1;
       busy[k] = b + busy[k - 1]! + busy[k - W]! - busy[k - W - 1]!;
       near[k] = (avoid(z) ? 1 : 0) + near[k - 1]! + near[k - W]! - near[k - W - 1]!;
+      road[k] = (isLocalNet(s.net[i]!) && !s.tunnel[i] ? 1 : 0) + road[k - 1]! + road[k - W]! - road[k - W - 1]!;
     }
   }
   const sum = (t: Int32Array, x0: number, y0: number, x1: number, y1: number) => {
@@ -1117,7 +1119,11 @@ function squareSite(side: number, ax: number, ay: number, avoid: (zone: number) 
         const [lx, ly] = [ax + dx - (side >> 1), ay + dy - (side >> 1)];
         if (lx < 0 || ly < 0 || lx + side > n || ly + side > n) return false;
         if (sum(busy, lx, ly, lx + side, ly + side) || sum(near, lx - R, ly - R, lx + side + R, ly + side + R)) return false;
-        if (!city.roadBeside(lx, ly, side, side)) return false;
+        // A road along a whole side (one gap allowed), not one tile at a corner: an 8×8 block touching a road at its
+        // corner left 18 of its tiles out of reach of it, undeveloped.
+        const front = Math.max(sum(road, lx, ly - 1, lx + side, ly), sum(road, lx, ly + side, lx + side, ly + side + 1),
+          sum(road, lx - 1, ly, lx, ly + side), sum(road, lx + side, ly, lx + side + 1, ly + side));
+        if (front < side - 1) return false;
         at = { x0: lx, y0: ly, x1: lx + side - 1, y1: ly + side - 1 };
         return true;
       });
