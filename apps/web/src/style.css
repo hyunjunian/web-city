@@ -1219,6 +1219,9 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .graph { margin: 0 0 12px; }
 .graph figcaption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 8px; margin-bottom: 4px; color: var(--muted); font-size: 12.5px; }
 .graph .graph-value { margin-left: auto; color: var(--text); font-variant-numeric: tabular-nums; } /* right-aligned even when it wraps */
+.graph-delta { margin-left: 6px; color: var(--muted); font-size: 11.5px; font-weight: 600; }
+.graph-delta.up { color: var(--good-ink); }
+.graph-delta.down { color: var(--danger-ink); }
 .graph canvas { display: block; width: 100%; background: var(--surface-2); border-radius: var(--r-sm); cursor: crosshair; }
 .graph-key { margin-left: 6px; color: var(--muted); font-size: 11.5px; white-space: nowrap; }
 .graph-key i { display: inline-block; width: 10px; height: 2px; margin: 0 3px 0 4px; vertical-align: middle; }

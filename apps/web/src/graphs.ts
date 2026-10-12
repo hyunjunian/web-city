@@ -22,6 +22,8 @@ interface GraphDef {
   compare?: (h: HistoryPoint) => number;
   /** Colour tokens for the first and second series. */
   colors?: [string, string];
+  /** Which way is better (1 up, −1 down): the change over the period is coloured by it (none: plain). */
+  better?: 1 | -1;
 }
 
 const fmt = (v: number) => Math.round(v).toLocaleString('en-US');
@@ -39,21 +41,21 @@ const TRAFFIC: [VolumeKind, string][] = [
 ];
 
 const GRAPHS: GraphDef[] = [
-  { key: 'population', goal: 'growth', title: '인구', value: (h) => h.population, format: fmt },
-  { key: 'jobs', goal: 'growth', title: '일자리', value: (h) => h.jobs, format: fmt },
-  { key: 'funds', goal: 'finance', title: '자금', value: (h) => h.funds, format: money },
-  { key: 'mayorRating', goal: 'environment', title: '시장 평점', value: (h) => h.mayorRating, format: fmt },
-  { key: 'crimes', goal: 'police', title: '범죄와 체포', value: (h) => h.crimes, compare: (h) => h.arrests ?? 0, names: ['범죄', '체포'], colors: ['--danger', '--accent'], format: fmt },
+  { key: 'population', goal: 'growth', title: '인구', value: (h) => h.population, format: fmt, better: 1 },
+  { key: 'jobs', goal: 'growth', title: '일자리', value: (h) => h.jobs, format: fmt, better: 1 },
+  { key: 'funds', goal: 'finance', title: '자금', value: (h) => h.funds, format: money, better: 1 },
+  { key: 'mayorRating', goal: 'environment', title: '시장 평점', value: (h) => h.mayorRating, format: fmt, better: 1 },
+  { key: 'crimes', goal: 'police', title: '범죄와 체포', better: -1, value: (h) => h.crimes, compare: (h) => h.arrests ?? 0, names: ['범죄', '체포'], colors: ['--danger', '--accent'], format: fmt },
   { key: 'budget', goal: 'finance', title: '수입과 지출 (월)', value: (h) => h.income ?? 0, compare: (h) => h.expenses ?? 0, names: ['수입', '지출'], colors: ['--good', '--danger'], format: (v) => `§${fmt(v)}`, optional: true },
-  { key: 'abandoned', goal: 'growth', title: '버려진 건물', value: (h) => h.abandoned ?? 0, format: (v) => `${fmt(v)}채`, optional: true },
-  { key: 'commute', goal: 'traffic', title: '평균 통근 시간', value: (h) => h.commute ?? 0, format: minutes, optional: true },
+  { key: 'abandoned', goal: 'growth', title: '버려진 건물', value: (h) => h.abandoned ?? 0, format: (v) => `${fmt(v)}채`, optional: true, better: -1 },
+  { key: 'commute', goal: 'traffic', title: '평균 통근 시간', value: (h) => h.commute ?? 0, format: minutes, optional: true, better: -1 },
   { key: 'power', goal: 'power', title: '전력 (수요 대 공급)', value: (h) => h.powerDemand ?? 0, compare: (h) => h.powerSupply ?? 0, names: ['수요', '공급'], format: (v) => `${fmt(v)} MWh`, optional: true },
   { key: 'water', goal: 'water', title: '수도 (수요 대 공급)', value: (h) => h.waterDemand ?? 0, compare: (h) => h.waterSupply ?? 0, names: ['수요', '공급'], format: (v) => `${fmt(v)} m³`, optional: true },
   { key: 'garbage', goal: 'garbage', title: '쓰레기 발생 (월, 재활용·조례 감축 전)', value: (h) => h.garbageProduced ?? 0, format: (v) => `${fmt(v)} t`, optional: true },
-  { key: 'air', goal: 'environment', title: '대기 오염 (도시 평균)', value: (h) => h.air ?? 0, format: (v) => dec(v), optional: true },
-  { key: 'waterPollution', goal: 'environment', title: '수질 오염 (도시 평균)', value: (h) => h.waterPollution ?? 0, format: (v) => dec(v), optional: true },
-  { key: 'eq', goal: 'education', title: '교육 지수 (EQ 평균)', value: (h) => h.eq ?? 0, format: (v) => v.toFixed(0), optional: true },
-  { key: 'life', goal: 'health', title: '기대 수명', value: (h) => h.lifeExpectancy ?? 0, format: (v) => `${v.toFixed(0)}세`, optional: true },
+  { key: 'air', goal: 'environment', title: '대기 오염 (도시 평균)', value: (h) => h.air ?? 0, format: (v) => dec(v), optional: true, better: -1 },
+  { key: 'waterPollution', goal: 'environment', title: '수질 오염 (도시 평균)', value: (h) => h.waterPollution ?? 0, format: (v) => dec(v), optional: true, better: -1 },
+  { key: 'eq', goal: 'education', title: '교육 지수 (EQ 평균)', value: (h) => h.eq ?? 0, format: (v) => v.toFixed(0), optional: true, better: 1 },
+  { key: 'life', goal: 'health', title: '기대 수명', value: (h) => h.lifeExpectancy ?? 0, format: (v) => `${v.toFixed(0)}세`, optional: true, better: 1 },
   ...TRAFFIC.map(([k, title], i): GraphDef => ({
     key: `trips-${k}`, goal: 'traffic', title, value: (h) => h.trips?.[k] ?? 0, format: (v) => `${v < 10 ? dec(v) : fmt(v)}회/일`, group: i === 0 ? '교통량 (하루 통행)' : undefined, optional: true,
   })),
@@ -315,8 +317,21 @@ export class Graphs {
       ctx.arc(x(k), y(vals[k]!), 4, 0, Math.PI * 2);
       ctx.fill();
       // The latest value (the span above dates them all); a pointed-at month says which.
-      const when = this.hover?.key === g.key ? ` · ${date(history[k]!.month)}` : '';
+      const hovered = this.hover?.key === g.key;
+      const when = hovered ? ` · ${date(history[k]!.month)}` : '';
       label.textContent = other ? `${g.format(vals[k]!)} / ${g.format(other[k]!)}${when}` : `${g.format(vals[k]!)}${when}`;
+      // Not pointed at: how far it moved over the months shown, coloured by which way is better
+      // (the line's shape said rising or falling; the size of it took reading the axis).
+      const change = vals.at(-1)! - vals[0]!;
+      const size = g.format(Math.abs(change));
+      if (!hovered && size !== g.format(0) && Math.abs(change) >= 0.005 * Math.max(...vals.map(Math.abs))) {
+        const tone = g.better ? (Math.sign(change) === g.better ? 'up' : 'down') : '';
+        const delta = document.createElement('small');
+        delta.className = `graph-delta${tone ? ` ${tone}` : ''}`;
+        delta.textContent = `${change > 0 ? '▲' : '▼'}${size}`;
+        delta.title = `보이는 기간(${history.length}개월) 동안 ${change > 0 ? '늘었습니다' : '줄었습니다'}`;
+        label.append(delta);
+      }
     }
   }
 }
