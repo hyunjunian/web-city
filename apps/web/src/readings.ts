@@ -1,7 +1,7 @@
 // Reading the city for the goals: each goal's state, figures and forecasts, where its
 // trouble gathers on the map, and what would help (no DOM here: the screen is manage.ts).
 
-import { type Building, DEV_TYPES, isLocalNet, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind } from '@web-city/engine';
+import { type Building, DEV_TYPES, isLocalNet, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind, ZONES, type ZoneKind, zoneInfo } from '@web-city/engine';
 import { noRiders } from './info';
 import { ADVICE_TEXT, POLL_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME } from './names';
 import { crimeKinds, currentAdvice, garbageFill } from './panels';
@@ -1556,8 +1556,9 @@ export function landfillSite(): { x0: number; y0: number; x1: number; y1: number
  * Where to zone a block of the kind the growth screen says is wanted next, 8×8 (6×6 if none fits): open dry land
  * with a road along it, shops by the homes, homes and factories each kept 6 tiles from the other's zones, nearest
  * to where that kind (or, for a first one, the homes) already is; its corners, or null.
+ * (Any density: only low density takes a volcano's slope.)
  */
-export function zoneSite(zone: 'R-low' | 'C-low' | 'I-medium' | 'A', near?: readonly [number, number]): { x0: number; y0: number; x1: number; y1: number; side: number } | null {
+export function zoneSite(zone: Exclude<ZoneKind, 'none' | 'landfill'>, near?: readonly [number, number]): { x0: number; y0: number; x1: number; y1: number; side: number } | null {
   const key = `zone|${zone}|${near?.join(',') ?? ''}|${siteKey()}`;
   if (zoneMemo?.key === key) return zoneMemo.at;
   const cls = zone[0]!;
@@ -1574,12 +1575,13 @@ export function zoneSite(zone: 'R-low' | 'C-low' | 'I-medium' | 'A', near?: read
   // not for work beside a given place at all.)
   const smoke = (city.cfg.development.airPollution.ID?.radius ?? 5) + 1;
   const apart = (cls === 'I' || cls === 'R') && !near && smoke > 6;
+  const low = zoneInfo(ZONES.indexOf(zone)).density === 'low';
   let at: { x0: number; y0: number; x1: number; y1: number; side: number } | null = null;
   for (const side of [8, 6]) {
-    const sq6 = squareSite(side, ax, ay, avoid, [6], zone !== 'I-medium');
+    const sq6 = squareSite(side, ax, ay, avoid, [6], low);
     if (!sq6) continue;
     const r6 = Math.max(Math.abs(sq6.x0 + (side >> 1) - ax), Math.abs(sq6.y0 + (side >> 1) - ay));
-    const sq = (apart ? squareSite(side, ax, ay, avoid, [smoke], zone !== 'I-medium', r6 + 8) : null) ?? sq6;
+    const sq = (apart ? squareSite(side, ax, ay, avoid, [smoke], low, r6 + 8) : null) ?? sq6;
     if (sq) { at = { ...sq, side }; break; }
   }
   zoneMemo = { key, at };

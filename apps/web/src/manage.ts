@@ -1663,12 +1663,13 @@ function placeToolMark(): void {
   }
   // A zone in hand whose class is wanted: the block the growth screen would lay, outlined — a road along a whole
   // side, clear of what spoils it — to draw over.
-  if (tool.kind === 'zone' && tool.zone && tool.zone !== 'none') {
+  if (tool.kind === 'zone' && tool.zone && tool.zone !== 'none' && tool.zone !== 'landfill') {
     const z = tool.zone;
     const cls = z === 'A' ? 'A' : z[0]!;
     const types = DEV_TYPES.filter((t) => (cls === 'A' ? t === 'IA' : cls === 'I' ? t[0] === 'I' && t !== 'IA' : t[0] === cls));
     const wanted = Math.max(...types.map((t) => city.demand.demand[t])) >= 10;
-    const block = wanted ? zoneSite(cls === 'R' ? 'R-low' : cls === 'C' ? 'C-low' : cls === 'I' ? 'I-medium' : 'A') : null;
+    // (The density in hand: a medium or high zone skips a volcano's slope, which a low one takes.)
+    const block = wanted ? zoneSite(z) : null;
     const marks: typeof renderer.marks = block ? [
       { x: block.x0 + (block.side >> 1), y: block.y0 + (block.side >> 1), w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${toolName(tool)} ${block.side}×${block.side}` },
       { x: block.x0, y: block.y0, w: block.side, h: block.side, tone: 'area' },
