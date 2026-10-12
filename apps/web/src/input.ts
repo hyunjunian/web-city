@@ -326,7 +326,7 @@ export function updatePreview(): void {
     const plan = city.previewLine('powerline', ...lineEnds(drag));
     preview = { tiles, ok: !plan.message };
     lineTag(plan);
-    hint.textContent = plan.message ? `송전선 · ${ko(plan.message)}` : (besidePointer ? '구역은 전기를 4칸까지 넘겨주니 구역 위로는 깔리지 않습니다' : `송전선 ${plan.tiles}칸 §${fmt(plan.cost)} (구역은 전기를 4칸까지 넘겨주니 구역 위로는 깔리지 않습니다)`);
+    hint.textContent = plan.message ? `송전선 · ${reason(plan)}` : (besidePointer ? '구역은 전기를 4칸까지 넘겨주니 구역 위로는 깔리지 않습니다' : `송전선 ${plan.tiles}칸 §${fmt(plan.cost)} (구역은 전기를 4칸까지 넘겨주니 구역 위로는 깔리지 않습니다)`);
   } else if (drag && (tool.kind === 'pipe' || tool.kind === 'unpipe')) {
     let tiles = tool.kind === 'pipe' ? linePath(...lineEnds(drag)) : rectTiles(drag.start, drag.end);
     const plan = tool.kind === 'pipe' ? city.previewLine('pipe', ...lineEnds(drag)) : null;
@@ -336,20 +336,20 @@ export function updatePreview(): void {
     preview = { tiles, ok: !plan?.message };
     if (plan) lineTag(plan);
     hint.textContent = !plan ? removal(tiles, city.state.pipe, city.cfg.services.pipeCost.bulldoze, '수도관')
-      : plan.message ? `수도관 · ${ko(plan.message)}` : (besidePointer ? `${shore >= 0 ? '물가에서 멈춤 (물은 건널 수 없음) · ' : ''}관에서 6칸까지 물이 닿습니다` : `수도관 ${plan.tiles}칸 §${fmt(plan.cost)}${shore >= 0 ? ' · 물가에서 멈춤 (물은 건널 수 없음)' : ''} (관에서 6칸까지 물이 닿습니다)`);
+      : plan.message ? `수도관 · ${reason(plan)}` : (besidePointer ? `${shore >= 0 ? '물가에서 멈춤 (물은 건널 수 없음) · ' : ''}관에서 6칸까지 물이 닿습니다` : `수도관 ${plan.tiles}칸 §${fmt(plan.cost)}${shore >= 0 ? ' · 물가에서 멈춤 (물은 건널 수 없음)' : ''} (관에서 6칸까지 물이 닿습니다)`);
   } else if (drag && (tool.kind === 'subway' || tool.kind === 'unsubway')) {
     const tiles = tool.kind === 'subway' ? linePath(...lineEnds(drag)) : rectTiles(drag.start, drag.end);
     const plan = tool.kind === 'subway' ? city.previewLine('subway', ...lineEnds(drag)) : null;
     preview = { tiles, ok: !plan?.message };
     if (plan) lineTag(plan);
     hint.textContent = !plan ? removal(tiles, city.state.subway, city.cfg.economy.networkCost.subway.bulldoze, '지하철 선로')
-      : plan.message ? `지하철 · ${ko(plan.message)}` : (besidePointer ? '역은 선로 위나 옆, 도로 옆에' : `지하철 선로 ${plan.tiles}칸 §${fmt(plan.cost)} (역은 선로 위나 옆, 도로 옆에)`);
+      : plan.message ? `지하철 · ${reason(plan)}` : (besidePointer ? '역은 선로 위나 옆, 도로 옆에' : `지하철 선로 ${plan.tiles}칸 §${fmt(plan.cost)} (역은 선로 위나 옆, 도로 옆에)`);
   } else if (drag && tool.kind === 'elevated') {
     const tiles = linePath(...lineEnds(drag));
     const plan = city.previewLine(tool.track, ...lineEnds(drag));
     preview = { tiles, ok: !plan.message };
     lineTag(plan);
-    hint.textContent = plan.message ? `${tool.label} · ${ko(plan.message)}` : (besidePointer ? '도로·철도·물 위로 지나갈 수 있음, 건물·구역 위는 안 됨' : `${tool.label} ${plan.tiles}칸 §${fmt(plan.cost)} (도로·철도·물 위로 지나갈 수 있음, 건물·구역 위는 안 됨)`);
+    hint.textContent = plan.message ? `${tool.label} · ${reason(plan)}` : (besidePointer ? '도로·철도·물 위로 지나갈 수 있음, 건물·구역 위는 안 됨' : `${tool.label} ${plan.tiles}칸 §${fmt(plan.cost)} (도로·철도·물 위로 지나갈 수 있음, 건물·구역 위는 안 됨)`);
   } else if (tool.kind === 'dispatch') {
     const r = city.cfg.safety.dispatch[tool.unit].radius;
     preview = { tiles: rectTiles([hx - r, hy - r], [hx + r, hy + r]), ok: true };
@@ -439,7 +439,7 @@ export function updatePreview(): void {
     const extra = [plan.bridges && `다리 ${plan.bridges}칸`, plan.tunnels && `터널 ${plan.tunnels}칸`].filter(Boolean).join(' · ');
     // (Length and price ride by the pointer: the bar only for what they leave out.)
     hint.textContent = plan.message
-      ? `${tool.label} ${tiles.length}칸 · ${ko(plan.message)}`
+      ? `${tool.label} ${tiles.length}칸 · ${reason(plan)}`
       : [extra, plan.tiles < tiles.length && `이미 있는 ${tiles.length - plan.tiles}칸 제외`, tool.network === 'onramp' && rampWarning(tiles).replace(/^ · /, '')].filter(Boolean).join(' · ');
   } else if (drag && tool.kind === 'zone') {
     const tiles = rectTiles(drag.start, drag.end);
@@ -462,12 +462,12 @@ export function updatePreview(): void {
     }
     const built = `${under ? ` · 건물 선 ${under}칸 포함 (재개발 때 새 밀도로)` : ''}${skipped && tool.zone !== 'none' ? ` · 건물 선 ${skipped}칸 제외` : ''}`;
     // What stops it or would keep it empty comes first (the hint shows three lines).
-    const catches = `${plan.message ? ` · ${ko(plan.message)}` : ''}${
+    const catches = `${plan.message ? ` · ${reason(plan)}` : ''}${
       tool.zone !== 'none' && !roadNear(drag.start, drag.end) ? ' · ⚠ 도로에 안 닿음' : ''}${
       tool.zone !== 'none' && tool.zone !== 'landfill' && !powerNear(drag.start, drag.end) ? ' · ⚠ 전기 없음' : ''}${
       // (No one wants this class now: it would lie empty until they do.)
       tool.zone !== 'none' && tool.zone !== 'landfill' && zoneWant(tool.zone) <= 0 ? ' · ⚠ 지금 수요 없음 (한동안 비어 있음)' : ''}`;
-    if (plan.message) tag = { text: '지정할 수 없음', tone: 'bad' };
+    if (plan.message && !(plan.message === 'not enough funds' && plan.cost)) tag = { text: '지정할 수 없음', tone: 'bad' };
     else costTag(`${w}×${h}`, plan.cost, catches.includes('⚠'));
     // (Size and price ride by the pointer; the zone's name is on the chip: the bar for what stops it, and what else it does.)
     // (Beside the pointer, a line each.)
@@ -480,7 +480,7 @@ export function updatePreview(): void {
       plan.powerLines && `송전선 ${plan.powerLines}칸`, plan.rubble && `잔해 ${plan.rubble}칸`].filter(Boolean).join(' · ');
     if (plan.message) tag = { text: '철거할 수 없음', tone: 'bad' };
     else if (parts) costTag('철거', plan.cost);
-    hint.textContent = plan.message ? `철거 · ${ko(plan.message)}` : parts ? (besidePointer ? parts : `철거: ${parts} · §${fmt(plan.cost)}`) : '철거할 것이 없습니다'; // (beside the pointer the price is the chip's bold line)
+    hint.textContent = plan.message ? `철거 · ${reason(plan)}` : parts ? (besidePointer ? parts : `철거: ${parts} · §${fmt(plan.cost)}`) : '철거할 것이 없습니다'; // (beside the pointer the price is the chip's bold line)
   } else {
     const look = tool.kind === 'query' || tool.kind === 'route' || tool.kind === 'mic';
     preview = look ? { tiles: [], ok: true, hover: lotAt(hx, hy) } : { tiles: [[hx, hy]], ok: true };
@@ -565,8 +565,16 @@ function costTag(what: string, cost: number, caught = false): void {
 }
 
 function lineTag(plan: { tiles: number; cost: number; message?: string | null }): void {
-  if (plan.message) tag = { text: '놓을 수 없음', tone: 'bad' };
+  // (Short of money: the price, in red, says what it would take; any other block, that it can't go.)
+  if (plan.message && !(plan.message === 'not enough funds' && plan.cost)) tag = { text: '놓을 수 없음', tone: 'bad' };
   else costTag(`${plan.tiles}칸`, plan.cost);
+}
+
+/** Why a plan can't go ahead, in words: short of money says by how much (자금이 부족합니다 alone left it to guess). */
+function reason(plan: { cost?: number; message?: string | null }): string {
+  return plan.message === 'not enough funds' && plan.cost
+    ? `§${fmt(Math.ceil(plan.cost - Math.max(0, city.state.funds)))} 모자람 (가진 돈 §${fmt(Math.max(0, Math.floor(city.state.funds)))})` // (the price and 자금 부족 ride in the chip)
+    : ko(plan.message ?? '');
 }
 
 /**
