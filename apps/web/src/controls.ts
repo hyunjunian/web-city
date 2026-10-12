@@ -651,6 +651,12 @@ let sumNext = 0;
 const SCANNED = new Set(['crime', 'air', 'waterPollution', 'garbage', 'commute', 'wear']);
 let scanMemo: { key: string; out: [string, '' | 'bad' | 'good', number[]] } | null = null;
 
+/** What a view finds wrong now, in words ('' when nothing is): the build cards' service headings say it too. */
+export function viewProblem(v: string): string {
+  const [text, tone] = viewSummary(v);
+  return tone === 'bad' ? text : '';
+}
+
 function viewSummary(v: string): [string, '' | 'bad' | 'good', number[]] {
   if (!SCANNED.has(v)) return viewSummaryNow(v);
   const key = `${v}|${cityGeneration}|${city.revision}|${Math.floor(city.state.day / 7)}`;

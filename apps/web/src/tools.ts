@@ -7,14 +7,14 @@ import { hoverUnderMouse, setPreview, updatePreview } from './input';
 import { goalTools, markToolSite, nextStep, openGoal, suggestedKinds } from './manage';
 import { firstStepTool } from './onboarding';
 import { DISASTER_NAME, plainCodes, STRUCTURE_NAME } from './names';
-import { holdForBuilding, isHeld, releaseHold, showHelp, showOverlay } from './controls';
+import { holdForBuilding, isHeld, releaseHold, showHelp, showOverlay, viewProblem } from './controls';
 import { structureColor } from './render';
 import { city, overlay, redraw, renderer, setDrag } from './state';
 import { closeInfo, closePane, closeSheet, showTab } from './tabs';
 import { cancelMySimAction } from './mysims';
 import { $, endFlash, flash, fmt, touchFirst } from './util';
 import { GOAL_ORDER, GOALS, type GoalId } from './goals';
-import { capped } from './readings';
+import { capped, goalStatus } from './readings';
 
 export type Category = 'power' | 'water' | 'garbage' | 'safety' | 'health' | 'education' | 'park' | 'transport' | 'reward' | 'deal' | 'landmark';
 
@@ -443,7 +443,10 @@ export function buildTools(): void {
     // Zone groups say how much their class is wanted right now (filled by refreshZoneDemand).
     const demandOf = g.cat === 'zones' ? ({ 주거: 'R', 상업: 'C', 산업: 'I' } as Record<string, string>)[g.title] : undefined;
     if (demandOf) wrap.dataset.demand = demandOf;
-    wrap.innerHTML = `<h3>${g.title}${demandOf ? '<span class="zone-demand"></span>' : ''}</h3>`;
+    // A service's group says what it misses right now, as its view counts it (filled by refreshZoneDemand).
+    const missing = SECTION_VIEW[g.title];
+    if (missing) wrap.dataset.view = missing;
+    wrap.innerHTML = `<h3>${g.title}${demandOf || missing ? '<span class="zone-demand"></span>' : ''}</h3>`;
     const group = document.createElement('div');
     group.className = 'group';
     const head = wrap.querySelector('h3')!;
@@ -670,8 +673,21 @@ function refreshTerrainPrices(): void {
   });
 }
 
-/** The zone groups' demand: the class's strongest, or that its cap holds it, or none. */
+/** The view whose count a facility group's heading shows (what its buildings fix), and the goal it is part of. */
+const SECTION_VIEW: Record<string, string> = { 전력: 'power', 수도: 'waterService', 쓰레기: 'garbage', 경찰: 'police', 소방: 'fire', 보건: 'health', 교육: 'school' };
+const VIEW_GOAL: Record<string, GoalId> = { power: 'power', waterService: 'water', garbage: 'garbage', police: 'police', fire: 'fire', health: 'health', school: 'education' };
+
+/** The groups' headings: a service's shortfall now (none: nothing said); a zone class's strongest demand, or that its cap holds it, or none. */
 function refreshZoneDemand(): void {
+  document.querySelectorAll<HTMLElement>('#tools .tray-section[data-view]').forEach((sec) => {
+    const el = sec.querySelector<HTMLElement>('.zone-demand')!;
+    // (Under its own heading the service needn't be named again: 경찰 · 닿지 않는 건물 147채.)
+    const text = viewProblem(sec.dataset.view!).replace(/^(경찰|소방|병원|학교)[이가] /, '');
+    if (el.textContent !== text) el.textContent = text;
+    // (Amber only while the goal itself asks for a look, as the city's list colours it: a gap in police cover
+    // while crime stays low is a fact to build by, not an alarm.)
+    el.className = `zone-demand${text && goalStatus(VIEW_GOAL[sec.dataset.view!]!).tone ? ' cap' : ''}`;
+  });
   const dem = city.demand;
   document.querySelectorAll<HTMLElement>('#tools .tray-section[data-demand]').forEach((sec) => {
     const k = sec.dataset.demand!;
