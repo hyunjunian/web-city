@@ -329,7 +329,8 @@ function goalMetrics(id: GoalId): Metric[] {
       const dry = () => {
         if (dryCount < 0) {
           dryCount = 0;
-          for (const b of s.buildings.values()) if (b.type && !city.fields.watered[b.y * s.size + b.x]) dryCount++;
+          // (By the building's own state, as the water view counts it: its corner tile's said 26 where the view said 27.)
+          for (const b of s.buildings.values()) if (b.type && !b.watered) dryCount++;
         }
         return dryCount;
       };

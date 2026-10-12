@@ -688,7 +688,15 @@ function viewSummaryNow(v: string): [string, '' | 'bad' | 'good', number[]] {
   const homes = blds.filter((b) => b.type![0] === 'R');
   switch (v) {
     case 'power': return lacking(blds.filter((b) => !b.powered), '전기 없는 건물', '모든 건물에 전기가 들어옵니다');
-    case 'waterService': return lacking(blds.filter((b) => !b.watered && b.stage > city.cfg.services.waterStageCap[b.type!]), '물이 필요한데 끊긴 건물', '물이 필요한 건물 모두에 닿습니다'); // (only those past the stage that needs water: the advisor's count is every building cut off)
+    case 'waterService': {
+      // (Only those past the stage that needs water count against it: the advisor's count is every building cut off.)
+      const dry = blds.filter((b) => !b.watered);
+      const need = dry.filter((b) => b.stage > city.cfg.services.waterStageCap[b.type!]);
+      // (Dry, none of them past that stage yet: said as that, not as all well — beside the screen's 물 없는 건물 26채 and
+      // its 양수 시설이 없어…, 물이 필요한 건물 모두에 닿습니다 read as though there were water.)
+      if (!need.length && dry.length) return [`물 없는 건물 ${fmt(dry.length)}채 · 아직은 물 없이 자라는 단계 (더 크려면 물이 필요)`, '', dry.map(mid)];
+      return lacking(need, '물이 필요한데 끊긴 건물', '물이 필요한 건물 모두에 닿습니다');
+    }
     case 'police': return lacking(blds.filter((b) => !(f.policeCover[mid(b)]! > 0)), '경찰이 닿지 않는 건물', '모든 건물이 경찰 범위 안입니다');
     case 'fire': return lacking(blds.filter((b) => !(f.fireCover[mid(b)]! > 0)), '소방이 닿지 않는 건물', '모든 건물이 소방 범위 안입니다');
     case 'health': return lacking(homes.filter((b) => !(f.hospitalCover[mid(b)]! > 0)), '병원이 닿지 않는 집', '모든 집이 병원 범위 안입니다');
