@@ -11,7 +11,7 @@ import { ABANDON_NAME, DISASTER_NAME, NETWORK_NAME, STRUCTURE_NAME, TYPE_NAME, Z
 import { updatePanels } from './panels';
 import { type Preview, zoneTint } from './render';
 import { coverageRadius, GROWTH_LABEL, growthNow, overlayReading } from './views';
-import { facilityLine, newlyReached } from './readings';
+import { facilityLine, newlyReached, smokeClear } from './readings';
 import { goalOfStructure } from './goals';
 import { cam, centerOn, city, drag, fitCamera, glideTo, hover, overlay, redraw, renderer, selected, setDrag, setHover, speed, stopFlight } from './state';
 import { drive, SPECIAL } from './udi';
@@ -725,11 +725,13 @@ function siteWarnings(kind: StructureKind, x: number, y: number): string {
     if (xx >= 0 && yy >= 0 && xx < city.size && yy < city.size && city.state.pipe[yy * city.size + xx]) piped = true;
   }
   const dry = piped ? '' : ' · ⚠ 수도관에 닿지 않음 (옆으로 수도관을 이어야 물을 보냄)';
-  // A dirty plant beside homes: its smoke drives residents away (it is the commonest early mistake).
+  // A dirty plant (or an incinerator) beside homes: its smoke drives residents away (it is the commonest early mistake).
+  // (Coal and oil as far as their smoke stays thick, as the guide sites them: within half its reach, a coal plant 10
+  // tiles off was let by unwarned and its homes breathed 80.)
   let homes = false;
-  const air = def.plant?.air;
+  const air = def.plant?.air ?? def.incinerator?.air;
   if (air && air[0] >= 50) {
-    const r = Math.ceil(air[1] / 2);
+    const r = air[0] >= 100 ? smokeClear(kind) : Math.ceil(air[1] / 2);
     for (let yy = Math.max(0, y - r); yy < Math.min(city.size, y + def.h + r) && !homes; yy++) {
       for (let xx = Math.max(0, x - r); xx < Math.min(city.size, x + def.w + r); xx++) {
         const z = city.state.zone[yy * city.size + xx]!;
