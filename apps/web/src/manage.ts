@@ -21,7 +21,7 @@ import { toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, lineToDark, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, straightRuns, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, lineToDark, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, straightRuns, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -258,7 +258,7 @@ function guideHtml(id: GoalId): string {
     const short = st.sub.includes('자금 부족');
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b><small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small></p>
       <p class="g-act-why">${escapeHtml(st.why)}</p>
-      <div class="g-act-btns"><button type="button" class="primary" data-line-path="${st.line.map((p) => p.join(',')).join(';')}" data-line-kind="${st.lay}" title="지도의 두 과녁 사이에 ${word} 바로 놓기">${icon(st.lay === 'road' ? 'road' : 'cable')}바로 잇기</button></div></div>`;
+      <div class="g-act-btns"><button type="button" class="primary" data-line-path="${st.line.map((p) => p.join(',')).join(';')}" data-line-kind="${st.lay}" title="지도의 두 과녁 사이에 ${word} 바로 놓기">${icon(LAY_ICON[st.lay])}바로 잇기</button></div></div>`;
   } else {
     // (With no forecast the step's why is its price line, already under its name: not twice.)
     const why = st.fx || (st.why && st.why !== st.sub && !same(firstSentence(st.why), problem) ? firstSentence(st.why) : '');
@@ -354,6 +354,10 @@ function goalStep(id: GoalId): GuideStep {
     || (a.code === 'noPower' && [...city.state.structures.values()].some((x) => !!STRUCTURES[x.kind].plant)));
   const laid = cut ? lineStep() : null;
   if (laid) return laid;
+  // Buildings dry, beyond the pipes or on a network running short, while another has water to spare (a pump
+  // watering nobody among them): the pipe between, laid at once, not one more pump.
+  const apart = id === 'water' ? pipeStep() : null;
+  if (apart) return apart;
   // A station cut off from the roads that the card leads with (its crews can't leave): the road to it, laid at once.
   // (Only garbage piling at a plant waits behind what the list puts first: the line to the dark zones.)
   const road = worst?.code === 'facilityNoRoad' && worst.level === 'bad' ? roadStep(worst) : null;
@@ -363,7 +367,8 @@ function goalStep(id: GoalId): GuideStep {
   const best = tpl.content.querySelector<HTMLElement>('.act.best');
   // (The list's own reason for a line, a plant off the grid or zones in the dark beside plenty: the line itself,
   // to lay at once, where 해 보기 only handed the tool and left the way to find.)
-  const line = best?.dataset.act === 'powerline' ? lineStep(best.querySelector('.act-fx')?.textContent?.trim()) : null;
+  const fx = best?.querySelector('.act-fx')?.textContent?.trim();
+  const line = best?.dataset.act === 'powerline' ? lineStep(fx) : best?.dataset.act === 'pipe' ? pipeStep(fx) : null;
   if (line) return line;
   if (best) {
     best.querySelector('.act-best')?.remove();
@@ -415,6 +420,14 @@ function lineStep(why?: string): GuideStep | null {
   return line ? layStep('powerline', line, why || '발전소의 전기가 구역까지 닿지 않습니다: 가장 짧은 길로 송전선을 이으면 됩니다') : null;
 }
 
+const LAY_ICON = { powerline: 'cable', road: 'road', pipe: 'droplet' } as const;
+
+/** The guide's step laying the shortest pipe from water to spare to the dry buildings, or null if there is none. */
+function pipeStep(why?: string): GuideStep | null {
+  const line = pipeToDry();
+  return line ? layStep('pipe', line, why || '물이 남는 수도망과 물이 끊긴 건물이 이어지지 않았습니다: 가장 짧은 길로 수도관을 이으면 됩니다') : null;
+}
+
 /** The guide's step laying the road from a facility cut off (the advice's) to the nearest road, or null if none can go. */
 function roadStep(a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
   const f = a.at ? city.query(a.at[0], a.at[1])?.structure : undefined;
@@ -430,7 +443,7 @@ function layStep(lay: Lay, line: [number, number][], why: string): GuideStep | n
   const cost = layCost(lay, line);
   if (cost === null) return null;
   const t = TOOLS.find((x) => x.id === lay);
-  return { kind: 'line', what: `${LAY_WORD[lay]} ${fmt(line.length)}칸 잇기`, why, fixAct: lay, act: lay, glyph: t ? toolGlyph(t) : icon(lay === 'road' ? 'road' : 'cable'),
+  return { kind: 'line', what: `${LAY_WORD[lay]} ${fmt(line.length)}칸 잇기`, why, fixAct: lay, act: lay, glyph: t ? toolGlyph(t) : icon(LAY_ICON[lay]),
     sub: `§${fmt(cost)}${cost > city.state.funds ? ' · 자금 부족' : ''}`, fx: '', site: false, line, lay };
 }
 
@@ -449,7 +462,7 @@ export function layPath(lay: Lay, path: [number, number][], owner: GoalId | null
   const drop = remember(LAY_WORD[lay]);
   let laid = 0;
   for (const [x0, y0, x1, y1] of straightRuns(path)) {
-    const res = lay === 'road' ? city.buildNetwork(x0, y0, x1, y1, 'road') : city.buildPowerLine(x0, y0, x1, y1);
+    const res = lay === 'road' ? city.buildNetwork(x0, y0, x1, y1, 'road') : lay === 'pipe' ? city.buildPipe(x0, y0, x1, y1) : city.buildPowerLine(x0, y0, x1, y1);
     if (res.ok) laid += res.cost;
   }
   if (!laid) {
@@ -1256,6 +1269,9 @@ function fixButton(a: { code: string; level: string; at?: readonly [number, numb
   // Rubble: one press clears it all; money trouble: the budget sheet (taxes, departments, loans).
   if (a.code === 'rubble') return ` <button type="button" class="advice-view" data-clear-rubble title="도시의 잔해만 모두 치웁니다">${icon('eraser')}잔해 모두 치우기 §${fmt(city.clearRubble(true).cost)}</button>`;
   if (a.level !== 'good' && (a.code === 'deficit' || a.code === 'broke')) return ` <button type="button" class="advice-view" data-sheet="budget" title="세율·부서 예산·대출">재정 열기</button>`
+  // A facility off the road: the road to it, laid at once (the road tool left the way to be found).
+  const road = a.code === 'facilityNoRoad' && a.level !== 'good' ? roadStep(a as ReturnType<typeof adviceFor>[number]) : null;
+  if (road?.line) return ` <button type="button" class="advice-view" data-line-path="${road.line.map((p) => p.join(',')).join(';')}" data-line-kind="road" title="가장 가까운 도로까지 빈 땅으로 바로 잇기 (${escapeHtml(road.sub)})">${icon('road')}${road.what}</button>`;
   const fix = a.level !== 'good' ? adviceTool(a.code) : undefined;
   if (!fix) return '';
   const [id, named] = fix[0].split(':');
@@ -1299,7 +1315,7 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   const at: [number, number] | null = spot ? (spotFit?.id === id ? spotFit.at : [spot.x, spot.y]) : null;
   // (Nor where a site of the guide's is within 4 tiles of it: the two labels ran into each other.)
   // (Nor a plant's site while the guide lays a line instead: the power is there, it only has to reach.)
-  const crowdedOut = !!at && (own?.lay === 'powerline' || !!own?.sites.some((o) => Math.max(Math.abs(o.at[0] - at[0]), Math.abs(o.at[1] - at[1])) <= 4));
+  const crowdedOut = !!at && (own?.lay === 'powerline' || own?.lay === 'pipe' || !!own?.sites.some((o) => Math.max(Math.abs(o.at[0] - at[0]), Math.abs(o.at[1] - at[1])) <= 4));
   if (spot && at && !(spot.crowded && own) && !crowdedOut) marks.push({ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label });
   for (const o of own?.sites ?? []) marks.push({ x: o.at[0], y: o.at[1], w: 1, h: 1, tone: 'spot', label: o.label });
   // (Lit while the button that builds there is under the pointer or focused.)
@@ -1321,7 +1337,7 @@ function spotLine(id: GoalId): string {
   spotFit = null;
   const spot = incidents().some((x) => x.goal === id) ? null : suggestSpot(id);
   // (Not a plant's site while the guide lays a line: the power is there, it only has to reach.)
-  if (!spot || (guideSite?.id === id && guideSite.lay === 'powerline')) return '';
+  if (!spot || (guideSite?.id === id && (guideSite.lay === 'powerline' || guideSite.lay === 'pipe'))) return '';
   // (Power and water: a site to build on, near where it is missing; the others: where the trouble gathers.)
   if (spot.crowded) {
     const what = id === 'education' ? '학교' : '병원';
@@ -1818,7 +1834,8 @@ export function setupGoals(): void {
     const lineBtn = t.closest<HTMLElement>('[data-line-path]');
     if (lineBtn) {
       const path = lineBtn.dataset.linePath!.split(';').map((p) => p.split(',').map(Number) as [number, number]);
-      if (layPath(lineBtn.dataset.lineKind === 'road' ? 'road' : 'powerline', path, active) && phone()) closePane();
+      const kind = lineBtn.dataset.lineKind;
+      if (layPath(kind === 'road' || kind === 'pipe' ? kind : 'powerline', path, active) && phone()) closePane();
       renderGoal(true);
       return;
     }

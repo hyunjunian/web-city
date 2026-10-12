@@ -657,7 +657,7 @@ function viewSummary(v: string): [string, '' | 'bad' | 'good', number[]] {
   const homes = blds.filter((b) => b.type![0] === 'R');
   switch (v) {
     case 'power': return lacking(blds.filter((b) => !b.powered), '전기 없는 건물', '모든 건물에 전기가 들어옵니다');
-    case 'waterService': return lacking(blds.filter((b) => !b.watered && b.stage > city.cfg.services.waterStageCap[b.type!]), '물이 끊긴 건물', '물이 필요한 건물 모두에 닿습니다');
+    case 'waterService': return lacking(blds.filter((b) => !b.watered && b.stage > city.cfg.services.waterStageCap[b.type!]), '물이 필요한데 끊긴 건물', '물이 필요한 건물 모두에 닿습니다'); // (only those past the stage that needs water: the advisor's count is every building cut off)
     case 'police': return lacking(blds.filter((b) => !(f.policeCover[mid(b)]! > 0)), '경찰이 닿지 않는 건물', '모든 건물이 경찰 범위 안입니다');
     case 'fire': return lacking(blds.filter((b) => !(f.fireCover[mid(b)]! > 0)), '소방이 닿지 않는 건물', '모든 건물이 소방 범위 안입니다');
     case 'health': return lacking(homes.filter((b) => !(f.hospitalCover[mid(b)]! > 0)), '병원이 닿지 않는 집', '모든 집이 병원 범위 안입니다');

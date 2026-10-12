@@ -600,7 +600,7 @@ export function cheapestOf(g: Goal): StructureKind | null {
 
 /** Forgets the sites found since the city last changed (a building grew on one: growth moves no revision). */
 export function forgetSites(): void {
-  siteMemo = pipeMemo = plantMemo = awayMemo = pairMemo = spotMemo = lineMemo = roadMemo = null;
+  siteMemo = pipeMemo = plantMemo = awayMemo = pairMemo = spotMemo = lineMemo = roadMemo = pipeLineMemo = null;
   nearMemo = new Map();
 }
 
@@ -753,17 +753,98 @@ export function roadToFacility(f: Structure): [number, number][] | null {
 }
 let roadMemo: { key: string; path: [number, number][] | null } | null = null;
 
+/**
+ * The shortest pipe from a network with water to spare to where buildings go dry: to a network running short or with
+ * no water (joining it), or to within reach of a building no network covers, over land only (pipes stop at open
+ * water), up to 60 tiles; null if none. (What 수도망이 나뉘어… 수도관으로 망을 이어 left to be found.)
+ */
+export function pipeToDry(): [number, number][] | null {
+  const key = `pipe|${siteKey()}`;
+  if (pipeLineMemo?.key === key) return pipeLineMemo.path;
+  const s = city.state;
+  const f = city.fields;
+  const n = city.size;
+  const N = n * n;
+  const r = city.cfg.services.waterRadius;
+  const node = new Uint8Array(N); // pipes and pumps: the water networks (f.waterNet names each)
+  for (let i = 0; i < N; i++) if (s.pipe[i]) node[i] = 1;
+  const spare = new Set<number>();
+  for (const st of s.structures.values()) {
+    if (!STRUCTURES[st.kind].pump) continue;
+    for (let y = st.y; y < st.y + st.h; y++) for (let x = st.x; x < st.x + st.w; x++) node[y * n + x] = 1;
+    if (st.capacity - st.load > 0.05 * st.capacity) spare.add(f.waterNet[st.y * n + st.x]!);
+  }
+  // Networks with buildings dry on them (rationing, or with no source), and tiles within reach of a building none
+  // covers. (Only those: a stub of pipe with nobody on it was joined first, and the 444 dry stayed dry.)
+  const wants = new Map<number, number>(); // network → its dry buildings
+  const near = new Uint16Array(N); // how many uncovered dry buildings a pipe here would reach
+  let dry = false;
+  for (const b of s.buildings.values()) {
+    if (!b.type || b.watered) continue;
+    const g = f.waterNet[b.y * n + b.x]!;
+    dry = true;
+    if (g >= 0) { wants.set(g, (wants.get(g) ?? 0) + 1); continue; }
+    for (let y = Math.max(0, b.y - r); y < Math.min(n, b.y + b.h + r); y++) for (let x = Math.max(0, b.x - r); x < Math.min(n, b.x + b.w + r); x++) near[y * n + x]!++;
+  }
+  const short = wants;
+  for (const g of short.keys()) spare.delete(g);
+  let path: [number, number][] | null = null;
+  if (dry && spare.size) {
+    const from = new Int32Array(N).fill(-2); // -2 unseen, -1 a network with water to spare, else the tile it was reached from
+    const depth = new Uint8Array(N);
+    const queue: number[] = [];
+    for (let i = 0; i < N; i++) if (node[i] && spare.has(f.waterNet[i]!)) { from[i] = -1; queue.push(i); }
+    // Layer by layer: of the shortest, the one that waters the most (cutting a long pipe left several stubs dry,
+    // and the first found joined twenty buildings while hundreds waited).
+    let hit = -1;
+    let gain = 0;
+    for (let layer = queue; layer.length && hit < 0;) {
+      const next: number[] = [];
+      for (const i of layer) {
+        const x = i % n;
+        for (const j of [x < n - 1 ? i + 1 : -1, x > 0 ? i - 1 : -1, i + n < N ? i + n : -1, i - n]) {
+          if (j < 0 || from[j] !== -2 || s.terrain[j] === Terrain.Water) continue;
+          // A pipe of a network with dry buildings beside it joins the two; a tile within reach of the uncovered waters them.
+          const joins = node[j] ? wants.get(f.waterNet[j]!) ?? 0 : 0;
+          if (joins) {
+            if (joins > gain) [hit, gain] = [i, joins];
+            continue;
+          }
+          if (depth[i]! >= 60) continue;
+          from[j] = i;
+          depth[j] = depth[i]! + 1;
+          if (near[j]) {
+            if (near[j]! > gain) [hit, gain] = [j, near[j]!];
+            continue;
+          }
+          next.push(j);
+        }
+      }
+      layer = next;
+    }
+    const at: [number, number][] = [];
+    for (let i = hit; i >= 0 && from[i] !== -1; i = from[i]!) at.push([i % n, Math.floor(i / n)]);
+    path = at.length ? at.reverse() : null;
+  }
+  pipeLineMemo = { key, path };
+  return path;
+}
+let pipeLineMemo: { key: string; path: [number, number][] | null } | null = null;
+
 /** What a one-press path lays (the guide's 바로 잇기, the info card's 도로 잇기). */
-export type Lay = 'powerline' | 'road';
-export const LAY_WORD: Record<Lay, string> = { powerline: '송전선', road: '도로' };
+export type Lay = 'powerline' | 'road' | 'pipe';
+export const LAY_WORD: Record<Lay, string> = { powerline: '송전선', road: '도로', pipe: '수도관' };
 
 /**
  * What laying a path costs now, or null if it can't be laid as it is: a line's tiles a line or zone already covers
- * are free (the tool skips them); a road goes only over open land (a zone or a network there since: found again).
+ * are free (the tool skips them), as a pipe's already piped; a road goes only over open land (a zone or a network
+ * there since: found again).
  */
 export function layCost(lay: Lay, line: readonly [number, number][]): number | null {
   const s = city.state;
   const n = city.size;
+  // (Pipes run under anything on land.)
+  if (lay === 'pipe') return line.some(([x, y]) => s.terrain[y * n + x] === Terrain.Water) ? null : line.filter(([x, y]) => !s.pipe[y * n + x]).length * city.cfg.services.pipeCost.build;
   if (line.some(([x, y]) => s.occupant[y * n + x] !== 0)) return null;
   if (lay === 'powerline') return line.filter(([x, y]) => !s.power[y * n + x] && !s.zone[y * n + x]).length * city.cfg.services.powerLineCost.build;
   if (line.some(([x, y]) => s.zone[y * n + x] || s.net[y * n + x])) return null;
