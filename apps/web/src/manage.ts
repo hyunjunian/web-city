@@ -178,6 +178,15 @@ export function nextStep(): Step {
 }
 
 /** What a goal's trouble costs if it is left (a problem's second line: the reason to act now). */
+/** What it costs if left, for a trouble whose cost isn't its goal's (worn lines spark fires rather than cut power). */
+const RISK_OF: Record<string, string> = {
+  linesWorn: '예산이 50% 아래로 내려가면 낡은 송전선에서 불꽃이 튀어 불이 납니다',
+  pipesWorn: '낡은 수도관은 터져 싱크홀이 생깁니다',
+  potholes: '포트홀이 늘면 길이 느려지고 통근이 길어집니다',
+  policeStrike: '파업 중에는 순찰과 체포가 크게 줄어 범죄가 늘어납니다',
+  fireStrike: '파업 중에는 불을 끄는 힘이 크게 줄어 불이 번집니다',
+};
+
 const RISK: Record<GoalId, string> = {
   finance: '자금이 바닥나면 아무것도 지을 수 없고 시장이 탄핵될 수 있습니다',
   growth: '두면 빈 구역이 늘고 인구가 더 늘지 않습니다',
@@ -287,7 +296,7 @@ function guideHtml(id: GoalId): string {
   const wait = p ? `<p class="g-wait">${icon('check')}<span>${escapeHtml(p.text)} · ${Math.max(1, FOLLOW_DAYS - (city.state.day - p.day))}일 뒤 결과를 알려 드립니다</span></p>` : '';
   // (The screen's head names the goal: the card starts with what is wrong.)
   return `<section class="lead ${s.tone} mg-guide" aria-label="추천 조치"><p class="lead-title">${icon('alert')}<span>${title}</span></p>
-    <p class="lead-risk">${RISK[id]}</p><p class="g-label">추천 조치</p>${action}${wait}</section>`;
+    <p class="lead-risk">${(worst && RISK_OF[worst.code]) ?? RISK[id]}</p><p class="g-label">추천 조치</p>${action}${wait}</section>`;
 }
 
 /** The sites (x,y) of the build button under the pointer or focused: their marks light up on the map. */
