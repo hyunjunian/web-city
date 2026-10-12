@@ -677,15 +677,15 @@ function refreshTerrainPrices(): void {
 }
 
 /** The view whose count a facility group's heading shows (what its buildings fix), and the goal it is part of. */
-const SECTION_VIEW: Record<string, string> = { 전력: 'power', 수도: 'waterService', 쓰레기: 'garbage', 경찰: 'police', 소방: 'fire', 보건: 'health', 교육: 'school' };
-const VIEW_GOAL: Record<string, GoalId> = { power: 'power', waterService: 'water', garbage: 'garbage', police: 'police', fire: 'fire', health: 'health', school: 'education' };
+const SECTION_VIEW: Record<string, string> = { 도로: 'traffic', '정류장·역': 'traffic', 전력: 'power', 수도: 'waterService', 쓰레기: 'garbage', 경찰: 'police', 소방: 'fire', 보건: 'health', 교육: 'school' };
+const VIEW_GOAL: Record<string, GoalId> = { traffic: 'traffic', power: 'power', waterService: 'water', garbage: 'garbage', police: 'police', fire: 'fire', health: 'health', school: 'education' };
 
 /** The groups' headings: a service's shortfall now (none: nothing said); a zone class's strongest demand, or that its cap holds it, or none. */
 function refreshZoneDemand(): void {
   document.querySelectorAll<HTMLElement>('#tools .tray-section[data-view]').forEach((sec) => {
     const el = sec.querySelector<HTMLElement>('.zone-demand')!;
     // (Under its own heading the service needn't be named again: 경찰 · 닿지 않는 건물 147채.)
-    const gap = viewProblem(sec.dataset.view!).replace(/^(경찰|소방|병원|학교)[이가] /, '');
+    const gap = viewProblem(sec.dataset.view!).replace(/^(경찰|소방|병원|학교)[이가] /, '').replace(/^용량을 넘어 /, '');
     // (Nothing out of reach: how full it runs, where that is the trouble — hospitals past their places, the grid near its output.)
     const goal = VIEW_GOAL[sec.dataset.view!]!;
     const bar = goal === 'power' || goal === 'water' || goal === 'health' || goal === 'education' ? goalStatus(goal).bar : undefined;
