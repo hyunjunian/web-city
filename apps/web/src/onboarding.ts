@@ -1,6 +1,6 @@
 // The getting-started checklist for a new mayor.
 
-import { STRUCTURES, type StructureKind } from '@web-city/engine';
+import { STRUCTURES, type StructureKind, type ZoneKind } from '@web-city/engine';
 import { icon } from './icons';
 import { openSample } from './main';
 import { region } from './region';
@@ -11,8 +11,8 @@ import { $, ask, fmt, touchFirst } from './util';
 import { STRUCTURE_NAME } from './names';
 import { dropToasts, toast } from './toast';
 import { type GoalId } from './goals';
-import { edgeRoad, unpoweredZones, smokeClear } from './readings';
-import { layPath, openGoal } from './manage';
+import { edgeRoad, unpoweredZones, smokeClear, zoneSite } from './readings';
+import { layPath, layZone, openGoal } from './manage';
 import { updatePanels } from './panels';
 import { showOverlay } from './controls';
 import { unsavedProgress } from './saves';
@@ -111,7 +111,14 @@ export function renderOnboarding(): void {
   const fresh = !city.established();
   // (The road to the neighbours, laid in one press from the first step: its route and price.)
   const way = steps[0] && !steps[0][0] ? edgeRoad('road') : null;
-  const sig = steps.map(([ok, text, tool]) => `${+ok}${tool ?? ''}${text}`).join('|') + (region ? 'r' : '') + (fresh ? 'f' : '') + (way ? `w${way.path[0]}${way.cost}${+way.short}` : '');
+  // (And the zone steps' blocks, where the guide's 추천 자리 would put them: by the road, homes and factories apart.)
+  const blocks = new Map(steps.slice(1, 3).flatMap(([ok, , tool]) => {
+    const at = !ok && (tool === 'R-low' || tool === 'C-low' || tool === 'I-medium') ? zoneSite(tool) : null;
+    const cost = at ? city.previewZone(at.x0, at.y0, at.x1, at.y1, tool as ZoneKind).cost : 0;
+    return at && cost <= s.funds ? [[tool!, { ...at, cost }] as const] : [];
+  }));
+  const sig = steps.map(([ok, text, tool]) => `${+ok}${tool ?? ''}${text}`).join('|') + (region ? 'r' : '') + (fresh ? 'f' : '') + (way ? `w${way.path[0]}${way.cost}${+way.short}` : '')
+    + [...blocks].map(([k, b]) => `${k}${b.x0},${b.y0},${b.side}${b.cost}`).join('');
   if (el.dataset.sig === sig) return;
   // Phones: the checklist sits in the city pane, so its dock button gets a dot until opened.
   if (!el.dataset.sig && !$('#app').classList.contains('pane-open')) document.querySelector('.dock-city')?.classList.add('unread');
@@ -123,9 +130,11 @@ export function renderOnboarding(): void {
   // pane. It went out with the first road, and nothing said what came next.)
   const row = ([ok, text, tool]: (typeof steps)[number], i = -1) => {
     const body = `<span class="step-dot">${ok ? icon('check') : ''}</span><span class="step-text">${text}</span>`;
-    // (The first road: drawn along the dashed route the tool shows, or laid at once.)
+    // (The first road: drawn along the dashed route the tool shows, or laid at once. The first zones likewise.)
+    const block = !ok && tool ? blocks.get(tool) : undefined;
     const lay = !ok && tool === 'road' && way && !way.short
-      ? `<button type="button" class="link step-lay" title="지도 가장자리까지 가장 싼 곧은 길을 바로 놓기 (도로를 들면 지도에 점선으로 보이는 그 길 · Ctrl+Z로 되돌리기)">추천 길 바로 놓기 · ${fmt(way.path.length)}칸 §${fmt(way.cost)}</button>` : '';
+      ? `<button type="button" class="link step-lay" data-lay="road" title="지도 가장자리까지 가장 싼 곧은 길을 바로 놓기 (도로를 들면 지도에 점선으로 보이는 그 길 · Ctrl+Z로 되돌리기)">추천 길 바로 놓기 · ${fmt(way.path.length)}칸 §${fmt(way.cost)}</button>`
+      : block ? `<button type="button" class="link step-lay" data-lay="${tool}" title="도로에 닿는 빈 땅에 바로 놓기${tool === 'R-low' ? '' : ' (주거에서 떨어진 곳)'} · Ctrl+Z로 되돌리기">추천 자리에 ${block.side}×${block.side} 바로 놓기 · §${fmt(block.cost)}</button>` : '';
     return `<li class="${ok ? 'done' : i === 0 && st.population === 0 ? 'next' : ''}">${!ok && tool
       ? `<button type="button" class="step" data-step-tool="${tool}" title="${tool.startsWith('goal:') ? '관리 화면 열기 (지도 보기·지을 곳·추천 시설)' : tool.startsWith('view:') ? '지도 보기 켜기' : '이 도구 고르기'}">${body}${icon('chevronRight', 'step-go')}</button>`
       : `<div class="step">${body}</div>`}${lay}</li>`;
@@ -139,13 +148,19 @@ export function renderOnboarding(): void {
     <p class="legend step-foot"><span class="step-progress" role="img" aria-label="${done}/${steps.length} 완료"><i style="width:${((done / steps.length) * 100).toFixed(1)}%"></i></span><span>${done}/${steps.length} 완료</span><button id="onboarding-hide" class="link">그만 보기</button></p>`;
   // A step's text picks the tool that does it.
   $('#onboarding-steps').querySelectorAll<HTMLButtonElement>('[data-step-tool]').forEach((b) => (b.onclick = () => takeStep(b.dataset.stepTool!)));
-  const layBtn = document.querySelector<HTMLButtonElement>('#onboarding-steps .step-lay');
-  if (layBtn) layBtn.onclick = () => {
+  // (Found again on the press: the town may have changed since the list was drawn.)
+  $('#onboarding-steps').querySelectorAll<HTMLButtonElement>('.step-lay').forEach((b) => (b.onclick = () => {
+    const kind = b.dataset.lay!;
+    if (kind !== 'road') {
+      const at = zoneSite(kind as 'R-low' | 'C-low' | 'I-medium');
+      if (at) layZone(kind as ZoneKind, at.x0, at.y0, at.x1, at.y1);
+      return;
+    }
     const now = edgeRoad('road');
     if (!now || !layPath('road', now.path, null)) return;
     closePane(); // phones: the road laid, seen
     updatePanels();
-  };
+  }));
   const sample = document.querySelector<HTMLButtonElement>('#onboarding-sample');
   if (sample) sample.onclick = async () => {
     // Something built is lost without a save (as the menu's way to the sample asks).

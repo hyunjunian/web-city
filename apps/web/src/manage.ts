@@ -340,12 +340,45 @@ function guideHtml(id: GoalId): string {
     <p class="lead-risk">${(st.riskCode && RISK_OF[st.riskCode]) || (!offGrid && !st.said && worst && RISK_OF[worst.code]) || RISK[id]}</p><p class="g-label">추천 조치</p>${action}${wait}</section>`;
 }
 
+/**
+ * A zone or landfill block laid in one press — the guide's 추천 자리에 N×N 놓기 and the getting started list's —
+ * refused, and found again, if it was taken or the money is short. One undo.
+ */
+export function layZone(kind: ZoneKind, x0: number, y0: number, x1: number, y1: number): boolean {
+  const name = kind === 'landfill' ? '매립지' : `${ZONE_NAME[kind] ?? kind} 구역`;
+  city.settle();
+  const p = city.previewZone(x0, y0, x1, y1, kind);
+  const area = (x1 - x0 + 1) * (y1 - y0 + 1);
+  if (!p.ok || p.tiles + p.streets.length < area || p.cost > city.state.funds) {
+    forgetSites();
+    flash(p.cost > city.state.funds ? `§${fmt(Math.ceil(p.cost - city.state.funds))} 모자랍니다` : `그사이 그 자리가 막혀 ${name} 자리를 새로 찾았습니다`, 'bad');
+    return false;
+  }
+  const drop = remember(name);
+  const res = city.zone(x0, y0, x1, y1, kind);
+  if (!res.ok) {
+    drop();
+    flash(ko(res.message ?? ''), 'bad');
+    return false;
+  }
+  city.refreshIfDirty();
+  placedMonth.set(kind, Math.floor(city.state.day / 30));
+  noteAction(`${name} ${x1 - x0 + 1}×${y1 - y0 + 1} · −§${fmt(res.cost)}`);
+  flash(`${name} ${x1 - x0 + 1}×${y1 - y0 + 1}칸을 놓았습니다 · −§${fmt(res.cost)}`, 'info');
+  renderer.effect('flash', x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+  centerOn(x0 + ((x1 - x0) >> 1), y0 + ((y1 - y0) >> 1), 8);
+  redraw();
+  if (phone()) closePane();
+  updatePanels();
+  return true;
+}
+
 /** The sites (x,y) of the build button under the pointer or focused: their marks light up on the map. */
 let hotSites: string[] = [];
 
-/** The guide's own site (one the map's mark isn't), marked on the map as the 과녁 is: where 추천 자리에 짓기 will build. */
 /** The month a landfill or a zone block was laid from the guide, by kind (its site waits for the next month's figures). */
 const placedMonth = new Map<string, number>();
+/** The guide's own site (one the map's mark isn't), marked on the map as the 과녁 is: where 추천 자리에 짓기 will build. */
 let guideSite: { id: GoalId; sites: { at: [number, number]; label: string }[]; path?: [number, number][]; lay?: Lay; rect?: [number, number, number, number] } | null = null;
 /** Where the screen's mark is built on (the mark, or the nearest fit for the facility recommended; null: none now), for its line's 여기에 짓기. */
 let markSite: { id: GoalId; at: [number, number] | null; kind?: StructureKind; name?: string } | null = null;
@@ -2247,33 +2280,8 @@ export function setupGoals(): void {
     const fillBtn = t.closest<HTMLElement>('[data-landfill], [data-zone]');
     if (fillBtn) {
       const kind = (fillBtn.dataset.zoneKind ?? 'landfill') as ZoneKind;
-      const name = kind === 'landfill' ? '매립지' : `${ZONE_NAME[kind] ?? kind} 구역`;
       const [x0, y0, x1, y1] = (fillBtn.dataset.landfill ?? fillBtn.dataset.zone)!.split(',').map(Number) as [number, number, number, number];
-      city.settle();
-      const p = city.previewZone(x0, y0, x1, y1, kind);
-      const area = (x1 - x0 + 1) * (y1 - y0 + 1);
-      if (!p.ok || p.tiles + p.streets.length < area || p.cost > city.state.funds) {
-        forgetSites();
-        renderGoal(true);
-        flash(p.cost > city.state.funds ? `§${fmt(Math.ceil(p.cost - city.state.funds))} 모자랍니다` : `그사이 그 자리가 막혀 ${name} 자리를 새로 찾았습니다`, 'bad');
-        return;
-      }
-      const drop = remember(name);
-      const res = city.zone(x0, y0, x1, y1, kind);
-      if (!res.ok) {
-        drop();
-        flash(ko(res.message ?? ''), 'bad');
-        return;
-      }
-      city.refreshIfDirty();
-      placedMonth.set(kind, Math.floor(city.state.day / 30));
-      noteAction(`${name} ${x1 - x0 + 1}×${y1 - y0 + 1} · −§${fmt(res.cost)}`);
-      flash(`${name} ${x1 - x0 + 1}×${y1 - y0 + 1}칸을 놓았습니다 · −§${fmt(res.cost)}`, 'info');
-      renderer.effect('flash', x0, y0, x1 - x0 + 1, y1 - y0 + 1);
-      centerOn(x0 + ((x1 - x0) >> 1), y0 + ((y1 - y0) >> 1), 8);
-      redraw();
-      if (phone()) closePane();
-      updatePanels();
+      layZone(kind, x0, y0, x1, y1);
       renderGoal(true);
       return;
     }
