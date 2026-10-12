@@ -2013,12 +2013,14 @@ export class Renderer {
       const inTop = Math.min(250, b.top + (b.bottom - b.top) * 0.25);
       const inBottom = Math.min(b.bottom - 12, cssH - 96);
       const [left, top, right, bottom] = [cam.x + (b.left + 36) * u, cam.y + inTop * u, cam.x + (b.right - 36) * u, cam.y + inBottom * u];
+      // (In sight anywhere in the band, it has none: one in the strip kept for the hint bar got an arrow on itself.)
+      const [vl, vt, vr, vb] = [cam.x + (b.left + 8) * u, cam.y + (b.top + 8) * u, cam.x + (b.right - 8) * u, cam.y + (b.bottom - 8) * u];
       this.edgeMarks = [];
       // (No room for one: none.)
       if (bottom - top >= 30 * u && right - left >= 30 * u) for (const m of this.marks) {
         if (m.tone !== 'spot') continue;
         const [cx, cy] = [m.x + m.w / 2, m.y + m.h / 2];
-        if (cx >= left && cx <= right && cy >= top && cy <= bottom) continue;
+        if (cx >= vl && cx <= vr && cy >= vt && cy <= vb) continue;
         const [px, py] = [Math.min(right, Math.max(left, cx)), Math.min(bottom, Math.max(top, cy))];
         const len = Math.hypot(cx - px, cy - py) || 1;
         const [dx, dy] = [(cx - px) / len, (cy - py) / len];

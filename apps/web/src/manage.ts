@@ -1528,7 +1528,7 @@ const SERVICE_SITE = new Set<GoalId>(['police', 'fire', 'health', 'education']);
  * station where it fills the biggest gap in its service (the view that comes on with it shows every gap; the mark
  * says which to fill, on ground it fits), a plant beside the plants on the grid, a pump touching the pipes with
  * power, an incinerator or recycling centre clear of the homes, bus stops by the homes and by the work, a park by
- * the homes — and its arrow at the screen's edge leads there.
+ * the homes; a zone whose class is wanted, the block to draw over — and its arrow at the screen's edge leads there.
  */
 export function markToolSite(): void {
   // (A moment later: a site search can take a big map tens of milliseconds, and the pick shows first.)
@@ -1542,6 +1542,24 @@ function placeToolMark(): void {
   // kept until the next edit.)
   if (city.stepping) {
     toolSiteDue = window.setTimeout(placeToolMark, 50);
+    return;
+  }
+  // A zone in hand whose class is wanted: the block the growth screen would lay, outlined — a road along a whole
+  // side, clear of what spoils it — to draw over.
+  if (tool.kind === 'zone' && tool.zone && tool.zone !== 'none' && tool.zone !== 'landfill') {
+    const z = tool.zone;
+    const cls = z === 'A' ? 'A' : z[0]!;
+    const types = DEV_TYPES.filter((t) => (cls === 'A' ? t === 'IA' : cls === 'I' ? t[0] === 'I' && t !== 'IA' : t[0] === cls));
+    const wanted = Math.max(...types.map((t) => city.demand.demand[t])) >= 10;
+    const block = wanted ? zoneSite(cls === 'R' ? 'R-low' : cls === 'C' ? 'C-low' : cls === 'I' ? 'I-medium' : 'A') : null;
+    const marks: typeof renderer.marks = block ? [
+      { x: block.x0 + (block.side >> 1), y: block.y0 + (block.side >> 1), w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${toolName(tool)} ${block.side}×${block.side}` },
+      { x: block.x0, y: block.y0, w: block.side, h: block.side, tone: 'area' },
+    ] : [];
+    if (JSON.stringify(marks) !== JSON.stringify(renderer.marks)) {
+      renderer.marks = marks;
+      redraw();
+    }
     return;
   }
   const held = tool.kind === 'structure' ? chosen[tool.id] : undefined;
