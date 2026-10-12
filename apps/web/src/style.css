@@ -2647,3 +2647,8 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 #view.driving :is(#dock, #map-layer) { opacity: 0.35; pointer-events: none; filter: saturate(0.4); transition: opacity 0.2s; }
 /* The info card's one-press fixes (옆에 하나 더 짓기, 예산 100%로) read as actions, apart from the status chips beside them. */
 #info button.chip:is([data-relieve], [data-fund-full]) { background: var(--accent-soft); color: var(--accent-hi); font-weight: 650; }
+/* The narrowest phones: 출발 under the mission's words (beside them it squeezed 성공 into three lines). */
+@media (max-width: 360px) {
+  .mission { grid-template-columns: auto minmax(0, 1fr); }
+  .mission > button { grid-column: 2; justify-self: start; align-self: start; }
+}
