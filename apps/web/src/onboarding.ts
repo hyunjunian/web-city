@@ -11,7 +11,7 @@ import { $, ask, fmt, touchFirst } from './util';
 import { STRUCTURE_NAME } from './names';
 import { dropToasts, toast } from './toast';
 import { type GoalId } from './goals';
-import { unpoweredZones } from './readings';
+import { unpoweredZones, smokeClear } from './readings';
 import { openGoal } from './manage';
 import { showOverlay } from './controls';
 import { unsavedProgress } from './saves';
@@ -69,7 +69,7 @@ export function renderOnboarding(): void {
     // (Which of the two the button picks, said: the step read as either.)
     [zoned((z) => z >= 4 && z <= 8), `상업·산업 구역 (일자리)${jobWant > 0 ? ` · 지금은 ${jobZone === 'I-medium' ? '산업' : '상업'} 수요가 큼` : ''}`, jobZone],
     // Done when the zones have power, not when a plant stands (one across a road from them powered nothing).
-    [kinds.some((d) => d.plant) && !darkZones(), `발전소 (도로 옆, 구역에서 4칸 안 · 석탄·석유는 주거에서 멀리)${kinds.some((d) => d.plant) && darkZones() ? ` · ⚠ 전기 없는 구역 ${fmt(unpoweredZones().off)}칸: 송전선으로 이으세요` : ''}`, 'goal:power'],
+    [kinds.some((d) => d.plant) && !darkZones(), `발전소 (도로 옆, 구역에서 4칸 안 · 석탄·석유는 주거에서 ${smokeClear('coalPlant')}칸 넘게)${kinds.some((d) => d.plant) && darkZones() ? ` · ⚠ 전기 없는 구역 ${fmt(unpoweredZones().off)}칸: 송전선으로 이으세요` : ''}`, 'goal:power'],
     // A young town's monthly fire nearly always picks the plant, and a burned plant explodes.
     [served.some((d) => d.fire), '소방서 (발전소가 반경 안에 — 불타면 폭발합니다)' + offRoad('fire'), 'goal:fire'],
     [st.population > 0, zoned((z) => z >= 1 && z <= 3) && city.state.day > 60 ? '첫 주민 입주 · 안 들어오면 개발 막힘 보기로 원인 확인' : '첫 주민 입주 (시간이 멈춰 있으면 위쪽 ▶)', zoned((z) => z >= 1 && z <= 3) ? 'view:growth' : null],
