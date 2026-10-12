@@ -97,8 +97,8 @@
               <summary class="icon-btn" title="도시 메뉴" aria-label="도시 메뉴"><span data-icon="more"></span></summary>
               <div class="dropdown-menu">
                 <button class="menu-phone" data-sheet-btn="sims" title="My Sim · 직접 운전 (U)"><span data-icon="users"></span>주민</button>
-                <button class="menu-phone" data-sheet-btn="region" title="이웃 도시·거래 (J)"><span data-icon="globe"></span>지역</button>
-                <hr class="menu-phone" />
+                <button data-sheet-btn="region" title="이웃 도시·거래 (J)"><span data-icon="globe"></span>지역</button>
+                <hr />
                 <button id="btn-new"><span data-icon="filePlus"></span>새 도시…</button>
                 <button id="btn-save" title="브라우저에 저장"><span data-icon="save"></span>저장</button>
                 <button id="btn-load" title="브라우저에 저장된 도시 목록"><span data-icon="folder"></span>불러오기…</button>
@@ -136,7 +136,7 @@
           <div id="map-zoom" class="floating" role="group" aria-label="확대·축소">
             <button id="zoom-in" class="icon-btn" title="확대 (+)" aria-label="확대"><span data-icon="plus"></span></button>
             <button id="zoom-out" class="icon-btn" title="축소 (−)" aria-label="축소"><span data-icon="minus"></span></button>
-            <button id="zoom-fit" class="icon-btn" title="전체 보기 (Home)" aria-label="전체 보기"><span data-icon="fit"></span></button>
+            <button id="zoom-fit" class="icon-btn" title="전체 보기 (Home)" aria-label="전체 보기"><span data-icon="fit"></span><span class="zoom-label" aria-hidden="true">전체</span></button>
           </div>
           <canvas id="minimap" class="floating" aria-label="미니맵: 눌러서 이동" title="미니맵: 누르거나 끌어서 이동"></canvas>
         </div>

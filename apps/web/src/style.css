@@ -797,7 +797,10 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #mapbar:has(#map-layer:not(.off)) #view-pick .i:first-child { color: var(--accent-hi); }
 #view-pick[aria-expanded='true'] .i:last-child { transform: rotate(180deg); }
 #view-off { width: 40px; height: 40px; flex: none; }
-#view-grid { display: grid; gap: 10px; max-height: min(60vh, 460px); overflow-y: auto; padding: 2px 2px 4px; overscroll-behavior: contain; }
+#view-grid {
+  display: grid; gap: 10px; max-height: min(calc(100dvh - 120px), 640px); overflow-y: auto; padding: 2px 2px 24px; overscroll-behavior: contain;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); /* (more below fades out, not cut through a row) */
+}
 /* A drag that starts on the view's card selected its text; with a building tool in hand its legend steps aside (the map is the work). */
 #map-layer { -webkit-user-select: none; user-select: none; }
 #view.holding #map-layer:not(.picking) #overlay-legend { display: none !important; }
@@ -860,6 +863,10 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 @media (min-width: 861px) and (max-width: 941px) { #view.info-open #map-controls { visibility: hidden; } }
 #map-zoom { position: static; display: grid; gap: 2px; padding: 4px; border-radius: var(--r-lg); }
 #map-zoom .icon-btn { width: 40px; height: 40px; color: var(--text); }
+/* 전체 보기 says so under its icon (the corners alone read as full screen), as the build bar's buttons do. */
+#map-zoom #zoom-fit { flex-direction: column; gap: 2px; width: 48px; height: 48px; }
+#zoom-fit .i { width: 18px; height: 18px; }
+.zoom-label { font-size: 10.5px; font-weight: 600; line-height: 1; color: var(--muted); }
 /* Zooming is the wheel, a pinch or + −: only 전체 보기 stays, and only while zoomed in (as the minimap). */
 #zoom-in, #zoom-out { display: none !important; }
 #minimap, #map-zoom { transition: opacity 0.25s var(--ease); }
@@ -1402,8 +1409,15 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #app.pane-open #pane { transform: none; visibility: visible; transition: transform 0.26s var(--ease); }
   #app.focus #pane { display: flex; }
   .pane-grip { display: block; position: absolute; top: 9px; left: 50%; width: 40px; height: 5px; margin-left: -20px; border-radius: 3px; background: var(--surface-3); }
-  .pane-close { display: inline-flex; position: absolute; top: 10px; right: 10px; z-index: 2; } /* over a goal's sticky header */
-  #pane.managing .pane-close { top: 22px; } /* level with the goal's title row */
+  /* The × keeps to the pane's top right while it scrolls (it scrolled away with a long list, and with it the way
+     out): first in the column, stuck, taking no room from the row it sits over (a goal's sticky header too). */
+  /* (Sticky insets count from inside the pane's 26px padding: −16 puts it 10px from the edge, −4 at 22, level with
+     a goal's title row. Its margins give back the room it takes in the column.) */
+  .pane-close {
+    display: inline-flex; position: sticky; top: -16px; order: -3; align-self: flex-end; flex: none; z-index: 3;
+    margin: -16px -6px -38px 0; background: var(--surface-2); color: var(--text);
+  }
+  #pane.managing .pane-close { top: -4px; }
   /* A watch row's note is what to do: two lines rather than cut off. */
   .w-note { white-space: normal; align-items: flex-start; }
   .w-txt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
@@ -1422,7 +1436,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 
   #minimap { display: none; }
   /* The view list takes the room there is, and fades at the foot when more is below. */
-  #view-grid { max-height: calc(100dvh - 300px); padding-bottom: 24px; mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); }
+  #view-grid { max-height: calc(100dvh - 150px); }
 
   #tray, #info-card, #sheet {
     left: 0; right: 0; bottom: 0; top: auto; width: auto; transform: none;
@@ -1487,8 +1501,9 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #app.pane-open #hint { left: calc(min(380px, 50%) + 10px); right: 10px; width: auto; max-width: none; transform: none; }
   #app.pane-open #toasts { left: calc(min(380px, 50%) + 10px); width: auto; right: 84px; }
   .mg-head { top: -18px; margin-top: -18px; padding-top: 14px; } /* this sheet's padding is 18px */
+  .pane-close { top: -8px; margin-top: -8px; margin-bottom: -46px; } /* (and so the ×'s insets) */
+  #pane.managing .pane-close { top: 4px; }
   #view.info-open #toasts { width: calc(100% - min(420px, 58%) - 84px); }
-  #view:has(#tool-chip:not([hidden])) #hint { left: auto; right: 10px; transform: none; max-width: 55%; }
 }
 
 /* Hospital and school grade: five dots, filled up to the grade. */
@@ -1606,9 +1621,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @media (hover: hover) { .info-more > summary:hover { color: var(--text); } }
 #info .info-more > h3.sub:first-of-type { border-top: 0; margin-top: 6px; }
 .info-more #bname { margin: 10px 0 8px; }
-/* Undo appears once there is something to take back (a greyed arrow sat there from the start), and takes
-   no room till then (a hole after the bar's divider). */
-#btn-undo:disabled { display: none; }
+/* Undo stays in its place, dimmed while there is nothing to take back: the top bar floats centred on the map,
+   and undo appearing moved the clock under the pointer. */
 
 /* The city pane is one surface: its parts are set apart by space and a hairline, not by boxes on grey. */
 #pane { background: var(--surface); }
@@ -2334,14 +2348,14 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .crumb-region { flex: 0 12 auto; min-width: 5.5em; gap: 5px; color: var(--muted); font-size: 13px; font-weight: 550; } /* (a long region's name gives way before the city's) */
 .crumb-region > span:last-child { overflow: hidden; text-overflow: ellipsis; }
 .crumb-region .i { width: 15px; height: 15px; }
-.crumb-region.none { color: var(--faint); font-weight: 500; }
+.crumb-region.none { font-weight: 500; } /* (no region yet: still a way in, to the neighbours and to making one) */
 .crumb-region.open { background: var(--accent-soft); color: var(--accent-hi); }
 .crumb-sep { display: grid; place-items: center; flex: none; color: var(--faint); }
 .crumb-sep .i { width: 14px; height: 14px; }
 .crumb-city { flex: 0 0 auto; min-width: 0; max-width: calc(100% - 7.5em); gap: 6px; color: var(--text); font-size: 16px; font-weight: 700; letter-spacing: -0.01em; } /* (whole unless it alone is too long) */
 .crumb-city > span:first-child { overflow: hidden; text-overflow: ellipsis; }
 /* (Its pencil comes up under the pointer or the keyboard: pressed, the name changes.) */
-.crumb-city .i { width: 14px; height: 14px; color: var(--muted); opacity: 0; transition: opacity 0.15s; }
+.crumb-city .i { width: 14px; height: 14px; color: var(--muted); opacity: 0.4; transition: opacity 0.15s; }
 .crumb-city:is(:hover, :focus-visible) .i { opacity: 1; }
 @media (hover: none) { .crumb-city .i { opacity: 0.6; } }
 @media (hover: hover) {
@@ -2372,9 +2386,12 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .mb-btn.open { background: var(--accent-soft); color: var(--accent-hi); }
 .mb-btn.open .i { color: var(--accent-hi); }
 /* What the map shows: its name, and × to turn it off. */
-#mb-view .view-current { gap: 2px; }
-#mb-view #view-pick { flex: none; max-width: 210px; min-height: 40px; border-radius: 12px; }
-#mb-view #view-off { width: 32px; height: 32px; min-height: 0; padding: 0; margin-right: 2px; border-radius: 10px; }
+#mb-view .view-current { gap: 6px; }
+/* One width whatever the view (its name cut short if need be, whole in its tooltip); with none on, the button
+   takes the ×'s room too: turning a view on or off doesn't move the clock beside it. */
+#mb-view #view-pick { flex: none; width: 164px; min-height: 40px; border-radius: 12px; }
+#mapbar:not(.fit3):has(#map-layer.off) #mb-view #view-pick { width: 206px; } /* (164, the gap, the × and its margin) */
+#mb-view #view-off { width: 34px; height: 34px; min-height: 0; padding: 0; margin-right: 2px; border-radius: 10px; }
 #mb-view #view-off .i { width: 16px; height: 16px; }
 /* The menu from the bar's end, down the map. */
 #mapbar .dropdown-menu { top: calc(100% + 10px); max-height: calc(100dvh - 96px); }
@@ -2462,6 +2479,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .dock-btn[data-cat='bulldoze'].open, .dock-btn[data-cat='bulldoze'].current { background: var(--danger-soft); color: var(--danger-ink); }
 @media (hover: hover) { .dock-btn[data-cat='bulldoze']:hover .i { color: var(--danger); } }
 .dock-city, .dock-build, #tray-cats { display: none; }
+#app.focus #dock .dock-city { display: inline-flex; } /* the map alone: 도시 brings the pane back, where it was put away */
 .dock-btn[data-alerts]::after {
   content: attr(data-alerts); position: absolute; top: 3px; right: 5px; min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: 8px; background: var(--danger); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 16px; text-align: center;
@@ -2496,7 +2514,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 /* ---- map only (F): the pane gone, the open goal's chip under the top row */
 #app.focus #manage-chip:not([hidden]) { top: 70px; left: calc(var(--dock-w) + 24px); right: auto; }
 /* (The view's card, hanging from the bar, drops below that chip.) */
-#app.focus #view:has(#manage-chip:not([hidden])) #mapbar #map-layer:not(.picking) { top: calc(100% + 52px); }
+#app.focus #view:has(#manage-chip:not([hidden])) #mapbar.near-chip #map-layer:not(.picking) { top: calc(100% + 52px); }
 
 /* ---- what steps back while a drag lays something down, or while driving */
 #view :is(#mapbar) { transition: opacity 0.2s var(--ease); }
@@ -2513,7 +2531,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   .mb-sep { margin: 0 2px; }
   #mapbar .icon-btn, #mapbar .dropdown > summary { width: 38px; height: 40px; }
   .gear-compact { padding: 2px; }
-  #mapbar.fit1 .gear-compact button { min-width: 30px; height: 30px; padding: 0; }
+  #mapbar.fit1 .gear-compact button { min-width: 34px; height: 30px; padding: 0; }
   .gear button .i { width: 16px; height: 16px; }
   /* (The bar takes all three steps; the wind and the map alone are not for a phone's bar or menu.) */
   #sb-wind, #mapbar #btn-focus-menu { display: none !important; }

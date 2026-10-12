@@ -111,6 +111,8 @@ export function openPane(): void {
     closeSheet();
   }
   const was = paneShown();
+  // (It rises at its head — the region › city, the stage — not wherever it was last left scrolled.)
+  if (!was && phone() && !$('#pane').classList.contains('managing')) $('#pane').scrollTop = 0;
   $('#app').classList.add('pane-open');
   document.querySelector('.dock-city')?.classList.remove('unread');
   markOpen();
@@ -163,9 +165,14 @@ export function toggleSheet(tab: SheetTab): void {
 }
 
 export function setupTabs(): void {
-  // Phones: the build menu's 도시 opens the pane on its overview; again, it goes.
+  // Phones: the build menu's 도시 opens the pane on its overview; again, it goes. (Wide, it shows only with the map
+  // alone: pressed, the pane comes back.)
   const city = document.querySelector<HTMLButtonElement>('#dock [data-app="city"]');
   if (city) city.onclick = () => {
+    if (!phone() && $('#app').classList.contains('focus')) {
+      $('#btn-focus').click();
+      return;
+    }
     if (!closePane()) {
       closeGoal();
       openPane();
