@@ -274,6 +274,16 @@ function goalStep(id: GoalId) {
     }
     return { kind: 'fix' as const, what: adviceTool(a.code)![1], why: adviceText(a), fixAct: act, act, glyph: t ? toolGlyph(t) : '', sub: '', fx: '', site: false };
   }
+  // Nothing to build: an ordinance of the goal's that can be enacted now (dirty air had only 원인부터 살펴보세요,
+  // with 대기 정화법 folded away below).
+  // (Not one that costs the mayor's rating, and not a second while the first's result is awaited.)
+  const ord = journal().pending[id] ? undefined : GOALS[id].ordinances.find((o) => !city.state.ordinances.includes(o) && city.ordinanceAvailable(o)
+    && ((ORDINANCES[o] as { mayorRating?: number }).mayorRating ?? 0) >= 0);
+  if (ord) {
+    const cost = city.ordinanceCost(ord);
+    return { kind: 'ord' as const, what: `${ORDINANCE_NAME[ord]} 시행`, why: ORDINANCES[ord].description, fixAct: ord, act: '', glyph: icon('civic'),
+      sub: `조례 · 월 ${cost < 0 ? `+§${fmt(-cost)}` : `§${fmt(cost)}`}`, fx: '', site: false }; // (its effects plain, not a gain's green: some cost)
+  }
   return { kind: 'open' as const, what: '', why: '', fixAct: '', act: '', glyph: '', sub: '', fx: '', site: false };
 }
 
@@ -1315,6 +1325,19 @@ export function setupGoals(): void {
     }
     // A goal screen's 추천 조치: the action it names, taken up (as if pressed below).
     const guide = (e.target as HTMLElement).closest<HTMLElement>('.mg-guide-go');
+    if (guide?.dataset.guideKind === 'ord') {
+      // An ordinance, enacted as its switch below would (undoable, logged).
+      const ordId = guide.dataset.guideAct as OrdinanceId;
+      const res = choice('조례', () => city.enactOrdinance(ordId));
+      if (!res.ok) flash(ko(res.message ?? ''), 'bad');
+      else {
+        noteAction(`조례 시행: ${ORDINANCE_NAME[ordId]}`);
+        flash(`${ORDINANCE_NAME[ordId]}${josa(ORDINANCE_NAME[ordId], '을', '를')} 시행합니다`, 'info');
+      }
+      updatePanels();
+      renderGoal(true);
+      return;
+    }
     if (guide) {
       const btn = guide.dataset.guideKind === 'best' ? $('#manage').querySelector<HTMLElement>('.act.best')
         : $('#manage').querySelector<HTMLElement>(`.advice-acts [data-act="${guide.dataset.guideAct}"]`);
