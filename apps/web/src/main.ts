@@ -11,7 +11,7 @@ import { drawMinimap, setupMinimap } from './minimap';
 import { cancelMySimAction } from './mysims';
 import { updatePanels } from './panels';
 import { leaveRegion } from './region';
-import { cam, city, cityLineage, clampCamera, dirty, onCityChange, overlay, redraw, renderer, selected, setCity, setDirty, setSaveSlotId, speed } from './state';
+import { cam, city, cityLineage, clampCamera, dirty, fitCamera, onCityChange, overlay, redraw, renderer, selected, setCity, setDirty, setSaveSlotId, speed } from './state';
 import { autosave, autosaveSlot, autosaveSteps, lastAutosave, resumeAutosave } from './storage';
 import { buildTools, closeTray, forgetPreviousTool, refreshEdgeHint, selectTool, SPEEDS } from './tools';
 import { abandonDrive, drive, setupDriving, tickDrive } from './udi';
@@ -266,7 +266,11 @@ setCity(resumed ?? starterCity());
 setSpeed(0);
 if (resumed) setSaveSlotId(autosaveSlot());
 // Phones keep the getting-started list behind the 도시 button: on a first visit, show it.
-if (!resumed && !$('#onboarding').hidden && matchMedia('(max-width: 860px)').matches) openPane();
+// (The map framed again for it: framed first on the whole screen, the town sat half under the sheet.)
+if (!resumed && !$('#onboarding').hidden && matchMedia('(max-width: 860px)').matches) {
+  openPane();
+  fitCamera();
+}
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') autosave();
 });

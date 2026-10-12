@@ -57,9 +57,21 @@ export function fitCamera(whole = false): void {
   const r = renderer.canvas.getBoundingClientRect();
   // The built-up part with a margin, or the whole map while there is none (or when asked: 전체 보기).
   const { cx, cy, span } = builtArea(whole);
-  cam.scale = Math.max(whole ? 1 : 2, Math.min(r.width, r.height) / span); // (zooming out stops at 1)
+  // On a phone, in the part of the screen nothing covers: below the tool bar, above the city sheet when it is up
+  // (framed on the whole screen, the town sat half under the sheet with a dark band over it).
+  let [top, bottom] = [r.top, r.bottom];
+  if (matchMedia('(max-width: 860px)').matches) {
+    const dock = document.getElementById('dock')?.getBoundingClientRect();
+    if (dock && dock.height) top = Math.max(top, Math.min(r.top + r.height / 3, dock.bottom));
+    // (Where the sheet comes to rest, not where its slide-in has got to: offsets leave the transform out.)
+    const pane = document.getElementById('pane');
+    const app = document.getElementById('app');
+    if (pane && app?.classList.contains('pane-open')) bottom = Math.min(bottom, Math.max(top + r.height / 3, app.getBoundingClientRect().top + pane.offsetTop));
+  }
+  const h = bottom - top;
+  cam.scale = Math.max(whole ? 1 : 2, Math.min(r.width, h) / span); // (zooming out stops at 1)
   cam.x = cx - r.width / cam.scale / 2;
-  cam.y = cy - r.height / cam.scale / 2;
+  cam.y = cy - (top - r.top + h / 2) / cam.scale;
 }
 
 /** Moves the view to centre a tile, zooming in to at least `minScale` pixels per tile. */
