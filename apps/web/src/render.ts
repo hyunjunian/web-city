@@ -1911,7 +1911,9 @@ export class Renderer {
       // (By the side edges, halfway down: the tool bar and the menu cover the top and the foot.)
       // (A narrow map, a phone's: one line in the middle, the two would meet.)
       const wide = ctx.measureText('← 가장자리까지 이으면 이웃 도시와 연결').width * 2 + 24 * u < n;
-      const spots: (readonly [number, CanvasTextAlign])[] = wide ? [[1 + 6 * u, 'start'], [n - 1 - 6 * u, 'end']] : [[n / 2, 'center']];
+      // (Not with the suggested road to the neighbours drawn: its label says as much, and on a phone the one line in
+      // the middle lay over its start.)
+      const spots: (readonly [number, CanvasTextAlign])[] = this.guidePath ? [] : wide ? [[1 + 6 * u, 'start'], [n - 1 - 6 * u, 'end']] : [[n / 2, 'center']];
       for (const [tx, align] of spots) {
         ctx.textAlign = align;
         const words = align === 'start' ? '← 가장자리까지 이으면 이웃 도시와 연결' : align === 'end' ? '가장자리까지 이으면 이웃 도시와 연결 →' : '가장자리까지 이으면 이웃 도시와 연결';
