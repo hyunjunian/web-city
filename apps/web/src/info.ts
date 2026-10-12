@@ -2,7 +2,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceId, ORDINANCES, serviceRadius, type Structure, type StructureKind, STRUCTURES, type TripMeans } from '@web-city/engine';
 import { icon } from './icons';
-import { airShareOf, budgetMends, facilityLine, hasRoadNow, jamRun, widenTo, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
+import { airShareOf, airSourcesAt, budgetMends, facilityLine, hasRoadNow, jamRun, widenTo, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
 import { ko } from './messages';
 import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -355,7 +355,7 @@ ${paths}${voice}
       ${b?.type?.[0] === 'R' ? `
         <tr><td>평균 나이</td><td>${b.age.toFixed(0)}세</td></tr>
         <tr${row('education')}><td>교육 지수</td><td>${b.eq.toFixed(0)}</td></tr>
-        <tr${row('health')}><td>건강 지수</td><td>${b.hq.toFixed(0)}</td></tr>` : ''}
+        <tr${row('health')}><td>건강 지수</td><td>${b.hq.toFixed(0)}</td></tr>${smogRow(x, y, q.airPollution)}` : ''}
       ${stRows}${smokeRow(b ? b.id : q.structure ? -q.structure.id : 0, row('environment'))}
     </table>` : ''}
     ${q.structure && def!.category !== 'park' && def!.category !== 'garbage' && def!.category !== 'water' && def!.category !== 'landmark' && !(def!.category === 'safety' && def!.police?.radius === 0) && !def!.station ? fundingSlider(q.structure) : q.structure ? `<p class="muted">예산은 재정의 부서 예산 "${def!.category === 'garbage' ? '위생' : def!.category === 'water' ? '수도' : def!.station ? '대중교통' : def!.category === 'landmark' ? '랜드마크' : def!.category === 'safety' ? '교도소' : '공원 미화'}"${def!.category === 'garbage' ? '으로' : '로'} 정합니다.</p>` : ''}
@@ -668,6 +668,20 @@ export function aloneReached(st: Structure, gone: ReadonlySet<number> = new Set(
   }
   return { n, what: homes ? '집' : '건물' };
 }
+/**
+ * A home in air past 40: how bad, what fouls it most, and a way to the worst of that on the map (the card's figures
+ * said 대기 81 and nothing of where it came from).
+ */
+const smogRow = (x: number, y: number, air: number): string => {
+  if (!(air > 40)) return '';
+  const [a, b] = airSourcesAt(x, y).filter((s) => s.key !== 'rest');
+  if (!a) return '';
+  const what = a.key === 'traffic' ? '길 위의 차' : a.key.startsWith('st:') || a.key === 'spill' ? a.label : a.key === 'IA' ? '농장' : `${a.label} 공장`;
+  const from = a.share >= 0.6 || !b ? `주로 ${what}` : `${what}·${b.key === 'traffic' ? '교통' : b.label}`;
+  const go = a.at && a.lot ? ` <button type="button" class="advice-view" data-at="${a.at.join(',')}" data-flash="${[a.lot.x, a.lot.y, a.lot.w, a.lot.h].join(',')}" title="이 집의 공기를 가장 더럽히는 ${a.key === 'traffic' ? '길' : '곳'} 보기">보기</button>` : '';
+  return `<tr><td title="대기 오염이 40을 넘으면 주민의 건강과 시장 평점이 떨어집니다">공기</td><td class="neg">나쁨 ${air.toFixed(0)} · ${escapeHtml(from)}${go}</td></tr>`;
+};
+
 /** A factory's, farm's or plant's part in the air over the smoggy homes, where it has one worth saying. */
 const smokeRow = (code: number, row: string): string => {
   const share = code ? airShareOf(code) : 0;

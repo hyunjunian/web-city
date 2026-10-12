@@ -671,8 +671,6 @@ export type AirSource = { key: string; label: string; share: number; count: numb
 export function airSources(): AirSource[] {
   const key = changeKey();
   if (airMemo?.key === key) return airMemo.list;
-  const s = city.state;
-  const f = city.fields;
   const n = city.size;
   const want = need('environment')!;
   const w = new Float32Array(n * n);
@@ -689,6 +687,29 @@ export function airSources(): AirSource[] {
     b.y0 = Math.min(b.y0, y);
     b.y1 = Math.max(b.y1, y);
   }
+  const { list, own, total } = airFrom(w, b);
+  airMemo = { key, list, own, total };
+  return list;
+}
+
+/** What fouls the air of one tile, by kind of source as on the environment screen (a home's card says it). */
+export function airSourcesAt(x: number, y: number): AirSource[] {
+  const key = `${x},${y}|${changeKey()}`;
+  if (atMemo?.key === key) return atMemo.list;
+  const n = city.size;
+  const w = new Float32Array(n * n);
+  w[y * n + x] = 1;
+  const list = airFrom(w, { x0: x, y0: y, x1: x, y1: y }).list;
+  atMemo = { key, list };
+  return list;
+}
+let atMemo: { key: string; list: AirSource[] } | null = null;
+
+/** Each kind of source's part in the air over the weighed tiles `w` (all within `b`), and each source's own. */
+function airFrom(w: Float32Array, b: { x0: number; y0: number; x1: number; y1: number }): { list: AirSource[]; own: Map<number, number>; total: number } {
+  const s = city.state;
+  const f = city.fields;
+  const n = city.size;
   const kinds = new Map<string, { label: string; sum: number; count: number; top: number; lot: { x: number; y: number; w: number; h: number } }>();
   // (Each building's and structure's own part, by its occupant code: its card says it.)
   const own = new Map<number, number>();
@@ -754,8 +775,7 @@ export function airSources(): AirSource[] {
     const rest = 1 - list.reduce((a, x) => a + x.share, 0);
     if (rest >= 0.01) list.push({ key: 'rest', label: '그 밖', share: rest, count: ranked.length - main.length, at: null, lot: null });
   }
-  airMemo = { key, list, own, total };
-  return list;
+  return { list, own, total };
 }
 let airMemo: { key: string; list: AirSource[]; own: Map<number, number>; total: number } | null = null;
 

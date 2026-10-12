@@ -71,11 +71,14 @@ document.addEventListener('click', (e) => {
     const [x, y] = b.dataset.at.split(',').map(Number);
     centerOn(x!, y!);
   }
-  // (A building or a stretch of road it means, outlined where the map lands: the air's sources.)
+  // (A building or a stretch of road it means, blinked twice once the map has landed there — a flash at the press was
+  // over before the flight ended: the air's sources.)
   if (b.dataset.flash) {
     const [x, y, w, h] = b.dataset.flash.split(',').map(Number);
-    renderer.effect('flash', x!, y!, w, h);
-    redraw();
+    for (const t of [380, 720]) setTimeout(() => {
+      renderer.effect('flash', x!, y!, w, h);
+      redraw();
+    }, t);
   }
 });
 
