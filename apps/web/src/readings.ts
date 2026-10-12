@@ -82,6 +82,10 @@ function readStatus(id: GoalId): Status {
       const months = net < 0 && st.funds > 0 ? st.funds / -net : Infinity;
       const tone: Tone = st.funds < 0 || months < 24 ? 'bad' : net < 0 ? 'warn' : '';
       const left = months < 120 ? ` · 이대로면 ${months >= 24 ? `${Math.floor(months / 12)}년` : `${Math.floor(months)}개월`} 뒤 바닥` : '';
+      // (Taxes cutting a type's demand are the finance screen's to fix: 주의 with what they cost, where the money alone
+      // read 양호 and nobody looked — 71% of the demand for rich homes was going.)
+      const taxed = !tone && first?.code === 'taxHigh' ? said : '';
+      if (taxed) return { tone: first!.level === 'bad' ? 'bad' : 'warn', value: money(st.funds), note: taxed };
       return { tone, value: money(st.funds), note: b ? `지난달 ${net < 0 ? '−' : '+'}§${fmt(Math.abs(Math.round(net)))}${left}` : '첫 결산 전' };
     }
     case 'growth': {

@@ -189,6 +189,7 @@ const RISK_OF: Record<string, string> = {
   plantUnprotected: '불이 나면 발전소가 폭발해 둘레까지 부숩니다',
   facilityNoRoad: '쓰레기가 쌓이고, 경찰서·소방서·병원·학교라면 불이나 범죄에 출동하지 못합니다',
   atRisk: '두면 그 건물들이 비어 인구와 세입이 줄고, 빈 건물은 범죄를 부릅니다',
+  taxHigh: '두면 들어오려는 심이 막혀 인구도 세입도 더 늘지 않습니다',
 };
 
 const RISK: Record<GoalId, string> = {
@@ -371,6 +372,12 @@ function goalStep(id: GoalId): GuideStep {
   const { worst } = guideSaid(id);
   const due = worst && BUDGET_FIX[worst.code] ? budgetStep(id, worst) : null;
   if (due) return due;
+  // Taxes eating a type's demand: that type's tax to neutral, applied at once.
+  if (worst?.code === 'taxHigh' && worst.type && city.state.taxRates[worst.type] > city.demand.neutralTax) {
+    const to = city.demand.neutralTax;
+    return { kind: 'budget', what: `${TYPE_NAME[worst.type]} 세율 ${to.toFixed(1)}%로`, why: adviceText(worst), fixAct: `tax:${worst.type}`, act: '', glyph: icon('wallet'),
+      sub: `세율 · 지금 ${city.state.taxRates[worst.type].toFixed(1)}% · 세입은 줄어듭니다`, fx: '', site: false };
+  }
   // Power that is there but doesn't reach (a plant on a grid of its own powering nobody, or buildings off the
   // lines): a line, not one more plant (a lone plant's 전력이 없어… recommended another plant).
   // (Not while the plants run short: a line adds load to a grid in blackouts, and the plant the list picks hid. A
@@ -1695,7 +1702,13 @@ export function setupGoals(): void {
     if (guide?.dataset.guideKind === 'budget') {
       // A budget raised to 100% (undoable as the sliders are, logged for the result).
       const [what, key] = guide.dataset.guideAct!.split(':') as [string, string];
-      if (what === 'dept') {
+      if (what === 'tax') {
+        const to = city.demand.neutralTax;
+        choice('세율', () => city.setTaxRate(key as DevType, to));
+        noteAction(`세율: ${TYPE_NAME[key as DevType]} ${to.toFixed(1)}%`);
+        flash(`${TYPE_NAME[key as DevType]} 세율을 ${to.toFixed(1)}%로 내렸습니다 · 높았던 세율을 심들이 90일 동안 기억해, 수요는 그 뒤에 돌아옵니다`, 'info');
+        refreshTaxes();
+      } else if (what === 'dept') {
         const name = Object.values(GOALS).flatMap((g) => g.depts).find(([k]) => k === key)?.[1] ?? key;
         choice('부서 예산', () => city.setDepartmentFunding(key as Dept, 100));
         noteAction(`부서 예산: ${name} 100%`);

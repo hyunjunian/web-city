@@ -585,6 +585,8 @@ export function toggleFocus(): void {
 /** Switches the map to a data view by its menu value (from an advisor's 보기). */
 export function showOverlay(value: string): void {
   const kind = $<HTMLSelectElement>('#overlay-kind');
+  // (A name no view has, from a caller out of date, left the select empty and every frame failed to paint.)
+  if (![...kind.options].some((o) => o.value === value)) return;
   kind.value = value;
   kind.dispatchEvent(new Event('change'));
 }
