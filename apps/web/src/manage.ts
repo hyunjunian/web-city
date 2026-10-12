@@ -5,12 +5,12 @@
 // all on the same panel; the map, tool and info card follow from it.
 
 import { placeAt } from './input';
-import { DEV_TYPES, type DevType, Net, ORDINANCES, STRUCTURES, type HistoryPoint, type OrdinanceId, type Structure, type StructureKind } from '@web-city/engine';
+import { DEV_TYPES, type DevType, Net, ORDINANCES, STRUCTURES, type HistoryPoint, type OrdinanceId, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
 import { icon } from './icons';
 import { chooseSpeed, refreshTaxes, runningSpeed, showOverlay, toggleFocus } from './controls';
 import { redrawInfo, refreshInfo, showInfo } from './info';
 import { ko } from './messages';
-import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME } from './names';
+import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { whyNoDeals } from './region';
 import { journal } from './journal';
 import { abandonHint, capBest, capHint, jobHint, pushNotice, rciMini, updatePanels } from './panels';
@@ -21,7 +21,7 @@ import { dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, landfillSite, lineToDark, lineToStructure, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, straightRuns, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, landfillSite, zoneSite, lineToDark, lineToStructure, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, straightRuns, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -304,6 +304,12 @@ function guideHtml(id: GoalId): string {
     // far from homes" to be found, and a size to be guessed).
     const fill = !own && !site && (st.kind === 'best' || st.kind === 'fix') && st.act === 'landfill' ? landfillSite() : null;
     if (fill) guideSite = { id, sites: [{ at: [fill.x0 + (fill.side >> 1), fill.y0 + (fill.side >> 1)], label: `추천 자리 · 매립지 ${fill.side}×${fill.side}` }], rect: [fill.x0, fill.y0, fill.side, fill.side] };
+    // The zone the growth screen wants next (homes, shops, or work for the jobless): a block where it can go, laid in
+    // one press (해 보기 handed the zone tool and left the block to be found).
+    const zone = !own && !site && !fill && st.kind === 'best' && (st.act === 'R-low' || st.act === 'C-low' || st.act === 'I-medium') ? st.act : null;
+    const block = zone ? zoneSite(zone) : null;
+    const blockCost = block && zone ? city.previewZone(block.x0, block.y0, block.x1, block.y1, zone).cost : 0;
+    if (block) guideSite = { id, sites: [{ at: [block.x0 + (block.side >> 1), block.y0 + (block.side >> 1)], label: `추천 자리 · ${st.what} ${block.side}×${block.side}` }], rect: [block.x0, block.y0, block.side, block.side] };
     if (mark) markSite = { id, at: site ? [spot.x, spot.y] : own?.at[0] ?? null, kind: st.build };
     // (A jail recommended: the mark's 여기에 짓기 puts up a station on the gap in cover, and says so.)
     const station = arealess ? cheapestOf(GOALS.police) : null;
@@ -314,6 +320,7 @@ function guideHtml(id: GoalId): string {
       ${why ? `<p class="${st.fx ? `g-act-fx${/−|모자람/.test(st.fx) ? ' neg' : ''}` : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}
       <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>${go}</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
         : own ? `<button type="button" class="g-site" data-spot-build="${own.at.map((at) => at.join(',')).join(';')}" data-build-kind="${st.build}" title="${own.title}">${icon('target')}추천 자리에 ${own.at.length > 1 ? `${own.at.length}곳 ` : ''}짓기</button>`
+        : block && zone ? `<button type="button" class="g-site" data-zone="${block.x0},${block.y0},${block.x1},${block.y1}" data-zone-kind="${zone}" title="${escapeHtml(st.what)} 구역 ${block.side}×${block.side}을 도로에 닿는 빈 땅에 바로 놓기 · §${fmt(blockCost)}">${icon('target')}추천 자리에 ${block.side}×${block.side} 놓기</button>`
         : fill ? `<button type="button" class="g-site" data-landfill="${fill.x0},${fill.y0},${fill.x1},${fill.y1}" title="1년쯤의 쓰레기를 묻을 크기로, 도로에 닿고 주거·상업에서 떨어진 빈 땅에 바로 놓기 · §${fmt(fill.cost)} · 월 §${fmt(fill.side * fill.side * city.cfg.garbage.landfill.upkeep)}">${icon('target')}추천 자리에 ${fill.side}×${fill.side} 놓기</button>` : ''}</div></div>`;
   }
   const p = journal().pending[id];
@@ -1798,7 +1805,7 @@ export function setupGoals(): void {
   const el = $('#manage');
   // A build button under the pointer (or focused) lights its target on the map: where it will build, before it does.
   const light = (e: Event) => {
-    const b = (e.target as HTMLElement).closest?.<HTMLElement>('[data-spot-build], [data-line-path], [data-landfill]');
+    const b = (e.target as HTMLElement).closest?.<HTMLElement>('[data-spot-build], [data-line-path], [data-landfill], [data-zone]');
     // (Moving between the button's icon and its words is still on the button: no flicker.)
     const to = (e as PointerEvent | FocusEvent).relatedTarget as Node | null;
     if ((e.type === 'pointerout' || e.type === 'focusout') && b && to && b.contains(to)) return;
@@ -1806,7 +1813,7 @@ export function setupGoals(): void {
     const ends = (p: string) => { const t = p.split(';'); return [t[0]!, t.at(-1)!]; };
     // (An area lights its middle, where its target stands.)
     const middle = (r: string) => { const [x0, y0, x1, y1] = r.split(',').map(Number) as [number, number, number, number]; return [`${x0 + ((x1 - x0 + 1) >> 1)},${y0 + ((y1 - y0 + 1) >> 1)}`]; };
-    const next = e.type === 'pointerover' || e.type === 'focusin' ? (b?.dataset.spotBuild?.split(';') ?? (b?.dataset.linePath ? ends(b.dataset.linePath) : b?.dataset.landfill ? middle(b.dataset.landfill) : [])) : [];
+    const next = e.type === 'pointerover' || e.type === 'focusin' ? (b?.dataset.spotBuild?.split(';') ?? (b?.dataset.linePath ? ends(b.dataset.linePath) : b?.dataset.landfill ? middle(b.dataset.landfill) : b?.dataset.zone ? middle(b.dataset.zone) : [])) : [];
     if (next.join(';') === hotSites.join(';') || !active) return;
     hotSites = next;
     refreshMarks(active, facilities(GOALS[active]));
@@ -1892,29 +1899,32 @@ export function setupGoals(): void {
       redraw();
       return;
     }
-    // 추천 자리에 매립지 놓기: the landfill zoned where the guide found room, as one step to undo.
-    const fillBtn = t.closest<HTMLElement>('[data-landfill]');
+    // 추천 자리에 … 놓기: the landfill, or the zone the growth screen wants, laid where the guide found room, as one
+    // step to undo.
+    const fillBtn = t.closest<HTMLElement>('[data-landfill], [data-zone]');
     if (fillBtn) {
-      const [x0, y0, x1, y1] = fillBtn.dataset.landfill!.split(',').map(Number) as [number, number, number, number];
+      const kind = (fillBtn.dataset.zoneKind ?? 'landfill') as ZoneKind;
+      const name = kind === 'landfill' ? '매립지' : `${ZONE_NAME[kind] ?? kind} 구역`;
+      const [x0, y0, x1, y1] = (fillBtn.dataset.landfill ?? fillBtn.dataset.zone)!.split(',').map(Number) as [number, number, number, number];
       city.settle();
-      const p = city.previewZone(x0, y0, x1, y1, 'landfill');
+      const p = city.previewZone(x0, y0, x1, y1, kind);
       const area = (x1 - x0 + 1) * (y1 - y0 + 1);
-      if (!p.ok || p.tiles < area || p.cost > city.state.funds) {
+      if (!p.ok || p.tiles + p.streets.length < area || p.cost > city.state.funds) {
         forgetSites();
         renderGoal(true);
-        flash(p.cost > city.state.funds ? `§${fmt(Math.ceil(p.cost - city.state.funds))} 모자랍니다` : '그사이 그 자리가 막혀 매립지 자리를 새로 찾았습니다', 'bad');
+        flash(p.cost > city.state.funds ? `§${fmt(Math.ceil(p.cost - city.state.funds))} 모자랍니다` : `그사이 그 자리가 막혀 ${name} 자리를 새로 찾았습니다`, 'bad');
         return;
       }
-      const drop = remember('매립지');
-      const res = city.zone(x0, y0, x1, y1, 'landfill');
+      const drop = remember(name);
+      const res = city.zone(x0, y0, x1, y1, kind);
       if (!res.ok) {
         drop();
         flash(ko(res.message ?? ''), 'bad');
         return;
       }
       city.refreshIfDirty();
-      noteAction(`매립지 ${x1 - x0 + 1}×${y1 - y0 + 1} · −§${fmt(res.cost)}`);
-      flash(`매립지 ${x1 - x0 + 1}×${y1 - y0 + 1}칸을 놓았습니다 · −§${fmt(res.cost)}`, 'info');
+      noteAction(`${name} ${x1 - x0 + 1}×${y1 - y0 + 1} · −§${fmt(res.cost)}`);
+      flash(`${name} ${x1 - x0 + 1}×${y1 - y0 + 1}칸을 놓았습니다 · −§${fmt(res.cost)}`, 'info');
       renderer.effect('flash', x0, y0, x1 - x0 + 1, y1 - y0 + 1);
       centerOn(x0 + ((x1 - x0) >> 1), y0 + ((y1 - y0) >> 1), 8);
       redraw();

@@ -603,7 +603,7 @@ export function cheapestOf(g: Goal): StructureKind | null {
 
 /** Forgets the sites found since the city last changed (a building grew on one: growth moves no revision). */
 export function forgetSites(): void {
-  siteMemo = pipeMemo = plantMemo = awayMemo = pairMemo = spotMemo = lineMemo = roadMemo = pipeLineMemo = fillMemo = null;
+  siteMemo = pipeMemo = plantMemo = awayMemo = pairMemo = spotMemo = lineMemo = roadMemo = pipeLineMemo = fillMemo = zoneMemo = null;
   nearMemo = new Map();
 }
 
@@ -1038,55 +1038,91 @@ let awayMemo: { key: string; at: [number, number] | null } | null = null;
 export function landfillSite(): { x0: number; y0: number; x1: number; y1: number; side: number; cost: number } | null {
   const key = `landfill|${siteKey()}`;
   if (fillMemo?.key === key) return fillMemo.at;
-  const s = city.state;
-  const n = city.size;
   const lf = city.cfg.garbage.landfill;
   const side = Math.max(4, Math.min(10, Math.ceil(Math.sqrt((readStats().garbage.produced * 12) / lf.tileCapacity))));
   const cost = side * side * lf.zoneCost;
-  let at: { x0: number; y0: number; x1: number; y1: number; side: number; cost: number } | null = null;
-  if (cost <= s.funds) {
-    // Sums over rectangles in O(1): tiles in the way, and homes or shops.
-    const W = n + 1;
-    const busy = new Int32Array(W * W);
-    const homes = new Int32Array(W * W);
-    for (let y = 0; y < n; y++) {
-      for (let x = 0; x < n; x++) {
-        const i = y * n + x;
-        const z = s.zone[i]!;
-        const b = s.occupant[i] || s.net[i] || z || s.terrain[i] === Terrain.Water || s.landform[i] === 2 ? 1 : 0; // (2: a volcano's cone)
-        const h = z >= 1 && z <= 6 ? 1 : 0; // (homes and shops: R and C zones)
-        const k = (y + 1) * W + x + 1;
-        busy[k] = b + busy[k - 1]! + busy[k - W]! - busy[k - W - 1]!;
-        homes[k] = h + homes[k - 1]! + homes[k - W]! - homes[k - W - 1]!;
-      }
-    }
-    const sum = (t: Int32Array, x0: number, y0: number, x1: number, y1: number) => {
-      [x0, y0, x1, y1] = [Math.max(0, x0), Math.max(0, y0), Math.min(n, x1), Math.min(n, y1)];
-      return t[y1 * W + x1]! - t[y0 * W + x1]! - t[y1 * W + x0]! + t[y0 * W + x0]!;
-    };
-    let [sx, sy, count] = [0, 0, 0];
-    for (const b of s.buildings.values()) {
-      if (b.type?.[0] !== 'I') continue;
-      sx += b.x + b.w / 2;
-      sy += b.y + b.h / 2;
-      count++;
-    }
-    const [ax, ay] = count ? [Math.round(sx / count), Math.round(sy / count)] : [n >> 1, n >> 1];
-    for (const R of [10, 6]) {
-      for (let r = 0; r <= n && !at; r++) {
-        onRing(r, (dx, dy) => {
-          const [lx, ly] = [ax + dx - (side >> 1), ay + dy - (side >> 1)];
-          if (lx < 0 || ly < 0 || lx + side > n || ly + side > n) return false;
-          if (sum(busy, lx, ly, lx + side, ly + side) || sum(homes, lx - R, ly - R, lx + side + R, ly + side + R)) return false;
-          if (!city.roadBeside(lx, ly, side, side)) return false;
-          at = { x0: lx, y0: ly, x1: lx + side - 1, y1: ly + side - 1, side, cost };
-          return true;
-        });
-      }
-      if (at) break;
+  const [ax, ay] = centroid((b) => b.type?.[0] === 'I');
+  const sq = cost <= city.state.funds ? squareSite(side, ax, ay, (z) => z >= 1 && z <= 6, [10, 6]) : null; // (homes and shops: R and C zones)
+  const at = sq ? { ...sq, side, cost } : null;
+  fillMemo = { key, at };
+  return at;
+}
+
+/**
+ * Where to zone a block of the kind the growth screen says is wanted next, 8×8 (6×6 if none fits): open dry land
+ * with a road along it, shops by the homes, homes and factories each kept 6 tiles from the other's zones, nearest
+ * to where that kind (or, for a first one, the homes) already is; its corners, or null.
+ */
+export function zoneSite(zone: 'R-low' | 'C-low' | 'I-medium'): { x0: number; y0: number; x1: number; y1: number; side: number } | null {
+  const key = `zone|${zone}|${siteKey()}`;
+  if (zoneMemo?.key === key) return zoneMemo.at;
+  const cls = zone[0]!;
+  const has = (c: string) => (b: Building) => b.type?.[0] === c;
+  const homes = [...city.state.buildings.values()].some(has('R'));
+  const [ax, ay] = centroid(cls === 'C' || !([...city.state.buildings.values()].some(has(cls))) ? (homes ? has('R') : has(cls)) : has(cls));
+  const avoid = cls === 'I' ? (z: number) => z >= 1 && z <= 3 : cls === 'R' ? (z: number) => z === 7 || z === 8 : () => false;
+  let at: { x0: number; y0: number; x1: number; y1: number; side: number } | null = null;
+  for (const side of [8, 6]) {
+    const sq = squareSite(side, ax, ay, avoid, [cls === 'C' ? 0 : 6]);
+    if (sq) { at = { ...sq, side }; break; }
+  }
+  zoneMemo = { key, at };
+  return at;
+}
+let zoneMemo: { key: string; at: ReturnType<typeof zoneSite> } | null = null;
+
+/** The middle of the buildings `test` takes (the map's middle when none does). */
+function centroid(test: (b: Building) => boolean): [number, number] {
+  const n = city.size;
+  let [sx, sy, count] = [0, 0, 0];
+  for (const b of city.state.buildings.values()) {
+    if (!test(b)) continue;
+    sx += b.x + b.w / 2;
+    sy += b.y + b.h / 2;
+    count++;
+  }
+  return count ? [Math.round(sx / count), Math.round(sy / count)] : [n >> 1, n >> 1];
+}
+
+/**
+ * The nearest square of `side` to (ax, ay), ring by ring, on open dry land (no building, network or zone) with a road
+ * along it and no zone `avoid` takes within R tiles (each R of `reach` in turn, the first that finds one); its
+ * corners, or null. (Rectangle sums keep each try O(1): a few milliseconds on a large map.)
+ */
+function squareSite(side: number, ax: number, ay: number, avoid: (zone: number) => boolean, reach: number[]): { x0: number; y0: number; x1: number; y1: number } | null {
+  const s = city.state;
+  const n = city.size;
+  const W = n + 1;
+  const busy = new Int32Array(W * W);
+  const near = new Int32Array(W * W);
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const i = y * n + x;
+      const z = s.zone[i]!;
+      const b = s.occupant[i] || s.net[i] || z || s.terrain[i] === Terrain.Water || s.landform[i] === 2 ? 1 : 0; // (2: a volcano's cone)
+      const k = (y + 1) * W + x + 1;
+      busy[k] = b + busy[k - 1]! + busy[k - W]! - busy[k - W - 1]!;
+      near[k] = (avoid(z) ? 1 : 0) + near[k - 1]! + near[k - W]! - near[k - W - 1]!;
     }
   }
-  fillMemo = { key, at };
+  const sum = (t: Int32Array, x0: number, y0: number, x1: number, y1: number) => {
+    [x0, y0, x1, y1] = [Math.max(0, x0), Math.max(0, y0), Math.min(n, x1), Math.min(n, y1)];
+    return t[y1 * W + x1]! - t[y0 * W + x1]! - t[y1 * W + x0]! + t[y0 * W + x0]!;
+  };
+  let at: { x0: number; y0: number; x1: number; y1: number } | null = null;
+  for (const R of reach) {
+    for (let r = 0; r <= n && !at; r++) {
+      onRing(r, (dx, dy) => {
+        const [lx, ly] = [ax + dx - (side >> 1), ay + dy - (side >> 1)];
+        if (lx < 0 || ly < 0 || lx + side > n || ly + side > n) return false;
+        if (sum(busy, lx, ly, lx + side, ly + side) || sum(near, lx - R, ly - R, lx + side + R, ly + side + R)) return false;
+        if (!city.roadBeside(lx, ly, side, side)) return false;
+        at = { x0: lx, y0: ly, x1: lx + side - 1, y1: ly + side - 1 };
+        return true;
+      });
+    }
+    if (at) break;
+  }
   return at;
 }
 let fillMemo: { key: string; at: ReturnType<typeof landfillSite> } | null = null;
