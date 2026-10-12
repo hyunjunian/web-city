@@ -1553,6 +1553,15 @@ function showToolMarks(marks: typeof renderer.marks, path: [number, number][] | 
   renderer.marks = marks;
   renderer.guidePath = path;
   redraw();
+  // (Read out once for each facility or tool picked — not everyone sees the target — with the key that goes to it.)
+  const held = `${tool.id}|${tool.kind === 'structure' ? chosen[tool.id] : ''}`;
+  const label = marks.find((m) => m.tone === 'spot' && m.label)?.label;
+  const sr = document.getElementById('sr-status');
+  if (!marks.length) saidFor = '';
+  else if (label && sr && held !== saidFor && !touchFirst()) {
+    saidFor = held;
+    sr.textContent = `${flashing() && sr.textContent ? `${sr.textContent} · ` : ''}${label} · S로 커서를 그 자리에`;
+  }
   if (!marks.length || flashing() || performance.now() - panTipAt < 6000) return;
   try {
     if (localStorage.getItem(SITE_TIP_KEY)) return;
@@ -1563,6 +1572,8 @@ function showToolMarks(marks: typeof renderer.marks, path: [number, number][] | 
   flash(`파란 과녁이 추천 자리입니다 · 화면 밖이면 가장자리의 화살표가 그쪽을 가리킵니다${touchFirst() ? '' : ' · 키보드: S로 커서를 그 자리에'}`, 'info');
 }
 const SITE_TIP_KEY = 'web-city:site-tip';
+/** The tool (and facility) whose recommended spot was last read out. */
+let saidFor = '';
 
 function placeToolMark(): void {
   toolSiteDue = 0;
