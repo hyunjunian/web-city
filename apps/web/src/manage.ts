@@ -653,7 +653,8 @@ function nextHtml(tones: Tone[]): Step {
   const head = tone
     ? `<p class="lead-title">${icon(g.icon)}<span><b>${g.name}</b> ${escapeHtml(goalStatus(id).note)}</span>${tone === 'bad' ? '<em>급함</em>' : ''}</p><p class="lead-risk">${RISK[id]}</p>`
     : `<p class="lead-title">${icon('check')}<span>지금은 모두 순조롭습니다</span></p>`;
-  return { goal: id, problem: !!tone, act: tone ? step.act : '', html: `<div class="lead ${tone || 'calm'}">${head}
+  // (A step laid in one press from the screen leaves the dock's 추천 dot off: its tool isn't the way.)
+  return { goal: id, problem: !!tone, act: tone && kind !== 'line' ? step.act : '', html: `<div class="lead ${tone || 'calm'}">${head}
     <p class="lead-do" title="${escapeHtml(why)}"><span>${tone ? '제안' : '다음 성장'}</span>${escapeHtml(what)}${why ? `<small> — ${escapeHtml(firstSentence(why))}</small>` : ''}</p>
     <div class="next-acts"><button type="button" class="primary next-do" data-next="${id}" data-next-kind="${kind}"${fixAct ? ` data-next-act="${fixAct}"` : ''} title="${g.name} 화면을 열고 ${kind === 'best' || kind === 'fix' ? '이 조치를 도구로 들기' : '추천 조치 보기'}">${verb}</button>${kind !== 'open' ? `<button type="button" class="link next-open" data-goal="${id}">다른 방법</button>` : ''}</div></div>` };
 }
