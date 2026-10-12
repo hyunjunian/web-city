@@ -446,7 +446,10 @@ export function buildTools(): void {
     // A service's group says what it misses right now, as its view counts it (filled by refreshZoneDemand).
     const missing = SECTION_VIEW[g.title];
     if (missing) wrap.dataset.view = missing;
-    wrap.innerHTML = `<h3>${g.title}${demandOf || missing ? '<span class="zone-demand"></span>' : ''}</h3>`;
+    // (Parks lift the homes' cap: their group says when people wait at it.)
+    const lifts = g.title === '공원';
+    if (lifts) wrap.dataset.cap = 'R';
+    wrap.innerHTML = `<h3>${g.title}${demandOf || missing || lifts ? '<span class="zone-demand"></span>' : ''}</h3>`;
     const group = document.createElement('div');
     group.className = 'group';
     const head = wrap.querySelector('h3')!;
@@ -689,6 +692,13 @@ function refreshZoneDemand(): void {
     el.className = `zone-demand${text && goalStatus(VIEW_GOAL[sec.dataset.view!]!).tone ? ' cap' : ''}`;
   });
   const dem = city.demand;
+  document.querySelectorAll<HTMLElement>('#tools .tray-section[data-cap]').forEach((sec) => {
+    const el = sec.querySelector<HTMLElement>('.zone-demand')!;
+    const waiting = (['R$', 'R$$', 'R$$$'] as const).filter((t) => capped(t) && dem.raw[t] > 0).reduce((sum, t) => sum + dem.raw[t], 0);
+    const text = waiting >= 1 ? `주거 상한 · 약 ${fmt(Math.round(waiting))}명 대기` : '';
+    if (el.textContent !== text) el.textContent = text;
+    el.className = `zone-demand${text ? ' cap' : ''}`;
+  });
   document.querySelectorAll<HTMLElement>('#tools .tray-section[data-demand]').forEach((sec) => {
     const k = sec.dataset.demand!;
     const types = DEV_TYPES.filter((t) => t[0] === k);
