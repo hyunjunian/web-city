@@ -2,7 +2,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceId, ORDINANCES, serviceRadius, type Structure, type StructureKind, STRUCTURES, type TripMeans } from '@web-city/engine';
 import { icon } from './icons';
-import { budgetMends, facilityLine, layCost, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
+import { budgetMends, facilityLine, type Lay, LAY_WORD, layCost, lineToStructure, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
 import { ko } from './messages';
 import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -240,6 +240,11 @@ export function showInfo(x: number, y: number): void {
   const offRoad = !!q.structure && !!def && def.garbage > 0 && !city.roadBeside(q.structure.x, q.structure.y, q.structure.w, q.structure.h);
   const roadPath = offRoad ? roadToFacility(q.structure!) : null;
   const roadCost = roadPath ? layCost('road', roadPath) : null;
+  // A building counting down without power or a road: the line or road to it, in one press, as a facility's.
+  const lay: { kind: Lay; path: [number, number][]; goal: GoalId } | null = !b?.type ? null
+    : !b.powered ? (() => { const path = lineToStructure(b, 'b'); return path ? { kind: 'powerline' as const, path, goal: 'power' as const } : null; })()
+    : b.noRoadMonths ? (() => { const path = roadToFacility(b, 'b'); return path ? { kind: 'road' as const, path, goal: 'growth' as const } : null; })() : null;
+  const layPrice = lay ? layCost(lay.kind, lay.path) : null;
   const chips = [
     b && !b.powered ? `<button type="button" class="chip bad"${go('power')} title="${city.cfg.services.noPowerMonths}개월이 되면 버려집니다 · 눌러서 전력 화면">${icon('zap')}전기 끊김 ${b.noPowerMonths}/${city.cfg.services.noPowerMonths}개월</button>` : '',
     b?.type && !b.watered && waterNeeded ? `<button type="button" class="chip bad"${go('water')} title="${city.cfg.services.noWaterMonths}개월이 되면 버려집니다 · 눌러서 수도 화면">${icon('droplet')}물 끊김 ${b.noWaterMonths}/${city.cfg.services.noWaterMonths}개월</button>` : '',
@@ -253,7 +258,8 @@ export function showInfo(x: number, y: number): void {
     q.burning ? `<span class="chip bad">${icon('flame')}불타는 중</span>` : '',
     offRoad ? `<span class="chip bad" title="쓰레기를 거둘 수 없어 쌓입니다${def!.police || def!.fire || def!.health || def!.school ? '. 경찰차·소방차·구급차·통학버스도 나가지 못합니다' : ''}">${icon('road')}도로에 닿지 않음</span>` : '',
     // (The road to it, laid in one press: the chip above only said what was missing.)
-    roadPath && roadCost !== null ? `<button type="button" class="chip" data-road-path="${roadPath.map((p) => p.join(',')).join(';')}" data-road-for="${q.structure!.id}" title="가장 가까운 도로까지 ${fmt(roadPath.length)}칸, 빈 땅으로 바로 잇기 (§${fmt(roadCost)})">${icon('road')}도로 ${fmt(roadPath.length)}칸 잇기</button>` : '',
+    roadPath && roadCost !== null ? `<button type="button" class="chip" data-lay-path="${roadPath.map((p) => p.join(',')).join(';')}" data-lay-kind="road" data-lay-goal="${goalOfStructure(q.structure!.kind) ?? ''}" title="가장 가까운 도로까지 ${fmt(roadPath.length)}칸, 빈 땅으로 바로 잇기 (§${fmt(roadCost)})">${icon('road')}도로 ${fmt(roadPath.length)}칸 잇기</button>` : '',
+    lay && layPrice !== null ? `<button type="button" class="chip" data-lay-path="${lay.path.map((p) => p.join(',')).join(';')}" data-lay-kind="${lay.kind}" data-lay-goal="${lay.goal}" title="${lay.kind === 'road' ? '가장 가까운 도로까지' : '전력망에서 이 건물까지'} ${fmt(lay.path.length)}칸 바로 잇기 (§${fmt(layPrice)})">${icon(lay.kind === 'road' ? 'road' : 'cable')}${LAY_WORD[lay.kind]} ${fmt(lay.path.length)}칸 잇기</button>` : '',
     q.structure && (def?.health || def?.school) && q.structure.load > q.structure.capacity && q.structure.capacity > 0
       ? `<button type="button" class="chip ${q.structure.strike ? 'bad' : 'warn'}"${go(def!.health ? 'health' : 'education')} title="정원을 넘으면 등급이 떨어지고 파업할 수 있습니다. ${shortFunded && !full ? '예산이 모자라 정원이 줄었으니 예산을 올리세요' : '근처에 하나 더 지으세요'} · 눌러서 ${def!.health ? '보건' : '교육'} 화면">${q.structure.strike ? `${icon('alert')}파업 중 · ` : ''}정원 초과 ${Math.round((q.structure.load / q.structure.capacity - 1) * 100)}%</button>` : '',
     // Over its places: one more of its level beside it, built in one press (the chip above only showed where).

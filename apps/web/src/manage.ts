@@ -1759,12 +1759,12 @@ export function setupGoals(): void {
       updatePanels();
       return;
     }
-    // A facility's 도로 잇기: the road to it, laid at once.
-    const roadTo = (e.target as HTMLElement).closest<HTMLElement>('#info [data-road-path]');
-    if (roadTo) {
-      const f = city.state.structures.get(Number(roadTo.dataset.roadFor));
-      const path = roadTo.dataset.roadPath!.split(';').map((p) => p.split(',').map(Number) as [number, number]);
-      layPath('road', path, f ? goalOfStructure(f.kind) : null);
+    // The card's 도로·송전선 잇기 (a facility off the road, a building counting down): laid at once, logged under
+    // its own goal's screen only.
+    const layTo = (e.target as HTMLElement).closest<HTMLElement>('#info [data-lay-path]');
+    if (layTo) {
+      const path = layTo.dataset.layPath!.split(';').map((p) => p.split(',').map(Number) as [number, number]);
+      layPath(layTo.dataset.layKind === 'road' ? 'road' : 'powerline', path, (layTo.dataset.layGoal || null) as GoalId | null);
       redrawInfo();
       return;
     }
