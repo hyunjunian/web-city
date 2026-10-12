@@ -679,7 +679,7 @@ const smogRow = (x: number, y: number, air: number): string => {
   const what = a.key === 'traffic' ? '교통' : a.key.startsWith('st:') || a.key === 'spill' ? a.label : a.key === 'IA' ? '농장' : `${a.label} 공장`;
   const from = a.share >= 0.6 || !b ? `주로 ${what}` : `${what}·${b.key === 'traffic' ? '교통' : b.label}`;
   const go = a.at && a.lot ? ` <button type="button" class="advice-view" data-at="${a.at.join(',')}" data-flash="${[a.lot.x, a.lot.y, a.lot.w, a.lot.h].join(',')}" title="이 집의 공기를 가장 더럽히는 ${a.key === 'traffic' ? '길' : '곳'} 보기">보기</button>` : '';
-  return `<tr><td title="대기 오염이 40을 넘으면 주민의 건강과 시장 평점이 떨어집니다">공기</td><td class="neg">나쁨 ${air.toFixed(0)} · ${escapeHtml(from)}${go}</td></tr>`;
+  return `<tr><td title="대기 오염이 40을 넘으면 이 집의 쾌적도와 주민 건강이 떨어집니다 (부유할수록 더 일찍) · 주민이 불만으로 꼽는 것은 ${fmt(city.cfg.mayor.pollution.zero)}부터라 주민 생각에는 아직 안 나올 수 있습니다">공기</td><td class="neg">나쁨 ${air.toFixed(0)} · ${escapeHtml(from)}${go}</td></tr>`;
 };
 
 /**
