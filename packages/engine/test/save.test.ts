@@ -145,7 +145,7 @@ describe('save/load', () => {
 
   it('refuses unknown network and zone codes before running a corrupt city', () => {
     const saved = saveCity(new City({ size: 16, water: false }));
-    for (const [key, value] of [['terrain', 2], ['net', 9], ['zone', 11], ['elevated', 4], ['oneway', 5], ['pipe', 2]] as const) {
+    for (const [key, value] of [['terrain', 2], ['net', 9], ['zone', 11], ['elevated', 4], ['oneway', 5], ['pipe', 2], ['tolls', 3]] as const) {
       expect(() => loadCity({ ...saved, [key]: [value, 256] })).toThrow(/corrupt save/);
     }
     for (const key of ['terrain', 'net', 'zone'] as const) {

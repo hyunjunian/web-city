@@ -467,6 +467,10 @@ describe('Rush Hour transit', () => {
     city.refresh();
     const high = city.fields.travel!.cross[Mode.HighCar]!;
     expect(high[10 * n + 25]!).toBeGreaterThan(high[10 * n + 40]! + 15);
+    const restored = loadCity(JSON.parse(JSON.stringify(saveCity(city))), { config: CALM });
+    expect(restored.state.tolls[20 * n + 30]).toBe(1);
+    expect(restored.state.tolls[10 * n + 25]).toBe(2);
+    expect([...restored.fields.travel!.cross[Mode.HighCar]!]).toEqual([...high]);
   });
 
   it('parking garages let drivers walk on to transit', () => {

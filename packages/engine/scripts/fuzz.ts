@@ -126,7 +126,11 @@ for (let month = 0; month < years * 12; month++) {
     else if (r < 0.78) agree('subway', city.previewLine('subway', x, y, x2, y), city.buildSubway(x, y, x2, y));
     else if (r < 0.8) {
       const kind = pick(['elrail', 'monorail', 'highway'] as const);
-      agree(`elevated ${kind}`, city.previewLine(kind, x, y, x2, y), city.buildElevated(x, y, x2, y, kind));
+      const preview = city.previewLine(kind, x, y, x2, y);
+      const done = city.buildElevated(x, y, x2, y, kind);
+      agree(`elevated ${kind}`, preview, done);
+      // Give elevated tolls a real straight site, so saves exercise their distinct code too.
+      if (done.ok && kind === 'highway' && x2 - x >= 4) city.placeToll(Math.floor((x + x2) / 2), y);
     }
     else if (r < 0.81) {
       // Instant disasters, or a moving one steered somewhere and walked a few steps.

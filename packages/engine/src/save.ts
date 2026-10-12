@@ -466,7 +466,7 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     height: saved.height ? rleDecode(saved.height, N) : flatHeights(terrain, N),
     potholes: saved.potholes ? rleDecode(saved.potholes, N) : new Uint8Array(N),
     elevated: decodeCodes(saved.elevated, N, ELEVATED.highway, true),
-    tolls: decodeCodes(saved.tolls, N, 1, true),
+    tolls: decodeCodes(saved.tolls, N, 2, true), // 1: ground, 2: elevated highway
     links: saved.links ? rleDecode(saved.links, N) : new Uint8Array(N),
     interchange: saved.interchange ? rleDecode(saved.interchange, N) : new Uint8Array(N),
     tunnel: saved.tunnel ? rleDecode(saved.tunnel, N) : new Uint8Array(N),
