@@ -525,7 +525,7 @@ kbd {
 .mg-back { flex: none; }
 /* (A 288px pane, and a phone: closer together, so the longest name, 부유층·고급화, keeps whole beside the clock and
    the goal's state; the back arrow narrower too where a mouse aims it.) */
-@media (max-width: 1180px) { .mg-head { gap: 6px; } .mg-head h2 { gap: 6px; font-size: 16px; } }
+@media (max-width: 1180px) { .mg-head { gap: 5px; } .mg-head h2 { gap: 5px; font-size: 16px; } }
 @media (min-width: 861px) and (max-width: 1180px) and (pointer: fine) { .mg-head .mg-back { width: 32px; } }
 .mg-switch { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; margin-top: -4px; } /* every goal in sight (a scrolling row hid the last ones) */
 .mg-switch button { position: relative; flex: none; display: grid; place-items: center; width: 100%; height: 30px; border-radius: 8px; background: transparent; color: var(--muted); }
@@ -1558,8 +1558,9 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .tile kbd { display: none; }
   /* The goal screens' small controls: a finger's margin, the rows unchanged. */
   :is(.watch-sort, .advice-view, .mg-views .vchip, .mg-tax .tax-step, .fac-fund .tax-step, #manage-chip .icon-btn) { position: relative; }
-  .mg-time { position: relative; min-width: 40px; justify-content: center; } /* (its icon alone was 27px across) */
+  .mg-time { position: relative; }
   :is(.watch-sort, .advice-view, .mg-views .vchip, #manage-chip .icon-btn, .mg-time)::after { content: ''; position: absolute; inset: -7px 0; }
+  #pane .mg-time::after { inset: -7px; } /* (its icon alone is 27px across: a finger's width to hit, not to take from the goal's name) */
   :is(.mg-tax .tax-step, .fac-fund .tax-step)::after { content: ''; position: absolute; inset: -7px -3px; }
   .mg-switch button { height: 40px; }
   /* Two links one above the other: each its own 40px row (their margins overlapped, the lower one took the upper's tap). */
