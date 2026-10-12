@@ -60,6 +60,16 @@ function check(): void {
   for (const t of Object.keys(city.demand.demand) as (keyof typeof city.demand.demand)[]) {
     if (!Number.isFinite(city.demand.demand[t])) fail(`demand ${t} not finite`);
   }
+  // Lots, followed Sims, crews, mobs and disasters share one signed-grid id space.
+  const ids = new Set<number>();
+  let maxId = 0;
+  for (const object of [...s.buildings.values(), ...s.structures.values(), ...s.mySims, ...s.units, ...s.mobs, ...s.liveDisasters]) {
+    const id = object.id;
+    if (!Number.isInteger(id) || id <= 0 || id > 0x7fffffff || ids.has(id)) fail(`invalid or duplicate object id ${id}`);
+    ids.add(id);
+    maxId = Math.max(maxId, id);
+  }
+  if (!Number.isInteger(s.nextId) || s.nextId <= maxId || s.nextId > 0x7fffffff) fail(`next id ${s.nextId} does not follow ${maxId}`);
   // Occupancy grid matches buildings and structures.
   const seen = new Int32Array(n * n);
   for (const b of s.buildings.values()) {
