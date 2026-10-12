@@ -21,7 +21,7 @@ import { dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, lineToDark, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, straightRuns, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, landfillSite, lineToDark, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, straightRuns, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -299,6 +299,10 @@ function guideHtml(id: GoalId): string {
     // What the press does: an ordinance or a finance lever takes effect at once (해 보기 sounded like a tool to try).
     const go = st.kind === 'ord' ? '시행하기' : st.fin === 'loan' ? '빌리기' : st.fin || st.kind === 'budget' ? '적용하기' : '해 보기';
     if (own) guideSite = { id, sites: own.at.map((at, k) => ({ at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}${own.labels[k] ? ` (${own.labels[k]})` : ''}` })) };
+    // A landfill handed out as a zone tool: where, and how big, zoned in one press (해 보기 left a spot "by a road,
+    // far from homes" to be found, and a size to be guessed).
+    const fill = !own && !site && (st.kind === 'best' || st.kind === 'fix') && st.act === 'landfill' ? landfillSite() : null;
+    if (fill) guideSite = { id, sites: [{ at: [fill.x0 + (fill.side >> 1), fill.y0 + (fill.side >> 1)], label: `추천 자리 · 매립지 ${fill.side}×${fill.side}` }], rect: [fill.x0, fill.y0, fill.side, fill.side] };
     if (mark) markSite = { id, at: site ? [spot.x, spot.y] : own?.at[0] ?? null, kind: st.build };
     // (A jail recommended: the mark's 여기에 짓기 puts up a station on the gap in cover, and says so.)
     const station = arealess ? cheapestOf(GOALS.police) : null;
@@ -308,7 +312,8 @@ function guideHtml(id: GoalId): string {
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b>${st.sub ? `<small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small>` : ''}</p>
       ${why ? `<p class="${st.fx ? `g-act-fx${/−|모자람/.test(st.fx) ? ' neg' : ''}` : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}
       <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>${go}</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
-        : own ? `<button type="button" class="g-site" data-spot-build="${own.at.map((at) => at.join(',')).join(';')}" data-build-kind="${st.build}" title="${own.title}">${icon('target')}추천 자리에 ${own.at.length > 1 ? `${own.at.length}곳 ` : ''}짓기</button>` : ''}</div></div>`;
+        : own ? `<button type="button" class="g-site" data-spot-build="${own.at.map((at) => at.join(',')).join(';')}" data-build-kind="${st.build}" title="${own.title}">${icon('target')}추천 자리에 ${own.at.length > 1 ? `${own.at.length}곳 ` : ''}짓기</button>`
+        : fill ? `<button type="button" class="g-site" data-landfill="${fill.x0},${fill.y0},${fill.x1},${fill.y1}" title="1년쯤의 쓰레기를 묻을 크기로, 도로에 닿고 주거·상업에서 떨어진 빈 땅에 바로 놓기 · §${fmt(fill.cost)} · 월 §${fmt(fill.side * fill.side * city.cfg.garbage.landfill.upkeep)}">${icon('target')}추천 자리에 ${fill.side}×${fill.side} 놓기</button>` : ''}</div></div>`;
   }
   const p = journal().pending[id];
   const wait = p ? `<p class="g-wait">${icon('check')}<span>${escapeHtml(p.text)} · ${Math.max(1, FOLLOW_DAYS - (city.state.day - p.day))}일 뒤 결과를 알려 드립니다</span></p>` : '';
@@ -321,7 +326,7 @@ function guideHtml(id: GoalId): string {
 let hotSites: string[] = [];
 
 /** The guide's own site (one the map's mark isn't), marked on the map as the 과녁 is: where 추천 자리에 짓기 will build. */
-let guideSite: { id: GoalId; sites: { at: [number, number]; label: string }[]; path?: [number, number][]; lay?: Lay } | null = null;
+let guideSite: { id: GoalId; sites: { at: [number, number]; label: string }[]; path?: [number, number][]; lay?: Lay; rect?: [number, number, number, number] } | null = null;
 /** Where the screen's mark is built on (the mark, or the nearest fit for the facility recommended; null: none now), for its line's 여기에 짓기. */
 let markSite: { id: GoalId; at: [number, number] | null; kind?: StructureKind; name?: string } | null = null;
 
@@ -1321,6 +1326,8 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   const crowdedOut = !!at && (own?.lay === 'powerline' || own?.lay === 'pipe' || !!own?.sites.some((o) => Math.max(Math.abs(o.at[0] - at[0]), Math.abs(o.at[1] - at[1])) <= 4));
   if (spot && at && !(spot.crowded && own) && !crowdedOut) marks.push({ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label });
   for (const o of own?.sites ?? []) marks.push({ x: o.at[0], y: o.at[1], w: 1, h: 1, tone: 'spot', label: o.label });
+  // (An area to zone: its outline too, dashed, so its size shows before it is laid.)
+  if (own?.rect) marks.push({ x: own.rect[0], y: own.rect[1], w: own.rect[2], h: own.rect[3], tone: '' });
   // (Lit while the button that builds there is under the pointer or focused.)
   for (const m of marks) if (m.tone === 'spot' && hotSites.includes(`${m.x},${m.y}`)) m.hot = true;
   const path = own?.path ?? null;
@@ -1741,13 +1748,15 @@ export function setupGoals(): void {
   const el = $('#manage');
   // A build button under the pointer (or focused) lights its target on the map: where it will build, before it does.
   const light = (e: Event) => {
-    const b = (e.target as HTMLElement).closest?.<HTMLElement>('[data-spot-build], [data-line-path]');
+    const b = (e.target as HTMLElement).closest?.<HTMLElement>('[data-spot-build], [data-line-path], [data-landfill]');
     // (Moving between the button's icon and its words is still on the button: no flicker.)
     const to = (e as PointerEvent | FocusEvent).relatedTarget as Node | null;
     if ((e.type === 'pointerout' || e.type === 'focusout') && b && to && b.contains(to)) return;
     // (A line lights both its ends.)
     const ends = (p: string) => { const t = p.split(';'); return [t[0]!, t.at(-1)!]; };
-    const next = e.type === 'pointerover' || e.type === 'focusin' ? (b?.dataset.spotBuild?.split(';') ?? (b?.dataset.linePath ? ends(b.dataset.linePath) : [])) : [];
+    // (An area lights its middle, where its target stands.)
+    const middle = (r: string) => { const [x0, y0, x1, y1] = r.split(',').map(Number) as [number, number, number, number]; return [`${x0 + ((x1 - x0 + 1) >> 1)},${y0 + ((y1 - y0 + 1) >> 1)}`]; };
+    const next = e.type === 'pointerover' || e.type === 'focusin' ? (b?.dataset.spotBuild?.split(';') ?? (b?.dataset.linePath ? ends(b.dataset.linePath) : b?.dataset.landfill ? middle(b.dataset.landfill) : [])) : [];
     if (next.join(';') === hotSites.join(';') || !active) return;
     hotSites = next;
     refreshMarks(active, facilities(GOALS[active]));
@@ -1831,6 +1840,37 @@ export function setupGoals(): void {
       centerOn(f.x + f.w / 2, f.y + f.h / 2, 10);
       showInfo(f.x, f.y);
       redraw();
+      return;
+    }
+    // 추천 자리에 매립지 놓기: the landfill zoned where the guide found room, as one step to undo.
+    const fillBtn = t.closest<HTMLElement>('[data-landfill]');
+    if (fillBtn) {
+      const [x0, y0, x1, y1] = fillBtn.dataset.landfill!.split(',').map(Number) as [number, number, number, number];
+      city.settle();
+      const p = city.previewZone(x0, y0, x1, y1, 'landfill');
+      const area = (x1 - x0 + 1) * (y1 - y0 + 1);
+      if (!p.ok || p.tiles < area || p.cost > city.state.funds) {
+        forgetSites();
+        renderGoal(true);
+        flash(p.cost > city.state.funds ? `§${fmt(Math.ceil(p.cost - city.state.funds))} 모자랍니다` : '그사이 그 자리가 막혀 매립지 자리를 새로 찾았습니다', 'bad');
+        return;
+      }
+      const drop = remember('매립지');
+      const res = city.zone(x0, y0, x1, y1, 'landfill');
+      if (!res.ok) {
+        drop();
+        flash(ko(res.message ?? ''), 'bad');
+        return;
+      }
+      city.refreshIfDirty();
+      noteAction(`매립지 ${x1 - x0 + 1}×${y1 - y0 + 1} · −§${fmt(res.cost)}`);
+      flash(`매립지 ${x1 - x0 + 1}×${y1 - y0 + 1}칸을 놓았습니다 · −§${fmt(res.cost)}`, 'info');
+      renderer.effect('flash', x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+      centerOn(x0 + ((x1 - x0) >> 1), y0 + ((y1 - y0) >> 1), 8);
+      redraw();
+      if (phone()) closePane();
+      updatePanels();
+      renderGoal(true);
       return;
     }
     // 바로 잇기: the guide's line or road laid in straight runs (one undo for all of it).

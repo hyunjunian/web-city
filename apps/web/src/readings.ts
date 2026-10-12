@@ -600,7 +600,7 @@ export function cheapestOf(g: Goal): StructureKind | null {
 
 /** Forgets the sites found since the city last changed (a building grew on one: growth moves no revision). */
 export function forgetSites(): void {
-  siteMemo = pipeMemo = plantMemo = awayMemo = pairMemo = spotMemo = lineMemo = roadMemo = pipeLineMemo = null;
+  siteMemo = pipeMemo = plantMemo = awayMemo = pairMemo = spotMemo = lineMemo = roadMemo = pipeLineMemo = fillMemo = null;
   nearMemo = new Map();
 }
 
@@ -1013,6 +1013,67 @@ export function siteAwayFromHomes(kind: StructureKind): [number, number] | null 
   return at;
 }
 let awayMemo: { key: string; at: [number, number] | null } | null = null;
+
+/**
+ * A landfill to zone now: square, sized to hold about a year of the city's garbage (4×4 to 10×10), on open dry land
+ * (no building, network or zone) with a road along it, near the industry and with no homes or shops within 10
+ * tiles (its smell carries; within 6 if nothing is that far); its corners, tiles and price, or null if none.
+ */
+export function landfillSite(): { x0: number; y0: number; x1: number; y1: number; side: number; cost: number } | null {
+  const key = `landfill|${siteKey()}`;
+  if (fillMemo?.key === key) return fillMemo.at;
+  const s = city.state;
+  const n = city.size;
+  const lf = city.cfg.garbage.landfill;
+  const side = Math.max(4, Math.min(10, Math.ceil(Math.sqrt((readStats().garbage.produced * 12) / lf.tileCapacity))));
+  const cost = side * side * lf.zoneCost;
+  let at: { x0: number; y0: number; x1: number; y1: number; side: number; cost: number } | null = null;
+  if (cost <= s.funds) {
+    // Sums over rectangles in O(1): tiles in the way, and homes or shops.
+    const W = n + 1;
+    const busy = new Int32Array(W * W);
+    const homes = new Int32Array(W * W);
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const i = y * n + x;
+        const z = s.zone[i]!;
+        const b = s.occupant[i] || s.net[i] || z || s.terrain[i] === Terrain.Water || s.landform[i] === 2 ? 1 : 0; // (2: a volcano's cone)
+        const h = z >= 1 && z <= 6 ? 1 : 0; // (homes and shops: R and C zones)
+        const k = (y + 1) * W + x + 1;
+        busy[k] = b + busy[k - 1]! + busy[k - W]! - busy[k - W - 1]!;
+        homes[k] = h + homes[k - 1]! + homes[k - W]! - homes[k - W - 1]!;
+      }
+    }
+    const sum = (t: Int32Array, x0: number, y0: number, x1: number, y1: number) => {
+      [x0, y0, x1, y1] = [Math.max(0, x0), Math.max(0, y0), Math.min(n, x1), Math.min(n, y1)];
+      return t[y1 * W + x1]! - t[y0 * W + x1]! - t[y1 * W + x0]! + t[y0 * W + x0]!;
+    };
+    let [sx, sy, count] = [0, 0, 0];
+    for (const b of s.buildings.values()) {
+      if (b.type?.[0] !== 'I') continue;
+      sx += b.x + b.w / 2;
+      sy += b.y + b.h / 2;
+      count++;
+    }
+    const [ax, ay] = count ? [Math.round(sx / count), Math.round(sy / count)] : [n >> 1, n >> 1];
+    for (const R of [10, 6]) {
+      for (let r = 0; r <= n && !at; r++) {
+        onRing(r, (dx, dy) => {
+          const [lx, ly] = [ax + dx - (side >> 1), ay + dy - (side >> 1)];
+          if (lx < 0 || ly < 0 || lx + side > n || ly + side > n) return false;
+          if (sum(busy, lx, ly, lx + side, ly + side) || sum(homes, lx - R, ly - R, lx + side + R, ly + side + R)) return false;
+          if (!city.roadBeside(lx, ly, side, side)) return false;
+          at = { x0: lx, y0: ly, x1: lx + side - 1, y1: ly + side - 1, side, cost };
+          return true;
+        });
+      }
+      if (at) break;
+    }
+  }
+  fillMemo = { key, at };
+  return at;
+}
+let fillMemo: { key: string; at: ReturnType<typeof landfillSite> } | null = null;
 
 /**
  * Sites for a pair of bus stops: one where the most people live, one where the most work (a stop alone carries
