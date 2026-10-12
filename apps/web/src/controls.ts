@@ -647,7 +647,18 @@ export function refreshViewSummary(): void {
 let sumSpots: number[] = [];
 let sumNext = 0;
 
+/** The summary of a view that scans the whole map, kept for a week of game time or until the city changes. */
+const SCANNED = new Set(['crime', 'air', 'waterPollution', 'garbage', 'commute', 'wear']);
+let scanMemo: { key: string; out: [string, '' | 'bad' | 'good', number[]] } | null = null;
+
 function viewSummary(v: string): [string, '' | 'bad' | 'good', number[]] {
+  if (!SCANNED.has(v)) return viewSummaryNow(v);
+  const key = `${v}|${cityGeneration}|${city.revision}|${Math.floor(city.state.day / 7)}`;
+  if (scanMemo?.key !== key) scanMemo = { key, out: viewSummaryNow(v) };
+  return scanMemo.out;
+}
+
+function viewSummaryNow(v: string): [string, '' | 'bad' | 'good', number[]] {
   const s = city.state;
   const f = city.fields;
   const n = s.size;
