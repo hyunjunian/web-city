@@ -1785,7 +1785,7 @@ function airCauses(id: GoalId): string {
   const tip = top.share < 0.3 ? ''
     : reach !== undefined ? `${top.key === 'IA' ? '농장의 먼지' : `${top.label} 공장의 연기`}가 가장 큽니다 · 주거 구역을 ${fmt(reach + 1)}칸 넘게 떼어 두면 닿지 않습니다`
     : kind && (STRUCTURES[kind].plant || STRUCTURES[kind].incinerator) ? `${top.label}의 연기가 가장 큽니다 · 주거지에서 ${fmt(smokeClear(kind))}칸 넘게 떨어진 곳으로 옮기면 그 연기로는 공기가 나빠지지 않습니다`
-    : top.key === 'traffic' ? '길 위의 차가 가장 큽니다 · 대중교통을 놓거나 막히는 길을 넓히면 줄어듭니다'
+    : top.key === 'traffic' ? '길 위의 차가 가장 큽니다 · 대중교통을 놓거나 막힌 길을 넓히면 줄어듭니다'
     : top.key === 'spill' ? '쏟아진 유독 물질이 가장 큽니다 · 소방서가 닿으면 치워집니다' : '';
   return `<div class="mg-causes"><p class="mg-causes-title">공기 나쁜 주거지의 오염원<small>눌러서 지도에서 보기</small></p><span class="mg-causes-bar" role="img" aria-label="${escapeHtml(said)}">${bar}</span><div class="mg-causes-list">${items}</div>${tip ? `<p class="mg-causes-tip">${escapeHtml(glue(tip))}</p>` : ''}</div>`;
 }
