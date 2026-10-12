@@ -16,7 +16,7 @@ import { TYPE_COLOR } from './render';
 import { GROWTH_LABEL } from './views';
 import { checkLeft, checkText, renderAges, renderPolls, renderRewards, rewardShare } from './reports';
 import { centerOn, changeKey, city, cityGeneration, graphs, redraw, speed } from './state';
-import { categoryOf, chosen, openTray, refreshStructureLists, selectTool, structureStat, TOOLS } from './tools';
+import { categoryOf, chosen, openTray, pickStructure, refreshStructureLists, selectTool, structureStat, TOOLS } from './tools';
 import { renderUdi, watchMissions } from './udi';
 import { journal, type Notice } from './journal';
 import { toast } from './toast';
@@ -34,6 +34,12 @@ export function crimeKinds(byType: Record<string, number> | undefined): string {
 document.addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.advice-view');
   if (!b) return;
+  // A reward or deal from the news: its building in hand.
+  if (b.dataset.build) {
+    revealMap();
+    pickStructure(b.dataset.build as StructureKind);
+    return;
+  }
   if (b.dataset.tool) {
     // Pick the tool (a 'tool:kind' names the facility too), and open its cards for the kinds to choose from.
     const [id, kind] = b.dataset.tool.split(':') as [string, StructureKind | undefined];
@@ -63,6 +69,9 @@ document.addEventListener('click', (e) => {
     centerOn(x!, y!);
   }
 });
+
+/** A notice's offer still to take up: unlocked, with a placement left (a reward built once says only what it was). */
+const buildable = (n: Notice): boolean => !!n.build && city.isUnlocked(n.build) && city.placementsLeft(n.build) > 0;
 
 /** Whether the advice list shows every message, not the first few. */
 let adviceAll = false;
@@ -904,8 +913,12 @@ export function advice(): string {
   for (const k of unlocked) {
     const d = STRUCTURES[k];
     const text = d.category === 'deal' ? `사업 거래 제안: ${STRUCTURE_NAME[k]} (월 §${fmt(d.income ?? 0)})` : `새 보상: ${STRUCTURE_NAME[k]}${josa(STRUCTURE_NAME[k], '을', '를')} 지을 수 있습니다.`;
-    pushNotice({ text, until: city.state.day + 90 });
-    if (unlocked.length === 1) toast(text);
+    pushNotice({ text, until: city.state.day + 90, build: k });
+    // (Pressed, it hands over the building to place: a reward was told and then had to be looked for in the tray.)
+    if (unlocked.length === 1) toast(text, 'good', undefined, () => {
+      closeSheet();
+      pickStructure(k);
+    }, false, `눌러서 ${STRUCTURE_NAME[k]} 짓기`);
   }
   // Several at once (a milestone opens a few): one toast, the pane lists them.
   if (unlocked.length > 1) toast(`새 보상·거래 ${unlocked.length}개: ${unlocked.map((k) => STRUCTURE_NAME[k]).join(', ')}`);
@@ -993,5 +1006,5 @@ export function advice(): string {
   const shown = adviceAll ? news : news.slice(0, ADVICE_SHOWN);
   const when = (day: number) => `${2000 + Math.floor(day / 360)}.${Math.floor((day % 360) / 30) + 1}`;
   const more = news.length > ADVICE_SHOWN ? `<button type="button" class="link advice-more" aria-expanded="${adviceAll}">${adviceAll ? '줄여 보기' : `소식 ${news.length - ADVICE_SHOWN}개 더 보기`}</button>` : '';
-  return shown.map((n) => `<p class="advice news ${n.warn ? 'bad' : n.info ? 'neutral' : 'good'}">${icon(n.warn ? 'alert' : n.info ? 'info' : 'award', 'adv-i')}<span class="news-when">${when(n.day ?? n.until - 90)}</span>${escapeHtml(n.text)}${n.at || n.goal ? `<span class="advice-acts">${n.at ? `<button type="button" class="advice-view" data-at="${n.at.join(',')}" title="지도에서 그곳 보기">보기</button>` : ''}${n.goal ? `<button type="button" class="advice-goal" data-goal="${n.goal}">${GOALS[n.goal].name} 화면 ${icon('chevronRight')}</button>` : ''}</span>` : ''}</p>`).join('') + more;
+  return shown.map((n) => `<p class="advice news ${n.warn ? 'bad' : n.info ? 'neutral' : 'good'}">${icon(n.warn ? 'alert' : n.info ? 'info' : 'award', 'adv-i')}<span class="news-when">${when(n.day ?? n.until - 90)}</span>${escapeHtml(n.text)}${n.at || n.goal || buildable(n) ? `<span class="advice-acts">${n.at ? `<button type="button" class="advice-view" data-at="${n.at.join(',')}" title="지도에서 그곳 보기">보기</button>` : ''}${buildable(n) ? `<button type="button" class="advice-view" data-build="${n.build}" title="${STRUCTURE_NAME[n.build!]} 도구 들기">${icon('plus')}짓기</button>` : ''}${n.goal ? `<button type="button" class="advice-goal" data-goal="${n.goal}">${GOALS[n.goal].name} 화면 ${icon('chevronRight')}</button>` : ''}</span>` : ''}</p>`).join('') + more;
 }

@@ -235,6 +235,15 @@ export const kindsFor = (t: StructureTool): StructureKind[] => {
 export const TOOLS = TOOL_GROUPS.flatMap((g) => g.tools);
 
 /** A tool that can do something now: facility tools need an unlocked kind. */
+/** Takes up a facility of this kind (its tool, with the kind picked), as its card would: false when no tool holds it. */
+export function pickStructure(k: StructureKind): boolean {
+  const t = TOOLS.find((x): x is StructureTool => x.kind === 'structure' && kindsFor(x).includes(k));
+  if (!t || !city.isUnlocked(k) || city.placementsLeft(k) <= 0) return false;
+  chosen[t.id] = k;
+  selectTool(t.id);
+  return true;
+}
+
 const usable = (t: Tool | undefined): boolean => !!t && (t.kind !== 'structure' || kindsFor(t).some((k) => city.isUnlocked(k)));
 
 /** Simulation speeds, shown like a player's buttons: pause, then one, two or three play arrows. */
