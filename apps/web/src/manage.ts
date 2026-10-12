@@ -18,10 +18,10 @@ import { builtArea, cam, centerOn, changeKey, city, cityLineage, flightCount, gl
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { toast } from './toast';
-import { choice } from './undo';
+import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
+import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, lineToDark, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -234,7 +234,10 @@ function guideHtml(id: GoalId): string {
   if (!s.tone || incidents().some((x) => x.goal === id)) return '';
   const st = goalStep(id);
   // What is wrong as its advisor says it; with no advisor's word, the figure itself and its note.
-  const { said, worst } = guideSaid(id);
+  const { said: told, worst } = guideSaid(id);
+  // (A line to lay while the card leads with something else, a plant off the road: what the line mends instead.)
+  const offGrid = st.kind === 'line' && !['noPower', 'powerCutOff', 'idlePlant', 'powerShort'].includes(worst?.code ?? '');
+  const said = offGrid ? `전기 없는 구역이 ${fmt(unpoweredZones().off)}칸 있습니다` : told;
   const problem = said || s.note;
   const title = said ? `<b>${escapeHtml(said)}</b>` : `<b>${escapeHtml(s.value)}</b> <span class="g-note">${escapeHtml(s.note)}</span>`;
   const spot = suggestSpot(id);
@@ -245,6 +248,14 @@ function guideHtml(id: GoalId): string {
     action = `<div class="g-act"><p class="g-act-head">${icon('search')}<b>원인부터 살펴보세요</b></p>
       <p class="g-act-why">아래 진단과 지도 보기(${GOALS[id].views.map(([, label]) => label).join(' · ')})에서 원인이 보입니다</p>
       ${at ? `<div class="g-act-btns"><button type="button" class="primary" data-spot="${at.join(',')}">${icon('target')}가장 심한 곳 보기</button></div>` : ''}</div>`;
+  } else if (st.kind === 'line' && st.line) {
+    // A line to lay, shown on the map from end to end before it is laid.
+    const [a, b] = [st.line[0]!, st.line.at(-1)!];
+    // (One label, at the far end: two ran into each other on a short line.)
+    guideSite = { id, sites: [{ at: a, label: '' }, { at: b, label: `송전선 ${fmt(st.line.length)}칸` }], path: st.line };
+    action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b><small>${escapeHtml(st.sub)}</small></p>
+      <p class="g-act-why">${escapeHtml(st.why)}</p>
+      <div class="g-act-btns"><button type="button" class="primary" data-line-path="${st.line.map((p) => p.join(',')).join(';')}" title="지도의 두 과녁 사이에 송전선 바로 놓기">${icon('cable')}바로 잇기</button></div></div>`;
   } else {
     // (With no forecast the step's why is its price line, already under its name: not twice.)
     const why = st.fx || (st.why && st.why !== st.sub && !same(firstSentence(st.why), problem) ? firstSentence(st.why) : '');
@@ -305,7 +316,7 @@ function guideHtml(id: GoalId): string {
 let hotSites: string[] = [];
 
 /** The guide's own site (one the map's mark isn't), marked on the map as the 과녁 is: where 추천 자리에 짓기 will build. */
-let guideSite: { id: GoalId; sites: { at: [number, number]; label: string }[] } | null = null;
+let guideSite: { id: GoalId; sites: { at: [number, number]; label: string }[]; path?: [number, number][] } | null = null;
 /** Where the screen's mark is built on (the mark, or the nearest fit for the facility recommended; null: none now), for its line's 여기에 짓기. */
 let markSite: { id: GoalId; at: [number, number] | null; kind?: StructureKind; name?: string } | null = null;
 
@@ -314,11 +325,13 @@ let markSite: { id: GoalId; at: [number, number] | null; kind?: StructureKind; n
  * (`anywhere`: its place doesn't matter to what it is for, as a park lifting the cap).
  */
 interface GuideStep {
-  kind: 'best' | 'fix' | 'budget' | 'ord' | 'open';
+  kind: 'best' | 'fix' | 'budget' | 'line' | 'ord' | 'open';
   what: string; why: string; fixAct: string; act: string; glyph: string; sub: string; fx: string; site: boolean;
   build?: StructureKind; anywhere?: true;
   /** A finance lever the step pulls at once (a loan, a budget change), as its button says. */
   fin?: string;
+  /** A power line to lay, tile by tile (see lineToDark). */
+  line?: [number, number][];
 }
 
 /** A goal's own recommendation, read from what its screen would show (one source of truth). */
@@ -328,9 +341,19 @@ function goalStep(id: GoalId): GuideStep {
   const { worst } = guideSaid(id);
   const due = worst && BUDGET_FIX[worst.code] ? budgetStep(id, worst) : null;
   if (due) return due;
+  // Power that is there but doesn't reach (a plant on a grid of its own powering nobody, or buildings off the
+  // lines): a line, not one more plant (a lone plant's 전력이 없어… recommended another plant).
+  const cut = id === 'power' && adviceFor('power').some((a) => a.code === 'powerCutOff'
+    || (a.code === 'noPower' && [...city.state.structures.values()].some((x) => !!STRUCTURES[x.kind].plant)));
+  const laid = cut ? lineStep() : null;
+  if (laid) return laid;
   const tpl = document.createElement('template');
   tpl.innerHTML = (id === 'finance' ? financeActions() : '') + buildActions(GOALS[id]);
   const best = tpl.content.querySelector<HTMLElement>('.act.best');
+  // (The list's own reason for a line, a plant off the grid or zones in the dark beside plenty: the line itself,
+  // to lay at once, where 해 보기 only handed the tool and left the way to find.)
+  const line = best?.dataset.act === 'powerline' ? lineStep(best.querySelector('.act-fx')?.textContent?.trim()) : null;
+  if (line) return line;
   if (best) {
     best.querySelector('.act-best')?.remove();
     const name = best.querySelector<HTMLElement>('.act-name');
@@ -371,6 +394,18 @@ function goalStep(id: GoalId): GuideStep {
       sub: `조례 · 월 ${cost < 0 ? `+§${fmt(-cost)}` : `§${fmt(cost)}`}`, fx: '', site: false }; // (its effects plain, not a gain's green: some cost)
   }
   return { kind: 'open' as const, what: '', why: '', fixAct: '', act: '', glyph: '', sub: '', fx: '', site: false };
+}
+
+/** The guide's step laying the shortest power line from the grid to the nearest zone in the dark, or null if there is none. */
+function lineStep(why?: string): GuideStep | null {
+  const line = lineToDark();
+  if (!line) return null;
+  // (Tiles a line or a zone already covers cost nothing: the tool skips them.)
+  const n = city.size;
+  const cost = line.filter(([x, y]) => !city.state.power[y * n + x] && !city.state.zone[y * n + x]).length * city.cfg.services.powerLineCost.build;
+  const t = TOOLS.find((x) => x.id === 'powerline');
+  return { kind: 'line', what: `송전선 ${fmt(line.length)}칸 잇기`, why: why || '발전소의 전기가 구역까지 닿지 않습니다: 가장 짧은 길로 송전선을 이으면 됩니다',
+    fixAct: 'powerline', act: 'powerline', glyph: t ? toolGlyph(t) : icon('cable'), sub: `§${fmt(cost)}${cost > city.state.funds ? ' · 자금 부족' : ''}`, fx: '', site: false, line };
 }
 
 /** Ordinances that fix what a goal's screen is about, to recommend (by what each does: less crime, cleaner air…). */
@@ -793,6 +828,7 @@ export function closeGoal(): boolean {
   drawn = '';
   $('#manage-chip').hidden = true;
   renderer.marks = [];
+  renderer.guidePath = null;
   marksSig = '';
   hotSites = []; // (the button that lit them went with the screen)
   if (currentView() === viewSet) showOverlay(viewBefore);
@@ -865,6 +901,7 @@ function buildActions(g: Goal): string {
   const idle = (g === GOALS.power && (st.power.demand > 0 || unpoweredZones().off > 0)) || (g === GOALS.water && st.water.demand > 0)
     ? facilities(g).filter((f) => (STRUCTURES[f.kind].plant || STRUCTURES[f.kind].pump) && f.capacity > 0 && f.load < 1) : [];
   const connect = idle.length ? (g === GOALS.power ? 'powerline' : 'pipe') : null;
+  const idleName = idle.length ? `${STRUCTURE_NAME[idle[0]!.kind]}${idle.length > 1 ? ` 외 ${idle.length - 1}곳` : ''}` : '';
   // Zones without power while the plants make plenty: the line is the fix.
   const lineFirst = g === GOALS.power && (!short_ || !!connect) && (unpoweredZones().off >= 10 || !!connect);
   const candidates = g.tools.flatMap((id) => {
@@ -986,7 +1023,7 @@ function buildActions(g: Goal): string {
         <span class="act-name">${toolGlyph(t)}${toolName(t)}${line ? `<em class="act-best">추천</em>` : ''}</span>${line ? `<span class="act-fx">${t.id === 'road' ? '먼저 도로부터: 구역은 도로에 닿아야 개발됩니다 · 지도 가장자리까지 이으면 이웃 도시와 오갑니다'
           : t.id === 'landfill' ? '쓰레기를 묻을 곳: 도로 옆, 주거에서 먼 곳에'
           : zoneNext === t.id ? zoneWhy
-          : connect ? `${STRUCTURE_NAME[idle[0]!.kind]}${idle.length > 1 ? ` 외 ${idle.length - 1}곳` : ''}이 아직 ${connect === 'pipe' ? '수도망' : '전력망'}에 이어지지 않아 아무 데도 보내지 못합니다: 먼저 이으세요`
+          : connect ? `${idleName}${josa(idleName, '이', '가')} 아직 ${connect === 'pipe' ? '수도망' : '전력망'}에 이어지지 않아 아무 데도 보내지 못합니다: 먼저 이으세요`
           : `전기 없는 구역 ${fmt(unpoweredZones().off)}칸에 이어 주기 · 칸당 §2`}</span>` : ''}<span class="act-sub">${want !== null ? (want >= 1 ? `수요 +${fmt(want)}` : '수요 없음') : t.kind === 'dispatch' ? `출동 가능 ${city.freeUnits(t.unit)}대` : ''}</span></button>`);
     }
   }
@@ -1200,22 +1237,26 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   // the place of the mark it was found near).
   const own = guideSite?.id === id ? guideSite : null;
   // (Nor where a site of the guide's is within 4 tiles of it: the two labels ran into each other.)
-  const crowdedOut = !!spot && !!own?.sites.some((o) => Math.max(Math.abs(o.at[0] - spot.x), Math.abs(o.at[1] - spot.y)) <= 4);
+  // (Nor a plant's site while the guide lays a line instead: the power is there, it only has to reach.)
+  const crowdedOut = !!spot && (!!own?.path || !!own?.sites.some((o) => Math.max(Math.abs(o.at[0] - spot.x), Math.abs(o.at[1] - spot.y)) <= 4));
   if (spot && !(spot.crowded && own) && !crowdedOut) marks.push({ x: spot.x, y: spot.y, w: 1, h: 1, tone: 'spot', label });
   for (const o of own?.sites ?? []) marks.push({ x: o.at[0], y: o.at[1], w: 1, h: 1, tone: 'spot', label: o.label });
   // (Lit while the button that builds there is under the pointer or focused.)
   for (const m of marks) if (m.tone === 'spot' && hotSites.includes(`${m.x},${m.y}`)) m.hot = true;
-  const sig = JSON.stringify(marks);
+  const path = own?.path ?? null;
+  const sig = JSON.stringify([marks, path]);
   if (sig === marksSig) return;
   marksSig = sig;
   renderer.marks = marks;
+  renderer.guidePath = path;
   redraw();
 }
 
 /** The suggested spot as a line on the panel, with a way to go there. */
 function spotLine(id: GoalId): string {
   const spot = incidents().some((x) => x.goal === id) ? null : suggestSpot(id);
-  if (!spot) return '';
+  // (Not a plant's site while the guide lays a line: the power is there, it only has to reach.)
+  if (!spot || (guideSite?.id === id && guideSite.path)) return '';
   // (Power and water: a site to build on, near where it is missing; the others: where the trouble gathers.)
   if (spot.crowded) {
     const what = id === 'education' ? '학교' : '병원';
@@ -1603,11 +1644,13 @@ export function setupGoals(): void {
   const el = $('#manage');
   // A build button under the pointer (or focused) lights its target on the map: where it will build, before it does.
   const light = (e: Event) => {
-    const b = (e.target as HTMLElement).closest?.<HTMLElement>('[data-spot-build]');
+    const b = (e.target as HTMLElement).closest?.<HTMLElement>('[data-spot-build], [data-line-path]');
     // (Moving between the button's icon and its words is still on the button: no flicker.)
     const to = (e as PointerEvent | FocusEvent).relatedTarget as Node | null;
     if ((e.type === 'pointerout' || e.type === 'focusout') && b && to && b.contains(to)) return;
-    const next = e.type === 'pointerover' || e.type === 'focusin' ? b?.dataset.spotBuild?.split(';') ?? [] : [];
+    // (A line lights both its ends.)
+    const ends = (p: string) => { const t = p.split(';'); return [t[0]!, t.at(-1)!]; };
+    const next = e.type === 'pointerover' || e.type === 'focusin' ? (b?.dataset.spotBuild?.split(';') ?? (b?.dataset.linePath ? ends(b.dataset.linePath) : [])) : [];
     if (next.join(';') === hotSites.join(';') || !active) return;
     hotSites = next;
     refreshMarks(active, facilities(GOALS[active]));
@@ -1690,6 +1733,47 @@ export function setupGoals(): void {
       centerOn(f.x + f.w / 2, f.y + f.h / 2, 10);
       showInfo(f.x, f.y);
       redraw();
+      return;
+    }
+    // 바로 잇기: the guide's power line laid in straight runs (one undo for all of it), all or nothing.
+    const lineBtn = t.closest<HTMLElement>('[data-line-path]');
+    if (lineBtn) {
+      const path = lineBtn.dataset.linePath!.split(';').map((p) => p.split(',').map(Number) as [number, number]);
+      city.settle();
+      const n = city.size;
+      const cost = path.filter(([x, y]) => !city.state.power[y * n + x] && !city.state.zone[y * n + x]).length * city.cfg.services.powerLineCost.build;
+      const blocked = path.some(([x, y]) => city.state.occupant[y * n + x] !== 0);
+      if (blocked || cost > city.state.funds) {
+        forgetSites();
+        renderGoal(true);
+        flash(cost > city.state.funds ? `§${fmt(Math.ceil(cost - city.state.funds))} 모자랍니다` : '그사이 길이 막혀 송전선 길을 새로 찾았습니다', 'bad');
+        return;
+      }
+      // Straight runs between the turns (the tool lays a run from one end to the other).
+      const runs: [number, number, number, number][] = [];
+      let from = path[0]!;
+      for (let k = 1; k < path.length; k++) {
+        const [a, b, c] = [path[k - 2], path[k - 1]!, path[k]!];
+        if (a && (b[0] - a[0] !== c[0] - b[0] || b[1] - a[1] !== c[1] - b[1])) {
+          runs.push([from[0], from[1], b[0], b[1]]);
+          from = b;
+        }
+      }
+      runs.push([from[0], from[1], path.at(-1)![0], path.at(-1)![1]]);
+      const drop = remember('송전선');
+      let laid = 0;
+      for (const [x0, y0, x1, y1] of runs) {
+        const res = city.buildPowerLine(x0, y0, x1, y1);
+        if (res.ok) laid += res.cost;
+      }
+      if (!laid) drop();
+      city.refreshIfDirty();
+      noteAction(`송전선 ${fmt(path.length)}칸 · −§${fmt(laid)}`);
+      flash(`송전선 ${fmt(path.length)}칸을 이었습니다 · −§${fmt(laid)}`, 'info');
+      redraw();
+      if (phone()) closePane();
+      updatePanels();
+      renderGoal(true);
       return;
     }
     const tax = t.closest<HTMLElement>('[data-tax-to]');

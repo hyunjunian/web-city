@@ -413,6 +413,8 @@ export class Renderer {
    * is in trouble) and the spots it points to (a problem, a place to build).
    */
   marks: { x: number; y: number; w: number; h: number; tone: '' | 'warn' | 'bad' | 'spot'; label?: string; hot?: boolean }[] = [];
+  /** A line the guide offers to lay (tile by tile), drawn dashed between its two targets before it is laid. */
+  guidePath: [number, number][] | null = null;
   /** A road in hand on a town not yet joined to its neighbours: the map's edge is where it should reach. */
   edgeHint = false;
   /** Where the keyboard's build cursor is (set by the arrows; a mouse moving takes it away). */
@@ -1913,6 +1915,25 @@ export class Renderer {
         ctx.fillText(words, tx, n / 2);
       }
       ctx.textAlign = 'start';
+    }
+
+    if (this.guidePath && this.guidePath.length > 1) {
+      // The line to lay: dashed blue through the tiles' middles, over a pale casing so it reads on any ground.
+      const u = this.dpr / sc;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      this.guidePath.forEach(([x, y], k) => (k ? ctx.lineTo(x + 0.5, y + 0.5) : ctx.moveTo(x + 0.5, y + 0.5)));
+      ctx.setLineDash([]);
+      ctx.lineWidth = 6 * u;
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      ctx.stroke();
+      ctx.setLineDash([7 * u, 5 * u]);
+      ctx.lineWidth = 3 * u;
+      ctx.strokeStyle = '#2f6fe0';
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.lineCap = 'butt';
     }
 
     if (this.marks.length) {

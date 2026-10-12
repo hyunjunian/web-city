@@ -600,7 +600,7 @@ export function cheapestOf(g: Goal): StructureKind | null {
 
 /** Forgets the sites found since the city last changed (a building grew on one: growth moves no revision). */
 export function forgetSites(): void {
-  siteMemo = pipeMemo = plantMemo = awayMemo = pairMemo = spotMemo = null;
+  siteMemo = pipeMemo = plantMemo = awayMemo = pairMemo = spotMemo = lineMemo = null;
   nearMemo = new Map();
 }
 
@@ -662,6 +662,50 @@ export function siteNearHomes(kind: StructureKind): [number, number] | null {
   return at;
 }
 let siteMemo: { key: string; at: [number, number] | null } | null = null;
+
+/**
+ * The shortest power line from the grid to the nearest dark zone — from a powered conductor or a plant (one
+ * standing alone, its grid powering nobody), round buildings (lines cross roads and water, as the tool lays
+ * them): the tiles to lay, in order, or null. Found again on an edit or a new month.
+ */
+export function lineToDark(): [number, number][] | null {
+  const key = `line|${siteKey()}`;
+  if (lineMemo?.key === key) return lineMemo.path;
+  const s = city.state;
+  const f = city.fields;
+  const n = city.size;
+  const N = n * n;
+  const seen = new Int32Array(N).fill(-2); // -2 unseen, -1 a source, else the tile it was reached from
+  const queue: number[] = [];
+  for (let i = 0; i < N; i++) if (f.powered[i] && (s.power[i] || s.occupant[i] || (s.zone[i] && s.zone[i] !== 10))) { seen[i] = -1; queue.push(i); }
+  for (const st of s.structures.values()) {
+    if (!STRUCTURES[st.kind].plant) continue;
+    for (let y = st.y; y < st.y + st.h; y++) for (let x = st.x; x < st.x + st.w; x++) if (seen[y * n + x] === -2) { seen[y * n + x] = -1; queue.push(y * n + x); }
+  }
+  let hit = -1;
+  for (let h = 0; h < queue.length && hit < 0; h++) {
+    const i = queue[h]!;
+    const x = i % n;
+    for (const j of [x < n - 1 ? i + 1 : -1, x > 0 ? i - 1 : -1, i + n < N ? i + n : -1, i - n]) {
+      if (j < 0 || seen[j] !== -2) continue;
+      if (s.zone[j] && s.zone[j] !== 10 && !f.powered[j]) {
+        seen[j] = i;
+        hit = j;
+        break;
+      }
+      if (s.occupant[j]) continue; // (a building stands in a line's way)
+      seen[j] = i;
+      queue.push(j);
+    }
+  }
+  const path: [number, number][] = [];
+  for (let i = hit >= 0 ? seen[hit]! : -1; i >= 0 && seen[i] !== -1; i = seen[i]!) path.push([i % n, Math.floor(i / n)]);
+  path.reverse();
+  const at = path.length ? path : null;
+  lineMemo = { key, path: at };
+  return at;
+}
+let lineMemo: { key: string; path: [number, number][] | null } | null = null;
 
 /** The middle of the city's homes (the map's middle while there are none). */
 function homesMiddle(): [number, number] {
