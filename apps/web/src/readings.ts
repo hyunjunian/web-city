@@ -731,6 +731,38 @@ export function siteByPlants(kind: StructureKind): [number, number] | null {
 }
 let plantMemo: { key: string; at: [number, number] | null } | null = null;
 
+/**
+ * A site for a facility that serves no area and that homes would rather not have beside them (a jail):
+ * beside a road, no residential zone within 6 tiles, nearest the industry (else the map's middle).
+ * Its middle tile, or null.
+ */
+export function siteAwayFromHomes(kind: StructureKind): [number, number] | null {
+  const key = `away|${kind}|${changeKey()}`;
+  if (awayMemo?.key === key) return awayMemo.at;
+  const n = city.size;
+  const d = STRUCTURES[kind];
+  let [sx, sy, count] = [0, 0, 0];
+  for (const b of city.state.buildings.values()) {
+    if (b.type?.[0] !== 'I') continue;
+    sx += b.x + b.w / 2;
+    sy += b.y + b.h / 2;
+    count++;
+  }
+  const [ax, ay] = count ? [Math.round(sx / count), Math.round(sy / count)] : [n >> 1, n >> 1];
+  let at: [number, number] | null = null;
+  search: for (let r = 0; r < n; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+    const [lx, ly] = [ax + dx - ((d.w - 1) >> 1), ay + dy - ((d.h - 1) >> 1)];
+    if (lx < 0 || ly < 0 || lx + d.w > n || ly + d.h > n) continue;
+    if (!city.canPlaceStructure(kind, lx, ly).ok || !city.roadBeside(lx, ly, d.w, d.h) || homesNear(lx, ly, d.w, d.h)) continue;
+    at = [ax + dx, ay + dy];
+    break search;
+  }
+  awayMemo = { key, at };
+  return at;
+}
+let awayMemo: { key: string; at: [number, number] | null } | null = null;
+
 let spotMemo: { key: string; spot: { x: number; y: number; tiles: number; crowded?: true } | null } | null = null;
 /** Buildings go without water though the pumps make enough for all: their networks aren't joined. */
 export function waterApart(): boolean {

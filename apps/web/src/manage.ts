@@ -21,7 +21,7 @@ import { toast } from './toast';
 import { choice } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, siteByPlants, siteNear, siteNearHomes, siteOnPipes, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
+import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -234,9 +234,12 @@ function guideHtml(id: GoalId): string {
       <p class="g-act-why">아래 진단과 지도 보기(${GOALS[id].views.map(([, label]) => label).join(' · ')})에서 원인이 보입니다</p>
       ${at ? `<div class="g-act-btns"><button type="button" class="primary" data-spot="${at.join(',')}">${icon('target')}가장 심한 곳 보기</button></div>` : ''}</div>`;
   } else {
-    const why = st.fx || (st.why && !same(firstSentence(st.why), problem) ? firstSentence(st.why) : '');
+    // (With no forecast the step's why is its price line, already under its name: not twice.)
+    const why = st.fx || (st.why && st.why !== st.sub && !same(firstSentence(st.why), problem) ? firstSentence(st.why) : '');
     const short = st.sub.startsWith('자금 부족');
-    const site = st.kind === 'best' && st.site && spot && !spot.crowded && (SERVICE_SITE.has(id) || id === 'power' || id === 'water');
+    // A jail serves no area: the mark (a gap in police cover) is a station's place, not its.
+    const arealess = !!st.build && STRUCTURES[st.build].police?.radius === 0;
+    const site = st.kind === 'best' && st.site && spot && !spot.crowded && !arealess && (SERVICE_SITE.has(id) || id === 'power' || id === 'water');
     // No site on the map's mark: one of the facility's own. Beside a school or hospital over its places, room
     // for the one recommended (the mark was found for the one that would relieve it, often smaller); a park
     // for the cap does anywhere, so the free ground nearest the homes (the land was all zoned, and 해 보기 left
@@ -244,6 +247,7 @@ function guideHtml(id: GoalId): string {
     // alone added nothing to the shortage); a plant beside the plants (only the margin short: nothing to mark).
     const what = id === 'education' ? '학교' : '병원';
     const own = site || !st.build ? null
+      : arealess ? { at: siteAwayFromHomes(st.build), title: '주거지에서 떨어진 길가 빈 땅에 바로 짓기' }
       : spot?.crowded && st.kind === 'best' ? { at: siteNear(st.build, spot.x, spot.y), title: `넘치는 ${what} 가까이, 길가 빈 땅에 바로 짓기` }
       : st.anywhere ? { at: siteNearHomes(st.build), title: '주거지에서 가장 가까운 길가 빈 땅에 바로 짓기' }
       : id === 'water' && STRUCTURES[st.build].pump ? { at: siteOnPipes(st.build), title: '수도관에 닿고 전기가 들어오는 빈 땅에 바로 짓기' }
@@ -1519,8 +1523,10 @@ export function setupGoals(): void {
       // The facility the screen recommends (not whatever is in hand: a school held from before went up on
       // the power plant's site); without one, a facility of this screen's already in hand.
       const best = $('#manage').querySelector<HTMLElement>('.act.best[data-kind]');
-      if (site.dataset.buildKind) {
-        if (!pickStructure(site.dataset.buildKind as StructureKind)) return;
+      // (The mark's 여기에 짓기 where the screen recommends a jail: the mark is a gap in police cover, a station's place.)
+      const station = best && STRUCTURES[best.dataset.kind as StructureKind].police?.radius === 0 ? cheapestOf(GOALS.police) : null;
+      if (site.dataset.buildKind || station) {
+        if (!pickStructure((site.dataset.buildKind as StructureKind | undefined) ?? station!)) return;
       } else if (best) {
         const kind = best.dataset.kind as StructureKind;
         if (city.isUnlocked(kind) && city.placementsLeft(kind) > 0) chosen[best.dataset.act!] = kind;
