@@ -905,6 +905,22 @@ export function jamRun(x: number, y: number): [number, number, number, number] |
   return w + e >= nn + sth ? [x - w, y, x + e, y] : [x, y - nn, x, y + sth];
 }
 
+/** The worst-jammed street or road tile (traffic against its capacity), past capacity, or null. */
+export function worstJam(): [number, number] | null {
+  const s = city.state;
+  const f = city.fields;
+  const n = city.size;
+  let best = -1;
+  let worst = 1;
+  for (let i = 0; i < n * n; i++) {
+    const kind = NETWORK_KINDS[s.net[i]!];
+    if (kind !== 'street' && kind !== 'road') continue;
+    const load = f.traffic[i]! / city.cfg.transport.speed[kind].capacity;
+    if (load > worst) [best, worst] = [i, load];
+  }
+  return best < 0 ? null : [best % n, Math.floor(best / n)];
+}
+
 /** Does a building reach a road now (homes and shops fronting one, industry and farms within reach of one)? Its
  * countdown resets only at the month's end: without this, a road laid to it was offered again at once. */
 export function hasRoadNow(b: Building): boolean {

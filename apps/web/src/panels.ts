@@ -34,8 +34,9 @@ export function crimeKinds(byType: Record<string, number> | undefined): string {
 document.addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.advice-view');
   // (A tax or budget changed from the diagnosis: done in the panel, nothing on the map to step aside for.)
-  // (Nor a path laid from it: the screen's own handler steps aside for the map only when it was laid.)
-  if (!b || b.matches('[data-tax-to], .mg-guide-go, [data-line-path]')) return;
+  // (Nor a path laid, a site built or a road widened from it: the screen's own handler steps aside for the map only
+  // when it was done — a press short of money kept the pane, which a phone had closed.)
+  if (!b || b.matches('[data-tax-to], .mg-guide-go, [data-line-path], [data-spot-build], [data-widen]')) return;
   // A reward or deal from the news: its building in hand.
   if (b.dataset.build) {
     revealMap();

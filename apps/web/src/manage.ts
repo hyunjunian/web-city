@@ -21,7 +21,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote, straightRuns } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -1481,6 +1481,17 @@ function spotLine(id: GoalId): string {
     return `<p class="mg-spot">${icon('target')}<span><b>물이 끊긴 건물</b>이 가장 많이 모인 곳 · ${fmt(spot.tiles)}칸: 물이 남는 수도망에서 수도관을 이어 오세요 (지도의 과녁)</span>
     <button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button></p>`;
   }
+  // (Traffic: the worst-jammed stretch, widened to an avenue in one press, beside 보기.)
+  if (id === 'traffic') {
+    const jam = worstJam();
+    const run = jam ? jamRun(jam[0], jam[1]) : null;
+    const p = run ? city.previewNetwork(run[0], run[1], run[2], run[3], 'avenue') : null;
+    const tiles = run ? Math.abs(run[2] - run[0]) + Math.abs(run[3] - run[1]) + 1 : 0;
+    const widen = run && p && (p.ok || p.message === 'not enough funds')
+      ? `<button type="button" class="advice-view spot-build" data-widen="${run.join(',')}" title="가장 막힌 구간 ${fmt(tiles)}칸을 대로로 바로 넓히기 · §${fmt(p.cost)}">${icon('plus')}가장 막힌 구간 대로로 · ${fmt(tiles)}칸 §${fmt(p.cost)}</button>` : '';
+    return `<p class="mg-spot">${icon('target')}<span><b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${fmt(spot.tiles)}칸 (지도의 과녁)</span>
+    <span class="advice-acts"><button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button>${widen}</span></p>`;
+  }
   const site = id === 'power' || id === 'water';
   // (A site for a facility, built there in one press: what the guide settled on and where it found it fits, else
   // the facility the mark was found for — on a sound goal's screen it built the screen's pick, often bigger than
@@ -1681,7 +1692,7 @@ export function renderGoal(force = false): void {
 }
 
 /** Attributes that pick out a control again after the panel is redrawn. */
-const KEYS = ['data-spot', 'data-spot-build', 'data-line-path', 'data-landfill', 'data-zone', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-goal', 'data-mg-tab', 'data-at'];
+const KEYS = ['data-spot', 'data-spot-build', 'data-widen', 'data-line-path', 'data-landfill', 'data-zone', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-goal', 'data-mg-tab', 'data-at'];
 
 /** A selector for the focused control inside the goal panel, to give focus back after a redraw ('' if none). */
 function focusKey(el: Element | null): string {
@@ -1826,7 +1837,7 @@ export function setupGoals(): void {
       return;
     }
     // A jammed road's 이 구간 대로로 넓히기: the stretch upgraded at once, as one step to undo.
-    const widen = (e.target as HTMLElement).closest<HTMLElement>('#info [data-widen]');
+    const widen = (e.target as HTMLElement).closest<HTMLElement>('#info [data-widen], #manage [data-widen]');
     if (widen) {
       const [x0, y0, x1, y1] = widen.dataset.widen!.split(',').map(Number) as [number, number, number, number];
       city.settle();
@@ -1848,9 +1859,15 @@ export function setupGoals(): void {
       if (active === 'traffic') noteAction(`대로 ${fmt(tiles)}칸 · −§${fmt(res.cost)}`);
       flash(`막힌 구간 ${fmt(tiles)}칸을 대로로 넓혔습니다 · −§${fmt(res.cost)}`, 'info');
       renderer.effect('flash', Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0) + 1, Math.abs(y1 - y0) + 1);
+      // (From the traffic screen: the map shows the stretch widened, near enough to see, as a site built from it does.)
+      if ($('#manage').contains(widen)) {
+        centerOn((x0 + x1) >> 1, (y0 + y1) >> 1, Math.max(8, Math.min(16, 240 / tiles)));
+        if (phone()) closePane();
+      }
       redraw();
       redrawInfo();
       updatePanels();
+      renderGoal(true);
       return;
     }
     // The card's 도로·송전선 잇기 (a facility off the road, a building counting down): laid at once, logged under
