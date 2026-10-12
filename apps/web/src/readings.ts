@@ -724,7 +724,7 @@ export function siteNear(kind: StructureKind, x: number, y: number, reach = 12):
   const d = STRUCTURES[kind];
   // (A smoky plant clear of homes, as suggestSpot sites one: the nearest open lot beside a mark among the
   // dark zones was a zoned lot among the homes.)
-  const smoky = (d.plant?.air[0] ?? 0) > 0;
+  const smoky = smokyPlant(kind);
   const at = nearestFit(kind, x, y, reach, (lx, ly) => city.roadBeside(lx, ly, d.w, d.h) && !(smoky && homesNear(lx, ly, d.w, d.h)));
   // (A few kept: the mark's own check and its nearest fit, a full school's card, ran by turns and found again each time.)
   if (nearMemo.size >= 8) nearMemo.delete(nearMemo.keys().next().value!);
@@ -732,6 +732,13 @@ export function siteNear(kind: StructureKind, x: number, y: number, reach = 12):
   return at;
 }
 let nearMemo = new Map<string, [number, number] | null>();
+
+/**
+ * A plant whose smoke homes shouldn't have beside them: coal and oil (as the getting-started list says it). A gas
+ * plant smokes a third as much; held to the same rule it was sited out of reach of a town of homes alone, and
+ * its 추천 자리 powered nothing.
+ */
+export const smokyPlant = (kind: StructureKind): boolean => (STRUCTURES[kind].plant?.air[0] ?? 0) >= 100;
 
 /** Homes (a residential zone) within 6 tiles of a rectangle: no place for a smoky plant. */
 function homesNear(lx: number, ly: number, w: number, h: number): boolean {
@@ -755,7 +762,7 @@ export function siteByPlants(kind: StructureKind): [number, number] | null {
   const key = `plants|${kind}|${siteKey()}`;
   if (plantMemo?.key === key) return plantMemo.at;
   const d = STRUCTURES[kind];
-  const smoky = (d.plant?.air[0] ?? 0) > 0;
+  const smoky = smokyPlant(kind);
   const fits = (lx: number, ly: number) => city.roadBeside(lx, ly, d.w, d.h) && city.powerReach(kind, lx, ly) === 'powered' && !(smoky && homesNear(lx, ly, d.w, d.h));
   let at: [number, number] | null = null;
   let near = Infinity;
@@ -935,13 +942,16 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
         // a plant or a pump near the trouble, and a smoky plant clear of homes (the target was tapped to
         // build, and put a gas plant on top of a zone, or on a crossroads).
         const kind = SERVICE.has(id) ? cheapestOf(GOALS[id]) : id === 'power' ? siteKind('power') : id === 'water' ? siteKind('water') : null;
-        const smoky = !!kind && (STRUCTURES[kind].plant?.air[0] ?? 0) > 0;
-        const fits = (x: number, y: number) => {
+        // Smoke and homes: any plant that smokes (as the placement warning counts it) is best clear of them;
+        // coal and oil must be (see smokyPlant).
+        const dirty = !!kind && (STRUCTURES[kind].plant?.air[0] ?? 0) >= 50;
+        const smoky = !!kind && smokyPlant(kind);
+        const fits = (x: number, y: number, clear: boolean) => {
           if (!open(x, y)) return false;
           if (!kind) return true;
           const d = STRUCTURES[kind];
           const [lx, ly] = [x - ((d.w - 1) >> 1), y - ((d.h - 1) >> 1)];
-          return city.canPlaceStructure(kind, lx, ly).ok && city.roadBeside(lx, ly, d.w, d.h) && !(smoky && homesNear(lx, ly, d.w, d.h));
+          return city.canPlaceStructure(kind, lx, ly).ok && city.roadBeside(lx, ly, d.w, d.h) && !(clear && homesNear(lx, ly, d.w, d.h));
         };
         const reach = id === 'power' || id === 'water' ? 3 * B : B;
         // A plant first where it feeds a zone at once (within its reach, beside the industry as a rule):
@@ -951,10 +961,14 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
           const d = STRUCTURES[kind];
           return city.powerReach(kind, x - ((d.w - 1) >> 1), y - ((d.h - 1) >> 1)) !== 'none';
         };
-        search: for (const pass of id === 'power' ? [true, false] : [false]) {
+        // Passes, best first: feeding and clear of homes; feeding, near homes if it isn't coal or oil (a town
+        // of homes alone had no site both, and its gas plant went out of reach and powered nothing — the
+        // placement still warns of the smoke); clear of homes, a line still to lay.
+        const passes = id === 'power' ? [{ feed: true, clear: dirty }, { feed: true, clear: smoky }, { feed: false, clear: dirty }] : [{ feed: false, clear: false }];
+        search: for (const { feed, clear } of passes) {
           for (let r = 0; r <= reach; r++) {
             for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-              if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || !fits(cx + dx, cy + dy) || (pass && !feeds(cx + dx, cy + dy))) continue;
+              if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || !fits(cx + dx, cy + dy, clear) || (feed && !feeds(cx + dx, cy + dy))) continue;
               at = [cx + dx, cy + dy];
               break search;
             }

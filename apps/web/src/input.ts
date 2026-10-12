@@ -730,7 +730,8 @@ function siteWarnings(kind: StructureKind, x: number, y: number): string {
       }
     }
   }
-  const smoky = homes ? ` · ⚠ 주거 구역이 가까움 (대기 오염 ${air![1]}칸까지: 주민이 떠납니다)` : '';
+  // (Coal and oil drive residents away; a gas plant's lighter smoke lowers the homes' appeal.)
+  const smoky = homes ? ` · ⚠ 주거 구역이 가까움 (대기 오염 ${air![1]}칸까지: ${air![0] >= 100 ? '주민이 떠납니다' : '쾌적도가 떨어집니다'})` : '';
   return unlinked + dry + smoky + offRoad + unguarded;
 }
 
