@@ -21,7 +21,7 @@ import { toast } from './toast';
 import { choice } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
+import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, stopPair, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -245,19 +245,25 @@ function guideHtml(id: GoalId): string {
     // for the cap does anywhere, so the free ground nearest the homes (the land was all zoned, and 해 보기 left
     // the player to hunt for a gap); a water source where its water counts, touching the pipes (one standing
     // alone added nothing to the shortage); a plant beside the plants (only the margin short: nothing to mark).
+    // (Bus stops come in pairs, as the card says: one where the most people live, one where the most work.)
     const what = id === 'education' ? '학교' : '병원';
+    const one = (at: [number, number] | null, title: string) => (at ? { at: [at], title, labels: [] as string[] } : null);
     const own = site || !st.build ? null
-      : arealess ? { at: siteAwayFromHomes(st.build), title: '주거지에서 떨어진 길가 빈 땅에 바로 짓기' }
-      : spot?.crowded && st.kind === 'best' ? { at: siteNear(st.build, spot.x, spot.y), title: `넘치는 ${what} 가까이, 길가 빈 땅에 바로 짓기` }
-      : st.anywhere ? { at: siteNearHomes(st.build), title: '주거지에서 가장 가까운 길가 빈 땅에 바로 짓기' }
-      : id === 'water' && STRUCTURES[st.build].pump ? { at: siteOnPipes(st.build), title: '수도관에 닿고 전기가 들어오는 빈 땅에 바로 짓기' }
-      : id === 'power' && STRUCTURES[st.build].plant ? { at: siteByPlants(st.build), title: '있는 발전소 옆, 전력망에 닿는 길가 빈 땅에 바로 짓기' } : null;
+      : arealess ? one(siteAwayFromHomes(st.build), '주거지에서 떨어진 길가 빈 땅에 바로 짓기')
+      : spot?.crowded && st.kind === 'best' ? one(siteNear(st.build, spot.x, spot.y), `넘치는 ${what} 가까이, 길가 빈 땅에 바로 짓기`)
+      : st.anywhere ? one(siteNearHomes(st.build), '주거지에서 가장 가까운 길가 빈 땅에 바로 짓기')
+      : id === 'water' && STRUCTURES[st.build].pump ? one(siteOnPipes(st.build), '수도관에 닿고 전기가 들어오는 빈 땅에 바로 짓기')
+      : id === 'power' && STRUCTURES[st.build].plant ? one(siteByPlants(st.build), '있는 발전소 옆, 전력망에 닿는 길가 빈 땅에 바로 짓기')
+      : STRUCTURES[st.build].station?.mode === 'bus' ? (() => {
+        const pair = stopPair(st.build!);
+        return pair ? { at: pair, title: '주민이 가장 많은 곳과 일자리가 가장 많은 곳의 길가에 하나씩 바로 짓기', labels: ['집 쪽', '일터 쪽'] } : null;
+      })() : null;
     const siteTitle = `지도의 과녁(${SPOT_WORD[id] ?? ''})에 바로 짓기`;
-    if (own?.at) guideSite = { id, at: own.at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}` };
+    if (own) guideSite = { id, sites: own.at.map((at, k) => ({ at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}${own.labels[k] ? ` (${own.labels[k]})` : ''}` })) };
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b>${st.sub ? `<small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small>` : ''}</p>
       ${why ? `<p class="${st.fx ? `g-act-fx${/−|모자람/.test(st.fx) ? ' neg' : ''}` : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}
       <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>해 보기</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
-        : own?.at ? `<button type="button" class="g-site" data-spot-build="${own.at.join(',')}" data-build-kind="${st.build}" title="${own.title}">${icon('target')}추천 자리에 짓기</button>` : ''}</div></div>`;
+        : own ? `<button type="button" class="g-site" data-spot-build="${own.at.map((at) => at.join(',')).join(';')}" data-build-kind="${st.build}" title="${own.title}">${icon('target')}추천 자리에 ${own.at.length > 1 ? `${own.at.length}곳 ` : ''}짓기</button>` : ''}</div></div>`;
   }
   const p = journal().pending[id];
   const wait = p ? `<p class="g-wait">${icon('check')}<span>${escapeHtml(p.text)} · ${Math.max(1, FOLLOW_DAYS - (city.state.day - p.day))}일 뒤 결과를 알려 드립니다</span></p>` : '';
@@ -267,7 +273,7 @@ function guideHtml(id: GoalId): string {
 }
 
 /** The guide's own site (one the map's mark isn't), marked on the map as the 과녁 is: where 추천 자리에 짓기 will build. */
-let guideSite: { id: GoalId; at: [number, number]; label: string } | null = null;
+let guideSite: { id: GoalId; sites: { at: [number, number]; label: string }[] } | null = null;
 
 /**
  * A goal's recommendation: what it is, why, the act behind 해 보기; `build` the facility it puts up
@@ -1107,7 +1113,7 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   // the place of the mark it was found near).
   const own = guideSite?.id === id ? guideSite : null;
   if (spot && !(spot.crowded && own)) marks.push({ x: spot.x, y: spot.y, w: 1, h: 1, tone: 'spot', label });
-  if (own) marks.push({ x: own.at[0], y: own.at[1], w: 1, h: 1, tone: 'spot', label: own.label });
+  for (const o of own?.sites ?? []) marks.push({ x: o.at[0], y: o.at[1], w: 1, h: 1, tone: 'spot', label: o.label });
   const sig = JSON.stringify(marks);
   if (sig === marksSig) return;
   marksSig = sig;
@@ -1519,7 +1525,9 @@ export function setupGoals(): void {
     }
     const site = t.closest<HTMLElement>('[data-spot-build]');
     if (site) {
-      const [x, y] = site.dataset.spotBuild!.split(',').map(Number) as [number, number];
+      // One site, or several (x,y;x,y: a pair of bus stops), each its facility.
+      const sites = site.dataset.spotBuild!.split(';').map((p) => p.split(',').map(Number) as [number, number]);
+      const [x, y] = sites[0]!;
       // The facility the screen recommends (not whatever is in hand: a school held from before went up on
       // the power plant's site); without one, a facility of this screen's already in hand.
       const best = $('#manage').querySelector<HTMLElement>('.act.best[data-kind]');
@@ -1533,9 +1541,12 @@ export function setupGoals(): void {
         selectTool(best.dataset.act!);
       } else if (tool.kind !== 'structure' || !$('#manage').querySelector(`[data-act="${tool.id}"]`)) return;
       // Close enough to see what went up: a plant's 4×4 at 6px a tile, a 1×1 park nearer (at 6 it was a dot).
-      const d = STRUCTURES[chosen[tool.id]!];
+      const kind = chosen[tool.id]!;
+      const d = STRUCTURES[kind];
       centerOn(x, y, d ? Math.max(6, 24 / Math.max(d.w, d.h)) : 6);
       placeAt(x, y);
+      // (A facility handed out by a suggestion goes down once placed: taken up again for the next site.)
+      for (const [sx, sy] of sites.slice(1)) if (pickStructure(kind)) placeAt(sx, sy);
       if (phone()) closePane();
       updatePanels();
       return;

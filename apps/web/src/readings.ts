@@ -1,7 +1,7 @@
 // Reading the city for the goals: each goal's state, figures and forecasts, where its
 // trouble gathers on the map, and what would help (no DOM here: the screen is manage.ts).
 
-import { DEFAULT_CONFIG, DEV_TYPES, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind } from '@web-city/engine';
+import { type Building, DEFAULT_CONFIG, DEV_TYPES, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind } from '@web-city/engine';
 import { noRiders } from './info';
 import { ADVICE_TEXT, POLL_NAME, WEALTH_NAME } from './names';
 import { crimeKinds, currentAdvice, garbageFill } from './panels';
@@ -762,6 +762,48 @@ export function siteAwayFromHomes(kind: StructureKind): [number, number] | null 
   return at;
 }
 let awayMemo: { key: string; at: [number, number] | null } | null = null;
+
+/**
+ * Sites for a pair of bus stops: one where the most people live, one where the most work (a stop alone carries
+ * no one: a trip rides from a stop near home to one near work), each beside a road and within 8 tiles of the
+ * middle of its block (blocks of 12 tiles). Their middle tiles, or null.
+ */
+export function stopPair(kind: StructureKind): [[number, number], [number, number]] | null {
+  const key = `stops|${kind}|${changeKey()}`;
+  if (pairMemo?.key === key) return pairMemo.at;
+  const n = city.size;
+  const B = 12;
+  const per = Math.ceil(n / B);
+  const busiest = (weigh: (b: Building) => number): [number, number] | null => {
+    const sum = new Float64Array(per * per);
+    const sx = new Float64Array(per * per);
+    const sy = new Float64Array(per * per);
+    for (const b of city.state.buildings.values()) {
+      const v = weigh(b);
+      if (v <= 0) continue;
+      const [cx, cy] = [b.x + b.w / 2, b.y + b.h / 2];
+      const k = Math.min(per - 1, Math.floor(cy / B)) * per + Math.min(per - 1, Math.floor(cx / B));
+      sum[k] = sum[k]! + v;
+      sx[k] = sx[k]! + cx * v;
+      sy[k] = sy[k]! + cy * v;
+    }
+    let best = -1;
+    for (let k = 0; k < sum.length; k++) if (sum[k]! > 0 && (best < 0 || sum[k]! > sum[best]!)) best = k;
+    return best < 0 ? null : [Math.floor(sx[best]! / sum[best]!), Math.floor(sy[best]! / sum[best]!)];
+  };
+  const home = busiest((b) => (b.type?.[0] === 'R' ? b.capacity * b.occupancy : 0));
+  const work = busiest((b) => (b.type && b.type[0] !== 'R' ? b.capacity * b.occupancy : 0));
+  let at: [[number, number], [number, number]] | null = null;
+  // (Home and work in one block: a bus between them would save no one a trip.)
+  if (home && work && Math.max(Math.abs(home[0] - work[0]), Math.abs(home[1] - work[1])) >= 8) {
+    const a = siteNear(kind, home[0], home[1], 8);
+    const b = a && siteNear(kind, work[0], work[1], 8);
+    if (a && b) at = [a, b];
+  }
+  pairMemo = { key, at };
+  return at;
+}
+let pairMemo: { key: string; at: [[number, number], [number, number]] | null } | null = null;
 
 let spotMemo: { key: string; spot: { x: number; y: number; tiles: number; crowded?: true } | null } | null = null;
 /** Buildings go without water though the pumps make enough for all: their networks aren't joined. */
