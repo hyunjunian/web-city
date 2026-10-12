@@ -2,7 +2,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceId, ORDINANCES, serviceRadius, type Structure, type StructureKind, STRUCTURES, type TripMeans } from '@web-city/engine';
 import { icon } from './icons';
-import { facilityLine, relieverFor, siteAwayFromHomes, siteNear } from './readings';
+import { facilityLine, readStats, relieverFor, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
 import { ko } from './messages';
 import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -214,8 +214,17 @@ export function showInfo(x: number, y: number): void {
   const paroled = q.structure && def?.police?.radius && q.structure.capacity > 0 && q.structure.load >= q.structure.capacity ? city.state.safety.paroled ?? 0 : 0;
   const jail = paroled > 0 ? (Object.keys(STRUCTURES) as StructureKind[]).find((k) => STRUCTURES[k].police?.radius === 0 && city.isUnlocked(k) && city.placementsLeft(k) > 0) : undefined;
   const jailAt = jail ? siteAwayFromHomes(jail) : null;
+  // A plant or pump while the city runs short of what it makes (under a tenth to spare): one more of it, where it
+  // joins the grid or the pipes.
+  const stats = q.structure && (def?.plant || def?.pump) ? readStats() : null;
+  const spare = !stats ? null : def!.plant ? { have: stats.power.supply, need: stats.power.demand, goal: 'power' as const, what: '전력' }
+    : { have: stats.water.supply, need: stats.water.demand, goal: 'water' as const, what: '물' };
+  // (Tight as the pane says it: demand past 85% of supply, 여유 10% · 곧 모자람.)
+  const tight = spare && spare.need > 0 && spare.need > spare.have * 0.85 ? spare : null;
+  const moreAt = tight && q.structure ? (def!.plant ? siteByPlants(q.structure.kind) : siteOnPipes(q.structure.kind)) : null;
   const relieve = relieveKind && relieveAt ? { kind: relieveKind, at: relieveAt, text: `옆에 ${STRUCTURE_NAME[relieveKind]} 짓기`, where: '가장 가까운 길가 빈 땅에' }
-    : jail && jailAt ? { kind: jail, at: jailAt, text: `${STRUCTURE_NAME[jail]} 짓기`, where: '주거지에서 떨어진 길가 빈 땅에' } : null;
+    : jail && jailAt ? { kind: jail, at: jailAt, text: `${STRUCTURE_NAME[jail]} 짓기`, where: '주거지에서 떨어진 길가 빈 땅에' }
+    : moreAt && q.structure ? { kind: q.structure.kind, at: moreAt, text: `${STRUCTURE_NAME[q.structure.kind]} 하나 더 짓기`, where: def!.plant ? '발전소 옆, 전력망에 닿는 길가 빈 땅에' : '수도관에 닿고 전기가 들어오는 빈 땅에' } : null;
   const chips = [
     b && !b.powered ? `<button type="button" class="chip bad"${go('power')} title="${city.cfg.services.noPowerMonths}개월이 되면 버려집니다 · 눌러서 전력 화면">${icon('zap')}전기 끊김 ${b.noPowerMonths}/${city.cfg.services.noPowerMonths}개월</button>` : '',
     b?.type && !b.watered && waterNeeded ? `<button type="button" class="chip bad"${go('water')} title="${city.cfg.services.noWaterMonths}개월이 되면 버려집니다 · 눌러서 수도 화면">${icon('droplet')}물 끊김 ${b.noWaterMonths}/${city.cfg.services.noWaterMonths}개월</button>` : '',
@@ -232,9 +241,12 @@ export function showInfo(x: number, y: number): void {
     q.structure && (def?.health || def?.school) && q.structure.load > q.structure.capacity && q.structure.capacity > 0
       ? `<button type="button" class="chip ${q.structure.strike ? 'bad' : 'warn'}"${go(def!.health ? 'health' : 'education')} title="정원을 넘으면 등급이 떨어지고 파업할 수 있습니다. 근처에 하나 더 지으세요 · 눌러서 어디에 지을지 보기">${q.structure.strike ? `${icon('alert')}파업 중 · ` : ''}정원 초과 ${Math.round((q.structure.load / q.structure.capacity - 1) * 100)}%</button>` : '',
     // Over its places: one more of its level beside it, built in one press (the chip above only showed where).
+    tight ? `<button type="button" class="chip ${tight.have < tight.need ? 'bad' : 'warn'}"${go(tight.goal)} title="도시 전체의 ${tight.what} 공급 / 수요 · 눌러서 ${GOALS[tight.goal].name} 화면">${icon(tight.goal === 'power' ? 'zap' : 'droplet')}${tight.have < tight.need ? `${tight.what} 모자람` : `${tight.what} 여유 ${Math.max(0, Math.round((1 - tight.need / tight.have) * 100))}%`}</button>` : '',
     paroled > 0 ? `<button type="button" class="chip warn"${go('police')} title="감방이 차면 잡은 범인을 풀어 주고, 풀려난 범인은 다시 범죄를 저지릅니다 · 눌러서 치안 화면">${icon('alert')}감방 가득 · 지난달 ${fmt(paroled)}명 풀려남</button>` : '',
     relieve ? `<button type="button" class="chip" data-relieve="${relieve.at.join(',')}" data-relieve-kind="${relieve.kind}" title="${relieve.where} ${STRUCTURE_NAME[relieve.kind]}${josa(STRUCTURE_NAME[relieve.kind], '을', '를')} 바로 짓기 (§${fmt(STRUCTURES[relieve.kind].cost)})">${icon('plus')}${relieve.text}</button>` : '',
     q.structure && (def?.fire || def?.police?.radius) && q.structure.strike ? `<span class="chip bad" title="예산이 100%보다 낮으면 파업할 수 있습니다. 90%보다 높게(95% 이상) 올리면 다음 달 끝납니다.">${icon('alert')}파업 중 (효과 20%)</span>` : '',
+    q.structure && (def?.fire || def?.police?.radius) && q.structure.strike && q.structure.funding < 100
+      ? `<button type="button" class="chip" data-fund-full="${q.structure.id}" title="예산을 100%로 올리면 다음 달 파업이 끝납니다">${icon('wallet')}예산 100%로</button>` : '',
     q.garbage > 0.1 ? `<span class="chip warn">${icon('trash')}쓰레기 ${q.garbage.toFixed(1)} t</span>` : '',
   ].join('');
   // Who comes and goes here, drawn on the map whenever a building or road is looked at (no separate tool);

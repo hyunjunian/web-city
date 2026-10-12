@@ -1512,6 +1512,18 @@ export function setupGoals(): void {
   });
   // The info card's link to the goal a facility or lot belongs to.
   document.addEventListener('click', (e) => {
+    // A striking facility's 예산 100%로 (the strike ends with the month).
+    const fund = (e.target as HTMLElement).closest<HTMLElement>('#info [data-fund-full]');
+    if (fund) {
+      const f = city.state.structures.get(Number(fund.dataset.fundFull));
+      if (!f) return;
+      choice('시설 예산', () => city.setFunding(f.id, 100));
+      noteAction(`시설 예산: ${STRUCTURE_NAME[f.kind]} 100%`, `fund:${f.id}`);
+      flash(`${STRUCTURE_NAME[f.kind]} 예산을 100%로 올렸습니다 · 다음 달 파업이 끝납니다`, 'info');
+      refreshInfo();
+      updatePanels();
+      return;
+    }
     // A full school or hospital's 옆에 … 짓기: one more of its level on the site found beside it.
     const relieve = (e.target as HTMLElement).closest<HTMLElement>('#info [data-relieve]');
     if (relieve) {
