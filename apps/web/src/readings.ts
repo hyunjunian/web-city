@@ -687,7 +687,7 @@ export function airSources(): AirSource[] {
     b.y0 = Math.min(b.y0, y);
     b.y1 = Math.max(b.y1, y);
   }
-  const { list, own, total } = airFrom(w, b);
+  const { list, own, total } = pollutionFrom('air', w, b);
   airMemo = { key, list, own, total };
   return list;
 }
@@ -699,14 +699,33 @@ export function airSourcesAt(x: number, y: number): AirSource[] {
   const n = city.size;
   const w = new Float32Array(n * n);
   w[y * n + x] = 1;
-  const list = airFrom(w, { x0: x, y0: y, x1: x, y1: y }).list;
+  const list = pollutionFrom('air', w, { x0: x, y0: y, x1: x, y1: y }).list;
   atMemo = { key, list };
   return list;
 }
 let atMemo: { key: string; list: AirSource[] } | null = null;
 
-/** Each kind of source's part in the air over the weighed tiles `w` (all within `b`), and each source's own. */
-function airFrom(w: Float32Array, b: { x0: number; y0: number; x1: number; y1: number }): { list: AirSource[]; own: Map<number, number>; total: number } {
+/**
+ * What fouls the water under a pump: each kind of source's part over its lot (any tile of it past the limit stops it,
+ * as the engine counts it), for its card.
+ */
+export function waterSourcesOn(st: { id: number; x: number; y: number; w: number; h: number }): AirSource[] {
+  const key = `${st.id}|${changeKey()}`;
+  if (waterMemo?.key === key) return waterMemo.list;
+  const n = city.size;
+  const w = new Float32Array(n * n);
+  for (let y = st.y; y < st.y + st.h; y++) for (let x = st.x; x < st.x + st.w; x++) w[y * n + x] = 1;
+  const list = pollutionFrom('water', w, { x0: st.x, y0: st.y, x1: st.x + st.w - 1, y1: st.y + st.h - 1 }).list;
+  waterMemo = { key, list };
+  return list;
+}
+let waterMemo: { key: string; list: AirSource[] } | null = null;
+
+/**
+ * Each kind of source's part in the air (or the water) over the weighed tiles `w` (all within `b`), and each source's
+ * own — the engine's spread of each, worked again source by source.
+ */
+function pollutionFrom(of: 'air' | 'water', w: Float32Array, b: { x0: number; y0: number; x1: number; y1: number }): { list: AirSource[]; own: Map<number, number>; total: number } {
   const s = city.state;
   const f = city.fields;
   const n = city.size;
@@ -725,29 +744,36 @@ function airFrom(w: Float32Array, b: { x0: number; y0: number; x1: number; y1: n
     }
   };
   if (b.x1 >= 0) {
-    const h = s.height;
+    const air = of === 'air';
+    // (Hills hold back the air's spread, not the water's.)
+    const h = air ? s.height : undefined;
     // Factories (dirty industry, manufacturing, high tech apart: what an ordinance or zoning changes differs) and farms,
-    // by their stage, as the engine has them.
-    const dev = city.cfg.development.airPollution;
+    // by their stage, as the engine has them (a farm's water from each of its tiles).
+    const dev = air ? city.cfg.development.airPollution : city.cfg.development.waterPollution;
     for (const bd of s.buildings.values()) {
-      const p = bd.type ? dev[bd.type] : undefined;
-      if (p) add(bd.type!, TYPE_NAME[bd.type!], lotReach(n, w, bd, p.perStage * bd.stage * Math.sqrt(bd.occupancy), p.radius, h, b), bd, bd.id);
+      const p: { perStage: number; radius: number; perTile?: boolean } | undefined = bd.type ? dev[bd.type] : undefined;
+      if (!p) continue;
+      let v = 0;
+      if (p.perTile) for (let y = bd.y; y < bd.y + bd.h; y++) for (let x = bd.x; x < bd.x + bd.w; x++) v += coneReach(n, w, x + 0.5, y + 0.5, p.perStage * bd.occupancy, p.radius + 0.5, b);
+      else v = lotReach(n, w, bd, p.perStage * bd.stage * Math.sqrt(bd.occupancy), p.radius, h, b);
+      add(bd.type!, TYPE_NAME[bd.type!], v, bd, bd.id);
     }
-    // Plants and incinerators by kind, and anything else that fouls the air (an airport, a landmark).
+    // Plants and incinerators by kind, and anything else that fouls the air or the water (an airport, a landmark).
     for (const st of s.structures.values()) {
       const def = STRUCTURES[st.kind];
       const burns = def.plant ?? def.incinerator;
-      const v = (burns ? lotReach(n, w, st, burns.air[0], burns.air[1], h, b) : 0) + (def.pollution && def.pollution[0] > 0 ? lotReach(n, w, st, def.pollution[0], def.pollution[1], h, b) : 0);
+      const [own0, ownR] = def.pollution ? (air ? [def.pollution[0], def.pollution[1]] : [def.pollution[2], def.pollution[3]]) : [0, 0];
+      const v = (burns ? lotReach(n, w, st, air ? burns.air[0] : burns.water[0], air ? burns.air[1] : burns.water[1], h, b) : 0) + (own0 > 0 ? lotReach(n, w, st, own0, ownR, h, b) : 0);
       add(`st:${st.kind}`, STRUCTURE_NAME[st.kind], v, st, -st.id);
     }
-    // Cars and trucks (trains a quarter): the engine's cone of 2.5 tiles about each road tile.
-    const tp = city.cfg.development.trafficPollution;
+    // Cars and trucks (trains a quarter): the engine's cone of 2.5 tiles about each road tile. (Air only.)
+    const tp = air ? city.cfg.development.trafficPollution : 0;
     const [cars, trucks, trains] = [f.traffic, f.highTraffic, f.railTraffic];
     for (let y = Math.max(0, b.y0 - 2); y <= Math.min(n - 1, b.y1 + 2); y++) {
       for (let x = Math.max(0, b.x0 - 2); x <= Math.min(n - 1, b.x1 + 2); x++) {
         const i = y * n + x;
         const t = cars[i]! + trucks[i]! + trains[i]! * 0.25;
-        if (!(t > 0)) continue;
+        if (!(t > 0) || !tp) continue;
         let v = 0;
         for (let k = 0; k < CAR_CONE.length; k += 3) {
           const nx = x + CAR_CONE[k]!;
@@ -762,7 +788,7 @@ function airFrom(w: Float32Array, b: { x0: number; y0: number; x1: number; y1: n
     for (const spill of s.spills) {
       const x = spill.i % n;
       const y = (spill.i - x) / n;
-      add('spill', '유독 물질 유출', coneReach(n, w, x + 0.5, y + 0.5, sp.air, sp.radius), { x, y, w: 1, h: 1 });
+      add('spill', '유독 물질 유출', coneReach(n, w, x + 0.5, y + 0.5, air ? sp.air : sp.water, sp.radius, b), { x, y, w: 1, h: 1 });
     }
   }
   const total = [...kinds.values()].reduce((a, k) => a + k.sum, 0);
@@ -800,7 +826,7 @@ const HILL_BLOCKS_AT = 30;
  * How much of a lot's pollution reaches the weighed tiles — the engine's spread from a lot: full over it, fading from
  * its edges to nothing at `radius` tiles, held back by a ridge in between. Only the tiles within `b` are summed.
  */
-function lotReach(n: number, w: Float32Array, lot: { x: number; y: number; w: number; h: number }, strength: number, radius: number, height: Uint8Array, b: { x0: number; y0: number; x1: number; y1: number }): number {
+function lotReach(n: number, w: Float32Array, lot: { x: number; y: number; w: number; h: number }, strength: number, radius: number, height: Uint8Array | undefined, b: { x0: number; y0: number; x1: number; y1: number }): number {
   if (!(strength > 0)) return 0;
   const reach = radius + 1;
   const fy0 = Math.max(0, lot.y - radius);
@@ -811,10 +837,10 @@ function lotReach(n: number, w: Float32Array, lot: { x: number; y: number; w: nu
   if (x0 > x1 || y0 > y1) return 0;
   const cx = lot.x + (lot.w - 1) / 2;
   const cy = lot.y + (lot.h - 1) / 2;
-  const hs = height[Math.round(cy) * n + Math.round(cx)]!;
+  const hs = height ? height[Math.round(cy) * n + Math.round(cx)]! : 0;
   // (As the engine: a ridge is looked for only when something in the whole reach stands above the source.)
   let hills = false;
-  for (let y = fy0; y <= fy1 && !hills; y++) for (let x = fx0; x <= fx1; x++) if (height[y * n + x]! > hs) { hills = true; break; }
+  if (height) for (let y = fy0; y <= fy1 && !hills; y++) for (let x = fx0; x <= fx1; x++) if (height[y * n + x]! > hs) { hills = true; break; }
   let sum = 0;
   for (let y = y0; y <= y1; y++) {
     const dy = y < lot.y ? lot.y - y : y >= lot.y + lot.h ? y - (lot.y + lot.h - 1) : 0;
@@ -825,7 +851,7 @@ function lotReach(n: number, w: Float32Array, lot: { x: number; y: number; w: nu
       const d = Math.sqrt(dx * dx + dy * dy);
       if (d >= reach) continue;
       let v = strength * (1 - d / reach);
-      if (hills && d > 1) {
+      if (hills && height && d > 1) {
         const ends = Math.max(hs, height[y * n + x]!);
         let ridge = 0;
         const steps = Math.ceil(Math.max(Math.abs(x - cx), Math.abs(y - cy)));
@@ -841,12 +867,12 @@ function lotReach(n: number, w: Float32Array, lot: { x: number; y: number; w: nu
   return sum;
 }
 
-/** How much of a cone about a point (the engine's spill spread) reaches the weighed tiles. */
-function coneReach(n: number, w: Float32Array, cx: number, cy: number, strength: number, radius: number): number {
+/** How much of a cone about a point (the engine's spread of a spill, or of a farm's tile in water) reaches the weighed tiles within `b`. */
+function coneReach(n: number, w: Float32Array, cx: number, cy: number, strength: number, radius: number, b: { x0: number; y0: number; x1: number; y1: number }): number {
   if (!(strength > 0) || radius <= 0) return 0;
   let sum = 0;
-  for (let y = Math.max(0, Math.floor(cy - radius)); y <= Math.min(n - 1, Math.ceil(cy + radius)); y++) {
-    for (let x = Math.max(0, Math.floor(cx - radius)); x <= Math.min(n - 1, Math.ceil(cx + radius)); x++) {
+  for (let y = Math.max(0, b.y0, Math.floor(cy - radius)); y <= Math.min(n - 1, b.y1, Math.ceil(cy + radius)); y++) {
+    for (let x = Math.max(0, b.x0, Math.floor(cx - radius)); x <= Math.min(n - 1, b.x1, Math.ceil(cx + radius)); x++) {
       const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
       if (d < radius) sum += w[y * n + x]! * strength * (1 - d / radius);
     }

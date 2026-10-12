@@ -2,7 +2,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceId, ORDINANCES, serviceRadius, type Structure, type StructureKind, STRUCTURES, type TripMeans } from '@web-city/engine';
 import { icon } from './icons';
-import { airShareOf, airSourcesAt, budgetMends, facilityLine, hasRoadNow, jamRun, widenTo, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
+import { airShareOf, airSourcesAt, budgetMends, facilityLine, waterSourcesOn, hasRoadNow, jamRun, widenTo, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
 import { ko } from './messages';
 import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -682,6 +682,23 @@ const smogRow = (x: number, y: number, air: number): string => {
   return `<tr><td title="대기 오염이 40을 넘으면 주민의 건강과 시장 평점이 떨어집니다">공기</td><td class="neg">나쁨 ${air.toFixed(0)} · ${escapeHtml(from)}${go}</td></tr>`;
 };
 
+/**
+ * The water under a pump once it is half way to the limit past which the pump stops (any tile of its lot, as the
+ * engine counts it): how foul against the limit, what fouls it most, and a way to that on the map.
+ */
+const pumpWaterRow = (st: Structure): string => {
+  const limit = city.cfg.services.pumpPollutionLimit;
+  const n = city.size;
+  const wp = city.fields.waterPollution;
+  let worst = 0;
+  for (let y = st.y; y < st.y + st.h; y++) for (let x = st.x; x < st.x + st.w; x++) worst = Math.max(worst, wp[y * n + x]!);
+  if (!(worst > limit * 0.5)) return '';
+  const [a] = waterSourcesOn(st).filter((x) => x.key !== 'rest');
+  const what = !a ? '' : a.key.startsWith('st:') || a.key === 'spill' ? a.label : a.key === 'IA' ? '농장' : `${a.label} 공장`;
+  const go = a?.at && a.lot ? ` <button type="button" class="advice-view" data-at="${a.at.join(',')}" data-flash="${[a.lot.x, a.lot.y, a.lot.w, a.lot.h].join(',')}" title="이 펌프의 물을 가장 더럽히는 곳 보기">보기</button>` : '';
+  return `<tr><td title="이 펌프 자리의 수질 오염 · 한도를 넘으면 펌프가 멈춥니다">수질</td><td class="${worst > limit ? 'neg' : ''}">${fmt(worst)} / 한도 ${fmt(limit)}${what ? ` · 주로 ${escapeHtml(what)}` : ''}${go}</td></tr>`;
+};
+
 /** A factory's, farm's or plant's part in the air over the smoggy homes, where it has one worth saying. */
 const smokeRow = (code: number, row: string): string => {
   const share = code ? airShareOf(code) : 0;
@@ -716,7 +733,7 @@ export function structureRows(st: Structure, withLoad = true): string {
     rows += `
       ${withLoad ? `<tr><td>급수량</td><td>${fmt(st.load)} / ${fmt(st.capacity)} m³</td></tr>` : ''}
       <tr><td>가동률</td><td>${pct(st.effectiveness)}${st.capacity === 0 ? ` <span class="neg">· 정지 (${!st.powered ? '전기가 닿지 않음: 발전소·송전선으로 이으세요' : '물이 오염됨: 오염원을 치우거나 정수장을 지으세요'})</span>` : ''}</td></tr>
-      <tr><td>상태 (수명)</td><td class="${st.life >= 90 ? 'neg' : ''}">${Math.max(0, Math.round((1 - st.life / 110) * 100))}%</td></tr>`;
+      <tr><td>상태 (수명)</td><td class="${st.life >= 90 ? 'neg' : ''}">${Math.max(0, Math.round((1 - st.life / 110) * 100))}%</td></tr>${pumpWaterRow(st)}`;
   } else if (def.plant) {
     rows += `
       ${withLoad ? `<tr><td title="전력망 수요 가운데 이 발전소가 맡은 몫 / 발전 능력">발전량 / 능력</td><td>${fmt(st.load)} / ${fmt(st.capacity)} MWh</td></tr>` : ''}
