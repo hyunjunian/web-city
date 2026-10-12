@@ -1547,7 +1547,21 @@ function placeToolMark(): void {
   }
   // A zone in hand whose class is wanted: the block the growth screen would lay, outlined — a road along a whole
   // side, clear of what spoils it — to draw over.
-  if (tool.kind === 'zone' && tool.zone && tool.zone !== 'none' && tool.zone !== 'landfill') {
+  // (The landfill zone: the square the garbage screen would lay, sized to a year of the city's rubbish, clear of the
+  // homes and shops.)
+  if (tool.kind === 'zone' && tool.zone === 'landfill') {
+    const fill = landfillSite();
+    const marks: typeof renderer.marks = fill ? [
+      { x: fill.x0 + (fill.side >> 1), y: fill.y0 + (fill.side >> 1), w: 1, h: 1, tone: 'spot', label: `추천 자리 · 매립지 ${fill.side}×${fill.side}` },
+      { x: fill.x0, y: fill.y0, w: fill.side, h: fill.side, tone: 'area' },
+    ] : [];
+    if (JSON.stringify(marks) !== JSON.stringify(renderer.marks)) {
+      renderer.marks = marks;
+      redraw();
+    }
+    return;
+  }
+  if (tool.kind === 'zone' && tool.zone && tool.zone !== 'none') {
     const z = tool.zone;
     const cls = z === 'A' ? 'A' : z[0]!;
     const types = DEV_TYPES.filter((t) => (cls === 'A' ? t === 'IA' : cls === 'I' ? t[0] === 'I' && t !== 'IA' : t[0] === cls));
