@@ -544,7 +544,7 @@ export function newlyReached(goal: GoalId, cx: number, cy: number, r: number): n
 
 export const SPOT_WORD: Partial<Record<GoalId, string>> = {
   police: '경찰이 닿지 않는 건물', fire: '소방이 닿지 않는 건물', health: '병원이 닿지 않는 집', education: '학교가 닿지 않는 집',
-  power: '발전소 자리', water: '양수 시설 자리', traffic: '막히는 길', environment: '공기가 나쁜 주거지', garbage: '쓰레기가 쌓인 곳', wealth: '부유층이 살 만한 길가 빈 땅',
+  power: '발전소 자리', water: '양수 시설 자리', traffic: '막힌 길', environment: '공기가 나쁜 주거지', garbage: '쓰레기가 쌓인 곳', wealth: '부유층이 살 만한 길가 빈 땅',
 };
 
 const LEVEL_NAME: Record<string, string> = { elementary: '초등', highSchool: '고등' };
