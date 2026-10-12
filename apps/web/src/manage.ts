@@ -16,10 +16,10 @@ import { journal } from './journal';
 import { abandonHint, capBest, capHint, jobHint, pushNotice, rciMini, updatePanels } from './panels';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, flightCount, glideTo, graphs, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
-import { categoryOf, chosen, kindsFor, openTray, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
+import { categoryOf, chosen, kindsFor, openTray, panTipAt, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
-import { $, escapeHtml, firstSentence, flash, fmt, glue, josa, stoppedNote, straightRuns } from './util';
+import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
 import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
@@ -1543,6 +1543,27 @@ export function markToolSite(): void {
   if (!toolSiteDue) toolSiteDue = window.setTimeout(placeToolMark, 16);
 }
 let toolSiteDue = 0;
+
+/**
+ * The held tool's marks (and route) on the map. The first ever shown says, once, what the blue target is — unless
+ * another word is up (the touch screen's own first tip comes with the same pick).
+ */
+function showToolMarks(marks: typeof renderer.marks, path: [number, number][] | null = null): void {
+  if (JSON.stringify([marks, path]) === JSON.stringify([renderer.marks, renderer.guidePath])) return;
+  renderer.marks = marks;
+  renderer.guidePath = path;
+  redraw();
+  if (!marks.length || flashing() || performance.now() - panTipAt < 6000) return;
+  try {
+    if (localStorage.getItem(SITE_TIP_KEY)) return;
+    localStorage.setItem(SITE_TIP_KEY, '1');
+  } catch {
+    return; // (storage unavailable: no tip, rather than one each time)
+  }
+  flash('파란 과녁이 추천 자리입니다 · 화면 밖이면 가장자리의 화살표가 그쪽을 가리킵니다', 'info');
+}
+const SITE_TIP_KEY = 'web-city:site-tip';
+
 function placeToolMark(): void {
   toolSiteDue = 0;
   if (active) return; // (a screen marks its own)
@@ -1552,8 +1573,6 @@ function placeToolMark(): void {
     toolSiteDue = window.setTimeout(placeToolMark, 50);
     return;
   }
-  // A zone in hand whose class is wanted: the block the growth screen would lay, outlined — a road along a whole
-  // side, clear of what spoils it — to draw over.
   // A power line or a pipe in hand: the guide's route where one is wanted — from the grid to the nearest dark zone (with
   // power to spare: into a grid in blackouts another building is only cut in turn), from water to spare to the dry
   // buildings — dashed end to end, to draw along.
@@ -1564,17 +1583,8 @@ function placeToolMark(): void {
       { x: a[0], y: a[1], w: 1, h: 1, tone: 'spot', label: '' },
       { x: b[0], y: b[1], w: 1, h: 1, tone: 'spot', label: `추천 · ${tool.kind === 'pipe' ? '수도관' : '송전선'} ${fmt(line.length)}칸` },
     ] : [];
-    if (JSON.stringify([marks, line]) !== JSON.stringify([renderer.marks, renderer.guidePath])) {
-      renderer.marks = marks;
-      renderer.guidePath = line;
-      redraw();
-    }
+    showToolMarks(marks, line);
     return;
-  }
-  // (Any other tool: no route left drawn from one.)
-  if (renderer.guidePath) {
-    renderer.guidePath = null;
-    redraw();
   }
   // (The landfill zone: the square the garbage screen would lay, sized to a year of the city's rubbish, clear of the
   // homes and shops.)
@@ -1584,12 +1594,11 @@ function placeToolMark(): void {
       { x: fill.x0 + (fill.side >> 1), y: fill.y0 + (fill.side >> 1), w: 1, h: 1, tone: 'spot', label: `추천 자리 · 매립지 ${fill.side}×${fill.side}` },
       { x: fill.x0, y: fill.y0, w: fill.side, h: fill.side, tone: 'area' },
     ] : [];
-    if (JSON.stringify(marks) !== JSON.stringify(renderer.marks)) {
-      renderer.marks = marks;
-      redraw();
-    }
+    showToolMarks(marks);
     return;
   }
+  // A zone in hand whose class is wanted: the block the growth screen would lay, outlined — a road along a whole
+  // side, clear of what spoils it — to draw over.
   if (tool.kind === 'zone' && tool.zone && tool.zone !== 'none') {
     const z = tool.zone;
     const cls = z === 'A' ? 'A' : z[0]!;
@@ -1600,10 +1609,7 @@ function placeToolMark(): void {
       { x: block.x0 + (block.side >> 1), y: block.y0 + (block.side >> 1), w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${toolName(tool)} ${block.side}×${block.side}` },
       { x: block.x0, y: block.y0, w: block.side, h: block.side, tone: 'area' },
     ] : [];
-    if (JSON.stringify(marks) !== JSON.stringify(renderer.marks)) {
-      renderer.marks = marks;
-      redraw();
-    }
+    showToolMarks(marks);
     return;
   }
   const held = tool.kind === 'structure' ? chosen[tool.id] : undefined;
@@ -1657,9 +1663,7 @@ function placeToolMark(): void {
       marks.push({ x: p[0], y: p[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]} (${k ? '일터 쪽' : '집 쪽'})` });
     });
   }
-  if (JSON.stringify(marks) === JSON.stringify(renderer.marks)) return;
-  renderer.marks = marks;
-  redraw();
+  showToolMarks(marks);
 }
 
 /**
