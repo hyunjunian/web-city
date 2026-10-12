@@ -5,7 +5,7 @@ import { icon } from './icons';
 import { chooseSpeed, refreshTaxes, refreshViewSummary, showOverlay } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
 import { capped as atCap, deptEmpty, deptFunded, newReadings, readStats } from './readings';
-import { active, autoPause, openGoal, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
+import { active, autoPause, markToolSite, openGoal, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
 import { buildOrdinances, ordinanceMonth, ordinanceSignature, refreshInfo, setOrdinanceMonth } from './info';
 import { ko } from './messages';
 import { renderMySims } from './mysims';
@@ -400,6 +400,7 @@ export function updatePanels(): void {
     if (focused) $('#status').querySelector<HTMLElement>(`[data-goal="${focused}"]`)?.focus({ preventScroll: true });
   }
   renderGoal();
+  markToolSite(); // (built, the next gap: no screen open)
   refreshStrip();
   const dem = city.demand;
   // SC4's RCI meter: each class shows its strongest demand (or weakest, when none is positive).

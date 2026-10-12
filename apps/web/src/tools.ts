@@ -4,7 +4,7 @@
 import { DEFAULT_CONFIG, DEV_TYPES, DISASTER_KINDS, type DisasterKind, type NetworkKind, type StructureKind, STRUCTURES, type ZoneKind } from '@web-city/engine';
 import { icon, type IconName } from './icons';
 import { hoverUnderMouse, setPreview, updatePreview } from './input';
-import { goalTools, nextStep, openGoal, suggestedKinds } from './manage';
+import { goalTools, markToolSite, nextStep, openGoal, suggestedKinds } from './manage';
 import { firstStepTool } from './onboarding';
 import { DISASTER_NAME, plainCodes, STRUCTURE_NAME } from './names';
 import { holdForBuilding, isHeld, releaseHold, showHelp, showOverlay } from './controls';
@@ -940,6 +940,7 @@ export function selectTool(id: string): void {
     showOverlay(viewBefore);
     autoView = null;
   } else if (!view) autoView = null;
+  markToolSite(); // (a station in hand: where it fills the biggest gap)
   redraw();
 }
 

@@ -1515,6 +1515,27 @@ function spotLine(id: GoalId): string {
 const SERVICE_SITE = new Set<GoalId>(['police', 'fire', 'health', 'education']);
 
 /**
+ * A station picked from the build cards, no screen open: the map marks where it fills the biggest gap in its service
+ * (the view that comes on with it shows every gap; the mark says which to fill, on ground it fits), and its arrow at
+ * the screen's edge leads there.
+ */
+export function markToolSite(): void {
+  if (active) return; // (a screen marks its own)
+  const kind = tool.kind === 'structure' ? chosen[tool.id] : undefined;
+  const d = kind ? STRUCTURES[kind] : null;
+  const id = kind ? goalOfStructure(kind) : null;
+  // (Not a jail, nor a library or university that reaches the whole city: where it stands changes nothing.)
+  const local = !!d && (d.police ? d.police.radius > 0 : d.school ? d.school.radius < 300 : !!(d.fire || d.health));
+  const spot = kind && id && SERVICE_SITE.has(id) && local && city.isUnlocked(kind) && city.placementsLeft(kind) > 0
+    && !incidents().some((x) => x.goal === id) ? suggestSpot(id) : null;
+  const at = spot && kind ? siteNear(kind, spot.x, spot.y, 0) ?? siteNear(kind, spot.x, spot.y, 6) : null;
+  const marks: typeof renderer.marks = at ? [{ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind!]}` }] : [];
+  if (JSON.stringify(marks) === JSON.stringify(renderer.marks)) return;
+  renderer.marks = marks;
+  redraw();
+}
+
+/**
  * Time going by, beside the goal's name: a fast clock spent a year or two while a screen
  * was being read. One press pauses it to think (and again goes on at the speed it had).
  */
