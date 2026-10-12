@@ -522,24 +522,24 @@ function need(id: GoalId): ((i: number) => number) | null {
 }
 
 /**
- * How many buildings a station of `goal` would newly reach from its ring (centre, radius): those within it that its
- * service misses now, as the goal's mark counts them (homes only, for a hospital or school). For the pointer, as a
- * station is moved about: where it does the most.
+ * How many buildings a station of `goal` would newly reach from its ring (centre, radius): those whose middle lies in
+ * it and that its service misses now, counted as the service's view counts them (homes only, for a hospital or
+ * school) — so the view's count falls by what the pointer said. For the pointer, as a station is moved about.
  */
 export function newlyReached(goal: GoalId, cx: number, cy: number, r: number): number {
-  const want = need(goal);
-  if (!want || r <= 0) return 0;
-  const s = city.state;
+  const f = city.fields;
   const n = city.size;
-  const seen = new Set<number>();
-  for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(n - 1, Math.ceil(cy + r)); y++) {
-    for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(n - 1, Math.ceil(cx + r)); x++) {
-      if ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 > r * r) continue;
-      const occ = s.occupant[y * n + x]!;
-      if (occ && want(y * n + x) > 0) seen.add(occ);
-    }
+  const lacks = goal === 'police' ? (i: number) => !(f.policeCover[i]! > 0) : goal === 'fire' ? (i: number) => !(f.fireCover[i]! > 0)
+    : goal === 'health' ? (i: number) => !(f.hospitalCover[i]! > 0) : goal === 'education' ? (i: number) => !(f.schoolQuality[i]! > 0) : null;
+  if (!lacks || r <= 0) return 0;
+  const homesOnly = goal === 'health' || goal === 'education';
+  let count = 0;
+  for (const b of city.state.buildings.values()) {
+    if (!b.type || (homesOnly && b.type[0] !== 'R')) continue;
+    const [mx, my] = [b.x + (b.w >> 1), b.y + (b.h >> 1)];
+    if ((mx + 0.5 - cx) ** 2 + (my + 0.5 - cy) ** 2 <= r * r && lacks(my * n + mx)) count++;
   }
-  return seen.size;
+  return count;
 }
 
 export const SPOT_WORD: Partial<Record<GoalId, string>> = {
