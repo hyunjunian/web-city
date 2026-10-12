@@ -211,6 +211,9 @@ for (let month = 0; month < years * 12; month++) {
     const a = city.stats();
     const b = copy.stats();
     if (a.population !== b.population || a.buildings !== b.buildings) fail(`save round trip: ${a.population}/${b.population}`);
+    const beforeQuery = JSON.stringify(saveCity(copy));
+    copy.routeQuery(Math.floor(n / 2), Math.floor(n / 2));
+    if (JSON.stringify(saveCity(copy)) !== beforeQuery) fail('route query changed saved data');
     // A save made at a month's end reloads into a city that carries on exactly like the original.
     city.step(60);
     copy.step(60);

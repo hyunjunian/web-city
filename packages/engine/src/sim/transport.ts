@@ -2030,14 +2030,19 @@ export function replayTrips(s: CityState, f: Fields, cfg: SimConfig): TripLog | 
   const arrays = [f.traffic, f.railTraffic, f.freightRail, f.subwayTraffic, f.monorailTraffic, f.ferryTraffic, f.highTraffic];
   const copies = arrays.map((a) => Float32Array.from(a));
   const loads = [...s.structures.values()].map((st) => st.load);
-  const homes = [...s.buildings.values()].map((b) => [b.commute, b.jobs] as const);
+  const homes = [...s.buildings.values()].map((b) => [b.commute, b.jobs, Object.hasOwn(b, 'jobs')] as const);
   const { localCommute, eveningTraffic } = f;
   const jobless = new Map(f.jobless);
   assignTraffic(s, f, cfg);
   const log = f.tripLog;
   arrays.forEach((a, k) => a.set(copies[k]!));
   [...s.structures.values()].forEach((st, k) => (st.load = loads[k]!));
-  [...s.buildings.values()].forEach((b, k) => ([b.commute, b.jobs] = homes[k]!));
+  [...s.buildings.values()].forEach((b, k) => {
+    const [commute, jobs, hadJobs] = homes[k]!;
+    b.commute = commute;
+    if (hadJobs) b.jobs = jobs;
+    else delete b.jobs; // adding an undefined key would change the saved building table's columns
+  });
   Object.assign(f, { localCommute, eveningTraffic, jobless, tripLog: log });
   return log;
 }

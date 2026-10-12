@@ -637,6 +637,21 @@ describe('stations join only the lines they serve', () => {
 });
 
 describe('route query', () => {
+  it('replaying routes keeps an industrial town without commuter job memories unchanged', () => {
+    const city = new City({ size: 32, water: false, config: { ...CALM, development: { requireWater: false } } });
+    city.state.funds = 1_000_000;
+    city.buildNetwork(0, 10, 31, 10, 'road');
+    city.zone(2, 11, 29, 16, 'I-medium');
+    city.placeStructure('gasPlant', 2, 18);
+    city.step(60);
+    expect(city.state.buildings.size).toBeGreaterThan(0);
+    const loaded = loadCity(JSON.parse(JSON.stringify(saveCity(city))), { config: { ...CALM, development: { requireWater: false } } });
+    const before = JSON.stringify(saveCity(loaded));
+    expect(saveCity(loaded).buildingTable!.columns).not.toContain('jobs');
+    loaded.routeQuery(3, 10);
+    expect(JSON.stringify(saveCity(loaded))).toBe(before);
+  });
+
   it('shows where a home\'s commuters go, who arrives at a workplace, and what crosses a road', () => {
     const city = corridor();
     city.step(360);
