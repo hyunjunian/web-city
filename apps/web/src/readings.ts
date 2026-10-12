@@ -1767,7 +1767,7 @@ function litBy(kind: StructureKind, x: number, y: number, dark: { per: Map<numbe
   return sum;
 }
 
-export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; crowded?: true; lit?: number; blds?: number } | null {
+export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; crowded?: true; of?: [number, number]; lit?: number; blds?: number } | null {
   const key = `${id}|${changeKey()}`;
   if (spotMemo?.key === key) return spotMemo.spot;
   // A school or hospital on strike or far over its places: the new one goes beside it, to take some of
@@ -1775,21 +1775,29 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
   const over = id === 'education' || id === 'health'
     ? adviceFor(id).find((a) => a.at && ['schoolStrike', 'hospitalStrike', 'schoolFull', 'hospitalFull'].includes(a.code)) : undefined;
   const kind = over ? relieverFor(over.at!) ?? cheapestOf(GOALS[id]) : null;
-  if (over && kind) {
-    const d = STRUCTURES[kind];
-    const [ax, ay] = over.at!;
+  // (The nearest site beside a full one where its reliever fits, with a road.)
+  // (With where the full one stands, so a site for another level or class is not put beside it.)
+  const beside = (at: readonly [number, number], k: StructureKind) => {
+    const d = STRUCTURES[k];
+    const [ax, ay] = at;
     for (let r = 1; r <= 12; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
       const [x, y] = [ax + dx, ay + dy];
       const [lx, ly] = [x - ((d.w - 1) >> 1), y - ((d.h - 1) >> 1)]; // (a spot is the site's middle)
-      if (!city.canPlaceStructure(kind, lx, ly).ok || !city.roadBeside(lx, ly, d.w, d.h)) continue;
-      const spot = { x, y, tiles: 0, crowded: true as const };
+      if (!city.canPlaceStructure(k, lx, ly).ok || !city.roadBeside(lx, ly, d.w, d.h)) continue;
+      return { x, y, tiles: 0, crowded: true as const, of: [ax, ay] as [number, number] };
+    }
+    return null;
+  };
+  if (over && kind) {
+    const spot = beside(over.at!, kind);
+    if (spot) {
       spotMemo = { key, spot };
       return spot;
     }
   }
   const want = need(id);
-  let spot: { x: number; y: number; tiles: number; lit?: number; blds?: number } | null = null;
+  let spot: { x: number; y: number; tiles: number; crowded?: true; of?: [number, number]; lit?: number; blds?: number } | null = null;
   let lit = 0;
   if (want) {
     // Counted in blocks of 12 tiles; the fullest block's middle of its needing tiles.
@@ -1905,6 +1913,15 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
       }
       spot = { x: at[0], y: at[1], tiles: hits[best]!, ...(lit ? { lit } : {}), ...(blds ? { blds } : {}) };
     }
+  }
+  // Every home in reach but the places short (a school level, or the hospitals, past their places): beside the fullest
+  // of them, as a full one the advisor names is (학교 정원의 104% · 넘침 had nowhere to build).
+  if (!spot && (id === 'education' || id === 'health')) {
+    const lvl = id === 'education' ? levelShort() : null;
+    const ward = (k: StructureKind) => (id === 'education' ? STRUCTURES[k].school?.curve === lvl?.curve : (STRUCTURES[k].health?.radius ?? Infinity) < 300);
+    const full = facilities(GOALS[id]).filter((f) => f.capacity > 0 && f.load > f.capacity && ward(f.kind)).sort((a, b) => b.load / b.capacity - a.load / a.capacity)[0];
+    const k = full ? relieverFor([full.x, full.y]) : null;
+    if (full && k) spot = beside([full.x, full.y], k);
   }
   spotMemo = { key, spot };
   return spot;

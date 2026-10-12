@@ -281,8 +281,7 @@ function guideHtml(id: GoalId): string {
     const one = (at: [number, number] | null, title: string) => (at ? { at: [at], title, labels: [] as string[] } : null);
     // (Beside a full school only one of its level takes its students: a primary school by a full high school
     // relieved nothing.)
-    const over = spot?.crowded ? adviceFor(id).find((a) => a.at && ['schoolStrike', 'hospitalStrike', 'schoolFull', 'hospitalFull'].includes(a.code)) : undefined;
-    const overKind = over?.at ? city.query(over.at[0], over.at[1])?.structure?.kind : undefined;
+    const overKind = spot?.crowded && spot.of ? city.query(spot.of[0], spot.of[1])?.structure?.kind : undefined;
     const relieves = !!st.build && (!overKind || !STRUCTURES[overKind].school || STRUCTURES[overKind].school!.curve === STRUCTURES[st.build].school?.curve);
     const own = site || !st.build ? null
       : mark ? ((near) => near ? one(near, `지도의 과녁(${SPOT_WORD[id] ?? ''}) 가까이, 길가 빈 땅에 바로 짓기`)
@@ -1653,9 +1652,8 @@ function placeToolMark(): void {
     const spot = kind && !incidents().some((x) => x.goal === goal) ? suggestSpot(goal) : null;
     if (!kind || !spot) return null;
     // (Beside a full school only one of its level takes its students: a primary school by a full high school relieved nothing.)
-    const over = spot.crowded && goal === 'education' ? adviceFor(goal).find((a) => a.at && (a.code === 'schoolStrike' || a.code === 'schoolFull')) : undefined;
-    const full = over?.at ? city.query(over.at[0], over.at[1])?.structure?.kind : undefined;
-    if (full && STRUCTURES[full].school?.curve !== d?.school?.curve) return null;
+    const full = spot.crowded && spot.of ? city.query(spot.of[0], spot.of[1])?.structure?.kind : undefined;
+    if (full && STRUCTURES[full].school && STRUCTURES[full].school.curve !== d?.school?.curve) return null;
     return siteNear(kind, spot.x, spot.y, 0) ?? siteNear(kind, spot.x, spot.y, 6);
   };
   // (A plant whose smoke keeps it from the mark: the nearest ground clear of the homes, as the guide's.)
