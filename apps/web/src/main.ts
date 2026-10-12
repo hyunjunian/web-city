@@ -171,6 +171,9 @@ export function openSample(): void {
     if (button) {
       button.disabled = true;
       button.textContent = pct === undefined ? '만드는 중…' : `만드는 중… ${pct}%`;
+      // (The button fills as the town grows: a bar to watch, not only a number.)
+      button.style.setProperty('--pct', `${pct ?? 0}%`);
+      button.classList.add('making');
     }
   };
   const finish = () => {
@@ -179,6 +182,7 @@ export function openSample(): void {
     if (button) {
       button.disabled = false;
       button.textContent = label;
+      button.classList.remove('making');
     }
   };
   const slice = () => {
