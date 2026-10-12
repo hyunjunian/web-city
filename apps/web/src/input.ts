@@ -774,6 +774,9 @@ export function placeAt(x: number, y: number): void {
   updatePreview();
 }
 
+/** What a station being bulldozed alone reached (said with the result). */
+let lostCover: { n: number; what: string } | null = null;
+
 export function applyTool(): void {
   if (!drag || drive) return; // no building under the car while driving
   const [x0, y0] = drag.start;
@@ -802,7 +805,19 @@ export function applyTool(): void {
       break;
     }
     case 'zone': res = city.zone(x0, y0, x1, y1, tool.zone); break;
-    case 'bulldoze': res = city.bulldoze(x0, y0, x1, y1); break;
+    case 'bulldoze': {
+      // (Stations taken down: what only they reached, said with the result — a touch screen has no hover to warn first.)
+      city.settle();
+      const ids = new Set<number>();
+      for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) {
+        const occ = city.state.occupant[y * city.size + x] ?? 0;
+        if (occ < 0) ids.add(-occ);
+      }
+      const alone = [...ids].map((id) => city.state.structures.get(id)).map((st) => (st ? aloneReached(st) : null)).filter((a): a is NonNullable<typeof a> => !!a?.n);
+      lostCover = alone.length ? { n: alone.reduce((sum, a) => sum + a.n, 0), what: alone.some((a) => a.what === '건물') ? '건물' : '집' } : null;
+      res = city.bulldoze(x0, y0, x1, y1);
+      break;
+    }
     case 'powerline': res = city.buildPowerLine(...L); break;
     case 'pipe': res = city.buildPipe(...L); break;
     case 'unpipe': res = city.bulldozePipes(x0, y0, x1, y1); break;
@@ -921,7 +936,9 @@ export function applyTool(): void {
   }
   if (forget && !res?.ok) forget();
   // What was done where the map shows little of it: a word that it happened, and its cost.
-  if (res?.ok && !res.message && QUIET_KINDS.has(tool.kind)) flash(`${tool.label} 완료${res.cost ? ` · −§${fmt(res.cost)}` : ''}${tool.kind === 'bulldoze' ? (touchFirst() ? ' · 위쪽 ↶로 되돌리기' : ' · Ctrl+Z로 되돌리기') : ''}`, 'info'); // (taken down by mistake: the way back)
+  const lost = tool.kind === 'bulldoze' && lostCover ? ` · ⚠ 혼자 맡던 ${lostCover.what} ${fmt(lostCover.n)}채가 범위 밖이 됨` : '';
+  if (res?.ok && !res.message && QUIET_KINDS.has(tool.kind)) flash(`${tool.label} 완료${res.cost ? ` · −§${fmt(res.cost)}` : ''}${lost}${tool.kind === 'bulldoze' ? (touchFirst() ? ' · 위쪽 ↶로 되돌리기' : ' · Ctrl+Z로 되돌리기') : ''}`, 'info'); // (taken down by mistake: the way back)
+  lostCover = null;
   if (res && !res.ok && res.message) flash(ko(res.message), 'bad');
   // A new city's clock starts with its first zone (the game opened paused).
   // (Not when the player paused it on purpose.)
