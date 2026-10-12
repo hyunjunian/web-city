@@ -488,21 +488,32 @@ function reachAtSpot(id: GoalId, k: StructureKind): number {
 function need(id: GoalId): ((i: number) => number) | null {
   const s = city.state;
   const f = city.fields;
-  const used = (i: number) => (s.zone[i]! > 0 && s.zone[i] !== 10) || s.occupant[i]! > 0;
   const home = (i: number) => s.zone[i]! >= 1 && s.zone[i]! <= 3;
+  // (The stations' gaps as their views count them: a building — a home, for a hospital or a school — on every tile of
+  // it when its middle tile is out of reach. Not empty zoned land: 모든 집이 학교 범위 안입니다 stood over a spot of
+  // empty lots "where no school reaches", with 여기에 짓기.)
+  const n = city.size;
+  const gap = (cover: ArrayLike<number>, homes = false) => (i: number) => {
+    const o = s.occupant[i]!;
+    const b = o > 0 ? s.buildings.get(o) : undefined;
+    if (!b?.type || (homes && b.type[0] !== 'R')) return 0;
+    return cover[(b.y + (b.h >> 1)) * n + b.x + (b.w >> 1)]! > 0 ? 0 : 1;
+  };
   // How much a tile counts (0: it doesn't need it, or has it).
   switch (id) {
-    case 'police': return (i) => (used(i) && f.policeCover[i]! <= 0 ? 1 : 0);
+    case 'police': return gap(f.policeCover);
     // (A power plant outside cover counts many times over: one that burns explodes.)
-    case 'fire': return (i) => {
-      if (f.fireCover[i]! > 0) return 0;
-      const occ = s.occupant[i]!;
-      const st = occ < 0 ? s.structures.get(-occ) : undefined;
-      if (st && STRUCTURES[st.kind].plant) return 12;
-      return used(i) ? 1 : 0;
-    };
-    case 'health': return (i) => (home(i) && f.healthQuality[i]! <= 0.05 ? 1 : 0);
-    case 'education': return (i) => (home(i) && f.schoolQuality[i]! <= 0.05 ? 1 : 0);
+    case 'fire': {
+      const building = gap(f.fireCover);
+      return (i) => {
+        const occ = s.occupant[i]!;
+        const st = occ < 0 ? s.structures.get(-occ) : undefined;
+        if (st && STRUCTURES[st.kind].plant) return f.fireCover[i]! > 0 ? 0 : 12;
+        return building(i);
+      };
+    }
+    case 'health': return gap(f.hospitalCover, true);
+    case 'education': return gap(f.schoolQuality, true);
     case 'power': return (i) => (s.zone[i]! > 0 && s.zone[i] !== 10 && !f.powered[i] ? 1 : 0);
     case 'water': return (i) => (s.occupant[i]! > 0 && !f.watered[i] && s.buildings.get(s.occupant[i]!)?.type ? 1 : 0);
     // Open land the well-off would take (zoned for homes, or not yet zoned): where to zone, and keep fine.
