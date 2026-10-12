@@ -429,9 +429,11 @@ export const classroom = (k: StructureKind) => ['elementary', 'highSchool', 'pri
 export function forecast(k: StructureKind): string {
   const d = STRUCTURES[k];
   const st = readStats();
+  // The margin it would leave, as an amount (지으면 여유 +12,216 m³ beside 급수 2,400 m³ read as the gain);
+  // still short, by how much.
   const after = (spare: number, add: number, unit: string) => {
     const v = spare + add;
-    return `지으면 여유 ${v < 0 ? '−' : '+'}${fmt(Math.abs(v))} ${unit}`;
+    return v < 0 ? `지어도 ${fmt(-v)} ${unit} 모자람` : `지으면 여유 ${fmt(v)} ${unit}`;
   };
   if (d.plant) return after(st.power.supply - st.power.demand, d.plant.output, 'MWh');
   if (d.pump) return after(st.water.supply - st.water.demand, d.pump.output, 'm³');
@@ -447,7 +449,8 @@ export function forecast(k: StructureKind): string {
     const list = facilities(GOALS[d.health ? 'health' : 'education']).filter((f) => (d.health ? !!STRUCTURES[f.kind].health : STRUCTURES[f.kind].school?.curve === d.school!.curve));
     const [l, c] = loadOf(list);
     const room = c + (d.health ?? d.school)!.capacity - l;
-    return `지으면 ${d.health ? '병상' : `${LEVEL_NAME[d.school!.curve] ?? ''} 자리`} 여유 ${room < 0 ? '−' : '+'}${fmt(Math.abs(room))}`;
+    const what = d.health ? '병상' : `${LEVEL_NAME[d.school!.curve] ?? ''} 자리`;
+    return room < 0 ? `지어도 ${what} ${fmt(-room)} 모자람` : `지으면 ${what} 여유 ${fmt(room)}`;
   }
   return '';
 }

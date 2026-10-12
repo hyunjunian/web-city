@@ -249,7 +249,7 @@ function guideHtml(id: GoalId): string {
       : id === 'power' && STRUCTURES[st.build].plant ? { at: siteByPlants(st.build), title: '있는 발전소 옆, 전력망에 닿는 길가 빈 땅에 바로 짓기' } : null;
     const siteTitle = `지도의 과녁(${SPOT_WORD[id] ?? ''})에 바로 짓기`;
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b>${st.sub ? `<small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small>` : ''}</p>
-      ${why ? `<p class="${st.fx ? 'g-act-fx' : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}
+      ${why ? `<p class="${st.fx ? `g-act-fx${/−|모자람/.test(st.fx) ? ' neg' : ''}` : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}
       <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>해 보기</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
         : own?.at ? `<button type="button" class="g-site" data-spot-build="${own.at.join(',')}" data-build-kind="${st.build}" title="${own.title}">${icon('target')}추천 자리에 짓기</button>` : ''}</div></div>`;
   }
@@ -877,7 +877,7 @@ function buildActions(g: Goal): string {
         // A first stop carries no one: riders need one near home and one near work, on the same network.
         const fx = forecast(k) || (k === best && d.station ? '둘 이상 놓기: 집 근처 하나, 일터 근처 하나 (같은 노선으로 이어져야 탑니다)' : '');
         items.push(`<button type="button" class="act${shortOf ? ' short' : ''}${k === best ? ' best' : ''}" data-act="${t.id}" data-kind="${k}" title="${STRUCTURE_NAME[k]} · ${d.w}×${d.h}칸 · 건설 §${fmt(d.cost)} · 유지 월 §${fmt(d.upkeep)}${k === best ? (d.station ? ' · 통근이 길 때 가장 싸게 시작하는 대중교통' : d.plant || d.pump ? ' · 수요를 넉넉히 감당하는 것 중 가장 쌈 (2년 비용)' : d.police || d.fire ? ' · 닿지 않는 곳에 가장 작은 서부터' : ' · 2년 비용 대비 가장 많이 감당') : ''}">
-          <span class="act-name">${toolGlyph(t)}${STRUCTURE_NAME[k]}${k === best ? '<em class="act-best">추천</em>' : ''}</span><span class="act-sub">${shortOf ? '자금 부족 · ' : ''}§${fmt(d.cost)} · 월 §${fmt(d.upkeep)} · ${structureStat(k)}</span>${fx ? `<span class="act-fx${fx.includes('−') ? ' neg' : ''}">${fx}</span>` : ''}</button>`);
+          <span class="act-name">${toolGlyph(t)}${STRUCTURE_NAME[k]}${k === best ? '<em class="act-best">추천</em>' : ''}</span><span class="act-sub">${shortOf ? '자금 부족 · ' : ''}§${fmt(d.cost)} · 월 §${fmt(d.upkeep)} · ${structureStat(k)}</span>${fx ? `<span class="act-fx${/−|모자람/.test(fx) ? ' neg' : ''}">${fx}</span>` : ''}</button>`);
       }
       if (open.length > few.length) {
         items.push(`<button type="button" class="act act-more" data-act="${t.id}" data-tray="1" title="${toolName(t)}의 다른 종류를 도구 카드에서 고르기">

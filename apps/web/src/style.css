@@ -2509,6 +2509,7 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .g-act-head small { flex-basis: 100%; color: var(--muted); font-size: 12px; font-weight: 400; }
 .g-act-head small.neg { color: var(--danger-ink); }
 .g-act-fx { color: var(--good-ink); font-size: 12.5px; font-weight: 650; }
+.g-act-fx.neg { color: var(--danger-ink); } /* (still short after it: 지어도 … 모자람) */
 .g-act-why { color: var(--muted); font-size: 12.5px; line-height: 1.4; word-break: keep-all; }
 .g-act-btns { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 6px; }
 .g-act-btns .primary { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 16px; }
