@@ -1602,10 +1602,10 @@ function placeToolMark(): void {
     showToolMarks(marks, line);
     return;
   }
-  // A road, avenue or highway in hand while nothing joins the town to its neighbours (no settlers nor trade come
-  // without): the straight run to the nearest map edge, dashed end to end, labelled at the town's end (the edge's is
-  // often off the screen; its arrow points there).
-  if (tool.kind === 'network' && (tool.network === 'road' || tool.network === 'avenue' || tool.network === 'highway')) {
+  // A road or avenue in hand while nothing joins the town to its neighbours (no settlers nor trade come without): the
+  // straight run to the nearest map edge, dashed end to end, labelled at the town's end (the edge's is often off the
+  // screen; its arrow points there). (Not a highway: without ramps it joins none of the town's roads.)
+  if (tool.kind === 'network' && (tool.network === 'road' || tool.network === 'avenue')) {
     const path = edgeRoad();
     const [a, b] = path ? [path[0]!, path.at(-1)!] : [];
     const marks: typeof renderer.marks = a && b ? [
