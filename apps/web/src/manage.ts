@@ -1512,6 +1512,27 @@ export function setupGoals(): void {
   });
   // The info card's link to the goal a facility or lot belongs to.
   document.addEventListener('click', (e) => {
+    // A full school or hospital's 옆에 … 짓기: one more of its level on the site found beside it.
+    const relieve = (e.target as HTMLElement).closest<HTMLElement>('#info [data-relieve]');
+    if (relieve) {
+      const kind = relieve.dataset.relieveKind as StructureKind;
+      const [x, y] = relieve.dataset.relieve!.split(',').map(Number) as [number, number];
+      const d = STRUCTURES[kind];
+      if (!city.canPlaceStructure(kind, x - ((d.w - 1) >> 1), y - ((d.h - 1) >> 1)).ok) {
+        // (Taken meanwhile, or the money ran short: the card finds again, or says why.)
+        const short = d.cost - city.state.funds;
+        forgetSites();
+        refreshInfo();
+        flash(short > 0 ? `§${fmt(Math.ceil(short))} 모자랍니다` : '그사이 그 자리에 건물이 들어서 자리를 새로 찾았습니다', 'bad');
+        return;
+      }
+      if (!pickStructure(kind)) return;
+      centerOn(x, y, Math.max(6, 24 / Math.max(d.w, d.h)));
+      placeAt(x, y);
+      refreshInfo();
+      updatePanels();
+      return;
+    }
     // A reading in the card (EQ, commute, power…): its goal's screen, on this spot.
     const r = (e.target as HTMLElement).closest<HTMLElement>('#info [data-row-goal]'); // (a table row, a chip, a glance item)
     if (r) {

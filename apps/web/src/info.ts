@@ -2,7 +2,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceId, ORDINANCES, serviceRadius, type Structure, STRUCTURES, type TripMeans } from '@web-city/engine';
 import { icon } from './icons';
-import { facilityLine } from './readings';
+import { facilityLine, relieverFor, siteNear } from './readings';
 import { ko } from './messages';
 import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -207,6 +207,10 @@ export function showInfo(x: number, y: number): void {
   const land = !!(b || q.structure) || (!q.network && q.terrain !== 'water');
   // A chip or glance item that belongs to a goal: pressed, its screen opens on this spot (as the table's rows do).
   const go = (goal: GoalId) => ` data-row-goal="${goal}" data-row-at="${x},${y}"`;
+  const full = q.structure && (def?.health || def?.school) && q.structure.load > q.structure.capacity && q.structure.capacity > 0 ? q.structure : null;
+  const relieveKind = full ? relieverFor([full.x, full.y]) : null;
+  const relieveAt = full && relieveKind ? siteNear(relieveKind, full.x + (full.w >> 1), full.y + (full.h >> 1)) : null;
+  const relieve = relieveKind && relieveAt ? { kind: relieveKind, at: relieveAt } : null;
   const chips = [
     b && !b.powered ? `<button type="button" class="chip bad"${go('power')} title="${city.cfg.services.noPowerMonths}개월이 되면 버려집니다 · 눌러서 전력 화면">${icon('zap')}전기 끊김 ${b.noPowerMonths}/${city.cfg.services.noPowerMonths}개월</button>` : '',
     b?.type && !b.watered && waterNeeded ? `<button type="button" class="chip bad"${go('water')} title="${city.cfg.services.noWaterMonths}개월이 되면 버려집니다 · 눌러서 수도 화면">${icon('droplet')}물 끊김 ${b.noWaterMonths}/${city.cfg.services.noWaterMonths}개월</button>` : '',
@@ -222,6 +226,8 @@ export function showInfo(x: number, y: number): void {
       ? `<span class="chip bad" title="쓰레기를 거둘 수 없어 쌓입니다${def.police || def.fire || def.health || def.school ? '. 경찰차·소방차·구급차·통학버스도 나가지 못합니다' : ''}">${icon('road')}도로에 닿지 않음</span>` : '',
     q.structure && (def?.health || def?.school) && q.structure.load > q.structure.capacity && q.structure.capacity > 0
       ? `<button type="button" class="chip ${q.structure.strike ? 'bad' : 'warn'}"${go(def!.health ? 'health' : 'education')} title="정원을 넘으면 등급이 떨어지고 파업할 수 있습니다. 근처에 하나 더 지으세요 · 눌러서 어디에 지을지 보기">${q.structure.strike ? `${icon('alert')}파업 중 · ` : ''}정원 초과 ${Math.round((q.structure.load / q.structure.capacity - 1) * 100)}%</button>` : '',
+    // Over its places: one more of its level beside it, built in one press (the chip above only showed where).
+    relieve ? `<button type="button" class="chip" data-relieve="${relieve.at.join(',')}" data-relieve-kind="${relieve.kind}" title="같은 급의 ${STRUCTURE_NAME[relieve.kind]}${josa(STRUCTURE_NAME[relieve.kind], '을', '를')} 가장 가까운 길가 빈 땅에 바로 짓기 (§${fmt(STRUCTURES[relieve.kind].cost)})">${icon('plus')}옆에 ${STRUCTURE_NAME[relieve.kind]} 짓기</button>` : '',
     q.structure && (def?.fire || def?.police?.radius) && q.structure.strike ? `<span class="chip bad" title="예산이 100%보다 낮으면 파업할 수 있습니다. 90%보다 높게(95% 이상) 올리면 다음 달 끝납니다.">${icon('alert')}파업 중 (효과 20%)</span>` : '',
     q.garbage > 0.1 ? `<span class="chip warn">${icon('trash')}쓰레기 ${q.garbage.toFixed(1)} t</span>` : '',
   ].join('');
