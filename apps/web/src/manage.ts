@@ -21,7 +21,7 @@ import { toast } from './toast';
 import { choice } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, stopPair, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
+import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, stopPair, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -1605,17 +1605,23 @@ export function setupGoals(): void {
       const best = $('#manage').querySelector<HTMLElement>('.act.best[data-kind]');
       // (The mark's 여기에 짓기 where the screen recommends a jail: the mark is a gap in police cover, a station's place.)
       const station = best && STRUCTURES[best.dataset.kind as StructureKind].police?.radius === 0 ? cheapestOf(GOALS.police) : null;
-      if (site.dataset.buildKind || station) {
-        if (!pickStructure((site.dataset.buildKind as StructureKind | undefined) ?? station!)) return;
-      } else if (best) {
-        const kind = best.dataset.kind as StructureKind;
-        if (city.isUnlocked(kind) && city.placementsLeft(kind) > 0) chosen[best.dataset.act!] = kind;
-        selectTool(best.dataset.act!);
-      } else if (tool.kind !== 'structure' || !$('#manage').querySelector(`[data-act="${tool.id}"]`)) return;
-      // Close enough to see what went up: a plant's 4×4 at 6px a tile, a 1×1 park nearer (at 6 it was a dot).
-      const kind = chosen[tool.id]!;
+      const kind = (site.dataset.buildKind as StructureKind | undefined) ?? station ?? (best?.dataset.kind as StructureKind | undefined)
+        ?? (tool.kind === 'structure' && $('#manage').querySelector(`[data-act="${tool.id}"]`) ? chosen[tool.id] : undefined);
+      if (!kind) return;
+      // All of it or none (a pair of stops went up as one): each site still free — a building may have grown on
+      // one since it was found (growth moves no revision) — and the money for all. Else the sites are found again.
       const d = STRUCTURES[kind];
-      centerOn(x, y, d ? Math.max(6, 24 / Math.max(d.w, d.h)) : 6);
+      const free = sites.every(([sx, sy]) => city.canPlaceStructure(kind, sx - ((d.w - 1) >> 1), sy - ((d.h - 1) >> 1)).ok);
+      const short = d.cost * sites.length - city.state.funds;
+      if (!free || short > 0) {
+        forgetSites();
+        renderGoal(true);
+        flash(short > 0 ? `§${fmt(Math.ceil(short))} 모자랍니다` : '그사이 그 자리에 건물이 들어서 추천 자리를 새로 찾았습니다', 'bad');
+        return;
+      }
+      if (!pickStructure(kind)) return;
+      // Close enough to see what went up: a plant's 4×4 at 6px a tile, a 1×1 park nearer (at 6 it was a dot).
+      centerOn(x, y, Math.max(6, 24 / Math.max(d.w, d.h)));
       placeAt(x, y);
       // (A facility handed out by a suggestion goes down once placed: taken up again for the next site.)
       for (const [sx, sy] of sites.slice(1)) if (pickStructure(kind)) placeAt(sx, sy);

@@ -594,6 +594,11 @@ export function cheapestOf(g: Goal): StructureKind | null {
 }
 
 /** The biggest patch the goal's service doesn't reach (worked out once a week of game time or after an edit). */
+/** Forgets the sites found since the city last changed (a building grew on one: growth moves no revision). */
+export function forgetSites(): void {
+  siteMemo = pipeMemo = nearMemo = plantMemo = awayMemo = pairMemo = spotMemo = null;
+}
+
 /** Whether `count` of a kind could be built now at all (unlocked, placements left, the money): else no site is worth a search. */
 function buildable(kind: StructureKind, count = 1): boolean {
   return city.isUnlocked(kind) && city.placementsLeft(kind) >= count && STRUCTURES[kind].cost * count <= city.state.funds;
