@@ -761,36 +761,46 @@ export function roadToFacility(f: { id: number; x: number; y: number; w: number;
   const n = city.size;
   // (A building's lot sits in its zone: its road may cross the zone's empty tiles, as a road drawn there would.)
   const open = (i: number) => !s.occupant[i] && (of === 'b' || !s.zone[i]) && !s.net[i] && s.terrain[i] !== Terrain.Water && s.landform[i] !== 2; // (2: a volcano's cone)
-  const road = (i: number) => isLocalNet(s.net[i]!) && !s.tunnel[i];
-  const from = new Int32Array(n * n).fill(-2); // -2 unseen, -1 beside the facility, else the tile it was reached from
-  const depth = new Uint8Array(n * n);
-  const queue: number[] = [];
-  // From the tiles along its sides (not its corners: a road there doesn't front it).
-  for (let y = f.y - 1; y <= f.y + f.h; y++) {
-    for (let x = f.x - 1; x <= f.x + f.w; x++) {
-      const side = (x === f.x - 1 || x === f.x + f.w) !== (y === f.y - 1 || y === f.y + f.h);
-      if (!side || x < 0 || y < 0 || x >= n || y >= n || !open(y * n + x)) continue;
-      from[y * n + x] = -1;
-      queue.push(y * n + x);
+  // A road network first, not a stub of road on its own (joined to one, the warning went quiet and the crews still
+  // couldn't reach the town): a piece of 10 tiles or more (or the largest, in a town smaller than that). Any road,
+  // if none is in reach. (Not the largest only: a district not yet joined to the rest has a network of its own.)
+  const comp = city.fields.component;
+  const sizes = new Map<number, number>();
+  for (let i = 0; i < n * n; i++) if (comp[i]! >= 0) sizes.set(comp[i]!, (sizes.get(comp[i]!) ?? 0) + 1);
+  const most = Math.max(0, ...sizes.values());
+  let at: [number, number][] | null = null;
+  for (const whole of most > 0 ? [true, false] : [false]) {
+    const road = (i: number) => isLocalNet(s.net[i]!) && !s.tunnel[i] && (!whole || (sizes.get(comp[i]!) ?? 0) >= Math.min(10, most));
+    const from = new Int32Array(n * n).fill(-2); // -2 unseen, -1 beside the facility, else the tile it was reached from
+    const depth = new Uint8Array(n * n);
+    const queue: number[] = [];
+    // From the tiles along its sides (not its corners: a road there doesn't front it).
+    for (let y = f.y - 1; y <= f.y + f.h; y++) {
+      for (let x = f.x - 1; x <= f.x + f.w; x++) {
+        const side = (x === f.x - 1 || x === f.x + f.w) !== (y === f.y - 1 || y === f.y + f.h);
+        if (!side || x < 0 || y < 0 || x >= n || y >= n || !open(y * n + x)) continue;
+        from[y * n + x] = -1;
+        queue.push(y * n + x);
+      }
     }
-  }
-  let hit = -1;
-  for (let h = 0; h < queue.length && hit < 0; h++) {
-    const i = queue[h]!;
-    const x = i % n;
-    for (const j of [x < n - 1 ? i + 1 : -1, x > 0 ? i - 1 : -1, i + n < n * n ? i + n : -1, i - n]) {
-      if (j < 0) continue;
-      if (road(j)) { hit = i; break; }
-      if (from[j] !== -2 || !open(j) || depth[i]! >= 40) continue;
-      from[j] = i;
-      depth[j] = depth[i]! + 1;
-      queue.push(j);
+    let hit = -1;
+    for (let h = 0; h < queue.length && hit < 0; h++) {
+      const i = queue[h]!;
+      const x = i % n;
+      for (const j of [x < n - 1 ? i + 1 : -1, x > 0 ? i - 1 : -1, i + n < n * n ? i + n : -1, i - n]) {
+        if (j < 0) continue;
+        if (road(j)) { hit = i; break; }
+        if (from[j] !== -2 || !open(j) || depth[i]! >= 40) continue;
+        from[j] = i;
+        depth[j] = depth[i]! + 1;
+        queue.push(j);
+      }
     }
+    const path: [number, number][] = [];
+    for (let i = hit; i >= 0; i = from[i]!) path.push([i % n, Math.floor(i / n)]);
+    path.reverse();
+    if (path.length) { at = path; break; }
   }
-  const path: [number, number][] = [];
-  for (let i = hit; i >= 0; i = from[i]!) path.push([i % n, Math.floor(i / n)]);
-  path.reverse();
-  const at = path.length ? path : null;
   remember8(roadMemo, key, at);
   return at;
 }
