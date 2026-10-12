@@ -669,7 +669,19 @@ let siteMemo: { key: string; at: [number, number] | null } | null = null;
  * them): the tiles to lay, in order, or null. Found again on an edit or a new month.
  */
 export function lineToDark(): [number, number][] | null {
-  const key = `line|${siteKey()}`;
+  const s = city.state;
+  const f = city.fields;
+  return powerPath(`line|${siteKey()}`, (j) => !!s.zone[j] && s.zone[j] !== 10 && !f.powered[j]);
+}
+
+/** The shortest power line from the grid to a facility without power (a pump that stopped for it), as lineToDark. */
+export function lineToStructure(st: Structure): [number, number][] | null {
+  const n = city.size;
+  return powerPath(`line|${st.id}|${siteKey()}`, (j) => { const x = j % n; const y = (j - x) / n; return x >= st.x && x < st.x + st.w && y >= st.y && y < st.y + st.h; });
+}
+
+/** The shortest power line from what has power (and every plant) to the first tile `target` takes, round buildings; null if none. */
+function powerPath(key: string, target: (j: number) => boolean): [number, number][] | null {
   if (lineMemo?.key === key) return lineMemo.path;
   const s = city.state;
   const f = city.fields;
@@ -688,7 +700,7 @@ export function lineToDark(): [number, number][] | null {
     const x = i % n;
     for (const j of [x < n - 1 ? i + 1 : -1, x > 0 ? i - 1 : -1, i + n < N ? i + n : -1, i - n]) {
       if (j < 0 || seen[j] !== -2) continue;
-      if (s.zone[j] && s.zone[j] !== 10 && !f.powered[j]) {
+      if (target(j)) {
         seen[j] = i;
         hit = j;
         break;

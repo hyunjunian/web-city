@@ -21,7 +21,7 @@ import { dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, landfillSite, lineToDark, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, straightRuns, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, landfillSite, lineToDark, lineToStructure, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, straightRuns, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -237,7 +237,7 @@ function guideHtml(id: GoalId): string {
   // What is wrong as its advisor says it; with no advisor's word, the figure itself and its note.
   const { said: told, worst } = guideSaid(id);
   // (A line to lay while the card leads with something else, a plant off the road: what the line mends instead.)
-  const offGrid = st.kind === 'line' && st.lay === 'powerline' && !['noPower', 'powerCutOff', 'idlePlant', 'powerShort'].includes(worst?.code ?? '');
+  const offGrid = id === 'power' && st.kind === 'line' && st.lay === 'powerline' && !['noPower', 'powerCutOff', 'idlePlant', 'powerShort'].includes(worst?.code ?? '');
   const said = offGrid ? `전기 없는 구역이 ${fmt(unpoweredZones().off)}칸 있습니다` : told;
   const problem = said || s.note;
   const title = said ? `<b>${escapeHtml(said)}</b>` : `<b>${escapeHtml(s.value)}</b> <span class="g-note">${escapeHtml(s.note)}</span>`;
@@ -359,6 +359,9 @@ function goalStep(id: GoalId): GuideStep {
     || (a.code === 'noPower' && [...city.state.structures.values()].some((x) => !!STRUCTURES[x.kind].plant)));
   const laid = cut ? lineStep() : null;
   if (laid) return laid;
+  // Every pump on a network stopped: why, mended in one press where it can be (a line from the grid, the water budget).
+  const pumps = worst?.code === 'pumpsOff' ? pumpStep(worst) : null;
+  if (pumps) return pumps;
   // Buildings dry, beyond the pipes or on a network running short, while another has water to spare (a pump
   // watering nobody among them): the pipe between, laid at once, not one more pump.
   const apart = id === 'water' ? pipeStep() : null;
@@ -431,6 +434,23 @@ const LAY_ICON = { powerline: 'cable', road: 'road', pipe: 'droplet' } as const;
 function pipeStep(why?: string): GuideStep | null {
   const line = pipeToDry();
   return line ? layStep('pipe', line, why || '물이 남는 수도망과 물이 끊긴 건물이 이어지지 않았습니다: 가장 짧은 길로 수도관을 이으면 됩니다') : null;
+}
+
+/**
+ * Pumps stopped (the advice names one): with no power, the line to it from the grid; with the water budget at 0%,
+ * that budget; else null (its water fouled: the screen's views show where, and it has to move).
+ */
+function pumpStep(a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
+  const f = a.at ? city.query(a.at[0], a.at[1])?.structure : undefined;
+  if (!f) return null;
+  const name = STRUCTURE_NAME[f.kind];
+  if (!f.powered) {
+    const line = lineToStructure(f);
+    return line ? layStep('powerline', line, `${name}${josa(name, '이', '가')} 전기가 끊겨 멈췄습니다: 전력망에서 송전선을 이으면 다시 물을 퍼 올립니다`) : null;
+  }
+  const level = city.state.departments.water;
+  return level > 0 ? null : { kind: 'budget', what: '수도 예산 100%로', why: `수도 예산이 0%라 ${name}${josa(name, '이', '가')} 멈췄습니다`, fixAct: 'dept:water',
+    act: '', glyph: icon('wallet'), sub: `부서 예산 · 지금 ${level}%`, fx: '', site: false };
 }
 
 /** The guide's step laying the road from a facility cut off (the advice's) to the nearest road, or null if none can go. */
