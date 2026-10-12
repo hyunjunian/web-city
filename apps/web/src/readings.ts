@@ -594,11 +594,17 @@ export function cheapestOf(g: Goal): StructureKind | null {
 }
 
 /** The biggest patch the goal's service doesn't reach (worked out once a week of game time or after an edit). */
+/** Whether `count` of a kind could be built now at all (unlocked, placements left, the money): else no site is worth a search. */
+function buildable(kind: StructureKind, count = 1): boolean {
+  return city.isUnlocked(kind) && city.placementsLeft(kind) >= count && STRUCTURES[kind].cost * count <= city.state.funds;
+}
+
 /**
  * The free site nearest the homes, beside a road, for a facility whose place doesn't matter to what it is
  * built for (a park lifting the cap does it anywhere; by the homes it pleases them too). Its middle tile, or null.
  */
 export function siteNearHomes(kind: StructureKind): [number, number] | null {
+  if (!buildable(kind)) return null;
   const key = `homes|${kind}|${changeKey()}`;
   if (siteMemo?.key === key) return siteMemo.at;
   const n = city.size;
@@ -637,6 +643,7 @@ function homesMiddle(): [number, number] {
  * (a pump without it gives nothing) and on clean water, nearest the homes. Its middle tile, or null.
  */
 export function siteOnPipes(kind: StructureKind): [number, number] | null {
+  if (!buildable(kind)) return null;
   const key = `pipes|${kind}|${changeKey()}`;
   if (pipeMemo?.key === key) return pipeMemo.at;
   const s = city.state;
@@ -674,6 +681,7 @@ let pipeMemo: { key: string; at: [number, number] | null } | null = null;
  * would relieve it, and the one recommended may be bigger.)
  */
 export function siteNear(kind: StructureKind, x: number, y: number, reach = 12): [number, number] | null {
+  if (!buildable(kind)) return null;
   const key = `near|${kind}|${x},${y}|${reach}|${changeKey()}`;
   if (nearMemo?.key === key) return nearMemo.at;
   const d = STRUCTURES[kind];
@@ -708,6 +716,7 @@ function homesNear(lx: number, ly: number, w: number, h: number): boolean {
  * reach of the powered grid and, for a smoky one, away from homes. Its middle tile, or null.
  */
 export function siteByPlants(kind: StructureKind): [number, number] | null {
+  if (!buildable(kind)) return null;
   const key = `plants|${kind}|${changeKey()}`;
   if (plantMemo?.key === key) return plantMemo.at;
   const d = STRUCTURES[kind];
@@ -737,6 +746,7 @@ let plantMemo: { key: string; at: [number, number] | null } | null = null;
  * Its middle tile, or null.
  */
 export function siteAwayFromHomes(kind: StructureKind): [number, number] | null {
+  if (!buildable(kind)) return null;
   const key = `away|${kind}|${changeKey()}`;
   if (awayMemo?.key === key) return awayMemo.at;
   const n = city.size;
@@ -769,6 +779,7 @@ let awayMemo: { key: string; at: [number, number] | null } | null = null;
  * middle of its block (blocks of 12 tiles). Their middle tiles, or null.
  */
 export function stopPair(kind: StructureKind): [[number, number], [number, number]] | null {
+  if (!buildable(kind, 2)) return null;
   const key = `stops|${kind}|${changeKey()}`;
   if (pairMemo?.key === key) return pairMemo.at;
   const n = city.size;
