@@ -124,13 +124,15 @@ export function renderOnboarding(): void {
   const wireCost = wire0 ? layCost('powerline', wire0) : null;
   const wire = wire0 && wireCost !== null && wireCost <= s.funds ? { path: wire0, cost: wireCost } : null;
   // (And the fire station the fire screen would put up, where its mark is: by a plant out of reach first.)
-  const station = steps[4] && !steps[4][0] ? fireSite() : null;
+  // (Not beside one already built off the road: the fire screen lays it its road instead.)
+  const station = steps[4] && !steps[4][0] && !kinds.some((d) => d.fire) ? fireSite() : null;
   // (And the landfill the garbage screen would lay: sized to the rubbish, by a road, clear of homes and shops.)
-  const fill0 = steps[7] && !steps[7][0] && !zoned((z) => z === 10) ? landfillSite() : null;
+  // (Once there are homes or shops to keep it from: before them it went where the first homes would.)
+  const fill0 = steps[7] && !steps[7][0] && !zoned((z) => z === 10) && zoned((z) => z >= 1 && z <= 6) ? landfillSite() : null;
   const fill = fill0 && fill0.cost <= s.funds ? fill0 : null;
   const sig = steps.map(([ok, text, tool]) => `${+ok}${tool ?? ''}${text}`).join('|') + (region ? 'r' : '') + (fresh ? 'f' : '') + (way ? `w${way.path[0]}${way.cost}${+way.short}` : '')
     + [...blocks].map(([k, b]) => `${k}${b.x0},${b.y0},${b.side}${b.cost}`).join('') + (wire ? `p${wire.path[0]}${wire.path.length}${wire.cost}` : '')
-    + (station ? `s${station.kind}${station.at.join(',')}` : '') + (fill ? `l${fill.x0},${fill.y0},${fill.side}` : '');
+    + (station ? `s${station.kind}${station.at.join(',')}` : '') + (fill ? `l${fill.x0},${fill.y0},${fill.side}${fillSpan(fill.months)}` : '');
   if (el.dataset.sig === sig) return;
   // Phones: the checklist sits in the city pane, so its dock button gets a dot until opened.
   if (!el.dataset.sig && !$('#app').classList.contains('pane-open')) document.querySelector('.dock-city')?.classList.add('unread');
@@ -166,9 +168,10 @@ export function renderOnboarding(): void {
   // (Found again on the press: the town may have changed since the list was drawn.)
   $('#onboarding-steps').querySelectorAll<HTMLButtonElement>('.step-lay').forEach((b) => (b.onclick = () => {
     const kind = b.dataset.lay!;
-    // (Nothing found any more — a month turned, the land taken — said, not a press that did nothing.)
+    // (Nothing found any more — a month turned, the land taken — said, not a press that did nothing; and where the
+    // step goes from there: a tool for the road and the zones, the screen for the rest.)
     const gone = () => {
-      flash('그사이 자리가 없어졌습니다 · 단계를 눌러 도구로 놓으세요', 'bad');
+      flash(`그사이 자리가 없어졌습니다 · 단계를 눌러 ${kind === 'road' || kind.includes('-') ? '도구로 놓으세요' : '관리 화면에서 고르세요'}`, 'bad');
       onboardingKey = ''; // (drawn again: the link goes)
       updatePanels();
     };
@@ -179,6 +182,9 @@ export function renderOnboarding(): void {
       return;
     }
     if (kind === 'fire') {
+      // (Short of money since it was drawn: said as that.)
+      const k = cheapestOf(GOALS.fire);
+      if (k && STRUCTURES[k].cost > city.state.funds) return flash(`§${fmt(Math.ceil(STRUCTURES[k].cost - city.state.funds))} 모자랍니다`, 'bad');
       const now = fireSite();
       if (!now) return gone();
       buildAtSite(now.kind, now.at[0], now.at[1]);
