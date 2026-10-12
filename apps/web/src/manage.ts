@@ -1154,6 +1154,9 @@ function fixButton(a: { code: string; level: string; at?: readonly [number, numb
     const to = city.demand.neutralTax;
     return ` <button type="button" class="advice-view" data-tax-to="${a.type}" title="${TYPE_NAME[a.type]} 세율을 중립 세율로 내리기 (수요를 깎지 않는 세율 · 세입은 줄어듭니다)">${icon('wallet')}${TYPE_NAME[a.type]} 세율 ${to.toFixed(1)}%로</button>`;
   }
+  // A trouble a budget ends (worn lines, a strike…): that budget at 100%, as the guide's own step does it.
+  const due = a.level !== 'good' && BUDGET_FIX[a.code] ? budgetStep('finance', a as ReturnType<typeof adviceFor>[number]) : null;
+  if (due) return ` <button type="button" class="advice-view mg-guide-go" data-guide-kind="budget" data-guide-act="${due.fixAct}" title="${escapeHtml(due.sub)}">${icon('wallet')}${due.what}</button>`;
   // Rubble: one press clears it all; money trouble: the budget sheet (taxes, departments, loans).
   if (a.code === 'rubble') return ` <button type="button" class="advice-view" data-clear-rubble title="도시의 잔해만 모두 치웁니다">${icon('eraser')}잔해 모두 치우기 §${fmt(city.clearRubble(true).cost)}</button>`;
   if (a.level !== 'good' && (a.code === 'deficit' || a.code === 'broke')) return ` <button type="button" class="advice-view" data-sheet="budget" title="세율·부서 예산·대출">재정 열기</button>`
