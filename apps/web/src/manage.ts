@@ -311,7 +311,9 @@ function guideHtml(id: GoalId): string {
     if (fill) guideSite = { id, sites: [{ at: [fill.x0 + (fill.side >> 1), fill.y0 + (fill.side >> 1)], label: `추천 자리 · 매립지 ${fill.side}×${fill.side}` }], rect: [fill.x0, fill.y0, fill.side, fill.side] };
     // The zone the growth screen wants next (homes, shops, or work for the jobless): a block where it can go, laid in
     // one press (해 보기 handed the zone tool and left the block to be found).
-    const zone = !own && !site && !fill && st.kind === 'best' && (st.act === 'R-low' || st.act === 'C-low' || st.act === 'I-medium') && placedMonth.get(st.act) !== month ? st.act : null;
+    // (A farm zone too, and from the advisor's own word: 농업 수요가 높은데 빈 농업 구역이 거의 없습니다.)
+    const zone = !own && !site && !fill && (st.kind === 'best' || st.kind === 'fix') && (st.act === 'R-low' || st.act === 'C-low' || st.act === 'I-medium' || st.act === 'A')
+      && placedMonth.get(st.act) !== month ? st.act : null;
     const block0 = zone ? zoneSite(zone, st.near) : null;
     const blockCost = block0 && zone ? city.previewZone(block0.x0, block0.y0, block0.x1, block0.y1, zone).cost : 0;
     const block = block0 && blockCost <= city.state.funds ? block0 : null;
