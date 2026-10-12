@@ -219,6 +219,25 @@ describe('neighbor deals', () => {
     expect(copy.state.neighbourDeals).toHaveLength(1);
     expect(copy.state.neighbours[1]!.kind).toBe('developed');
   }, 30_000);
+
+  it('a budget forecast notices a lost power supply without advancing the deal', () => {
+    const city = powered();
+    city.setNeighbour(1, 'developed', 2);
+    const nb = city.state.neighbours[1]!;
+    nb.capacity.power = nb.usage.power;
+    city.buildPowerLine(31, 3, 30, 3);
+    expect(city.makeDeal(1, 'power', 'sell', 1_000).ok).toBe(true);
+    city.refreshIfDirty();
+    expect(city.previewBudget().neighbourIncome).toBeGreaterThan(0);
+    const plant = [...city.state.structures.values()].find((st) => st.kind === 'coalPlant')!;
+    expect(city.bulldoze(plant.x, plant.y, plant.x, plant.y).ok).toBe(true);
+    const funds = city.state.funds;
+    const deal = { ...city.state.neighbourDeals[0]! };
+    expect(city.previewBudget().neighbourIncome).toBe(0);
+    expect(city.state.neighbourDeals[0]).toEqual(deal);
+    expect(city.state.funds).toBe(funds);
+    expect(city.previewBudget().neighbourIncome).toBe(0);
+  }, 30_000);
 });
 
 describe('regional demand', () => {

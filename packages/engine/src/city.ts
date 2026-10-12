@@ -2179,6 +2179,7 @@ export class City {
    * (it runs on a copy); the 재정 panel shows it beside last month's.
    */
   previewBudget(): BudgetReport {
+    this.refreshIfDirty(); // finish pending days and use today's utility supply for standing deals
     // What settling changes: the treasury, loans' months and deals' standing.
     const s = this.state;
     return this.settleBudget({ ...s, loans: s.loans.map((l) => ({ ...l })), neighbourDeals: s.neighbourDeals.map((d) => ({ ...d })) }).report;

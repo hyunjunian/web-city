@@ -44,6 +44,7 @@ describe('stepping in pieces', () => {
     ['facility previews', (c) => c.canPlaceStructure('smallPoliceStation', 20, 20)],
     ['terrain previews', (c) => c.previewTerraform(20, 20, 25, 25, 'raise')],
     ['tree previews', (c) => c.previewTrees(20, 20, 25, 25)],
+    ['budget forecasts', (c) => c.previewBudget()],
   ];
 
   it.each(edits)('%s waits for the day under way before reading or changing the city', (_name, edit) => {
