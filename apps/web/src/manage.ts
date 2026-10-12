@@ -259,10 +259,12 @@ function guideHtml(id: GoalId): string {
         return pair ? { at: pair, title: '주민이 가장 많은 곳과 일자리가 가장 많은 곳의 길가에 하나씩 바로 짓기', labels: ['집 쪽', '일터 쪽'] } : null;
       })() : null;
     const siteTitle = `지도의 과녁(${SPOT_WORD[id] ?? ''})에 바로 짓기`;
+    // What the press does: an ordinance or a finance lever takes effect at once (해 보기 sounded like a tool to try).
+    const go = st.kind === 'ord' ? '시행하기' : st.fin === 'loan' ? '빌리기' : st.fin ? '적용하기' : '해 보기';
     if (own) guideSite = { id, sites: own.at.map((at, k) => ({ at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}${own.labels[k] ? ` (${own.labels[k]})` : ''}` })) };
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b>${st.sub ? `<small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small>` : ''}</p>
       ${why ? `<p class="${st.fx ? `g-act-fx${/−|모자람/.test(st.fx) ? ' neg' : ''}` : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}
-      <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>해 보기</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
+      <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>${go}</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
         : own ? `<button type="button" class="g-site" data-spot-build="${own.at.map((at) => at.join(',')).join(';')}" data-build-kind="${st.build}" title="${own.title}">${icon('target')}추천 자리에 ${own.at.length > 1 ? `${own.at.length}곳 ` : ''}짓기</button>` : ''}</div></div>`;
   }
   const p = journal().pending[id];
@@ -283,6 +285,8 @@ interface GuideStep {
   kind: 'best' | 'fix' | 'ord' | 'open';
   what: string; why: string; fixAct: string; act: string; glyph: string; sub: string; fx: string; site: boolean;
   build?: StructureKind; anywhere?: true;
+  /** A finance lever the step pulls at once (a loan, a budget change), as its button says. */
+  fin?: string;
 }
 
 /** A goal's own recommendation, read from what its screen would show (one source of truth). */
@@ -297,7 +301,7 @@ function goalStep(id: GoalId): GuideStep {
     const fx = best.querySelector('.act-fx')?.textContent?.trim() ?? '';
     return { kind: 'best' as const, fixAct: '', act: best.dataset.act ?? '', what: name?.textContent?.trim() ?? '',
       why: fx || sub, glyph: name?.querySelector('.i, .swatch, .pick-swatch')?.outerHTML ?? '', sub, fx, site: !!best.dataset.kind,
-      build: best.dataset.kind as StructureKind | undefined };
+      build: best.dataset.kind as StructureKind | undefined, fin: best.dataset.mgFin };
   }
   const a = adviceFor(id).find((x) => x.level !== 'good' && adviceTool(x.code));
   if (a) {
