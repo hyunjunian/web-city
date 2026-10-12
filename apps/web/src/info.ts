@@ -2,7 +2,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceId, ORDINANCES, serviceRadius, type Structure, type StructureKind, STRUCTURES, type TripMeans } from '@web-city/engine';
 import { icon } from './icons';
-import { budgetMends, facilityLine, hasRoadNow, jamRun, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
+import { budgetMends, facilityLine, hasRoadNow, jamRun, widenTo, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
 import { ko } from './messages';
 import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -725,11 +725,14 @@ function lifeLeft(life: number, years: number): string {
  */
 function widenButton(x: number, y: number): string {
   const run = jamRun(x, y);
-  const p = run ? city.previewNetwork(run[0], run[1], run[2], run[3], 'avenue') : null;
-  const cap = fmt(DEFAULT_CONFIG.transport.speed.avenue.capacity);
+  // (A street a road would carry becomes a road: an avenue for it was three times the price.)
+  const to = run ? widenTo(run) : 'avenue';
+  const word = to === 'road' ? '도로' : '대로';
+  const p = run ? city.previewNetwork(run[0], run[1], run[2], run[3], to) : null;
+  const cap = fmt(DEFAULT_CONFIG.transport.speed[to].capacity);
   if (run && p && (p.ok || p.message === 'not enough funds')) {
     const tiles = Math.abs(run[2] - run[0]) + Math.abs(run[3] - run[1]) + 1;
-    return `<button type="button" class="chip" data-widen="${run.join(',')}" title="막힌 구간 ${fmt(tiles)}칸을 대로(용량 ${cap})로 바로 넓히기 · §${fmt(p.cost)}${p.ok ? '' : ' · 자금 부족'}">${icon('plus')}이 구간 대로로 넓히기 · ${fmt(tiles)}칸 §${fmt(p.cost)}</button> `;
+    return `<button type="button" class="chip" data-widen="${run.join(',')}" data-widen-kind="${to}" title="막힌 구간 ${fmt(tiles)}칸을 ${word}(용량 ${cap})로 바로 넓히기 · §${fmt(p.cost)}${p.ok ? '' : ' · 자금 부족'}">${icon('plus')}이 구간 ${word}로 넓히기 · ${fmt(tiles)}칸 §${fmt(p.cost)}</button> `;
   }
   return `<button type="button" class="advice-view" data-tool="avenue" title="대로 도구 고르기: 기존 길 위로 그으면 넓어집니다">${icon('plus')}대로로 넓히기 (용량 ${cap})</button> `;
 }

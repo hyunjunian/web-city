@@ -926,6 +926,22 @@ export function jamRun(x: number, y: number): [number, number, number, number] |
   return w + e >= nn + sth ? [x - w, y, x + e, y] : [x, y - nn, x, y + sth];
 }
 
+/**
+ * What a jammed stretch is widened to: a street whose busiest tile a road would carry with room to spare (a faster
+ * road draws more cars), a road — a third of an avenue's price for each tile; else an avenue.
+ */
+export function widenTo(run: [number, number, number, number]): 'road' | 'avenue' {
+  const n = city.size;
+  const [x0, y0, x1, y1] = run;
+  let top = 0;
+  let streets = true;
+  for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) {
+    top = Math.max(top, city.fields.traffic[y * n + x]!);
+    if (NETWORK_KINDS[city.state.net[y * n + x]!] !== 'street') streets = false;
+  }
+  return streets && top <= city.cfg.transport.speed.road.capacity * 0.6 ? 'road' : 'avenue';
+}
+
 /** The worst-jammed street or road tile (traffic against its capacity), past capacity, or null. */
 export function worstJam(): [number, number] | null {
   const s = city.state;

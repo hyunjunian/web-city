@@ -21,7 +21,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, glue, josa, stoppedNote, straightRuns } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -1486,10 +1486,12 @@ function spotLine(id: GoalId): string {
   if (id === 'traffic') {
     const jam = worstJam();
     const run = jam ? jamRun(jam[0], jam[1]) : null;
-    const p = run ? city.previewNetwork(run[0], run[1], run[2], run[3], 'avenue') : null;
+    const to = run ? widenTo(run) : 'avenue';
+    const word = to === 'road' ? '도로' : '대로';
+    const p = run ? city.previewNetwork(run[0], run[1], run[2], run[3], to) : null;
     const tiles = run ? Math.abs(run[2] - run[0]) + Math.abs(run[3] - run[1]) + 1 : 0;
     const widen = run && p && (p.ok || p.message === 'not enough funds')
-      ? `<button type="button" class="advice-view spot-build" data-widen="${run.join(',')}" title="가장 막힌 구간 ${fmt(tiles)}칸을 대로로 바로 넓히기 · §${fmt(p.cost)}">${icon('plus')}가장 막힌 구간 대로로 · ${fmt(tiles)}칸 §${fmt(p.cost)}</button>` : '';
+      ? `<button type="button" class="advice-view spot-build" data-widen="${run.join(',')}" data-widen-kind="${to}" title="가장 막힌 구간 ${fmt(tiles)}칸을 ${word}로 바로 넓히기 · §${fmt(p.cost)}">${icon('plus')}가장 막힌 구간 ${word}로 · ${fmt(tiles)}칸 §${fmt(p.cost)}</button>` : '';
     return `<p class="mg-spot">${icon('target')}<span><b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${fmt(spot.tiles)}칸 (지도의 과녁)</span>
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button>${widen}</span></p>`;
   }
@@ -1887,15 +1889,17 @@ export function setupGoals(): void {
     const widen = (e.target as HTMLElement).closest<HTMLElement>('#info [data-widen], #manage [data-widen]');
     if (widen) {
       const [x0, y0, x1, y1] = widen.dataset.widen!.split(',').map(Number) as [number, number, number, number];
+      const to = widen.dataset.widenKind === 'road' ? 'road' : 'avenue';
+      const word = to === 'road' ? '도로' : '대로';
       city.settle();
-      const p = city.previewNetwork(x0, y0, x1, y1, 'avenue');
+      const p = city.previewNetwork(x0, y0, x1, y1, to);
       if (!p.ok) {
         flash(p.message === 'not enough funds' ? `§${fmt(Math.ceil(p.cost - city.state.funds))} 모자랍니다` : ko(p.message ?? ''), 'bad');
         redrawInfo();
         return;
       }
-      const drop = remember('대로');
-      const res = city.buildNetwork(x0, y0, x1, y1, 'avenue');
+      const drop = remember(word);
+      const res = city.buildNetwork(x0, y0, x1, y1, to);
       if (!res.ok) {
         drop();
         flash(ko(res.message ?? ''), 'bad');
@@ -1903,8 +1907,8 @@ export function setupGoals(): void {
       }
       city.refreshIfDirty();
       const tiles = Math.abs(x1 - x0) + Math.abs(y1 - y0) + 1;
-      if (active === 'traffic') noteAction(`대로 ${fmt(tiles)}칸 · −§${fmt(res.cost)}`);
-      flash(`막힌 구간 ${fmt(tiles)}칸을 대로로 넓혔습니다 · −§${fmt(res.cost)}`, 'info');
+      if (active === 'traffic') noteAction(`${word} ${fmt(tiles)}칸 · −§${fmt(res.cost)}`);
+      flash(`막힌 구간 ${fmt(tiles)}칸을 ${word}로 넓혔습니다 · −§${fmt(res.cost)}`, 'info');
       renderer.effect('flash', Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0) + 1, Math.abs(y1 - y0) + 1);
       // (From the traffic screen: the map shows the stretch widened, near enough to see, as a site built from it does.)
       if ($('#manage').contains(widen)) {
