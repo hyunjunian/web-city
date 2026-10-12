@@ -2559,3 +2559,15 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .chips.alerts button.chip { min-height: 0; font: inherit; font-size: 12px; font-weight: 600; }
 .chips.alerts .chip-go { width: 13px; height: 13px; margin: 0 -4px 0 -1px; opacity: 0.7; }
 @media (hover: hover) { .chips.alerts button.chip.bad:hover { background: color-mix(in srgb, var(--danger) 22%, transparent); } }
+/* The region's grid: empty land is quiet (its ＋ comes up under the pointer); the cells beside the open city keep
+   theirs, and a key under the grid says what the outlines mean (a hundred ＋ read as noise, the blue as nothing). */
+.region-grid.dense .square.empty:not(.beside) span { opacity: 0; transition: opacity 0.12s; }
+.region-grid.dense .square.empty:not(.beside):is(:hover, :focus-visible) span { opacity: 1; }
+.region-grid .square.empty:not(.beside) { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line) 75%, transparent); }
+.region-grid.dense .square.big small { display: block; margin-top: 2px; font-size: 9.5px; opacity: 0.85; }
+.region-key { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 10px; color: var(--muted); font-size: 11.5px; }
+.region-key span { display: inline-flex; align-items: center; gap: 6px; }
+.region-key i { width: 12px; height: 12px; border-radius: 3px; }
+.region-key .k-here { background: var(--accent); }
+.region-key .k-beside { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.region-key .k-empty { box-shadow: inset 0 0 0 1px var(--line-strong); }

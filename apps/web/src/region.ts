@@ -106,11 +106,12 @@ export function regionHtml(): string {
       const label = here
         ? `${escapeHtml(city.state.name)}<br><small>지금 연 도시 · ${fmt(city.stats().population)}명</small>`
         : `${escapeHtml(snap!.name)}<br><small>${fmt(pop)}명</small>`;
-      cells.push(`<button class="square ${here ? 'active' : ''}" data-sq="${id}" style="${place(fp.x, fp.y, fp.span)}" ${here ? 'disabled' : ''}>${label}</button>`);
+      cells.push(`<button class="square${here ? ' active' : ''}${fp.span > 1 ? ' big' : ''}" data-sq="${id}" style="${place(fp.x, fp.y, fp.span)}" ${here ? 'disabled' : ''} title="${here ? '지금 연 도시' : `${escapeHtml(snap!.name)} 열기 (이 도시는 저장됨)`}">${label}</button>`);
     }
   }
   return `<h3 class="sub">지역 (${seen.size}개 도시)</h3>
     <div class="region-grid${region.width > 6 ? ' dense' : ''}" style="grid-template-columns: repeat(${region.width}, minmax(0, 1fr)); grid-template-rows: repeat(${region.height}, ${region.width > 6 ? 30 : 44}px)">${cells.join('')}</div>
+    <p class="region-key" aria-hidden="true"><span><i class="k-here"></i>지금 연 도시</span><span><i class="k-beside"></i>이웃 칸: 여기 세우면 이 도시의 이웃</span><span><i class="k-empty"></i>빈 땅</span></p>
     <label class="funding">새 도시 크기 <select id="found-span">${([1, 2, 4] as const).map((k) => `<option value="${k}" ${k === foundSpan ? 'selected' : ''}>${SPAN_NAME[k]} (${k}×${k}칸, ${region!.citySize * k}×${region!.citySize * k})</option>`).join('')}</select></label>
     <p class="legend">다른 칸을 누르면 이 도시를 저장하고 그 도시를 엽니다(빈 칸이면 그 칸을 왼쪽 위로 새로 세움). 옆 도시들은 마지막 저장 상태로 이웃이 되고, 한 변에 여러 도시가 있으면 합쳐서 하나의 이웃으로 봅니다.</p>`;
 }
