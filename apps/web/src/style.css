@@ -502,7 +502,7 @@ kbd {
 
 /* A goal's screen takes the pane; the overview steps aside until it closes. */
 #manage { display: none; }
-#pane.managing #manage { display: grid; gap: 12px; align-content: start; }
+#pane.managing #manage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; } /* (one column the pane's width: at 320px a wide line made it 19px wider, under the ×) */
 /* Going into an area's screen slides in from the right, coming back to the overview from the left: the pane
    reads as one level deeper and back, not as its contents swapped in place. */
 #pane.managing #manage { animation: goal-in 0.2s var(--ease); }
@@ -516,13 +516,17 @@ kbd {
 .mg-head h2 .i { width: 20px; height: 20px; color: var(--accent-hi); }
 .mg-head .chip { margin-left: auto; }
 /* The clock beside the goal's name: a quiet pill while time runs, amber when paused (the city waits). */
-.mg-time { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; min-height: 26px; padding: 0 9px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11.5px; font-weight: 600; }
+.mg-time { display: inline-flex; flex: none; align-items: center; gap: 4px; margin-left: auto; min-height: 26px; padding: 0 9px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
 .mg-time .i { width: 13px; height: 13px; }
 .mg-time.on .i { color: var(--accent-hi); }
 .mg-time:not(.on) { background: var(--warn-soft); color: var(--text); }
 .mg-time + .chip { margin-left: 0; }
-@media (min-width: 861px) and (max-width: 1180px) { .mg-time > span { display: none; } .mg-time { padding: 0 7px; } } /* (its icon says it; the title keeps the room) */
+@media (max-width: 1799px) { .mg-time > span { display: none; } .mg-time { padding: 0 7px; } } /* (its icon says it; the goal's name keeps the room: below a 380px pane its words cut 재정·정책 and 부유층·고급화 short, and on a phone broke over two lines) */
 .mg-back { flex: none; }
+/* (A 288px pane, and a phone: closer together, so the longest name, 부유층·고급화, keeps whole beside the clock and
+   the goal's state; the back arrow narrower too where a mouse aims it.) */
+@media (max-width: 1180px) { .mg-head { gap: 6px; } .mg-head h2 { gap: 6px; font-size: 16px; } }
+@media (min-width: 861px) and (max-width: 1180px) and (pointer: fine) { .mg-head .mg-back { width: 32px; } }
 .mg-switch { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; margin-top: -4px; } /* every goal in sight (a scrolling row hid the last ones) */
 .mg-switch button { position: relative; flex: none; display: grid; place-items: center; width: 100%; height: 30px; border-radius: 8px; background: transparent; color: var(--muted); }
 .mg-switch button .i { width: 17px; height: 17px; }
@@ -1554,7 +1558,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .tile kbd { display: none; }
   /* The goal screens' small controls: a finger's margin, the rows unchanged. */
   :is(.watch-sort, .advice-view, .mg-views .vchip, .mg-tax .tax-step, .fac-fund .tax-step, #manage-chip .icon-btn) { position: relative; }
-  .mg-time { position: relative; }
+  .mg-time { position: relative; min-width: 40px; justify-content: center; } /* (its icon alone was 27px across) */
   :is(.watch-sort, .advice-view, .mg-views .vchip, #manage-chip .icon-btn, .mg-time)::after { content: ''; position: absolute; inset: -7px 0; }
   :is(.mg-tax .tax-step, .fac-fund .tax-step)::after { content: ''; position: absolute; inset: -7px -3px; }
   .mg-switch button { height: 40px; }

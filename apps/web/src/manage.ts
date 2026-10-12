@@ -1819,8 +1819,9 @@ function placeToolMark(): void {
 function timeButton(): string {
   const on = speed > 0;
   const name = ['', '느리게', '보통', '빠르게'][speed] ?? '';
-  // (Named for what a press does, as a button is: "멈춤" read as how things stood, and pressing it went on.)
-  return `<button type="button" class="mg-time${on ? ' on' : ''}" title="${on ? `시간이 ${name} 흐르는 중 · 눌러서 멈추고 살펴보기 (Space)` : '시간이 멈춰 있음 · 눌러서 이어 가기 (Space)'}">${icon(on ? 'pause' : 'play')}<span>${on ? '멈추기' : '이어 가기'}</span></button>`;
+  // (Named for what a press does, as a button is: "멈춤" read as how things stood, and pressing it went on. Its words
+  // show only where the pane has room for them beside the longest goal's name.)
+  return `<button type="button" class="mg-time${on ? ' on' : ''}" aria-label="${on ? '시간 멈추기' : '시간 이어 가기'}" title="${on ? `시간이 ${name} 흐르는 중 · 눌러서 멈추고 살펴보기 (Space)` : '시간이 멈춰 있음 · 눌러서 이어 가기 (Space)'}">${icon(on ? 'pause' : 'play')}<span>${on ? '멈추기' : '이어 가기'}</span></button>`;
 }
 
 /**
