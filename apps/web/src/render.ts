@@ -2005,8 +2005,14 @@ export class Renderer {
             ctx.lineWidth = 3 * u;
             ctx.strokeStyle = 'rgba(0,0,0,0.6)';
             ctx.fillStyle = '#fff';
-            ctx.strokeText(m.label, cx, cy - r - 5 * u);
-            ctx.fillText(m.label, cx, cy - r - 5 * u);
+            // (Below the ring where a card over the map's top — the view's legend unfolded — would cover it above: the
+            // ring stood just clear of the card with its name under it.)
+            const half = (ctx.measureText(m.label).width / 2) * cam.scale;
+            const [lx, ly] = [(cx - cam.x) * cam.scale, (cy - r - 5 * u - cam.y) * cam.scale];
+            const below = this.covers.some((c) => lx + half > c.left && lx - half < c.right && ly > c.top && ly - 13 < c.bottom);
+            const ty = below ? cy + r + 15 * u : cy - r - 5 * u;
+            ctx.strokeText(m.label, cx, ty);
+            ctx.fillText(m.label, cx, ty);
             ctx.textAlign = 'start';
           }
           continue;
@@ -2051,8 +2057,8 @@ export class Renderer {
         const [cx, cy] = [m.x + m.w / 2, m.y + m.h / 2];
         if (cx >= vl && cx <= vr && cy >= vt && cy <= vb && !under(cx, cy, 0)) continue;
         let [px, py] = [Math.min(right, Math.max(left, cx)), Math.min(bottom, Math.max(top, cy))];
-        const card = under(px, py, 16);
-        if (card) py = Math.min(bottom, cam.y + (card.bottom + 24) * u);
+        // (Below each card it would stand under, in turn: a goal's chip has the view's legend just under it.)
+        for (let k = 0, card = under(px, py, 16); card && k < 4; k++, card = under(px, py, 16)) py = Math.min(bottom, cam.y + (card.bottom + 24) * u);
         const len = Math.hypot(cx - px, cy - py) || 1;
         const [dx, dy] = [(cx - px) / len, (cy - py) / len];
         const r = (m.hot ? 13 : 11) * u;

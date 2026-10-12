@@ -81,15 +81,35 @@ export function mapBand(): Band {
   return { left, top, right: Math.max(left + 1, right), bottom: Math.max(top + 1, bottom) };
 }
 
-/** The cards over the map's top corners — the view's legend under the top bar, 전체 보기 and the minimap (not while
- *  they fade, the whole city in sight) — in CSS px from its top left: a target under one is out of sight. */
+/** The cards over the map's top — the view's legend under the top bar, a goal's chip and (phones) the goals in
+ *  trouble beside the build bar, 전체 보기 and the minimap (not while they fade, the whole city in sight) — in CSS px
+ *  from its top left: a target under one is out of sight. Only those shown (the chip is only made invisible while a
+ *  phone's sheet is up); the strip by its chips, not the row they may not fill. */
+const COVERS = ['map-layer', 'manage-chip', 'goal-strip', 'map-zoom', 'minimap'];
+let coverWatch: ResizeObserver | null = null;
 export function mapCovers(): Band[] {
   const r = renderer.canvas.getBoundingClientRect();
   const faded = document.getElementById('view')?.classList.contains('whole-view');
-  return ['map-layer', ...(faded ? [] : ['map-zoom', 'minimap'])].flatMap((id) => {
+  // (Measured again when one changes size: a legend folded or unfolded with the clock stopped redrew nothing, and
+  // arrows stayed where it had reached.)
+  if (!coverWatch && typeof ResizeObserver === 'function') {
+    coverWatch = new ResizeObserver(() => {
+      renderer.band = null;
+      redraw();
+    });
+    for (const id of COVERS) {
+      const el = document.getElementById(id);
+      if (el) coverWatch.observe(el);
+    }
+  }
+  return COVERS.flatMap((id) => {
     const el = document.getElementById(id);
-    const c = el && !el.classList.contains('off') ? el.getBoundingClientRect() : null;
-    return c?.width && c.height ? [{ left: c.left - r.left, top: c.top - r.top, right: c.right - r.left, bottom: c.bottom - r.top }] : [];
+    if (!el || el.hidden || el.classList.contains('off') || (faded && (id === 'map-zoom' || id === 'minimap'))) return [];
+    if (getComputedStyle(el).visibility === 'hidden') return [];
+    const parts = id === 'goal-strip' ? [...el.children].map((k) => k.getBoundingClientRect()) : [el.getBoundingClientRect()];
+    const c = parts.filter((p) => p.width && p.height);
+    if (!c.length) return [];
+    return [{ left: Math.min(...c.map((p) => p.left)) - r.left, top: Math.min(...c.map((p) => p.top)) - r.top, right: Math.max(...c.map((p) => p.right)) - r.left, bottom: Math.max(...c.map((p) => p.bottom)) - r.top }];
   });
 }
 
