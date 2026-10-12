@@ -21,7 +21,7 @@ import { dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote, straightRuns } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, landfillSite, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -239,7 +239,7 @@ function guideHtml(id: GoalId): string {
   const { said: told, worst } = guideSaid(id);
   // (A line to lay while the card leads with something else, a plant off the road: what the line mends instead.)
   const offGrid = id === 'power' && st.kind === 'line' && st.lay === 'powerline' && !['noPower', 'powerCutOff', 'idlePlant', 'powerShort'].includes(worst?.code ?? '');
-  const said = offGrid ? `전기 없는 구역이 ${fmt(unpoweredZones().off)}칸 있습니다` : told;
+  const said = st.said ?? (offGrid ? `전기 없는 구역이 ${fmt(unpoweredZones().off)}칸 있습니다` : told);
   const problem = said || s.note;
   const title = said ? `<b>${escapeHtml(said)}</b>` : `<b>${escapeHtml(s.value)}</b> <span class="g-note">${escapeHtml(s.note)}</span>`;
   const spot = suggestSpot(id);
@@ -302,13 +302,18 @@ function guideHtml(id: GoalId): string {
     if (own) guideSite = { id, sites: own.at.map((at, k) => ({ at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}${own.labels[k] ? ` (${own.labels[k]})` : ''}` })) };
     // A landfill handed out as a zone tool: where, and how big, zoned in one press (해 보기 left a spot "by a road,
     // far from homes" to be found, and a size to be guessed).
-    const fill = !own && !site && (st.kind === 'best' || st.kind === 'fix') && st.act === 'landfill' ? landfillSite() : null;
+    // (Not again the month one was laid: the figures that ask for it change at the month's end, and a second press
+    // laid a second landfill. Nor beyond the funds.)
+    const month = Math.floor(city.state.day / 30);
+    const fill0 = !own && !site && (st.kind === 'best' || st.kind === 'fix') && st.act === 'landfill' && placedMonth.get('landfill') !== month ? landfillSite() : null;
+    const fill = fill0 && fill0.cost <= city.state.funds ? fill0 : null;
     if (fill) guideSite = { id, sites: [{ at: [fill.x0 + (fill.side >> 1), fill.y0 + (fill.side >> 1)], label: `추천 자리 · 매립지 ${fill.side}×${fill.side}` }], rect: [fill.x0, fill.y0, fill.side, fill.side] };
     // The zone the growth screen wants next (homes, shops, or work for the jobless): a block where it can go, laid in
     // one press (해 보기 handed the zone tool and left the block to be found).
-    const zone = !own && !site && !fill && st.kind === 'best' && (st.act === 'R-low' || st.act === 'C-low' || st.act === 'I-medium') ? st.act : null;
-    const block = zone ? zoneSite(zone) : null;
-    const blockCost = block && zone ? city.previewZone(block.x0, block.y0, block.x1, block.y1, zone).cost : 0;
+    const zone = !own && !site && !fill && st.kind === 'best' && (st.act === 'R-low' || st.act === 'C-low' || st.act === 'I-medium') && placedMonth.get(st.act) !== month ? st.act : null;
+    const block0 = zone ? zoneSite(zone) : null;
+    const blockCost = block0 && zone ? city.previewZone(block0.x0, block0.y0, block0.x1, block0.y1, zone).cost : 0;
+    const block = block0 && blockCost <= city.state.funds ? block0 : null;
     if (block) guideSite = { id, sites: [{ at: [block.x0 + (block.side >> 1), block.y0 + (block.side >> 1)], label: `추천 자리 · ${st.what} ${block.side}×${block.side}` }], rect: [block.x0, block.y0, block.side, block.side] };
     if (mark) markSite = { id, at: site ? [spot.x, spot.y] : own?.at[0] ?? null, kind: st.build };
     // (A jail recommended: the mark's 여기에 짓기 puts up a station on the gap in cover, and says so.)
@@ -327,13 +332,15 @@ function guideHtml(id: GoalId): string {
   const wait = p ? `<p class="g-wait">${icon('check')}<span>${escapeHtml(p.text)} · ${Math.max(1, FOLLOW_DAYS - (city.state.day - p.day))}일 뒤 결과를 알려 드립니다</span></p>` : '';
   // (The screen's head names the goal: the card starts with what is wrong.)
   return `<section class="lead ${s.tone} mg-guide" aria-label="추천 조치"><p class="lead-title">${icon('alert')}<span>${title}</span></p>
-    <p class="lead-risk">${(!offGrid && worst && RISK_OF[worst.code]) || RISK[id]}</p><p class="g-label">추천 조치</p>${action}${wait}</section>`;
+    <p class="lead-risk">${(st.riskCode && RISK_OF[st.riskCode]) || (!offGrid && !st.said && worst && RISK_OF[worst.code]) || RISK[id]}</p><p class="g-label">추천 조치</p>${action}${wait}</section>`;
 }
 
 /** The sites (x,y) of the build button under the pointer or focused: their marks light up on the map. */
 let hotSites: string[] = [];
 
 /** The guide's own site (one the map's mark isn't), marked on the map as the 과녁 is: where 추천 자리에 짓기 will build. */
+/** The month a landfill or a zone block was laid from the guide, by kind (its site waits for the next month's figures). */
+const placedMonth = new Map<string, number>();
 let guideSite: { id: GoalId; sites: { at: [number, number]; label: string }[]; path?: [number, number][]; lay?: Lay; rect?: [number, number, number, number] } | null = null;
 /** Where the screen's mark is built on (the mark, or the nearest fit for the facility recommended; null: none now), for its line's 여기에 짓기. */
 let markSite: { id: GoalId; at: [number, number] | null; kind?: StructureKind; name?: string } | null = null;
@@ -351,6 +358,9 @@ interface GuideStep {
   /** A path to lay, tile by tile: a power line (see lineToDark) or a road (see roadToFacility). */
   line?: [number, number][];
   lay?: Lay;
+  /** The trouble it mends, when not the card's worst (buildings about to be lost): the headline, and its risk line. */
+  said?: string;
+  riskCode?: string;
 }
 
 
@@ -369,9 +379,12 @@ function goalStep(id: GoalId): GuideStep {
   const cut = id === 'power' && pw.supply > 0 && pw.demand <= pw.supply * 0.85 && adviceFor('power').some((a) => a.code === 'powerCutOff');
   const laid = cut ? lineStep(undefined, true) : null;
   if (laid) return laid;
-  // Buildings about to be abandoned: what the first one lacks, mended in one press (power, water or road).
-  const rescue = worst?.code === 'atRisk' ? rescueStep(worst) : null;
-  if (rescue) return rescue;
+  // Buildings about to be abandoned (bad advice, wherever it stands in the list): what the first one lacks, mended in
+  // one press (power, water or road), and the card then leads with them. (Not otherwise: it led with them and offered
+  // a park.)
+  const risk = adviceFor(id).find((a) => a.code === 'atRisk' && a.level === 'bad');
+  const rescue = risk ? rescueStep(risk) : null;
+  if (rescue) return { ...rescue, said: firstSentence(adviceText(risk!)), riskCode: 'atRisk' };
   // Every pump on a network stopped: why, mended in one press where it can be (a line from the grid, the water budget).
   const pumps = worst?.code === 'pumpsOff' ? pumpStep(worst) : null;
   if (pumps) return pumps;
@@ -465,12 +478,15 @@ function rescueStep(a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
   const b = a.at ? city.query(a.at[0], a.at[1])?.building : undefined;
   if (!b?.type) return null;
   const c = city.cfg;
-  const [lack, share] = ([['power', b.noPowerMonths / c.services.noPowerMonths], ['water', b.noWaterMonths / c.services.noWaterMonths],
-    ['road', b.noRoadMonths / c.development.noRoadMonths]] as const).reduce((x, y) => (y[1] > x[1] ? y : x));
-  if (share < 0.5) return null;
-  const months = lack === 'power' ? [b.noPowerMonths, c.services.noPowerMonths] : lack === 'water' ? [b.noWaterMonths, c.services.noWaterMonths] : [b.noRoadMonths, c.development.noRoadMonths];
-  const left = `${months[1]! - months[0]!}개월 뒤 버려집니다`;
+  // (The countdown that ends soonest, of those half-way: 4 of 6 months without power waited behind 1 of 2 without
+  // a road, which loses the building next month. Each only while still lacking now: its count resets monthly.)
+  const counts = ([['power', b.noPowerMonths, c.services.noPowerMonths, !b.powered], ['water', b.noWaterMonths, c.services.noWaterMonths, !b.watered],
+    ['road', b.noRoadMonths, c.development.noRoadMonths, !hasRoadNow(b)]] as const).filter(([, m, lim, now]) => now && m >= lim * 0.5);
+  if (!counts.length) return null;
+  const [lack, m0, lim0] = counts.reduce((x, y) => (y[2] - y[1] < x[2] - x[1] ? y : x));
+  const left = `${lim0 - m0}개월 뒤 버려집니다`;
   if (lack === 'power') {
+    if (!powerToSpare()) return null; // (into a grid in blackouts, another building is only cut in turn)
     const line = lineToStructure(b, 'b');
     return line ? layStep('powerline', line, `전기가 끊긴 건물이 ${left}: 전력망에서 송전선을 이으면 됩니다`) : null;
   }
@@ -1634,7 +1650,7 @@ export function renderGoal(force = false): void {
 }
 
 /** Attributes that pick out a control again after the panel is redrawn. */
-const KEYS = ['data-spot', 'data-spot-build', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-goal', 'data-mg-tab', 'data-at'];
+const KEYS = ['data-spot', 'data-spot-build', 'data-line-path', 'data-landfill', 'data-zone', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-goal', 'data-mg-tab', 'data-at'];
 
 /** A selector for the focused control inside the goal panel, to give focus back after a redraw ('' if none). */
 function focusKey(el: Element | null): string {
@@ -1941,6 +1957,7 @@ export function setupGoals(): void {
         return;
       }
       city.refreshIfDirty();
+      placedMonth.set(kind, Math.floor(city.state.day / 30));
       noteAction(`${name} ${x1 - x0 + 1}×${y1 - y0 + 1} · −§${fmt(res.cost)}`);
       flash(`${name} ${x1 - x0 + 1}×${y1 - y0 + 1}칸을 놓았습니다 · −§${fmt(res.cost)}`, 'info');
       renderer.effect('flash', x0, y0, x1 - x0 + 1, y1 - y0 + 1);

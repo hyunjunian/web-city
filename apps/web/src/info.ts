@@ -2,7 +2,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceId, ORDINANCES, serviceRadius, type Structure, type StructureKind, STRUCTURES, type TripMeans } from '@web-city/engine';
 import { icon } from './icons';
-import { budgetMends, facilityLine, type Lay, LAY_WORD, layCost, lineToStructure, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
+import { budgetMends, facilityLine, hasRoadNow, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
 import { ko } from './messages';
 import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -241,9 +241,11 @@ export function showInfo(x: number, y: number): void {
   const roadPath = offRoad ? roadToFacility(q.structure!) : null;
   const roadCost = roadPath ? layCost('road', roadPath) : null;
   // A building counting down without power or a road: the line or road to it, in one press, as a facility's.
+  // (The road first: without one the other countdowns stand still. Each only while lacking now, and power only with
+  // some to spare: into a grid in blackouts it only cuts another building.)
   const lay: { kind: Lay; path: [number, number][]; goal: GoalId } | null = !b?.type ? null
-    : !b.powered ? (() => { const path = lineToStructure(b, 'b'); return path ? { kind: 'powerline' as const, path, goal: 'power' as const } : null; })()
-    : b.noRoadMonths ? (() => { const path = roadToFacility(b, 'b'); return path ? { kind: 'road' as const, path, goal: 'growth' as const } : null; })() : null;
+    : b.noRoadMonths && !hasRoadNow(b) ? (() => { const path = roadToFacility(b, 'b'); return path ? { kind: 'road' as const, path, goal: 'growth' as const } : null; })()
+    : !b.powered && powerToSpare() ? (() => { const path = lineToStructure(b, 'b'); return path ? { kind: 'powerline' as const, path, goal: 'power' as const } : null; })() : null;
   const layPrice = lay ? layCost(lay.kind, lay.path) : null;
   const chips = [
     b && !b.powered ? `<button type="button" class="chip bad"${go('power')} title="${city.cfg.services.noPowerMonths}개월이 되면 버려집니다 · 눌러서 전력 화면">${icon('zap')}전기 끊김 ${b.noPowerMonths}/${city.cfg.services.noPowerMonths}개월</button>` : '',

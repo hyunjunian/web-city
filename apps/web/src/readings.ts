@@ -36,10 +36,7 @@ export function loadOf(list: Structure[]): [number, number] {
 export function adviceFor(id: GoalId) {
   const rank = { bad: 0, neutral: 1, good: 2 } as const;
   adviceMemo ??= currentAdvice();
-  // (Of the bad, buildings about to be lost first: a cap on growth waits, and the guide offered a park while
-  // buildings went empty.)
-  const lose = (a: { code: string }) => (a.code === 'atRisk' ? 0 : 1);
-  return adviceMemo.filter((a) => goalOfAdvice(a) === id).sort((a, b) => rank[a.level] - rank[b.level] || lose(a) - lose(b));
+  return adviceMemo.filter((a) => goalOfAdvice(a) === id).sort((a, b) => rank[a.level] - rank[b.level]);
 }
 
 type Status = { tone: Tone; value: string; note: string; bar?: number };
@@ -885,6 +882,21 @@ export function pipeToDry(): [number, number][] | null {
 }
 let pipeLineMemo: { key: string; path: [number, number][] | null } | null = null;
 
+/** Does a building reach a road now (homes and shops fronting one, industry and farms within reach of one)? Its
+ * countdown resets only at the month's end: without this, a road laid to it was offered again at once. */
+export function hasRoadNow(b: Building): boolean {
+  if (city.roadBeside(b.x, b.y, b.w, b.h)) return true;
+  const n = city.size;
+  for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) if (city.fields.industrialAccess[y * n + x]) return true;
+  return false;
+}
+
+/** Is there power to spare for one more building (the plants not past 85%, as the power screen judges)? */
+export function powerToSpare(): boolean {
+  const pw = readStats().power;
+  return pw.supply > 0 && pw.demand <= pw.supply * 0.85;
+}
+
 /** What a one-press path lays (the guide's 바로 잇기, the info card's 도로 잇기). */
 export type Lay = 'powerline' | 'road' | 'pipe';
 export const LAY_WORD: Record<Lay, string> = { powerline: '송전선', road: '도로', pipe: '수도관' };
@@ -1066,10 +1078,14 @@ export function landfillSite(): { x0: number; y0: number; x1: number; y1: number
   const key = `landfill|${siteKey()}`;
   if (fillMemo?.key === key) return fillMemo.at;
   const lf = city.cfg.garbage.landfill;
-  const side = Math.max(4, Math.min(10, Math.ceil(Math.sqrt((readStats().garbage.produced * 12) / lf.tileCapacity))));
-  const cost = side * side * lf.zoneCost;
-  const [ax, ay] = centroid((b) => b.type?.[0] === 'I');
-  const sq = cost <= city.state.funds ? squareSite(side, ax, ay, (z) => z >= 1 && z <= 6, [10, 6]) : null; // (homes and shops: R and C zones)
+  // (Sized from what goes into landfills, as the guide's own test counts it: with an incinerator burning most of it,
+  // the whole of the rubbish laid a 10×10 where a 5×5 did.)
+  const g = readStats().garbage;
+  const buried = Math.max(0, (g.kept || g.produced - g.recycled) - g.incinerated - (g.exported ?? 0));
+  const side = Math.max(4, Math.min(10, Math.ceil(Math.sqrt((buried * 12) / lf.tileCapacity))));
+  const cost = side * side * lf.zoneCost; // (the caller checks it against the funds: a loan since would not show here)
+  const [ax, ay] = centroid((b) => b.type?.[0] === 'I' && b.type !== 'IA');
+  const sq = squareSite(side, ax, ay, (z) => z >= 1 && z <= 6, [10, 6]); // (homes and shops: R and C zones)
   const at = sq ? { ...sq, side, cost } : null;
   fillMemo = { key, at };
   return at;
@@ -1084,13 +1100,14 @@ export function zoneSite(zone: 'R-low' | 'C-low' | 'I-medium'): { x0: number; y0
   const key = `zone|${zone}|${siteKey()}`;
   if (zoneMemo?.key === key) return zoneMemo.at;
   const cls = zone[0]!;
-  const has = (c: string) => (b: Building) => b.type?.[0] === c;
+  const has = (c: string) => (b: Building) => b.type?.[0] === c && b.type !== 'IA'; // (farms are not industry)
   const homes = [...city.state.buildings.values()].some(has('R'));
   const [ax, ay] = centroid(cls === 'C' || !([...city.state.buildings.values()].some(has(cls))) ? (homes ? has('R') : has(cls)) : has(cls));
-  const avoid = cls === 'I' ? (z: number) => z >= 1 && z <= 3 : cls === 'R' ? (z: number) => z === 7 || z === 8 : () => false;
+  // (Homes and shops clear of a landfill too: it spoils them out to 32 tiles.)
+  const avoid = cls === 'I' ? (z: number) => z >= 1 && z <= 3 : cls === 'R' ? (z: number) => z === 7 || z === 8 || z === 10 : (z: number) => z === 10;
   let at: { x0: number; y0: number; x1: number; y1: number; side: number } | null = null;
   for (const side of [8, 6]) {
-    const sq = squareSite(side, ax, ay, avoid, [cls === 'C' ? 0 : 6]);
+    const sq = squareSite(side, ax, ay, avoid, [6], zone !== 'I-medium');
     if (sq) { at = { ...sq, side }; break; }
   }
   zoneMemo = { key, at };
@@ -1116,7 +1133,7 @@ function centroid(test: (b: Building) => boolean): [number, number] {
  * along it and no zone `avoid` takes within R tiles (each R of `reach` in turn, the first that finds one); its
  * corners, or null. (Rectangle sums keep each try O(1): a few milliseconds on a large map.)
  */
-function squareSite(side: number, ax: number, ay: number, avoid: (zone: number) => boolean, reach: number[]): { x0: number; y0: number; x1: number; y1: number } | null {
+function squareSite(side: number, ax: number, ay: number, avoid: (zone: number) => boolean, reach: number[], low = false): { x0: number; y0: number; x1: number; y1: number } | null {
   const s = city.state;
   const n = city.size;
   const W = n + 1;
@@ -1127,7 +1144,9 @@ function squareSite(side: number, ax: number, ay: number, avoid: (zone: number) 
     for (let x = 0; x < n; x++) {
       const i = y * n + x;
       const z = s.zone[i]!;
-      const b = s.occupant[i] || s.net[i] || z || s.terrain[i] === Terrain.Water || s.landform[i] === 2 ? 1 : 0; // (2: a volcano's cone)
+      // (Nor under elevated track, nor on a slope for more than low density: the zone tool skips those tiles, and a
+      // site with them was refused on every press and found again.)
+      const b = s.occupant[i] || s.net[i] || z || s.elevated[i] || s.terrain[i] === Terrain.Water || s.landform[i] === 2 || (!low && s.landform[i] === 3) ? 1 : 0; // (2: a volcano's cone; 3: its slope)
       const k = (y + 1) * W + x + 1;
       busy[k] = b + busy[k - 1]! + busy[k - W]! - busy[k - W - 1]!;
       near[k] = (avoid(z) ? 1 : 0) + near[k - 1]! + near[k - W]! - near[k - W - 1]!;

@@ -3,7 +3,7 @@
 import { setupGoals } from './manage';
 import { setupBack } from './back';
 import { City, sampleCity } from '@web-city/engine';
-import { buildOverlay, buildSpeed, refreshViewSummary, resetSpeedChoice, restoreNight, setSpeed } from './controls';
+import { buildOverlay, buildSpeed, resetSpeedChoice, restoreNight, setSpeed } from './controls';
 import { followTag, preview, refreshTag, setupInput } from './input';
 import { tickDisasters } from './live';
 import { setupMenu } from './menu';
@@ -124,7 +124,6 @@ function frameBody(now: number): void {
     panelTimer = 0;
     updatePanels();
     refreshTag();
-    if (overlay.kind !== 'none') refreshViewSummary();
   }
   if (city.state.fires.length || city.state.treeFires.length) setDirty(true); // animate flames
   if (daysPerSec > 0 && !city.state.impeached) {

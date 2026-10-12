@@ -134,7 +134,7 @@ export function drawMinimap(force = false): void {
   }
   // An open goal's marks: its troubled facilities as dots, the suggested spot as a ring (found from anywhere).
   for (const m of renderer.marks) {
-    if (m.tone === '') continue;
+    if (m.tone === '' || m.tone === 'area') continue; // (an area's outline: its target ring stands for it)
     const mx = (m.x + m.w / 2) * k;
     const my = (m.y + m.h / 2) * k;
     ctx.beginPath();
