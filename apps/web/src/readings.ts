@@ -432,7 +432,7 @@ export function forecast(k: StructureKind): string {
   // The margin it would leave, as an amount (지으면 여유 +12,216 m³ beside 급수 2,400 m³ read as the gain);
   // still short, by how much.
   const after = (spare: number, add: number, unit: string) => {
-    const v = spare + add;
+    const v = Math.round(spare + add); // (short by a fraction read 지어도 0 MWh 모자람)
     return v < 0 ? `지어도 ${fmt(-v)} ${unit} 모자람` : `지으면 여유 ${fmt(v)} ${unit}`;
   };
   if (d.plant) return after(st.power.supply - st.power.demand, d.plant.output, 'MWh');

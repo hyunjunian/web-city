@@ -36,10 +36,10 @@ export let choicesMade = 0;
 export function choice<T>(label: string, make: () => T): T {
   const owner = city;
   const res = make();
-  choicesMade++;
+  const took = res === undefined || res === true || (typeof res === 'object' && res !== null && (!('ok' in res) || (res as { ok: boolean }).ok));
+  if (took) choicesMade++; // (a refused one changed nothing: no progress to lose)
   // Taxes and funding levels don't end it: undo carries them over (see `open`).
   if (SETTINGS.has(label)) return res;
-  const took = res === undefined || res === true || (typeof res === 'object' && res !== null && (!('ok' in res) || (res as { ok: boolean }).ok));
   if (took && (stack.some((e) => e.owner === owner) || redoStack.some((e) => e.owner === owner))) {
     stack = [];
     redoStack = [];

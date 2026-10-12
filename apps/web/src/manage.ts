@@ -252,10 +252,15 @@ function guideHtml(id: GoalId): string {
     // (Bus stops come in pairs, as the card says: one where the most people live, one where the most work.)
     const what = id === 'education' ? '학교' : '병원';
     const one = (at: [number, number] | null, title: string) => (at ? { at: [at], title, labels: [] as string[] } : null);
+    // (Beside a full school only one of its level takes its students: a primary school by a full high school
+    // relieved nothing.)
+    const over = spot?.crowded ? adviceFor(id).find((a) => a.at && ['schoolStrike', 'hospitalStrike', 'schoolFull', 'hospitalFull'].includes(a.code)) : undefined;
+    const overKind = over?.at ? city.query(over.at[0], over.at[1])?.structure?.kind : undefined;
+    const relieves = !!st.build && (!overKind || !STRUCTURES[overKind].school || STRUCTURES[overKind].school!.curve === STRUCTURES[st.build].school?.curve);
     const own = site || !st.build ? null
       : mark ? one(siteNear(st.build, spot.x, spot.y, 6), `지도의 과녁(${SPOT_WORD[id] ?? ''}) 가까이, 길가 빈 땅에 바로 짓기`)
       : arealess ? one(siteAwayFromHomes(st.build), '주거지에서 떨어진 길가 빈 땅에 바로 짓기')
-      : spot?.crowded && st.kind === 'best' ? one(siteNear(st.build, spot.x, spot.y), `넘치는 ${what} 가까이, 길가 빈 땅에 바로 짓기`)
+      : spot?.crowded && st.kind === 'best' ? (relieves ? one(siteNear(st.build, spot.x, spot.y), `넘치는 ${what} 가까이, 길가 빈 땅에 바로 짓기`) : null)
       : st.anywhere ? one(siteNearHomes(st.build), '주거지에서 가장 가까운 길가 빈 땅에 바로 짓기')
       : id === 'water' && STRUCTURES[st.build].pump ? one(siteOnPipes(st.build), '수도관에 닿고 전기가 들어오는 빈 땅에 바로 짓기')
       : id === 'power' && STRUCTURES[st.build].plant ? one(siteByPlants(st.build), '있는 발전소 옆, 전력망에 닿는 길가 빈 땅에 바로 짓기')
@@ -268,6 +273,9 @@ function guideHtml(id: GoalId): string {
     const go = st.kind === 'ord' ? '시행하기' : st.fin === 'loan' ? '빌리기' : st.fin || st.kind === 'budget' ? '적용하기' : '해 보기';
     if (own) guideSite = { id, sites: own.at.map((at, k) => ({ at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}${own.labels[k] ? ` (${own.labels[k]})` : ''}` })) };
     if (mark) markSite = { id, at: site ? [spot.x, spot.y] : own?.at[0] ?? null };
+    // (A jail recommended: the mark's 여기에 짓기 puts up a station on the gap in cover, and says so.)
+    const station = arealess ? cheapestOf(GOALS.police) : null;
+    if (station && spot) markSite = { id, at: [spot.x, spot.y], name: STRUCTURE_NAME[station] };
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b>${st.sub ? `<small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small>` : ''}</p>
       ${why ? `<p class="${st.fx ? `g-act-fx${/−|모자람/.test(st.fx) ? ' neg' : ''}` : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}
       <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>${go}</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
@@ -283,7 +291,7 @@ function guideHtml(id: GoalId): string {
 /** The guide's own site (one the map's mark isn't), marked on the map as the 과녁 is: where 추천 자리에 짓기 will build. */
 let guideSite: { id: GoalId; sites: { at: [number, number]; label: string }[] } | null = null;
 /** Where the screen's mark is built on (the mark, or the nearest fit for the facility recommended; null: none now), for its line's 여기에 짓기. */
-let markSite: { id: GoalId; at: [number, number] | null } | null = null;
+let markSite: { id: GoalId; at: [number, number] | null; name?: string } | null = null;
 
 /**
  * A goal's recommendation: what it is, why, the act behind 해 보기; `build` the facility it puts up
@@ -1190,7 +1198,8 @@ function spotLine(id: GoalId): string {
   const site = id === 'power' || id === 'water';
   // (A site for the facility the screen recommends: built there in one press — where the guide found it fits.)
   const fit = markSite?.id === id ? markSite.at : [spot.x, spot.y];
-  const build = (SERVICE_SITE.has(id) || site) && fit ? `<button type="button" class="advice-view spot-build" data-spot-build="${fit.join(',')}" title="추천 시설을 이 자리에 짓기">${icon('plus')}여기에 짓기</button>` : '';
+  const named = markSite?.id === id ? markSite.name : undefined;
+  const build = (SERVICE_SITE.has(id) || site) && fit ? `<button type="button" class="advice-view spot-build" data-spot-build="${fit.join(',')}" title="${named ? `${named}${josa(named, '을', '를')} 이 자리에 짓기` : '추천 시설을 이 자리에 짓기'}">${icon('plus')}여기에 짓기</button>` : '';
   return `<p class="mg-spot">${icon('target')}<span>${site
     ? `<b>${SPOT_WORD[id]}</b>: ${id === 'power' ? '전기 없는 구역' : '물이 없는 건물'} ${fmt(spot.tiles)}칸 가까이, 도로 옆${id === 'power' ? ' · 주거에서 떨어진' : ''} 빈 땅 (지도의 과녁)`
     : `<b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${fmt(spot.tiles)}칸 (지도의 과녁)`}</span>
