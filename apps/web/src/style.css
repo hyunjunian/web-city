@@ -801,6 +801,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
   display: grid; gap: 10px; max-height: min(calc(100dvh - 120px), 640px); overflow-y: auto; padding: 2px 2px 24px; overscroll-behavior: contain;
   mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); /* (more below fades out, not cut through a row) */
 }
+#view:has(#tool-chip:not([hidden])) #view-grid { max-height: min(calc(100dvh - 190px), 640px); } /* (clear of the tool's bar at the foot) */
 /* A drag that starts on the view's card selected its text; with a building tool in hand its legend steps aside (the map is the work). */
 #map-layer { -webkit-user-select: none; user-select: none; }
 #view.holding #map-layer:not(.picking) #overlay-legend { display: none !important; }
@@ -861,7 +862,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 /* The view picker gives the zoom buttons, now beside the card, room. */
 /* Too narrow for both: the buttons step aside while the card is open (wheel and pinch still zoom). */
 @media (min-width: 861px) and (max-width: 941px) { #view.info-open #map-controls { visibility: hidden; } }
-#map-zoom { position: static; display: grid; gap: 2px; padding: 4px; border-radius: var(--r-lg); }
+#map-zoom { position: static; display: grid; gap: 2px; padding: 0; border-radius: var(--r-lg); } /* (± are not shown: the box is 전체 보기's, 50px as the clearances around it assume) */
 #map-zoom .icon-btn { width: 40px; height: 40px; color: var(--text); }
 /* 전체 보기 says so under its icon (the corners alone read as full screen), as the build bar's buttons do. */
 #map-zoom #zoom-fit { flex-direction: column; gap: 2px; width: 48px; height: 48px; }
@@ -1437,6 +1438,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #minimap { display: none; }
   /* The view list takes the room there is, and fades at the foot when more is below. */
   #view-grid { max-height: calc(100dvh - 150px); }
+  #view:has(#tool-chip:not([hidden])) #view-grid { max-height: calc(100dvh - 210px); }
 
   #tray, #info-card, #sheet {
     left: 0; right: 0; bottom: 0; top: auto; width: auto; transform: none;
@@ -1445,7 +1447,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   }
   #tray { max-height: 62%; }
   #info-card { max-height: 56%; } /* the spot it describes stays in sight above it */
-  #sheet { top: 8%; grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+  #sheet { top: max(8%, calc(64px + env(safe-area-inset-top))); grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); } /* (under the top bar on a short phone too) */
   #sheet[data-tab='region'] { width: auto; }
   #tabs { flex-direction: row; gap: 4px; padding: 10px 10px 0; border-right: 0; overflow-x: auto; }
   #tabs button { flex: 1 0 auto; justify-content: center; gap: 8px; min-height: 42px; padding: 0 12px; font-size: 14px; }
@@ -1502,7 +1504,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #app.pane-open #toasts { left: calc(min(380px, 50%) + 10px); width: auto; right: 84px; }
   .mg-head { top: -18px; margin-top: -18px; padding-top: 14px; } /* this sheet's padding is 18px */
   .pane-close { top: -8px; margin-top: -8px; margin-bottom: -46px; } /* (and so the ×'s insets) */
-  #pane.managing .pane-close { top: 4px; }
   #view.info-open #toasts { width: calc(100% - min(420px, 58%) - 84px); }
 }
 
@@ -2259,11 +2260,6 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #pane, #tray, #info-card, #sheet { left: calc(50% - 300px); right: calc(50% - 300px); }
 }
 
-/* An area's screen up on a phone held upright: the view's card folds to its icon in the top row (the screen
-   names the view and reads its figures), so the city drawn above the sheet gets that room too (it was a stamp
-   between the card and the sheet). */
-@media (max-width: 860px) and (orientation: portrait) {
-}
 /* The kinds of neighbour side by side: the name, then what it gives (a paragraph of three made them hard to compare). */
 .nb-kinds { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 10px 0 0; font-size: 12.5px; line-height: 1.45; }
 .nb-kinds dt { font-weight: 650; white-space: nowrap; }
@@ -2591,6 +2587,11 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 /* Held upright, the city pane rising over the map puts the view's card away (its top peeked out above the pane). */
 @media (max-width: 860px) and (orientation: portrait) {
   #app.pane-open #view #mapbar #map-layer:not(.picking) { display: none; }
+}
+/* A phone held upright: with a tool in hand the card keeps between the build bar and 전체 보기 (at 220px its × lay
+   under 전체 on a 320px screen). */
+@media (max-width: 639px) and (orientation: portrait) {
+  #view.holding #mapbar #map-layer:not(.picking):has(#overlay-sum:not([hidden])) { width: auto; }
 }
 /* Wider than a phone held upright (a tablet; a phone sideways): the top bar at its own width in the corner,
    전체 보기 in the other. */

@@ -4,7 +4,7 @@
 import { chooseSpeed, runningSpeed } from './controls';
 import { icon } from './icons';
 import { centerOn, redraw, renderer, speed } from './state';
-import { revealMap } from './tabs';
+import { paneShown, revealMap } from './tabs';
 import { glue } from './util';
 
 /** Toasts at once: three over a wide map, one on a phone (more covered the town being built). */
@@ -173,5 +173,5 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
     if (e.pointerType === 'mouse' && !sticky) wait(2500);
   };
   // Small screens: a dot on the dock's 도시 button until the city pane is opened.
-  if (unread && !document.querySelector('#app')?.classList.contains('pane-open')) document.querySelector('.dock-city')?.classList.add('unread');
+  if (unread && !paneShown()) document.querySelector('.dock-city')?.classList.add('unread'); // (wide, the pane is shown unless the map is alone)
 }

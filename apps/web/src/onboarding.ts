@@ -6,7 +6,7 @@ import { openSample } from './main';
 import { region } from './region';
 import { changeKey, city, cityLineage } from './state';
 import { markSuggested, panTipAt, selectTool } from './tools';
-import { closePane, showTab, type Tab } from './tabs';
+import { closePane, paneShown, showTab, type Tab } from './tabs';
 import { $, ask, flash, fmt, touchFirst } from './util';
 import { STRUCTURE_NAME } from './names';
 import { dropToasts, toast } from './toast';
@@ -135,7 +135,7 @@ export function renderOnboarding(): void {
     + (station ? `s${station.kind}${station.at.join(',')}` : '') + (fill ? `l${fill.x0},${fill.y0},${fill.side}${fillSpan(fill.months)}` : '');
   if (el.dataset.sig === sig) return;
   // Phones: the checklist sits in the city pane, so its dock button gets a dot until opened.
-  if (!el.dataset.sig && !$('#app').classList.contains('pane-open')) document.querySelector('.dock-city')?.classList.add('unread');
+  if (!el.dataset.sig && !paneShown()) document.querySelector('.dock-city')?.classList.add('unread');
   el.dataset.sig = sig;
   // The next three steps; the rest fold away (the whole list pushed the RCI meter off the pane).
   const todo = steps.filter(([ok]) => !ok);

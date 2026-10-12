@@ -171,6 +171,7 @@ export function setupTabs(): void {
   if (city) city.onclick = () => {
     if (!phone() && $('#app').classList.contains('focus')) {
       $('#btn-focus').click();
+      $('#city-title').focus({ preventScroll: true }); // (this button goes with the map alone: the keyboard lands at the pane's head)
       return;
     }
     if (!closePane()) {

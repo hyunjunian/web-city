@@ -159,11 +159,12 @@ export function refreshUndo(): void {
   const top = [...stack].reverse().find((e) => e.owner === city);
   btn.disabled = !top;
   btn.title = top ? `되돌리기: ${top.label}${city.state.day > top.day ? ` (그 뒤 ${elapsed(city.state.day - top.day)}도 함께)` : ''} (Ctrl+Z)` : '되돌리기 (Ctrl+Z)';
-  // Redo shows only while there is something to redo (it is rare, and the bar is busy).
+  // Redo keeps its place beside undo, dimmed while there is nothing to redo: appearing after an undo, it took the
+  // spot undo had been pressed in, and a second press there redid what the first undid.
   const again = document.querySelector<HTMLButtonElement>('#btn-redo');
   const next = [...redoStack].reverse().find((e) => e.owner === city);
   if (again) {
-    again.hidden = !next;
+    again.disabled = !next;
     again.title = next ? `다시 하기: ${next.label} (Ctrl+Shift+Z)` : '다시 하기 (Ctrl+Shift+Z)';
   }
 }
