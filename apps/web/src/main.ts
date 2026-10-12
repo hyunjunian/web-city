@@ -202,8 +202,10 @@ export function openSample(): void {
       // Rewards earned while it grew: one line instead of a toast each.
       const earned = town.takeNewUnlocks().length;
       town.takeReports();
+      // (Phones: the pane it was opened from steps aside for the city first, so the city is framed on the whole
+      // screen — framed under the pane, it sat in the top half once the pane went.)
+      closePane();
       setCity(town);
-      closePane(); // phones: the pane it was opened from steps aside for the city
       // (One thing to do, and what it already earned: the keys are in 도움말.)
       // (Where they are: under 짓기 on a phone, the bar's own 보상 on a wide screen.)
       const where = matchMedia('(max-width: 860px)').matches ? '짓기 › 보상' : '위쪽 막대의 보상';
