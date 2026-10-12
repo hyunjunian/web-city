@@ -46,9 +46,9 @@ function fail(msg: string): never {
 }
 
 /** A preview and the edit that followed it must agree on success and cost. */
-function agree(what: string, preview: { ok: boolean; cost: number; message?: string }, done: { ok: boolean; cost: number; message?: string }, ramps = false): void {
+function agree(what: string, preview: { ok: boolean; cost: number; message?: string }, done: { ok: boolean; cost: number; message?: string }): void {
   if (preview.ok !== done.ok) fail(`${what}: preview ok=${preview.ok} (${preview.message}) but edit ok=${done.ok} (${done.message})`);
-  if (done.ok && (ramps ? done.cost < preview.cost - 1e-6 : Math.abs(done.cost - preview.cost) > 1e-6)) fail(`${what}: preview cost ${preview.cost}, edit cost ${done.cost}`);
+  if (done.ok && Math.abs(done.cost - preview.cost) > 1e-6) fail(`${what}: preview cost ${preview.cost}, edit cost ${done.cost}`);
 }
 
 function check(): void {
@@ -89,13 +89,13 @@ for (let month = 0; month < years * 12; month++) {
     const r = rng.next();
     actions++;
     // Each edit is previewed first: the preview must agree with what the edit then does
-    // (cost exactly, except ramps a highway or avenue adds on top).
+    // (cost exactly, including ramps automatically added by highways and avenues).
     if (r < 0.3) {
       const z = pick(zones);
       agree('zone', city.previewZone(x, y, x2, y2, z), city.zone(x, y, x2, y2, z));
     } else if (r < 0.5) {
       const [ex, ey, kind] = [rng.next() < 0.5 ? x2 : x, rng.next() < 0.5 ? y : y2, pick(nets)];
-      agree(`network ${kind}`, city.previewNetwork(x, y, ex, ey, kind), city.buildNetwork(x, y, ex, ey, kind), kind === 'avenue' || kind === 'highway');
+      agree(`network ${kind}`, city.previewNetwork(x, y, ex, ey, kind), city.buildNetwork(x, y, ex, ey, kind));
     } else if (r < 0.62) {
       const kind = pick(kinds);
       const can = city.canPlaceStructure(kind, x, y);
@@ -109,7 +109,7 @@ for (let month = 0; month < years * 12; month++) {
     else if (r < 0.78) agree('subway', city.previewLine('subway', x, y, x2, y), city.buildSubway(x, y, x2, y));
     else if (r < 0.8) {
       const kind = pick(['elrail', 'monorail', 'highway'] as const);
-      agree(`elevated ${kind}`, city.previewLine(kind, x, y, x2, y), city.buildElevated(x, y, x2, y, kind), kind === 'highway');
+      agree(`elevated ${kind}`, city.previewLine(kind, x, y, x2, y), city.buildElevated(x, y, x2, y, kind));
     }
     else if (r < 0.81) {
       // Instant disasters, or a moving one steered somewhere and walked a few steps.
@@ -120,7 +120,11 @@ for (let month = 0; month < years * 12; month++) {
         city.advanceDisasters(rng.int(30));
       }
     }
-    else if (r < 0.83) city.terraform(x, y, Math.min(n - 1, x + 3), Math.min(n - 1, y + 3), rng.next() < 0.5 ? 'water' : 'land');
+    else if (r < 0.83) {
+      const [ex, ey] = [Math.min(n - 1, x + 3), Math.min(n - 1, y + 3)];
+      const kind = pick(['water', 'land', 'raise', 'lower'] as const);
+      agree(`terrain ${kind}`, city.previewTerraform(x, y, ex, ey, kind), city.terraform(x, y, ex, ey, kind));
+    }
     else if (r < 0.85) {
       const id = pick(Object.keys(ORDINANCES) as (keyof typeof ORDINANCES)[]);
       if (rng.next() < 0.5) city.enactOrdinance(id);
@@ -157,7 +161,8 @@ for (let month = 0; month < years * 12; month++) {
     }
     else if (r < 0.95) city.setTaxRate(pick(['R$', 'Cs$', 'ID', 'IHT', 'Co$$$'] as const), rng.int(21));
     else if (r < 0.96 && city.state.funds < 100_000) city.takeLoan(100_000);
-    else city.query(x, y);
+    else if (r < 0.98) city.query(x, y);
+    else agree('trees', city.previewTrees(x, y, x2, y2), city.plantTrees(x, y, x2, y2));
     city.refreshIfDirty();
     reports += city.takeReports().length;
   }
