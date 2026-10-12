@@ -1669,7 +1669,44 @@ export function relieverFor(at: readonly [number, number]): StructureKind | null
   return kinds.reduce<StructureKind | null>((a, k) => (!a || STRUCTURES[k].cost < STRUCTURES[a].cost ? k : a), null);
 }
 
-export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; crowded?: true } | null {
+/** The dark zone tiles of each power grid (by the engine's grid id), and of all of them. */
+function darkGrids(): { per: Map<number, number>; total: number } {
+  const zone = city.state.zone;
+  const { powered, powerGrid } = city.fields;
+  const per = new Map<number, number>();
+  let total = 0;
+  for (let i = 0; i < zone.length; i++) {
+    const z = zone[i]!;
+    if (!z || z === 10 || powered[i]) continue;
+    total++;
+    const g = powerGrid[i]!;
+    if (g >= 0) per.set(g, (per.get(g) ?? 0) + 1);
+  }
+  return { per, total };
+}
+
+/** The dark zone tiles a plant with its middle at (x, y) would light: all of every dark grid within its reach (the engine's). */
+function litBy(kind: StructureKind, x: number, y: number, dark: { per: Map<number, number> }): number {
+  const d = STRUCTURES[kind];
+  const n = city.size;
+  const reach = city.cfg.services.powerGap + 1;
+  const [lx, ly] = [x - ((d.w - 1) >> 1), y - ((d.h - 1) >> 1)];
+  const { powered, powerGrid } = city.fields;
+  const seen = new Set<number>();
+  let sum = 0;
+  for (let ty = Math.max(0, ly - reach); ty <= Math.min(n - 1, ly + d.h - 1 + reach); ty++) {
+    for (let tx = Math.max(0, lx - reach); tx <= Math.min(n - 1, lx + d.w - 1 + reach); tx++) {
+      const i = ty * n + tx;
+      const g = powerGrid[i]!;
+      if (g < 0 || powered[i] || seen.has(g)) continue;
+      seen.add(g);
+      sum += dark.per.get(g) ?? 0;
+    }
+  }
+  return sum;
+}
+
+export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; crowded?: true; lit?: number } | null {
   const key = `${id}|${changeKey()}`;
   if (spotMemo?.key === key) return spotMemo.spot;
   // A school or hospital on strike or far over its places: the new one goes beside it, to take some of
@@ -1691,7 +1728,8 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
     }
   }
   const want = need(id);
-  let spot: { x: number; y: number; tiles: number } | null = null;
+  let spot: { x: number; y: number; tiles: number; lit?: number } | null = null;
+  let lit = 0;
   if (want) {
     // Counted in blocks of 12 tiles; the fullest block's middle of its needing tiles.
     const n = city.size;
@@ -1765,17 +1803,35 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
         // placement still warns of the smoke); clear of homes, a line still to lay.
         // (The second pass only where it differs from the first: for coal, oil or a clean plant it was the same scan again.)
   const passes = id === 'power' ? [{ feed: true, clear: dirty }, ...(smoky !== dirty ? [{ feed: true, clear: smoky }] : []), { feed: false, clear: dirty }] : [{ feed: false, clear: false }];
+        // (A plant that feeds: of those near the first found, the one whose reach takes in the most dark zone tiles —
+        // homes and work a gap apart are both lit by a plant set in the gap, where the first site found lit one and
+        // left a line to lay.)
+        const dark = id === 'power' && kind ? darkGrids() : null;
         search: for (const { feed, clear } of passes) {
-          for (let r = 0; r <= reach; r++) {
+          let top: { at: [number, number]; lit: number } | null = null;
+          let until = reach;
+          for (let r = 0; r <= until; r++) {
             for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
               if (Math.max(Math.abs(dx), Math.abs(dy)) !== r || !fits(cx + dx, cy + dy, clear) || (feed && !feeds(cx + dx, cy + dy))) continue;
-              at = [cx + dx, cy + dy];
-              break search;
+              if (!feed || !dark || !kind) {
+                at = [cx + dx, cy + dy];
+                break search;
+              }
+              const got = litBy(kind, cx + dx, cy + dy, dark);
+              if (!top) until = Math.min(reach, r + 8);
+              if (!top || got > top.lit) top = { at: [cx + dx, cy + dy], lit: got };
+              if (got >= dark.total) break; // (every dark tile in reach: none does better)
             }
+            if (top && top.lit >= dark!.total) break;
+          }
+          if (top) {
+            at = top.at;
+            lit = top.lit;
+            break search;
           }
         }
       }
-      spot = { x: at[0], y: at[1], tiles: hits[best]! };
+      spot = { x: at[0], y: at[1], tiles: hits[best]!, ...(lit ? { lit } : {}) };
     }
   }
   spotMemo = { key, spot };
