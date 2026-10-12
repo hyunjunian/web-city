@@ -1,7 +1,7 @@
 // Reading the city for the goals: each goal's state, figures and forecasts, where its
 // trouble gathers on the map, and what would help (no DOM here: the screen is manage.ts).
 
-import { type Building, DEFAULT_CONFIG, DEV_TYPES, isLocalNet, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind } from '@web-city/engine';
+import { type Building, DEV_TYPES, isLocalNet, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind } from '@web-city/engine';
 import { noRiders } from './info';
 import { ADVICE_TEXT, POLL_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME } from './names';
 import { crimeKinds, currentAdvice, garbageFill } from './panels';
@@ -180,7 +180,7 @@ function readStatus(id: GoalId): Status {
         const jams = jammedTiles();
         const trips = s.history.at(-1)?.trips ?? {};
         const transit = ['bus', 'subway', 'passengerTrain', 'monorail', 'ferry'].some((k) => (trips[k] ?? 0) > 0);
-        why = jams >= 10 ? `막히는 길 ${fmt(jams)}칸` : !transit ? '대중교통 없음 · 일터가 멀거나 길이 느림' : '일터가 멀거나 길이 느림';
+        why = jams >= 10 ? `막힌 길 ${fmt(jams)}칸` : !transit ? '대중교통 없음 · 일터가 멀거나 길이 느림' : '일터가 멀거나 길이 느림';
       }
       return pick(h !== undefined && h > 1 ? 'warn' : '', h ? minutes(h) : '—', h ? why : '아직 통근하는 주민 없음');
     }
@@ -514,12 +514,14 @@ function need(id: GoalId): ((i: number) => number) | null {
     case 'environment': return (i) => (home(i) && f.air[i]! > 40 ? Math.min(2, (f.air[i]! - 40) / 40) : 0);
     case 'garbage': return (i) => (s.zone[i] !== 10 && s.garbage[i]! > 2 ? 1 : 0);
     // Road over its capacity, by how far (rail and the rest have views of their own).
+    // (Past capacity, as the congestion view counts it and its legend says: past 1.2 times it here, the screen said 116
+    // where the view beside it said 139.)
     case 'traffic': return (i) => {
       const code = s.net[i]!;
       if (code === Net.None || code === Net.Rail) return 0;
-      const cap = DEFAULT_CONFIG.transport.speed[NETWORK_KINDS[code]!]?.capacity;
+      const cap = city.cfg.transport.speed[NETWORK_KINDS[code]!]?.capacity;
       const u = cap ? f.traffic[i]! / cap : 0;
-      return u > 1.2 ? u - 1 : 0;
+      return u > 1 ? u - 1 : 0;
     };
     default: return null;
   }
