@@ -21,7 +21,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type AirSource, airSources, edgeRoad, fillSpan, smokeClear, type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type AirSource, airSources, edgeRoad, fillSpan, ratingRated, smokeClear, type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -79,8 +79,7 @@ export interface PaneFigs { jobs: number; jobsTrend: string; rating: number; rat
  * The mayor's rating as a row's tone: below 0 urgent, below 20 a look — not before a month has closed with
  * residents (it is worked out at the month's end, and until then its 0 said 주민 만족이 낮음 of a town nobody had rated).
  */
-const rated = () => (city.state.history.at(-1)?.population ?? 0) > 0;
-const ratingTone = (rating: number): Tone => (!rated() ? '' : rating < 0 ? 'bad' : rating < 20 ? 'warn' : '');
+const ratingTone = (rating: number): Tone => (!ratingRated() ? '' : rating < 0 ? 'bad' : rating < 20 ? 'warn' : '');
 
 export function problemsHtml(alerts: string, figs: PaneFigs): string {
   if (emptyCity()) return '';
@@ -121,7 +120,7 @@ function qualityGrid(counts: string, top: string, figs: PaneFigs): string {
   };
   // 시장 평점: no goal of its own, a row all the same (below 0 it is a problem); pressed, the polls.
   const rTone = ratingTone(figs.rating);
-  const yet = rated();
+  const yet = ratingRated();
   const rating = `<button type="button" class="s-row ${rTone || 'ok'}${rTone ? ' has-note' : ''}" data-open-polls title="시장 평점 (주거 구역 블록별 평균, −100~100)${yet ? '' : ' · 주민이 든 달이 지나면 매겨집니다'} · 눌러서 주제별 여론 보기" aria-label="시장 평점: ${yet ? figs.rating : '아직 없음'}">
       <span class="s-ic">${icon('approval')}</span><span class="s-main"><span class="s-name">시장 평점</span>${rTone ? `<small class="s-note">${figs.rating < 0 ? '주민 대다수가 불만 · 계속되면 탄핵될 수 있음' : '주민 만족이 낮음 · 여론을 살펴보세요'}</small>` : ''}</span><b class="s-val">${yet ? `${figs.ratingTrend}${figs.rating}` : '—'}</b>${icon('chevronRight', 's-go')}</button>`;
   let off = rows.filter(({ s }) => s.tone).map((r) => ({ key: r.id as string, html: row(r) }));
@@ -986,7 +985,7 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
   $('#manage-chip').hidden = false;
   refreshChip();
   if (at) centerOn(at[0], at[1]);
-  else if (changed && !phone()) clearOfCards();
+  else if (changed && !phone()) requestAnimationFrame(clearOfCards); // (once the view's summary has filled the legend: updatePanels below)
   // Its policy and statistics are drawn only while shown.
   if (fresh || changed) updatePanels();
   redraw();

@@ -204,6 +204,12 @@ function readStatus(id: GoalId): Status {
   }
 }
 
+/**
+ * Has the mayor's rating been worked out yet: a month closed with residents? (It is worked out at the month's end; until
+ * then its 0 is no one's verdict, and the pane and the polls say —.)
+ */
+export const ratingRated = (): boolean => (city.state.history.at(-1)?.population ?? 0) > 0;
+
 /** A service the town has none of yet (its row says so, and when it will be wanted). */
 const list0 = (what: string) => `${what} 없음 · ${readStats().population || city.state.buildings.size || unpoweredZones().all > 0 ? '지금 필요' : '구역이 생기면 필요'}`;
 
@@ -343,9 +349,9 @@ function goalMetrics(id: GoalId): Metric[] {
       return [['수요', `${fmt(w.demand)} m³`, '', w.demand, 0], ['공급', `${fmt(w.supply)} m³`, '', w.supply, 1],
         ['여유', `${spare < 0 ? '−' : ''}${fmt(Math.abs(spare))} m³`, spare < 0 ? 'bad' : spare < w.demand * 0.15 ? 'warn' : 'good', spare, 1],
         // (With no water at all there are no "shortages" yet: the buildings going without are the count.)
-        // (Red as the row is: from 3,000 people, and only with some of them past the stage that needs water — the view
-        // beside it said 아직은 물 없이 자라는 단계 under a red figure.)
-        ...(w.supply <= 0 && dry() ? [['물 없는 건물', `${fmt(dry())}채`, st.population > 3000 && thirsty() ? 'bad' : 'warn', dry(), -1] as Metric] : [['단수', w.shortages ? `${fmt(w.shortages)}곳` : '없음', w.shortages ? 'bad' : '', w.shortages, -1] as Metric]), ['수도 시설', `${list.length}곳`, '', list.length, 0]];
+        // (Red as the row is, from 3,000 people — or with some past the stage that needs water; amber before: a small
+        // town's red figure stood beside the view's 아직은 물 없이 자라는 단계.)
+        ...(w.supply <= 0 && dry() ? [['물 없는 건물', `${fmt(dry())}채`, st.population > 3000 || thirsty() ? 'bad' : 'warn', dry(), -1] as Metric] : [['단수', w.shortages ? `${fmt(w.shortages)}곳` : '없음', w.shortages ? 'bad' : '', w.shortages, -1] as Metric]), ['수도 시설', `${list.length}곳`, '', list.length, 0]];
     }
     case 'garbage': {
       const g = st.garbage;
@@ -398,7 +404,7 @@ function goalMetrics(id: GoalId): Metric[] {
       return [['대기 오염', h?.air !== undefined ? h.air.toFixed(0) : '—', (h?.air ?? 0) > 40 && homes > 0 ? 'warn' : '', h?.air !== undefined ? Math.round(h.air) : undefined, -1],
         ['공기 나쁜 주거지', `${fmt(homes)}칸`, homes > 0 && (h?.air ?? 0) > 40 ? 'warn' : '', homes, -1, '대기 오염이 40을 넘는 주거 구역 칸 · 공장·발전소·차가 많은 길 가까이에서 생깁니다'],
         ['수질 오염', h?.waterPollution !== undefined ? h.waterPollution.toFixed(0) : '—', '', h?.waterPollution !== undefined ? Math.round(h.waterPollution) : undefined, -1],
-        ['공원', `${parks}곳`, '', parks, 1], ['시장 평점', String(st.mayorRating), st.mayorRating < 0 ? 'bad' : '', st.mayorRating, 1]];
+        ['공원', `${parks}곳`, '', parks, 1], ratingRated() ? ['시장 평점', String(st.mayorRating), st.mayorRating < 0 ? 'bad' : '', st.mayorRating, 1] : ['시장 평점', '—', '', undefined, 1, '주민이 든 달이 지나면 매겨집니다']];
     }
   }
 }
@@ -547,16 +553,22 @@ function need(id: GoalId): ((i: number) => number) | null {
  */
 /** A power plant no fire station reaches (by its middle tile, as buildings are counted). */
 function unprotected(st: Structure): boolean {
-  return !(city.fields.fireCover[(st.y + (st.h >> 1)) * city.size + st.x + (st.w >> 1)]! > 0);
+  // (Any tile of it in reach, as the engine's advisor and its fires count a plant covered: by its middle alone, one
+  // with a corner in reach was "소방이 닿지 않는 발전소" beside an advisor who said nothing.)
+  const n = city.size;
+  const cover = city.fields.fireCover;
+  for (let y = st.y; y < st.y + st.h; y++) for (let x = st.x; x < st.x + st.w; x++) if (cover[y * n + x]! > 0) return false;
+  return true;
 }
 
-/** The power plants out of fire cover that a fire station's reach r at (cx, cy) would take in. */
+/** The power plants out of fire cover that a fire station's reach r at (cx, cy) would take in (by their nearest tile). */
 export function plantsReached(cx: number, cy: number, r: number): number {
   let count = 0;
   for (const st of city.state.structures.values()) {
     if (!STRUCTURES[st.kind].plant || !unprotected(st)) continue;
-    const [mx, my] = [st.x + (st.w >> 1), st.y + (st.h >> 1)];
-    if ((mx + 0.5 - cx) ** 2 + (my + 0.5 - cy) ** 2 <= r * r) count++;
+    const dx = Math.max(0, Math.abs(cx - (st.x + st.w / 2)) - st.w / 2 + 0.5);
+    const dy = Math.max(0, Math.abs(cy - (st.y + st.h / 2)) - st.h / 2 + 0.5);
+    if (dx * dx + dy * dy <= r * r) count++;
   }
   return count;
 }
@@ -1910,19 +1922,23 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
     const sx = new Float64Array(per * per);
     const sy = new Float64Array(per * per);
     const hits = new Uint32Array(per * per);
+    const vip = new Uint8Array(per * per); // (a plant out of fire cover: a building's tiles weigh 1 at most, a plant's more)
     for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
       const v = want(y * n + x);
       if (!v) continue;
       const b = Math.floor(y / B) * per + Math.floor(x / B);
       count[b] = count[b]! + v;
       hits[b] = hits[b]! + 1;
+      if (id === 'fire' && v > 1) vip[b] = 1;
       sx[b] = sx[b]! + x * v;
       sy[b] = sy[b]! + y * v;
     }
+    // A handful of tiles is noise at the edge of a zone, not a gap worth a building — passed over in the choosing, not
+    // after it (the block it won stood alone and was then thrown out, and with it every other): save for a plant out of
+    // fire cover, small as a wind plant's two tiles are.
     let best = -1;
-    for (let b = 0; b < count.length; b++) if (count[b]! > (best < 0 ? 0 : count[best]!)) best = b;
-    // A handful of tiles is noise at the edge of a zone, not a gap worth a building.
-    if (best >= 0 && hits[best]! >= 6) {
+    for (let b = 0; b < count.length; b++) if ((hits[b]! >= 6 || vip[b]) && count[b]! > (best < 0 ? 0 : count[best]!)) best = b;
+    if (best >= 0) {
       // The middle of them, moved to the nearest open ground (a building's tile can't take a new one).
       const cx = Math.round(sx[best]! / count[best]!);
       const cy = Math.round(sy[best]! / count[best]!);
