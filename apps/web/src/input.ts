@@ -1132,7 +1132,7 @@ export function setupInput(): void {
       // (Not the tool's footprint and price under it: pressed, it goes there, it doesn't build.)
       setPreview(null);
       $('#cursor-tag').hidden = true;
-      $('#hint').textContent = `눌러서 그곳으로 가기${edge.label ? ` · ${edge.label}` : ''}`;
+      $('#hint').textContent = `눌러서 그곳으로 가기${edge.label ? `: ${edge.label}` : ''}`;
     } else if (edgeCursor !== null) {
       canvas.style.cursor = edgeCursor;
       edgeCursor = null;
