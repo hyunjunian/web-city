@@ -696,7 +696,12 @@ function viewSummaryNow(v: string): [string, '' | 'bad' | 'good', number[]] {
       // the engine's far higher limit, said apart.)
       const hot = worstSpots(n, (i) => (s.zone[i]! >= 1 && s.zone[i]! <= 3 ? f.waterPollution[i]! : 0), 100);
       const limit = city.cfg.services.pumpPollutionLimit;
-      const fouled = [...s.structures.values()].filter((st) => STRUCTURES[st.kind].pump && f.waterPollution[st.y * n + st.x]! > limit).length;
+      // (Any tile of its lot past the limit stops it, as the engine counts it.)
+      const over = (st: { x: number; y: number; w: number; h: number }) => {
+        for (let y = st.y; y < st.y + st.h; y++) for (let x = st.x; x < st.x + st.w; x++) if (f.waterPollution[y * n + x]! > limit) return true;
+        return false;
+      };
+      const fouled = [...s.structures.values()].filter((st) => STRUCTURES[st.kind].pump && over(st)).length;
       const pumps = fouled ? ` · 오염으로 멈춘 펌프 ${fmt(fouled)}곳` : '';
       return hot.count || fouled ? [`수질 오염이 심한 주거지 ${fmt(hot.count)}칸 (100 넘음)${pumps}`, 'bad', hot.spots] : ['주거지 수질은 괜찮습니다', 'good', []];
     }

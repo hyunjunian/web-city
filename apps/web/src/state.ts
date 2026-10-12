@@ -53,36 +53,56 @@ export function builtArea(whole = false): { cx: number; cy: number; span: number
   return { cx, cy, span };
 }
 
+/** A part of the map, in CSS pixels from the map's own top left corner. */
+export type Band = { left: number; top: number; right: number; bottom: number };
+
+/**
+ * The part of the map nothing covers: below the bar row, and on a phone above the city sheet when it is up — or
+ * beside it, where a phone held sideways has it as a side panel. Framing on a phone, the edge arrows and their
+ * flights keep to it (an arrow under the sheet, a target landing there).
+ */
+export function mapBand(): Band {
+  const r = renderer.canvas.getBoundingClientRect();
+  let [left, top, right, bottom] = [0, 0, r.width, r.height];
+  const dock = document.getElementById('dock')?.getBoundingClientRect();
+  if (dock?.height) top = Math.max(top, Math.min(r.height / 3, dock.bottom - r.top));
+  const pane = document.getElementById('pane');
+  const app = document.getElementById('app');
+  if (pane && app?.classList.contains('pane-open') && matchMedia('(max-width: 860px)').matches) {
+    // (Where the sheet comes to rest, not where its slide-in has got to: offsets leave the transform out.)
+    const at = app.getBoundingClientRect();
+    if (matchMedia('(orientation: landscape) and (max-height: 520px)').matches) left = Math.max(left, Math.min(r.width / 2, at.left + pane.offsetLeft + pane.offsetWidth - r.left));
+    else bottom = Math.min(bottom, Math.max(top + r.height / 3, at.top + pane.offsetTop - r.top));
+  }
+  return { left, top, right: Math.max(left + 1, right), bottom: Math.max(top + 1, bottom) };
+}
+
 export function fitCamera(whole = false): void {
   const r = renderer.canvas.getBoundingClientRect();
   // The built-up part with a margin, or the whole map while there is none (or when asked: 전체 보기).
   const { cx, cy, span } = builtArea(whole);
   // On a phone, in the part of the screen nothing covers: below the tool bar, above the city sheet when it is up
-  // (framed on the whole screen, the town sat half under the sheet with a dark band over it).
-  let [top, bottom] = [r.top, r.bottom];
-  if (matchMedia('(max-width: 860px)').matches) {
-    const dock = document.getElementById('dock')?.getBoundingClientRect();
-    if (dock && dock.height) top = Math.max(top, Math.min(r.top + r.height / 3, dock.bottom));
-    // (Where the sheet comes to rest, not where its slide-in has got to: offsets leave the transform out.)
-    const pane = document.getElementById('pane');
-    const app = document.getElementById('app');
-    if (pane && app?.classList.contains('pane-open')) bottom = Math.min(bottom, Math.max(top + r.height / 3, app.getBoundingClientRect().top + pane.offsetTop));
-  }
-  const h = bottom - top;
-  cam.scale = Math.max(whole ? 1 : 2, Math.min(r.width, h) / span); // (zooming out stops at 1)
-  cam.x = cx - r.width / cam.scale / 2;
-  cam.y = cy - (top - r.top + h / 2) / cam.scale;
+  // (framed on the whole screen, the town sat half under the sheet with a dark band over it), beside it held sideways.
+  const b = matchMedia('(max-width: 860px)').matches ? mapBand() : { left: 0, top: 0, right: r.width, bottom: r.height };
+  const [w, h] = [b.right - b.left, b.bottom - b.top];
+  cam.scale = Math.max(whole ? 1 : 2, Math.min(w, h) / span); // (zooming out stops at 1)
+  cam.x = cx - (b.left + w / 2) / cam.scale;
+  cam.y = cy - (b.top + h / 2) / cam.scale;
 }
 
-/** Moves the view to centre a tile, zooming in to at least `minScale` pixels per tile. */
-export function centerOn(x: number, y: number, minScale = 8): void {
+/**
+ * Moves the view to centre a tile, zooming in to at least `minScale` pixels per tile — in the middle of `band`
+ * when given (the part nothing covers), else of the map.
+ */
+export function centerOn(x: number, y: number, minScale = 8, band?: Band): void {
   const r = renderer.canvas.getBoundingClientRect();
+  const [mx, my] = band ? [(band.left + band.right) / 2, (band.top + band.bottom) / 2] : [r.width / 2, r.height / 2];
   // Flies there (350ms, zoom eased in proportion), so the eye follows where it went.
   const from = { x: cam.x, y: cam.y, scale: cam.scale };
   const scale = Math.max(cam.scale, minScale);
-  const to = { x: x + 0.5 - r.width / scale / 2, y: y + 0.5 - r.height / scale / 2 };
-  const fromCx = from.x + r.width / from.scale / 2;
-  const fromCy = from.y + r.height / from.scale / 2;
+  const to = { x: x + 0.5 - mx / scale, y: y + 0.5 - my / scale };
+  const fromCx = from.x + mx / from.scale;
+  const fromCy = from.y + my / from.scale;
   const start = performance.now();
   const flight = ++flights;
   const step = (now: number) => {
@@ -93,8 +113,8 @@ export function centerOn(x: number, y: number, minScale = 8): void {
     // The view's centre moves straight to the target's.
     const cx = fromCx + (x + 0.5 - fromCx) * e;
     const cy = fromCy + (y + 0.5 - fromCy) * e;
-    cam.x = cx - r.width / cam.scale / 2;
-    cam.y = cy - r.height / cam.scale / 2;
+    cam.x = cx - mx / cam.scale;
+    cam.y = cy - my / cam.scale;
     if (k >= 1) {
       cam.x = to.x;
       cam.y = to.y;

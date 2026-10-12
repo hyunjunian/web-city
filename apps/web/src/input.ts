@@ -13,7 +13,7 @@ import { type Preview, zoneTint } from './render';
 import { coverageRadius, GROWTH_LABEL, growthNow, overlayReading } from './views';
 import { facilityLine, newlyReached, smokeClear } from './readings';
 import { goalOfStructure } from './goals';
-import { cam, centerOn, city, drag, fitCamera, glideTo, hover, overlay, redraw, renderer, selected, setDrag, setHover, speed, stopFlight } from './state';
+import { cam, centerOn, city, drag, fitCamera, glideTo, hover, mapBand, overlay, redraw, renderer, selected, setDrag, setHover, speed, stopFlight } from './state';
 import { drive, SPECIAL } from './udi';
 import { closeTopLayer, toggleSheet } from './tabs';
 import { chosen, closeTray, dockArmed, openFind, previousTool, stepAlt, refreshToolChip, selectTool, STATION_HINT, tool, TOOL_KEYS, toolName, toolUsed, refreshEdgeHint } from './tools';
@@ -303,7 +303,7 @@ export function updatePreview(): void {
       : def.category === 'landmark' || def.category === 'reward' ? `시장 평점 ${(def.mayor?.[0] ?? 0) >= 0 ? '+' : ''}${def.mayor?.[0] ?? 0}${def.mayor ? ` (${def.mayor[1] >= city.size ? '도시 전체' : `${def.mayor[1]}칸`})` : ''} · 상업 ${def.com[0]}${def.bulldoze ? ` · 철거 §${fmt(def.bulldoze)}` : ''}`
       : `주거 상한 완화 +${fmt(def.relief[0])}`;
     // (A station: how many of what its service misses it would reach from here, the figure to move it about by.)
-    const goal = reach && check.ok ? goalOfStructure(kind) : null;
+    const goal = reach && check.ok && !city.stepping ? goalOfStructure(kind) : null; // (not mid-day: its cover is being redone)
     const gained = goal && (goal === 'police' || goal === 'fire' || goal === 'health' || goal === 'education')
       ? newlyReached(goal, sx + def.w / 2, sy + def.h / 2, reach) : -1;
     const reached = gained < 0 ? '' : `새로 닿는 ${goal === 'health' || goal === 'education' ? '집' : '건물'} ${gained ? `${fmt(gained)}채` : '없음'}`;
@@ -862,6 +862,7 @@ export function applyTool(): void {
         break;
       }
       dropProposal();
+      city.settle(); // (the count below reads the cover, which a day part-way is redoing)
       const [sx, sy] = footprintAt(kind, [x1, y1]);
       const placeable = city.canPlaceStructure(kind, sx, sy).ok;
       const warn = placeable ? siteWarnings(kind, sx, sy) : '';
@@ -1016,6 +1017,8 @@ export function setupInput(): void {
     return [e.clientX - r.left, e.clientY - r.top] as const;
   };
   const pointers = new Map<number, [number, number]>();
+  /** When an edge arrow was last pressed (its double click's second press and zoom are left alone). */
+  let edgePressed = -Infinity;
   let pinch: { dist: number; scale: number } | null = null;
   let clickDismiss = false;
 
@@ -1027,7 +1030,14 @@ export function setupInput(): void {
       const edge = renderer.edgeMarks.find((m) => Math.hypot(m.x - ex, m.y - ey) <= m.r + 8);
       if (edge) {
         e.preventDefault();
-        centerOn(Math.floor(edge.tx), Math.floor(edge.ty), 0);
+        edgePressed = performance.now();
+        centerOn(Math.floor(edge.tx), Math.floor(edge.ty), 0, mapBand()); // (landing where nothing covers it)
+        return;
+      }
+      // (A double click's second press: the arrow has gone with the flight, and it stopped the flight and opened
+      // the card of whatever tile was under it.)
+      if (performance.now() - edgePressed < 450) {
+        e.preventDefault();
         return;
       }
     }
@@ -1183,6 +1193,7 @@ export function setupInput(): void {
   // A double click while looking goes in on that spot (as on a map); building tools keep theirs for building.
   canvas.addEventListener('dblclick', (e) => {
     if (tool.kind !== 'query' && tool.kind !== 'route') return;
+    if (performance.now() - edgePressed < 700) return; // (on an edge arrow: its press flies, the zoom isn't wanted)
     const [px, py] = pos(e as unknown as PointerEvent);
     const r = canvas.getBoundingClientRect();
     const to = Math.min(48, cam.scale * 2);

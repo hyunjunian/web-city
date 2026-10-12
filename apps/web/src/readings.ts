@@ -85,7 +85,8 @@ function readStatus(id: GoalId): Status {
       // (Taxes cutting a type's demand are the finance screen's to fix: 주의 with what they cost, where the money alone
       // read 양호 and nobody looked — 71% of the demand for rich homes was going.)
       const taxed = !tone && first?.code === 'taxHigh' ? said : '';
-      if (taxed) return { tone: first!.level === 'bad' ? 'bad' : 'warn', value: money(st.funds), note: taxed };
+      // (주의, not 급함, even where the rate stops a type's demand: a tax is changed at leisure, and red stopped the clock.)
+      if (taxed) return { tone: 'warn', value: money(st.funds), note: taxed };
       return { tone, value: money(st.funds), note: b ? `지난달 ${net < 0 ? '−' : '+'}§${fmt(Math.abs(Math.round(net)))}${left}` : '첫 결산 전' };
     }
     case 'growth': {
@@ -942,21 +943,30 @@ export function widenTo(run: [number, number, number, number]): 'road' | 'avenue
   return streets && top <= city.cfg.transport.speed.road.capacity * 0.6 ? 'road' : 'avenue';
 }
 
-/** The worst-jammed street or road tile (traffic against its capacity), past capacity, or null. */
+/**
+ * The worst-jammed street or road tile (traffic against its capacity), past capacity, at grade (a bridge or tunnel
+ * isn't widened in place, and jamRun refuses it), or null. Kept for the week, as the jam count is.
+ */
 export function worstJam(): [number, number] | null {
+  const key = changeKey();
+  if (worstMemo?.key === key) return worstMemo.at;
   const s = city.state;
   const f = city.fields;
   const n = city.size;
+  const cap = { street: city.cfg.transport.speed.street.capacity, road: city.cfg.transport.speed.road.capacity };
   let best = -1;
   let worst = 1;
   for (let i = 0; i < n * n; i++) {
     const kind = NETWORK_KINDS[s.net[i]!];
-    if (kind !== 'street' && kind !== 'road') continue;
-    const load = f.traffic[i]! / city.cfg.transport.speed[kind].capacity;
+    if ((kind !== 'street' && kind !== 'road') || s.tunnel[i]) continue;
+    const load = f.traffic[i]! / cap[kind];
     if (load > worst) [best, worst] = [i, load];
   }
-  return best < 0 ? null : [best % n, Math.floor(best / n)];
+  const at: [number, number] | null = best < 0 ? null : [best % n, Math.floor(best / n)];
+  worstMemo = { key, at };
+  return at;
 }
+let worstMemo: { key: string; at: [number, number] | null } | null = null;
 
 /** Does a building reach a road now (homes and shops fronting one, industry and farms within reach of one)? Its
  * countdown resets only at the month's end: without this, a road laid to it was offered again at once. */

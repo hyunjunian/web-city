@@ -11,12 +11,13 @@ import { drawMinimap, setupMinimap } from './minimap';
 import { cancelMySimAction } from './mysims';
 import { updatePanels } from './panels';
 import { leaveRegion } from './region';
-import { cam, city, cityLineage, clampCamera, dirty, fitCamera, onCityChange, overlay, redraw, renderer, selected, setCity, setDirty, setSaveSlotId, speed } from './state';
+import { cam, city, cityLineage, clampCamera, dirty, fitCamera, mapBand, onCityChange, overlay, redraw, renderer, selected, setCity, setDirty, setSaveSlotId, speed } from './state';
 import { autosave, autosaveSlot, autosaveSteps, lastAutosave, resumeAutosave } from './storage';
 import { buildTools, closeTray, forgetPreviousTool, refreshEdgeHint, selectTool, SPEEDS } from './tools';
 import { abandonDrive, drive, setupDriving, tickDrive } from './udi';
 import { setupUndo } from './undo';
-import { $, flash } from './util';
+import { $, flash, onCoveredFlash } from './util';
+import { toast } from './toast';
 import { closeInfo, closePane, closeSheet, openPane, setupTabs } from './tabs';
 import { setupTheme } from './theme';
 import { paintIcons } from './icons';
@@ -138,6 +139,7 @@ function frameBody(now: number): void {
   if (dirty) {
     const t0 = performance.now();
     clampCamera();
+    if (renderer.marks.length) renderer.band = mapBand(); // (the edge arrows keep to the part nothing covers)
     renderer.draw(city, cam, overlay, preview, selected);
     followTag();
     // With the whole city on screen, the minimap and 전체 보기 have nothing to add: they fade out until zoomed in.
@@ -242,6 +244,7 @@ onCityChange((undo) => {
 });
 setupRangeFill();
 setupTouchTitles((text) => flash(text, 'info'));
+onCoveredFlash((msg) => toast(msg, 'bad'));
 setupSwipeDown($('#pane'), closePane);
 setupSwipeDown($('#info-card'), closeInfo);
 setupSwipeDown($('#tray'), closeTray);

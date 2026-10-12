@@ -433,7 +433,8 @@ function goalStep(id: GoalId): GuideStep {
       build: best.dataset.kind as StructureKind | undefined, fin: best.dataset.mgFin };
     // Homes about to be left for want of work, when work is the list's own pick: said as that, the block beside them.
     const jobs = risk && (step.act === 'C-low' || step.act === 'I-medium') ? jobRisk(risk) : null;
-    return jobs ? { ...step, said: firstSentence(adviceText(risk!)), riskCode: 'atRisk', near: jobs.at, why: `일자리를 못 구한 집이 ${jobs.left}: 가까이에 일터 구역을 내면 됩니다` } : step;
+    // (Its own why, not the zone's demand line: the card prints a forecast before a why.)
+    return jobs ? { ...step, said: firstSentence(adviceText(risk!)), riskCode: 'atRisk', near: jobs.at, fx: '', why: `일자리를 못 구한 집이 ${jobs.left}: 가까이에 일터 구역을 내면 됩니다` } : step;
   }
   // A budget that ends the trouble (worn lines, a strike) before a tool for something said after it.
   const lead = adviceFor(id).find((x) => x.level !== 'good' && (adviceTool(x.code) || BUDGET_FIX[x.code]));
@@ -1535,6 +1536,12 @@ let toolSiteDue = 0;
 function placeToolMark(): void {
   toolSiteDue = 0;
   if (active) return; // (a screen marks its own)
+  // (Not while a day is part-way: its service cover is being redone, and a spot found in a gap that wasn't one was
+  // kept until the next edit.)
+  if (city.stepping) {
+    toolSiteDue = window.setTimeout(placeToolMark, 50);
+    return;
+  }
   const held = tool.kind === 'structure' ? chosen[tool.id] : undefined;
   const kind = held && city.isUnlocked(held) && city.placementsLeft(held) > 0 ? held : null;
   const d = kind ? STRUCTURES[kind] : null;
@@ -1554,8 +1561,8 @@ function placeToolMark(): void {
     const spot = suggestSpot('power');
     return spot ? plantSite(k, spot.x, spot.y) : plantSite(k);
   };
-  // (Not a jail, nor a library or university that reaches the whole city: where it stands changes nothing.)
-  const local = !!d && (d.police ? d.police.radius > 0 : d.school ? d.school.radius < 300 : !!(d.fire || d.health));
+  // (Not a jail, nor a library, university or research lab that reaches the whole city: where it stands changes nothing.)
+  const local = !!d && (d.police ? d.police.radius > 0 : d.school ? d.school.radius < 300 : d.health ? d.health.radius < 300 : !!d.fire);
   const at = !kind || !d || !id ? null
     : SERVICE_SITE.has(id) ? (local ? nearSpot(id) : null)
     : d.plant ? siteByPlants(kind) ?? nearSpot('power') ?? plantNear(kind)

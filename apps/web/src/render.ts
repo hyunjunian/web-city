@@ -417,6 +417,8 @@ export class Renderer {
   guidePath: [number, number][] | null = null;
   /** Edge markers drawn for targets out of view: where (CSS pixels on the canvas) and the tile they point to. */
   edgeMarks: { x: number; y: number; r: number; tx: number; ty: number; label: string }[] = [];
+  /** The part of the map nothing covers (CSS px from its top left; see mapBand), where the edge arrows keep. */
+  band: { left: number; top: number; right: number; bottom: number } | null = null;
   /** A road in hand on a town not yet joined to its neighbours: the map's edge is where it should reach. */
   edgeHint = false;
   /** Where the keyboard's build cursor is (set by the arrows; a mouse moving takes it away). */
@@ -2003,11 +2005,17 @@ export class Renderer {
       }
       ctx.setLineDash([]);
       // A target out of view: a marker at the edge pointing to it (a build button hovered lit nothing the eye could
-      // find). Inset from the edges, clear of the tool bar and the corners' panels.
-      // (Below the tool bar, the view's legend and the minimap, which take the top corners; above the hint bar.)
-      const [left, top, right, bottom] = [cam.x + 36 * u, cam.y + 250 * u, cam.x + W / sc - 36 * u, cam.y + H / sc - 96 * u];
+      // find). Inside the part of the map nothing covers (below the bar row, above a phone's city sheet, beside it held
+      // sideways), and on a tall map below the view's legend and the minimap, which take the top corners, and above
+      // the hint bar. (Fixed insets crossed on a short map: every target got an arrow, in plain sight or not.)
+      const [cssW, cssH] = [W / this.dpr, H / this.dpr];
+      const b = this.band ?? { left: 0, top: 0, right: cssW, bottom: cssH };
+      const inTop = Math.min(250, b.top + (b.bottom - b.top) * 0.25);
+      const inBottom = Math.min(b.bottom - 12, cssH - 96);
+      const [left, top, right, bottom] = [cam.x + (b.left + 36) * u, cam.y + inTop * u, cam.x + (b.right - 36) * u, cam.y + inBottom * u];
       this.edgeMarks = [];
-      for (const m of this.marks) {
+      // (No room for one: none.)
+      if (bottom - top >= 30 * u && right - left >= 30 * u) for (const m of this.marks) {
         if (m.tone !== 'spot') continue;
         const [cx, cy] = [m.x + m.w / 2, m.y + m.h / 2];
         if (cx >= left && cx <= right && cy >= top && cy <= bottom) continue;

@@ -62,10 +62,21 @@ export function endFlash(): void {
   delete $('#hint').dataset.tone;
 }
 
+/** Where a refusal goes when the hint bar is covered (set up by main: a toast). */
+let coveredSay: ((msg: string) => void) | null = null;
+export const onCoveredFlash = (say: (msg: string) => void) => { coveredSay = say; };
+
 /** Shows a message in the hint bar for a few seconds (longer for long ones). */
 export function flash(msg: string, tone: 'info' | 'bad' = 'info'): void {
   const hint = $('#hint');
   hint.textContent = glue(msg);
+  // A refusal the hint bar can't show — under a phone's city sheet or a card, where the press was — is said by a
+  // toast too (on a phone a widen or a build short of money did nothing anyone could see).
+  if (tone === 'bad' && coveredSay) {
+    const r = hint.getBoundingClientRect();
+    const over = r.width ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null;
+    if (over?.closest('#pane, #info-card, #sheet, #tray, dialog')) coveredSay(msg);
+  }
   hint.dataset.tone = tone;
   // Read out too (the hint bar itself changes with every hover, so it isn't a live region).
   const sr = document.getElementById('sr-status');
