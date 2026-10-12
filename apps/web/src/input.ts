@@ -1055,6 +1055,8 @@ export function setupInput(): void {
     setDrag({ start: t, end: t, pan: panning || tap ? { x: cam.x, y: cam.y, cx: px, cy: py, tap } : undefined });
     updatePreview();
   });
+  /** The map's cursor before the pointer went over an edge arrow (null: not over one). */
+  let edgeCursor: string | null = null;
   canvas.addEventListener('pointermove', (e) => {
     pointerAt = { x: e.clientX, y: e.clientY, touch: e.pointerType === 'touch' };
     const [px, py] = pos(e);
@@ -1105,6 +1107,19 @@ export function setupInput(): void {
       else drag.vertical ??= Math.abs(to[1] - drag.start[1]) > Math.abs(to[0] - drag.start[0]);
     }
     updatePreview();
+    // Over a target's arrow at the map's edge: it is pressed, so it says so, and where it leads.
+    const edge = !drag && !pointers.size && e.pointerType !== 'touch' ? renderer.edgeMarks.find((m) => Math.hypot(m.x - px, m.y - py) <= m.r + 8) : undefined;
+    if (edge) {
+      edgeCursor ??= canvas.style.cursor;
+      canvas.style.cursor = 'pointer';
+      // (Not the tool's footprint and price under it: pressed, it goes there, it doesn't build.)
+      setPreview(null);
+      $('#cursor-tag').hidden = true;
+      $('#hint').textContent = `눌러서 그곳으로 가기${edge.label ? ` · ${edge.label}` : ''}`;
+    } else if (edgeCursor !== null) {
+      canvas.style.cursor = edgeCursor;
+      edgeCursor = null;
+    }
     redraw();
   });
   const end = (e: PointerEvent) => {

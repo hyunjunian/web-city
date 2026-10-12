@@ -416,7 +416,7 @@ export class Renderer {
   /** A line the guide offers to lay (tile by tile), drawn dashed between its two targets before it is laid. */
   guidePath: [number, number][] | null = null;
   /** Edge markers drawn for targets out of view: where (CSS pixels on the canvas) and the tile they point to. */
-  edgeMarks: { x: number; y: number; r: number; tx: number; ty: number }[] = [];
+  edgeMarks: { x: number; y: number; r: number; tx: number; ty: number; label: string }[] = [];
   /** A road in hand on a town not yet joined to its neighbours: the map's edge is where it should reach. */
   edgeHint = false;
   /** Where the keyboard's build cursor is (set by the arrows; a mouse moving takes it away). */
@@ -2015,7 +2015,7 @@ export class Renderer {
         const len = Math.hypot(cx - px, cy - py) || 1;
         const [dx, dy] = [(cx - px) / len, (cy - py) / len];
         const r = (m.hot ? 13 : 11) * u;
-        this.edgeMarks.push({ x: (px - cam.x) * cam.scale, y: (py - cam.y) * cam.scale, r: r / u, tx: cx, ty: cy });
+        this.edgeMarks.push({ x: (px - cam.x) * cam.scale, y: (py - cam.y) * cam.scale, r: r / u, tx: cx, ty: cy, label: m.label ?? '' });
         ctx.beginPath();
         ctx.arc(px, py, r + 2 * u, 0, Math.PI * 2);
         ctx.fillStyle = 'rgba(255,255,255,0.92)';
