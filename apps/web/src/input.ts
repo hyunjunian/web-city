@@ -1398,7 +1398,8 @@ function keySpot(): boolean {
     return true;
   }
   const spots = renderer.marks.filter((m) => m.tone === 'spot');
-  const line = tool.kind === 'powerline' || tool.kind === 'pipe';
+  // (A route drawn end to end — a power line, a pipe, the road to the neighbours: its start, and how far the end is.)
+  const line = !!renderer.guidePath && spots.length === 2;
   // (Two for a bus stop, its home and work sides: S again goes to the other.)
   const on = line ? -1 : spots.findIndex((m) => renderer.cursor?.x === m.x && renderer.cursor?.y === m.y);
   const spot = spots[(on + 1) % spots.length];
@@ -1429,7 +1430,7 @@ function keySpot(): boolean {
   const next = area ? `구역의 왼쪽 위 모서리입니다 · Enter 뒤 ${toward(area.w - 1, area.h - 1)} 옮겨 다시 Enter`
     : end ? `경로의 시작점입니다 · 끝점은 ${toward(end.x - at[0], end.y - at[1])}`
     : `Enter로 이 자리에 짓습니다${spots.length > 1 ? ' · S를 다시 누르면 다른 추천 자리' : ''}`;
-  flash(`${(end ?? spot).label || '추천 자리'} — ${next}`);
+  flash(`${end?.label || spot.label || '추천 자리'} — ${next}`);
   return true;
 }
 

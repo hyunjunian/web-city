@@ -21,7 +21,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type AirSource, airSources, smokeClear, type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type AirSource, airSources, edgeRoad, smokeClear, type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -1595,6 +1595,19 @@ function placeToolMark(): void {
       { x: b[0], y: b[1], w: 1, h: 1, tone: 'spot', label: `추천 · ${tool.kind === 'pipe' ? '수도관' : '송전선'} ${fmt(line.length)}칸` },
     ] : [];
     showToolMarks(marks, line);
+    return;
+  }
+  // A road, avenue or highway in hand while nothing joins the town to its neighbours (no settlers nor trade come
+  // without): the straight run to the nearest map edge, dashed end to end, labelled at the town's end (the edge's is
+  // often off the screen; its arrow points there).
+  if (tool.kind === 'network' && (tool.network === 'road' || tool.network === 'avenue' || tool.network === 'highway')) {
+    const path = edgeRoad();
+    const [a, b] = path ? [path[0]!, path.at(-1)!] : [];
+    const marks: typeof renderer.marks = a && b ? [
+      { x: a[0], y: a[1], w: 1, h: 1, tone: 'spot', label: `추천 · 이웃 도시까지 ${fmt(path!.length)}칸` },
+      { x: b[0], y: b[1], w: 1, h: 1, tone: 'spot', label: '' },
+    ] : [];
+    showToolMarks(marks, marks.length ? path : null);
     return;
   }
   // (The landfill zone: the square the garbage screen would lay, sized to a year of the city's rubbish, clear of the

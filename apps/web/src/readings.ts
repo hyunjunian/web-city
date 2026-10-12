@@ -595,6 +595,70 @@ function smoggyHomes(): number {
   return n;
 }
 
+/**
+ * The road the town wants to its neighbours while it has none (no road, avenue or highway at a map edge): a straight
+ * run to the nearest edge — from its roads if it has some, else from the edge to the middle of the map — over land the
+ * road tool takes, a bridge only where there is no way round. Its tiles from the town's end to the edge, or null.
+ */
+export function edgeRoad(): [number, number][] | null {
+  const key = changeKey();
+  if (edgeMemo?.key === key) return edgeMemo.path;
+  const path = findEdgeRoad();
+  edgeMemo = { key, path };
+  return path;
+}
+let edgeMemo: { key: string; path: [number, number][] | null } | null = null;
+
+function findEdgeRoad(): [number, number][] | null {
+  if (city.fields.connections.length) return null;
+  const n = city.size;
+  const net = city.state.net;
+  type Try = { from: [number, number]; to: [number, number]; d: number };
+  const tries: Try[] = [];
+  let roads = false;
+  for (let i = 0; i < net.length; i++) {
+    if (!isLocalNet(net[i]!)) continue;
+    roads = true;
+    // (Each road tile toward its nearest edge: the shortest run is among them.)
+    const x = i % n;
+    const y = (i - x) / n;
+    const ways: Try[] = [{ from: [x, y], to: [0, y], d: x }, { from: [x, y], to: [n - 1, y], d: n - 1 - x }, { from: [x, y], to: [x, 0], d: y }, { from: [x, y], to: [x, n - 1], d: n - 1 - y }];
+    tries.push(ways.reduce((a, b) => (b.d < a.d ? b : a)));
+  }
+  if (!roads) {
+    // From the middle out to each edge, the middle row or column first, then a little either side of it.
+    const mid = n >> 1;
+    for (let o = 0; o <= n >> 2; o += 2) {
+      for (const c of o ? [mid - o, mid + o] : [mid]) {
+        tries.push({ from: [mid, c], to: [0, c], d: o }, { from: [mid, c], to: [n - 1, c], d: o }, { from: [c, mid], to: [c, 0], d: o }, { from: [c, mid], to: [c, n - 1], d: o });
+      }
+    }
+  }
+  tries.sort((a, b) => a.d - b.d);
+  // The shortest the tool lays without a bridge (or a tunnel), else the shortest it lays at all. (Ties: the cheaper.)
+  let best: { t: Try; cost: number; d: number } | null = null;
+  let bridged: Try | null = null;
+  for (const t of tries) {
+    if (best && t.d > best.d) break;
+    const p = city.previewNetwork(t.from[0], t.from[1], t.to[0], t.to[1], 'road');
+    if (!p.ok) continue;
+    if (p.bridges || p.tunnels) {
+      bridged ??= t;
+      continue;
+    }
+    if (!best || p.cost < best.cost) best = { t, cost: p.cost, d: t.d };
+  }
+  const t = best?.t ?? bridged;
+  if (!t) return null;
+  const [dx, dy] = [Math.sign(t.to[0] - t.from[0]), Math.sign(t.to[1] - t.from[1])];
+  const path: [number, number][] = [];
+  for (let [x, y] = t.from; ; x += dx, y += dy) {
+    path.push([x, y]);
+    if (x === t.to[0] && y === t.to[1]) break;
+  }
+  return path;
+}
+
 /** A kind of source of the air over the smoggy homes: its share of it, how many there are, and the worst one (to go to). */
 export type AirSource = { key: string; label: string; share: number; count: number; at: [number, number] | null; lot: { x: number; y: number; w: number; h: number } | null };
 
