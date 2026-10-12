@@ -1547,6 +1547,28 @@ function placeToolMark(): void {
   }
   // A zone in hand whose class is wanted: the block the growth screen would lay, outlined — a road along a whole
   // side, clear of what spoils it — to draw over.
+  // A power line or a pipe in hand: the guide's route where one is wanted — from the grid to the nearest dark zone (with
+  // power to spare: into a grid in blackouts another building is only cut in turn), from water to spare to the dry
+  // buildings — dashed end to end, to draw along.
+  if (tool.kind === 'powerline' || tool.kind === 'pipe') {
+    const line = tool.kind === 'pipe' ? pipeToDry() : powerToSpare() ? lineToDark() : null;
+    const [a, b] = line ? [line[0]!, line.at(-1)!] : [null, null];
+    const marks: typeof renderer.marks = a && b && line ? [
+      { x: a[0], y: a[1], w: 1, h: 1, tone: 'spot', label: '' },
+      { x: b[0], y: b[1], w: 1, h: 1, tone: 'spot', label: `추천 · ${tool.kind === 'pipe' ? '수도관' : '송전선'} ${fmt(line.length)}칸` },
+    ] : [];
+    if (JSON.stringify([marks, line]) !== JSON.stringify([renderer.marks, renderer.guidePath])) {
+      renderer.marks = marks;
+      renderer.guidePath = line;
+      redraw();
+    }
+    return;
+  }
+  // (Any other tool: no route left drawn from one.)
+  if (renderer.guidePath) {
+    renderer.guidePath = null;
+    redraw();
+  }
   // (The landfill zone: the square the garbage screen would lay, sized to a year of the city's rubbish, clear of the
   // homes and shops.)
   if (tool.kind === 'zone' && tool.zone === 'landfill') {
