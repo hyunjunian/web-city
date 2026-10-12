@@ -1475,8 +1475,12 @@ function financeActions(): string {
   const b = city.state.lastBudget;
   const fix = financeFix();
   if (fix?.kind !== 'loan' && (!b || b.income >= b.expenses)) return '';
+  // (Years of money in hand: no loan to take — a young town's roads run ahead of its taxes, as the getting started list
+  // says. A deficit of §195 on §157,267 was told to borrow.)
+  const years = b && b.income < b.expenses ? Math.floor(city.state.funds / (b.expenses - b.income) / 12) : 0;
   return `<section class="mg-sec"><h3>${icon('plus')}${fix?.kind === 'loan' ? '자금 메우기' : '적자 줄이기'}</h3><div class="acts">${fix
     ? `<button type="button" class="act best" data-mg-fin="${fix.kind}"><span class="act-name">${icon('wallet')}${fix.what}<em class="act-best">추천</em></span><span class="act-fx">${fix.why}</span></button>`
+    : years >= 5 ? `<button type="button" class="act best" data-sheet="budget"><span class="act-name">${icon('wallet')}부서 예산 살피기<em class="act-best">추천</em></span><span class="act-fx">자금으로 ${years >= 100 ? '100년' : `${years}년`} 넘게 버팁니다 · 서두를 것 없이 주민이 늘면 세금이 메웁니다</span></button>`
     : `<button type="button" class="act best" data-sheet="budget"><span class="act-name">${icon('wallet')}대출·부서 예산 살피기<em class="act-best">추천</em></span><span class="act-fx">줄일 곳이 마땅치 않으면 대출로 버티며 세입을 늘리세요</span></button>`}</div></section>`;
 }
 
