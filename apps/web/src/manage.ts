@@ -19,7 +19,7 @@ import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, panTipAt, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
-import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns } from './util';
+import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
 import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
@@ -1560,7 +1560,7 @@ function showToolMarks(marks: typeof renderer.marks, path: [number, number][] | 
   } catch {
     return; // (storage unavailable: no tip, rather than one each time)
   }
-  flash('파란 과녁이 추천 자리입니다 · 화면 밖이면 가장자리의 화살표가 그쪽을 가리킵니다', 'info');
+  flash(`파란 과녁이 추천 자리입니다 · 화면 밖이면 가장자리의 화살표가 그쪽을 가리킵니다${touchFirst() ? '' : ' · 키보드: S로 커서를 그 자리에'}`, 'info');
 }
 const SITE_TIP_KEY = 'web-city:site-tip';
 

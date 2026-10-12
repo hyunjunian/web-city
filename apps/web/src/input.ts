@@ -1,6 +1,6 @@
 // Map input: pointer and keyboard handling, tool previews and applying tools.
 
-import { closeGoal, handedPlaced, noteAction, toggleFinance, toggleUrgentGoal } from './manage';
+import { active as activeGoal, closeGoal, handedPlaced, noteAction, toggleFinance, toggleUrgentGoal } from './manage';
 import { DEV_TYPES, GROWTH_CODES, isLocalNet, Net, linePath, type Rect, LIVE_KINDS, NETWORK_KINDS, STRUCTURES, Terrain, ZONES, type StructureKind } from '@web-city/engine';
 import { chooseSpeed, isHeld, resumeAfterBuilding, runningSpeed, showHelp, speedChosen, stepOverlay, toggleFocus, toggleGrowth, toggleNight, toggleOverlay } from './controls';
 import { aloneReached, cancelGlide, keepInView, showInfo, showRoutes } from './info';
@@ -1341,6 +1341,8 @@ export function setupInput(): void {
     if (plain && letter === 'b') toggleFinance();
     if (plain && letter === 'u') toggleSheet('sims');
     if (plain && letter === 'j') toggleSheet('region');
+    // S: the cursor onto the recommended spot (the blue target), to build there from the keyboard (driving, S steers).
+    if (plain && letter === 's' && !drag && !drive && keySpot()) return;
     // Esc: cancel a drag, else close the topmost card, else put the tool down.
     if (e.key === 'Escape') {
       if (proposal) dropProposal();
@@ -1382,6 +1384,54 @@ export function setupInput(): void {
 const ARROWS: Record<string, [number, number]> = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
 /** Tools built by dragging: from the keyboard, Enter at the start and again at the end. */
 const DRAGGED = new Set(['zone', 'network', 'bulldoze', 'powerline', 'pipe', 'unpipe', 'subway', 'unsubway', 'elevated', 'level', 'trees', 'terraform']);
+
+/**
+ * The keyboard cursor onto the held tool's recommended spot — the blue target the mouse can fly to by its edge arrow —
+ * with the map flying there: for a zone the block's top-left corner, where its drag starts; for a line the route's
+ * start. What to press next is said (and read out). False when nothing is marked.
+ */
+function keySpot(): boolean {
+  if (tool.kind === 'query' || tool.kind === 'route' || tool.kind === 'mic' || steering !== null) return false;
+  // (A goal screen's marks are its own, built on by its buttons, which Tab reaches.)
+  if (activeGoal) {
+    flash('관리 화면의 추천 자리는 화면의 "추천 자리에 짓기"·"여기에 짓기" 버튼이 짓습니다 (Tab으로 이동)');
+    return true;
+  }
+  const spots = renderer.marks.filter((m) => m.tone === 'spot');
+  const line = tool.kind === 'powerline' || tool.kind === 'pipe';
+  // (Two for a bus stop, its home and work sides: S again goes to the other.)
+  const on = line ? -1 : spots.findIndex((m) => renderer.cursor?.x === m.x && renderer.cursor?.y === m.y);
+  const spot = spots[(on + 1) % spots.length];
+  if (!spot) {
+    flash(`지금은 ${toolName(tool)}의 추천 자리가 없습니다`);
+    return true;
+  }
+  const area = tool.kind === 'zone' ? renderer.marks.find((m) => m.tone === 'area') : undefined;
+  const at: [number, number] = area ? [area.x, area.y] : [spot.x, spot.y];
+  // (Off the button that picked the tool, so Enter builds rather than pressing it again.)
+  if ((document.activeElement as Element | null)?.closest('button, a, summary, [role=button]')) (document.activeElement as HTMLElement).blur();
+  setHover(at);
+  renderer.cursor = { x: at[0], y: at[1] };
+  centerOn(at[0], at[1], undefined, mapBand());
+  // (The cost and warnings beside the cursor once the map is there — unless the mouse took over meanwhile.)
+  setTimeout(() => {
+    if (hover?.[0] !== at[0] || hover?.[1] !== at[1]) return;
+    const r = renderer.canvas.getBoundingClientRect();
+    pointerAt = { x: r.left + (at[0] + 0.5 - cam.x) * cam.scale, y: r.top + (at[1] + 0.5 - cam.y) * cam.scale, touch: false };
+    updatePreview();
+    redraw();
+  }, 380);
+  updatePreview();
+  redraw();
+  // (Where the far end is, in tiles: the target can't be seen by everyone who builds from the keyboard.)
+  const toward = (dx: number, dy: number) => [dx && `${dx > 0 ? '오른쪽' : '왼쪽'} ${fmt(Math.abs(dx))}칸`, dy && `${dy > 0 ? '아래' : '위'} ${fmt(Math.abs(dy))}칸`].filter(Boolean).join('·');
+  const end = line ? spots[1] : undefined;
+  const next = area ? `구역의 왼쪽 위 모서리입니다 · Enter 뒤 ${toward(area.w - 1, area.h - 1)} 옮겨 다시 Enter`
+    : end ? `경로의 시작점입니다 · 끝점은 ${toward(end.x - at[0], end.y - at[1])}`
+    : `Enter로 이 자리에 짓습니다${spots.length > 1 ? ' · S를 다시 누르면 다른 추천 자리' : ''}`;
+  flash(`${(end ?? spot).label || '추천 자리'} — ${next}`);
+  return true;
+}
 
 function keyBuild(e: KeyboardEvent): boolean {
   const arrow = ARROWS[e.key];
