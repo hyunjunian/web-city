@@ -780,7 +780,22 @@ export function refreshStructureLists(): void {
     }
     // A service short where it counts: the kind its goal would build marked 추천 (the same pick as its screen's).
     const suggested = suggestedKinds().get(id);
-    picker.querySelectorAll<HTMLElement>('.pick[data-kind]').forEach((b) => b.classList.toggle('suggested', b.dataset.kind === suggested));
+    picker.querySelectorAll<HTMLElement>('.pick[data-kind]').forEach((b) => {
+      const on = b.dataset.kind === suggested;
+      b.classList.toggle('suggested', on);
+      // (Nor folded away behind 더 보기: the growth screen's 테니스장 was a park out of sight, its 추천 unseen.)
+      b.dataset.folded ??= b.classList.contains('more') ? '1' : '';
+      b.classList.toggle('more', b.dataset.folded === '1' && !on);
+    });
+    const fold = picker.querySelector<HTMLElement>('[data-fold]');
+    if (fold) {
+      const n = picker.querySelectorAll('.pick.more').length;
+      if (fold.dataset.count !== String(n)) {
+        fold.dataset.count = String(n);
+        if (!picker.closest('.show-more')) fold.innerHTML = `${icon('more')}${n}개 더 보기`;
+      }
+      fold.hidden = !n;
+    }
     // A kind that can't be built (locked here, or a built-once reward now standing) gives way to one that can.
     const buildable = (k: StructureKind) => city.isUnlocked(k) && city.placementsLeft(k) > 0;
     if (!buildable(chosen[id]!)) chosen[id] = kinds.find(buildable) ?? kinds.find((k) => city.isUnlocked(k)) ?? chosen[id]!;

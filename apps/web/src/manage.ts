@@ -1070,6 +1070,10 @@ export function suggestedKinds(): Map<string, StructureKind> {
       if (!map.has(b.dataset.act!)) map.set(b.dataset.act!, b.dataset.kind as StructureKind);
     });
   });
+  // (Homes held at their cap: the park the growth screen's guide builds for it, as the cards' 추천 — its list's
+  // best is a zone, and the cards marked no park while their heading said people waited.)
+  const cap = adviceFor('growth').some((a) => a.code === 'capRes' && a.level === 'bad') ? capBest() : undefined;
+  if (cap && !map.has('park')) map.set('park', cap);
   suggestMemo = { key, map };
   return map;
 }
