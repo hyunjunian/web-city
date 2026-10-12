@@ -290,7 +290,8 @@ function guideHtml(id: GoalId): string {
       : spot?.crowded && st.kind === 'best' ? (relieves ? one(siteNear(st.build, spot.x, spot.y), `넘치는 ${what} 가까이, 길가 빈 땅에 바로 짓기`) : null)
       : st.anywhere ? one(siteNearHomes(st.build), '주거지에서 가장 가까운 길가 빈 땅에 바로 짓기')
       : id === 'water' && STRUCTURES[st.build].pump ? one(siteOnPipes(st.build), '수도관에 닿고 전기가 들어오는 빈 땅에 바로 짓기')
-      : id === 'power' && STRUCTURES[st.build].plant ? one(siteByPlants(st.build), '있는 발전소 옆, 전력망에 닿는 길가 빈 땅에 바로 짓기')
+      : id === 'power' && STRUCTURES[st.build].plant ? (one(siteByPlants(st.build), '있는 발전소 옆, 전력망에 닿는 길가 빈 땅에 바로 짓기')
+        ?? one(plantSite(st.build), `구역 밖${smokyPlant(st.build) ? ', 연기가 주거지에 닿지 않는' : ''} 길가 빈 땅에 바로 짓기`))
       // (An incinerator smokes and a recycling centre is a works: clear of the homes, by the industry.)
       : id === 'garbage' && (STRUCTURES[st.build].incinerator || STRUCTURES[st.build].recycling) ? one(siteAwayFromHomes(st.build), '주거지에서 떨어진 길가 빈 땅에 바로 짓기')
       : STRUCTURES[st.build].station?.mode === 'bus' ? (() => {
@@ -1545,7 +1546,7 @@ function placeToolMark(): void {
   // (A plant whose smoke keeps it from the mark: the nearest ground clear of the homes, as the guide's.)
   const plantNear = (k: StructureKind) => {
     const spot = suggestSpot('power');
-    return spot ? plantSite(k, spot.x, spot.y) : null;
+    return spot ? plantSite(k, spot.x, spot.y) : plantSite(k);
   };
   // (Not a jail, nor a library or university that reaches the whole city: where it stands changes nothing.)
   const local = !!d && (d.police ? d.police.radius > 0 : d.school ? d.school.radius < 300 : !!(d.fire || d.health));

@@ -1142,13 +1142,27 @@ export function siteByPlants(kind: StructureKind): [number, number] | null {
 }
 let plantMemo: { key: string; at: [number, number] | null } | null = null;
 
+/** The middle of the industry's buildings, or null with none. */
+function industryMiddle(): [number, number] | null {
+  let [sx, sy, count] = [0, 0, 0];
+  for (const b of city.state.buildings.values()) {
+    if (b.type?.[0] !== 'I') continue;
+    sx += b.x + b.w / 2;
+    sy += b.y + b.h / 2;
+    count++;
+  }
+  return count ? [Math.round(sx / count), Math.round(sy / count)] : null;
+}
+
 /**
  * A site for a plant where none beside the plants or by the mark will do (a town's first coal plant, its smoke
- * reaching far): the nearest to (ax, ay) off the zones, beside a road, its smoke clear of the homes, feeding a zone
- * or a line at once where it can (else a line is still to lay). Its middle tile, or null.
+ * reaching far; its last plant gone): the nearest to (ax, ay) — by default the industry, which minds the smoke
+ * least — off the zones, beside a road, its smoke clear of the homes, feeding a zone or a line at once where it can
+ * (else a line is still to lay). Its middle tile, or null.
  */
-export function plantSite(kind: StructureKind, ax: number, ay: number): [number, number] | null {
+export function plantSite(kind: StructureKind, ax?: number, ay?: number): [number, number] | null {
   if (!buildable(kind) || !STRUCTURES[kind].plant) return null;
+  if (ax === undefined || ay === undefined) [ax, ay] = industryMiddle() ?? homesMiddle();
   const key = `plant|${kind}|${ax},${ay}|${siteKey()}`;
   if (plantSiteMemo?.key === key) return plantSiteMemo.at;
   const d = STRUCTURES[kind];
@@ -1171,14 +1185,7 @@ export function siteAwayFromHomes(kind: StructureKind): [number, number] | null 
   if (awayMemo?.key === key) return awayMemo.at;
   const n = city.size;
   const d = STRUCTURES[kind];
-  let [sx, sy, count] = [0, 0, 0];
-  for (const b of city.state.buildings.values()) {
-    if (b.type?.[0] !== 'I') continue;
-    sx += b.x + b.w / 2;
-    sy += b.y + b.h / 2;
-    count++;
-  }
-  const [ax, ay] = count ? [Math.round(sx / count), Math.round(sy / count)] : [n >> 1, n >> 1];
+  const [ax, ay] = industryMiddle() ?? [n >> 1, n >> 1];
   // (An incinerator as far as its smoke carries; none of them on a zone.)
   const at = nearestFit(kind, ax, ay, n, (lx, ly) => city.roadBeside(lx, ly, d.w, d.h) && !zonedUnder(lx, ly, d.w, d.h) && !homesNear(lx, ly, d.w, d.h, smokeClear(kind)));
   awayMemo = { key, at };
