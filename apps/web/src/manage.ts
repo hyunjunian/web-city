@@ -75,14 +75,22 @@ const emptyCity = () => !readStats().population && !city.state.buildings.size;
 /** Figures the pane reads that are no goal of their own: jobs (on 개발·수요's row) and the mayor's rating. */
 export interface PaneFigs { jobs: number; jobsTrend: string; rating: number; ratingTrend: string }
 
+/**
+ * The mayor's rating as a row's tone: below 0 urgent, below 20 a look — not before a month has closed with
+ * residents (it is worked out at the month's end, and until then its 0 said 주민 만족이 낮음 of a town nobody had rated).
+ */
+const rated = () => (city.state.history.at(-1)?.population ?? 0) > 0;
+const ratingTone = (rating: number): Tone => (!rated() ? '' : rating < 0 ? 'bad' : rating < 20 ? 'warn' : '');
+
 export function problemsHtml(alerts: string, figs: PaneFigs): string {
   if (emptyCity()) return '';
   const step = nextStep();
   const inc = new Set(incidents().map((x) => x.goal as GoalId));
   const all = GOAL_ORDER.map((id) => ({ id, s: goalStatus(id) })).filter(({ id, s }) => s.tone === 'bad' || s.tone === 'warn' || inc.has(id));
-  // (The mayor's rating counts with them: below 0 urgent, below 20 a look.)
-  const bad = all.filter(({ s }) => s.tone === 'bad').length + (figs.rating < 0 ? 1 : 0);
-  const warn = all.length - all.filter(({ s }) => s.tone === 'bad').length + (figs.rating >= 0 && figs.rating < 20 ? 1 : 0);
+  // (The mayor's rating counts with them.)
+  const rTone = ratingTone(figs.rating);
+  const bad = all.filter(({ s }) => s.tone === 'bad').length + (rTone === 'bad' ? 1 : 0);
+  const warn = all.length - all.filter(({ s }) => s.tone === 'bad').length + (rTone === 'warn' ? 1 : 0);
   refreshBadge(bad);
   // (Said by colour too: the counts are the red and the amber rows below.)
   const look = warn ? `<span class="sec-note" title="주황으로 표시된 항목: 두면 나빠질 수 있는 분야">살펴볼 것 ${warn}</span>` : '';
@@ -112,9 +120,10 @@ function qualityGrid(counts: string, top: string, figs: PaneFigs): string {
         : s.tone ? `<small class="s-note">${escapeHtml(glue(s.note))}</small>` : ''}</span><b class="s-val">${drift(id)}${id === 'growth' ? `${rciMini()}${s.value.replace(' 수요 ', ' ')}` : s.value}</b>${icon('chevronRight', 's-go')}</button>`;
   };
   // 시장 평점: no goal of its own, a row all the same (below 0 it is a problem); pressed, the polls.
-  const rTone: Tone = figs.rating < 0 ? 'bad' : figs.rating < 20 ? 'warn' : '';
-  const rating = `<button type="button" class="s-row ${rTone || 'ok'}${rTone ? ' has-note' : ''}" data-open-polls title="시장 평점 (주거 구역 블록별 평균, −100~100) · 눌러서 주제별 여론 보기" aria-label="시장 평점: ${figs.rating}">
-      <span class="s-ic">${icon('approval')}</span><span class="s-main"><span class="s-name">시장 평점</span>${rTone ? `<small class="s-note">${figs.rating < 0 ? '주민 대다수가 불만 · 계속되면 탄핵될 수 있음' : '주민 만족이 낮음 · 여론을 살펴보세요'}</small>` : ''}</span><b class="s-val">${figs.ratingTrend}${figs.rating}</b>${icon('chevronRight', 's-go')}</button>`;
+  const rTone = ratingTone(figs.rating);
+  const yet = rated();
+  const rating = `<button type="button" class="s-row ${rTone || 'ok'}${rTone ? ' has-note' : ''}" data-open-polls title="시장 평점 (주거 구역 블록별 평균, −100~100)${yet ? '' : ' · 주민이 든 달이 지나면 매겨집니다'} · 눌러서 주제별 여론 보기" aria-label="시장 평점: ${yet ? figs.rating : '아직 없음'}">
+      <span class="s-ic">${icon('approval')}</span><span class="s-main"><span class="s-name">시장 평점</span>${rTone ? `<small class="s-note">${figs.rating < 0 ? '주민 대다수가 불만 · 계속되면 탄핵될 수 있음' : '주민 만족이 낮음 · 여론을 살펴보세요'}</small>` : ''}</span><b class="s-val">${yet ? `${figs.ratingTrend}${figs.rating}` : '—'}</b>${icon('chevronRight', 's-go')}</button>`;
   let off = rows.filter(({ s }) => s.tone).map((r) => ({ key: r.id as string, html: row(r) }));
   let sound = rows.filter(({ s }) => !s.tone).map((r) => ({ key: r.id as string, html: row(r) }));
   (rTone ? off : sound).splice(rTone ? off.length : 1, 0, { key: 'rating', html: rating }); // (a sound rating second, after 재정)

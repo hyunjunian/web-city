@@ -11,7 +11,7 @@ import { $, ask, fmt, touchFirst } from './util';
 import { STRUCTURE_NAME } from './names';
 import { dropToasts, toast } from './toast';
 import { type GoalId } from './goals';
-import { edgeRoad, unpoweredZones, smokeClear, zoneSite } from './readings';
+import { edgeRoad, layCost, lineToDark, powerToSpare, unpoweredZones, smokeClear, zoneSite } from './readings';
 import { layPath, layZone, openGoal } from './manage';
 import { updatePanels } from './panels';
 import { showOverlay } from './controls';
@@ -117,8 +117,12 @@ export function renderOnboarding(): void {
     const cost = at ? city.previewZone(at.x0, at.y0, at.x1, at.y1, tool as ZoneKind).cost : 0;
     return at && cost <= s.funds ? [[tool!, { ...at, cost }] as const] : [];
   }));
+  // (And a plant's zones left in the dark: the guide's shortest line to them, with power to spare for them.)
+  const wire0 = steps[3] && !steps[3][0] && kinds.some((d) => d.plant) && powerToSpare() ? lineToDark() : null;
+  const wireCost = wire0 ? layCost('powerline', wire0) : null;
+  const wire = wire0 && wireCost !== null && wireCost <= s.funds ? { path: wire0, cost: wireCost } : null;
   const sig = steps.map(([ok, text, tool]) => `${+ok}${tool ?? ''}${text}`).join('|') + (region ? 'r' : '') + (fresh ? 'f' : '') + (way ? `w${way.path[0]}${way.cost}${+way.short}` : '')
-    + [...blocks].map(([k, b]) => `${k}${b.x0},${b.y0},${b.side}${b.cost}`).join('');
+    + [...blocks].map(([k, b]) => `${k}${b.x0},${b.y0},${b.side}${b.cost}`).join('') + (wire ? `p${wire.path[0]}${wire.path.length}${wire.cost}` : '');
   if (el.dataset.sig === sig) return;
   // Phones: the checklist sits in the city pane, so its dock button gets a dot until opened.
   if (!el.dataset.sig && !$('#app').classList.contains('pane-open')) document.querySelector('.dock-city')?.classList.add('unread');
@@ -134,7 +138,8 @@ export function renderOnboarding(): void {
     const block = !ok && tool ? blocks.get(tool) : undefined;
     const lay = !ok && tool === 'road' && way && !way.short
       ? `<button type="button" class="link step-lay" data-lay="road" title="지도 가장자리까지 가장 싼 곧은 길을 바로 놓기 (도로를 들면 지도에 점선으로 보이는 그 길 · Ctrl+Z로 되돌리기)">추천 길 바로 놓기 · ${fmt(way.path.length)}칸 §${fmt(way.cost)}</button>`
-      : block ? `<button type="button" class="link step-lay" data-lay="${tool}" title="도로에 닿는 빈 땅에 바로 놓기${tool === 'R-low' ? '' : ' (주거에서 떨어진 곳)'} · Ctrl+Z로 되돌리기">추천 자리에 ${block.side}×${block.side} 바로 놓기 · §${fmt(block.cost)}</button>` : '';
+      : block ? `<button type="button" class="link step-lay" data-lay="${tool}" title="도로에 닿는 빈 땅에 바로 놓기${tool === 'R-low' ? '' : ' (주거에서 떨어진 곳)'} · Ctrl+Z로 되돌리기">추천 자리에 ${block.side}×${block.side} 바로 놓기 · §${fmt(block.cost)}</button>`
+      : !ok && tool === 'goal:power' && wire ? `<button type="button" class="link step-lay" data-lay="powerline" title="전력망에서 전기 없는 가장 가까운 구역까지 가장 짧은 송전선을 바로 잇기 (송전선을 들면 지도에 보이는 그 길 · Ctrl+Z로 되돌리기)">송전선 ${fmt(wire.path.length)}칸 바로 잇기 · §${fmt(wire.cost)}</button>` : '';
     return `<li class="${ok ? 'done' : i === 0 && st.population === 0 ? 'next' : ''}">${!ok && tool
       ? `<button type="button" class="step" data-step-tool="${tool}" title="${tool.startsWith('goal:') ? '관리 화면 열기 (지도 보기·지을 곳·추천 시설)' : tool.startsWith('view:') ? '지도 보기 켜기' : '이 도구 고르기'}">${body}${icon('chevronRight', 'step-go')}</button>`
       : `<div class="step">${body}</div>`}${lay}</li>`;
@@ -151,6 +156,14 @@ export function renderOnboarding(): void {
   // (Found again on the press: the town may have changed since the list was drawn.)
   $('#onboarding-steps').querySelectorAll<HTMLButtonElement>('.step-lay').forEach((b) => (b.onclick = () => {
     const kind = b.dataset.lay!;
+    if (kind === 'powerline') {
+      const now = lineToDark();
+      if (now && layPath('powerline', now, null)) {
+        closePane();
+        updatePanels();
+      }
+      return;
+    }
     if (kind !== 'road') {
       const at = zoneSite(kind as 'R-low' | 'C-low' | 'I-medium');
       if (at) layZone(kind as ZoneKind, at.x0, at.y0, at.x1, at.y1);
