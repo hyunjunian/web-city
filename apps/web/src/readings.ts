@@ -603,8 +603,10 @@ export function cheapestOf(g: Goal): StructureKind | null {
 
 /** Forgets the sites found since the city last changed (a building grew on one: growth moves no revision). */
 export function forgetSites(): void {
-  siteMemo = pipeMemo = plantMemo = awayMemo = pairMemo = spotMemo = lineMemo = roadMemo = pipeLineMemo = fillMemo = zoneMemo = null;
+  siteMemo = pipeMemo = plantMemo = awayMemo = pairMemo = spotMemo = pipeLineMemo = fillMemo = zoneMemo = null;
   nearMemo = new Map();
+  lineMemo = new Map();
+  roadMemo = new Map();
 }
 
 /** Whether `count` of a kind could be built now at all (unlocked, placements left, the money): else no site is worth a search. */
@@ -671,10 +673,26 @@ let siteMemo: { key: string; at: [number, number] | null } | null = null;
  * standing alone, its grid powering nobody), round buildings (lines cross roads and water, as the tool lays
  * them): the tiles to lay, in order, or null. Found again on an edit or a new month.
  */
-export function lineToDark(): [number, number][] | null {
+export function lineToDark(buildings = false): [number, number][] | null {
   const s = city.state;
   const f = city.fields;
-  return powerPath(`line|${siteKey()}`, (j) => !!s.zone[j] && s.zone[j] !== 10 && !f.powered[j]);
+  // (Buildings cut off, the advisor's count, aim at a dark building, not the nearest empty zone tile.)
+  return powerPath(`line|${buildings ? 'b' : 'z'}|${siteKey()}`, buildings ? (j) => s.occupant[j]! > 0 && !f.powered[j] : (j) => !!s.zone[j] && s.zone[j] !== 10 && !f.powered[j]);
+}
+
+/**
+ * The shortest power line from a plant that powers nobody to the city's grid or zones in the dark: from its own
+ * footprint (from the nearest powered tile, the main grid was joined to the dark zones and the plant stayed idle).
+ */
+export function lineFromPlant(st: Structure): [number, number][] | null {
+  const s = city.state;
+  const f = city.fields;
+  const n = city.size;
+  const g0 = f.powerGrid[st.y * n + st.x]!;
+  const own: number[] = [];
+  for (let y = st.y; y < st.y + st.h; y++) for (let x = st.x; x < st.x + st.w; x++) own.push(y * n + x);
+  const conductor = (j: number) => !!(s.power[j] || s.occupant[j] || (s.zone[j] && s.zone[j] !== 10));
+  return powerPath(`line|p${st.id}|${siteKey()}`, (j) => (!!s.zone[j] && s.zone[j] !== 10 && !f.powered[j]) || (conductor(j) && f.powered[j] === 1 && f.powerGrid[j] !== g0), own);
 }
 
 /** The shortest power line from the grid to a facility or building without power (a pump that stopped for it), as lineToDark. */
@@ -684,20 +702,21 @@ export function lineToStructure(st: { id: number; x: number; y: number; w: numbe
   return powerPath(`line|${of}${st.id}|${siteKey()}`, (j) => { const x = j % n; const y = (j - x) / n; return x >= st.x && x < st.x + st.w && y >= st.y && y < st.y + st.h; });
 }
 
-/** The shortest power line from what has power (and every plant) to the first tile `target` takes, round buildings; null if none. */
-function powerPath(key: string, target: (j: number) => boolean): [number, number][] | null {
-  if (lineMemo?.key === key) return lineMemo.path;
+/**
+ * The shortest power line from what has power (or from `from`'s tiles) to the first tile `target` takes, round
+ * buildings; null if none. (A dead plant is no source: a line from it powered nothing.)
+ */
+function powerPath(key: string, target: (j: number) => boolean, from?: number[]): [number, number][] | null {
+  const hit0 = lineMemo.get(key);
+  if (hit0 !== undefined) return hit0;
   const s = city.state;
   const f = city.fields;
   const n = city.size;
   const N = n * n;
   const seen = new Int32Array(N).fill(-2); // -2 unseen, -1 a source, else the tile it was reached from
   const queue: number[] = [];
-  for (let i = 0; i < N; i++) if (f.powered[i] && (s.power[i] || s.occupant[i] || (s.zone[i] && s.zone[i] !== 10))) { seen[i] = -1; queue.push(i); }
-  for (const st of s.structures.values()) {
-    if (!STRUCTURES[st.kind].plant) continue;
-    for (let y = st.y; y < st.y + st.h; y++) for (let x = st.x; x < st.x + st.w; x++) if (seen[y * n + x] === -2) { seen[y * n + x] = -1; queue.push(y * n + x); }
-  }
+  if (from) for (const i of from) { seen[i] = -1; queue.push(i); }
+  else for (let i = 0; i < N; i++) if (f.powered[i] && (s.power[i] || s.occupant[i] || (s.zone[i] && s.zone[i] !== 10))) { seen[i] = -1; queue.push(i); }
   let hit = -1;
   for (let h = 0; h < queue.length && hit < 0; h++) {
     const i = queue[h]!;
@@ -718,10 +737,16 @@ function powerPath(key: string, target: (j: number) => boolean): [number, number
   for (let i = hit >= 0 ? seen[hit]! : -1; i >= 0 && seen[i] !== -1; i = seen[i]!) path.push([i % n, Math.floor(i / n)]);
   path.reverse();
   const at = path.length ? path : null;
-  lineMemo = { key, path: at };
+  remember8(lineMemo, key, at);
   return at;
 }
-let lineMemo: { key: string; path: [number, number][] | null } | null = null;
+
+/** Keeps a search's answer under its key, the oldest of eight let go (one entry was redone every refresh by two askers). */
+function remember8<T>(memo: Map<string, T>, key: string, value: T): void {
+  memo.set(key, value);
+  if (memo.size > 8) memo.delete(memo.keys().next().value!);
+}
+let lineMemo = new Map<string, [number, number][] | null>();
 
 /**
  * The shortest road from a facility's side to the nearest street, road or avenue at grade, over open dry land only
@@ -730,7 +755,8 @@ let lineMemo: { key: string; path: [number, number][] | null } | null = null;
  */
 export function roadToFacility(f: { id: number; x: number; y: number; w: number; h: number }, of: 'f' | 'b' = 'f'): [number, number][] | null {
   const key = `road|${of}${f.id}|${siteKey()}`;
-  if (roadMemo?.key === key) return roadMemo.path;
+  const known = roadMemo.get(key);
+  if (known !== undefined) return known;
   const s = city.state;
   const n = city.size;
   // (A building's lot sits in its zone: its road may cross the zone's empty tiles, as a road drawn there would.)
@@ -765,10 +791,10 @@ export function roadToFacility(f: { id: number; x: number; y: number; w: number;
   for (let i = hit; i >= 0; i = from[i]!) path.push([i % n, Math.floor(i / n)]);
   path.reverse();
   const at = path.length ? path : null;
-  roadMemo = { key, path: at };
+  remember8(roadMemo, key, at);
   return at;
 }
-let roadMemo: { key: string; path: [number, number][] | null } | null = null;
+let roadMemo = new Map<string, [number, number][] | null>();
 
 /**
  * The shortest pipe from a network with water to spare to where buildings go dry: to a network running short or with
@@ -797,14 +823,15 @@ export function pipeToDry(): [number, number][] | null {
   const near = new Uint16Array(N); // how many uncovered dry buildings a pipe here would reach
   let dry = false;
   for (const b of s.buildings.values()) {
-    if (!b.type || b.watered) continue;
+    // (Only those past the stage that needs water, as the advisor and the water view count: small homes beyond the
+    // pipes drew a pipe that only added demand to a tight supply.)
+    if (!b.type || b.watered || b.stage <= city.cfg.services.waterStageCap[b.type]) continue;
     const g = f.waterNet[b.y * n + b.x]!;
     dry = true;
     if (g >= 0) { wants.set(g, (wants.get(g) ?? 0) + 1); continue; }
     for (let y = Math.max(0, b.y - r); y < Math.min(n, b.y + b.h + r); y++) for (let x = Math.max(0, b.x - r); x < Math.min(n, b.x + b.w + r); x++) near[y * n + x]!++;
   }
-  const short = wants;
-  for (const g of short.keys()) spare.delete(g);
+  for (const g of wants.keys()) spare.delete(g);
   let path: [number, number][] | null = null;
   if (dry && spare.size) {
     const from = new Int32Array(N).fill(-2); // -2 unseen, -1 a network with water to spare, else the tile it was reached from
@@ -866,12 +893,15 @@ export function layCost(lay: Lay, line: readonly [number, number][]): number | n
   if (lay === 'powerline') return line.filter(([x, y]) => !s.power[y * n + x] && !s.zone[y * n + x]).length * city.cfg.services.powerLineCost.build;
   if (line.some(([x, y]) => s.net[y * n + x])) return null;
   let cost = 0;
-  for (const [x0, y0, x1, y1] of straightRuns(line)) {
-    const p = city.previewNetwork(x0, y0, x1, y1, 'road');
-    if (!p.ok && p.message !== 'not enough funds') return null;
-    cost += p.cost;
-  }
-  return cost;
+  // (Each run after the first from the tile past its corner: priced twice, an L showed §60 for §50 and refused.)
+  straightRuns(line).forEach(([x0, y0, x1, y1], k) => {
+    if (cost < 0) return;
+    const [sx, sy] = k ? [x0 + Math.sign(x1 - x0), y0 + Math.sign(y1 - y0)] : [x0, y0];
+    const p = city.previewNetwork(sx, sy, x1, y1, 'road');
+    if (!p.ok && p.message !== 'not enough funds') cost = -1;
+    else cost += p.cost;
+  });
+  return cost < 0 ? null : cost;
 }
 
 /** A path tile by tile as its straight runs, end to end (a line or road tool lays one run at a time). */
@@ -1187,10 +1217,6 @@ export function waterApart(): boolean {
 }
 
 /**
- * For a school or hospital at (x, y) that is over its places: the cheapest unlocked kind of the same
- * level (an elementary school took nothing from a striking high school, and the strike went on).
- */
-/**
  * Would full funding mend a school or hospital's trouble (the info card's 예산 100%로 and the guide's say the same)?
  * Back within its places at 100%, or, on strike, its grade there reaching the strike's end; past that, one more
  * beside it is the fix. (Police and fire stations have no places: their budget alone ends a strike.)
@@ -1201,6 +1227,10 @@ export function budgetMends(f: Structure, strike: boolean): boolean {
   return !svc || f.load * (strike ? city.cfg.services.strikeEndGrade : 1) <= svc.capacity;
 }
 
+/**
+ * For a school or hospital at (x, y) that is over its places: the cheapest unlocked kind of the same
+ * level (an elementary school took nothing from a striking high school, and the strike went on).
+ */
 export function relieverFor(at: readonly [number, number]): StructureKind | null {
   const kind = city.query(at[0], at[1])?.structure?.kind;
   if (!kind) return null;

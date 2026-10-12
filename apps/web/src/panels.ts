@@ -1,6 +1,6 @@
 // The side panel refresh: demand, budget, departments, loans and advisor notices.
 
-import { DEV_TYPES, GROWTH_CODES, STRUCTURES, ZONES, type PollTopic, type StructureKind } from '@web-city/engine';
+import { DEV_TYPES, type DevType, GROWTH_CODES, STRUCTURES, ZONES, type PollTopic, type StructureKind } from '@web-city/engine';
 import { icon } from './icons';
 import { chooseSpeed, refreshTaxes, refreshViewSummary, showOverlay } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
@@ -34,7 +34,8 @@ export function crimeKinds(byType: Record<string, number> | undefined): string {
 document.addEventListener('click', (e) => {
   const b = (e.target as HTMLElement).closest<HTMLButtonElement>('.advice-view');
   // (A tax or budget changed from the diagnosis: done in the panel, nothing on the map to step aside for.)
-  if (!b || b.matches('[data-tax-to], .mg-guide-go')) return;
+  // (Nor a path laid from it: the screen's own handler steps aside for the map only when it was laid.)
+  if (!b || b.matches('[data-tax-to], .mg-guide-go, [data-line-path]')) return;
   // A reward or deal from the news: its building in hand.
   if (b.dataset.build) {
     revealMap();
@@ -634,8 +635,25 @@ export const currentAdvice = (): typeof adviceCache => {
   // as good news, not "세율을 조금 내려 보세요" with no button for it, which had players cut further for nothing.
   const sig = `${Object.values(city.state.taxRates).join('|')}|${city.demand.neutralTax}`;
   if (eased?.from !== adviceCache || eased.sig !== sig) {
-    eased = { from: adviceCache, sig, out: adviceCache.map((a) => (a.code === 'taxHigh' && a.type && city.state.taxRates[a.type] <= city.demand.neutralTax
-      ? { ...a, code: 'taxEasing', level: 'good' as const } : a)) };
+    const d = city.demand;
+    const out: typeof adviceCache = [];
+    for (const a of adviceCache) {
+      if (a.code !== 'taxHigh' || !a.type || city.state.taxRates[a.type] > d.neutralTax) {
+        out.push(a);
+        continue;
+      }
+      out.push({ ...a, code: 'taxEasing', level: 'good' as const });
+      // (The advisor names only the type cut hardest, which the remembered rate keeps this one for 90 days: another
+      // still over neutral, by the advisor's own test, keeps its warning.)
+      let next: DevType | null = null;
+      for (const t of DEV_TYPES) {
+        if (t === a.type || city.state.taxRates[t] <= d.neutralTax || d.raw[t]! <= 0 || d.taxEffect[t]! > -0.3) continue;
+        if (Number.isFinite(d.cap[t]) && d.capPopulation[t]! >= 0.95 * d.cap[t]!) continue;
+        if (!next || d.taxEffect[t]! < d.taxEffect[next]!) next = t;
+      }
+      if (next) out.push({ ...a, type: next, value: Math.round(-d.taxEffect[next]! * 100), level: d.demand[next]! <= 0 ? 'bad' as const : 'neutral' as const });
+    }
+    eased = { from: adviceCache, sig, out };
   }
   return eased.out;
 };

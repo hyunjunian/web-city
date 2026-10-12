@@ -1934,6 +1934,7 @@ export class Renderer {
       ctx.stroke();
       ctx.setLineDash([]);
       ctx.lineCap = 'butt';
+      ctx.lineJoin = 'miter'; // (the facility outlines after it keep their square corners)
     }
 
     if (this.marks.length) {

@@ -21,7 +21,7 @@ import { dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, landfillSite, zoneSite, lineToDark, lineToStructure, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, straightRuns, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, landfillSite, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, straightRuns, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -327,7 +327,7 @@ function guideHtml(id: GoalId): string {
   const wait = p ? `<p class="g-wait">${icon('check')}<span>${escapeHtml(p.text)} · ${Math.max(1, FOLLOW_DAYS - (city.state.day - p.day))}일 뒤 결과를 알려 드립니다</span></p>` : '';
   // (The screen's head names the goal: the card starts with what is wrong.)
   return `<section class="lead ${s.tone} mg-guide" aria-label="추천 조치"><p class="lead-title">${icon('alert')}<span>${title}</span></p>
-    <p class="lead-risk">${(worst && RISK_OF[worst.code]) ?? RISK[id]}</p><p class="g-label">추천 조치</p>${action}${wait}</section>`;
+    <p class="lead-risk">${(!offGrid && worst && RISK_OF[worst.code]) || RISK[id]}</p><p class="g-label">추천 조치</p>${action}${wait}</section>`;
 }
 
 /** The sites (x,y) of the build button under the pointer or focused: their marks light up on the map. */
@@ -363,9 +363,11 @@ function goalStep(id: GoalId): GuideStep {
   if (due) return due;
   // Power that is there but doesn't reach (a plant on a grid of its own powering nobody, or buildings off the
   // lines): a line, not one more plant (a lone plant's 전력이 없어… recommended another plant).
-  const cut = id === 'power' && adviceFor('power').some((a) => a.code === 'powerCutOff'
-    || (a.code === 'noPower' && [...city.state.structures.values()].some((x) => !!STRUCTURES[x.kind].plant)));
-  const laid = cut ? lineStep() : null;
+  // (Not while the plants run short: a line adds load to a grid in blackouts, and the plant the list picks hid. A
+  // plant powering nobody comes through the list, with the line from it.)
+  const pw = readStats().power;
+  const cut = id === 'power' && pw.supply > 0 && pw.demand <= pw.supply * 0.85 && adviceFor('power').some((a) => a.code === 'powerCutOff');
+  const laid = cut ? lineStep(undefined, true) : null;
   if (laid) return laid;
   // Buildings about to be abandoned: what the first one lacks, mended in one press (power, water or road).
   const rescue = worst?.code === 'atRisk' ? rescueStep(worst) : null;
@@ -373,9 +375,12 @@ function goalStep(id: GoalId): GuideStep {
   // Every pump on a network stopped: why, mended in one press where it can be (a line from the grid, the water budget).
   const pumps = worst?.code === 'pumpsOff' ? pumpStep(worst) : null;
   if (pumps) return pumps;
-  // Buildings dry, beyond the pipes or on a network running short, while another has water to spare (a pump
-  // watering nobody among them): the pipe between, laid at once, not one more pump.
-  const apart = id === 'water' ? pipeStep() : null;
+  // Buildings dry, beyond the pipes or on a network with no source or running short, while another has water to
+  // spare (a pump watering nobody among them): the pipe between, laid at once, not one more pump. (Only for those
+  // troubles: on a tight supply or an old pump it drew a pipe that added demand while the pump the list picked hid.)
+  const piped = id === 'water' && adviceFor('water').some((a) => a.level !== 'good'
+    && (a.code === 'pipesNoSource' || a.code === 'dryBuildings' || a.code === 'idlePump' || (a.code === 'waterShort' && waterApart())));
+  const apart = piped ? pipeStep() : null;
   if (apart) return apart;
   // A station cut off from the roads that the card leads with (its crews can't leave): the road to it, laid at once.
   // (Only garbage piling at a plant waits behind what the list puts first: the line to the dark zones.)
@@ -387,7 +392,11 @@ function goalStep(id: GoalId): GuideStep {
   // (The list's own reason for a line, a plant off the grid or zones in the dark beside plenty: the line itself,
   // to lay at once, where 해 보기 only handed the tool and left the way to find.)
   const fx = best?.querySelector('.act-fx')?.textContent?.trim();
-  const line = best?.dataset.act === 'powerline' ? lineStep(fx) : best?.dataset.act === 'pipe' ? pipeStep(fx) : null;
+  // (A plant the list says powers nobody: the line from it, so it is the one joined.)
+  const idlePlant = best?.dataset.act === 'powerline' ? facilities(GOALS.power).find((f) => STRUCTURES[f.kind].plant && f.capacity > 0 && f.load < 1) : undefined;
+  const fromPlant = idlePlant ? lineFromPlant(idlePlant) : null;
+  const line = fromPlant ? layStep('powerline', fromPlant, fx || '발전소의 전기가 구역까지 닿지 않습니다: 송전선으로 이으면 됩니다')
+    : best?.dataset.act === 'powerline' ? lineStep(fx) : best?.dataset.act === 'pipe' ? pipeStep(fx) : null;
   if (line) return line;
   if (best) {
     best.querySelector('.act-best')?.remove();
@@ -434,9 +443,9 @@ function goalStep(id: GoalId): GuideStep {
 }
 
 /** The guide's step laying the shortest power line from the grid to the nearest zone in the dark, or null if there is none. */
-function lineStep(why?: string): GuideStep | null {
-  const line = lineToDark();
-  return line ? layStep('powerline', line, why || '발전소의 전기가 구역까지 닿지 않습니다: 가장 짧은 길로 송전선을 이으면 됩니다') : null;
+function lineStep(why?: string, buildings = false): GuideStep | null {
+  const line = lineToDark(buildings);
+  return line ? layStep('powerline', line, why || (buildings ? '전기가 끊긴 건물이 있습니다: 전력망에서 송전선을 이으면 됩니다' : '발전소의 전기가 구역까지 닿지 않습니다: 송전선으로 이으면 됩니다')) : null;
 }
 
 const LAY_ICON = { powerline: 'cable', road: 'road', pipe: 'droplet' } as const;
@@ -518,7 +527,7 @@ export function layPath(lay: Lay, path: [number, number][], owner: GoalId | null
   const cost = layCost(lay, path);
   if (cost === null || cost > city.state.funds) {
     forgetSites();
-    flash(cost === null ? `그사이 길이 막혀 ${LAY_WORD[lay]} 길을 새로 찾았습니다` : `§${fmt(Math.ceil(cost - city.state.funds))} 모자랍니다`, 'bad');
+    flash(cost === null ? `그사이 막혀서 ${LAY_WORD[lay]}${josa(LAY_WORD[lay], '을', '를')} 놓을 곳을 새로 찾았습니다` : `§${fmt(Math.ceil(cost - city.state.funds))} 모자랍니다`, 'bad');
     return false;
   }
   const drop = remember(LAY_WORD[lay]);
@@ -527,6 +536,9 @@ export function layPath(lay: Lay, path: [number, number][], owner: GoalId | null
     const res = lay === 'road' ? city.buildNetwork(x0, y0, x1, y1, 'road') : lay === 'pipe' ? city.buildPipe(x0, y0, x1, y1) : city.buildPowerLine(x0, y0, x1, y1);
     if (res.ok) laid += res.cost;
   }
+  // (A road joins another only where a drag runs into it: one beside the last tile, not ahead of it, stayed apart,
+  // and the station it was laid for still couldn't send its crews. The last tile once more, alone, joins all four sides.)
+  if (lay === 'road' && laid) city.buildNetwork(path.at(-1)![0], path.at(-1)![1], path.at(-1)![0], path.at(-1)![1], 'road');
   if (!laid) {
     drop();
     return false;
@@ -643,7 +655,7 @@ function nextHtml(tones: Tone[]): Step {
     : `<p class="lead-title">${icon('check')}<span>지금은 모두 순조롭습니다</span></p>`;
   return { goal: id, problem: !!tone, act: tone ? step.act : '', html: `<div class="lead ${tone || 'calm'}">${head}
     <p class="lead-do" title="${escapeHtml(why)}"><span>${tone ? '제안' : '다음 성장'}</span>${escapeHtml(what)}${why ? `<small> — ${escapeHtml(firstSentence(why))}</small>` : ''}</p>
-    <div class="next-acts"><button type="button" class="primary next-do" data-next="${id}" data-next-kind="${kind}"${fixAct ? ` data-next-act="${fixAct}"` : ''} title="${g.name} 화면을 열고 ${kind === 'open' ? '' : '이 조치를 도구로 들기'}">${verb}</button>${kind !== 'open' ? `<button type="button" class="link next-open" data-goal="${id}">다른 방법</button>` : ''}</div></div>` };
+    <div class="next-acts"><button type="button" class="primary next-do" data-next="${id}" data-next-kind="${kind}"${fixAct ? ` data-next-act="${fixAct}"` : ''} title="${g.name} 화면을 열고 ${kind === 'best' || kind === 'fix' ? '이 조치를 도구로 들기' : '추천 조치 보기'}">${verb}</button>${kind !== 'open' ? `<button type="button" class="link next-open" data-goal="${id}">다른 방법</button>` : ''}</div></div>` };
 }
 
 // ------------------------------------------------------------------ the goal's screen
