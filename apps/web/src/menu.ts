@@ -1,6 +1,6 @@
 // New / save / load / export / import, and heightmap images.
 
-import { City, type Difficulty, type Heightmap, type HistoryPoint, loadCity, saveCity, type SavedCity } from '@web-city/engine';
+import { City, type Difficulty, type Heightmap, type HistoryPoint, loadCity, saveCity, type SavedCity, Terrain } from '@web-city/engine';
 import { showHelp, toggleFocus, toggleNight } from './controls';
 import { openSample } from './main';
 import { autoPause, setAutoPause } from './manage';
@@ -64,11 +64,26 @@ export function setupMenu(): void {
   $('#city-title').onclick = rename;
   $('#btn-rename').onclick = rename;
   const hm = document.querySelector<HTMLInputElement>('#new-dialog input[name="heightmap"]')!;
-  hm.onchange = () => ($('#heightmap-name').textContent = hm.files?.[0]?.name ?? '선택 안 함');
+  hm.onchange = async () => {
+    const file = hm.files?.[0];
+    $('#heightmap-name').textContent = file?.name ?? '선택 안 함';
+    try {
+      previewMap = file ? await readHeightmap(file) : undefined;
+    } catch {
+      previewMap = undefined; // (said when the city is made: 이미지를 읽을 수 없습니다)
+    }
+    schedulePreview(0);
+  };
   $('#seed-random').onclick = () => {
     const seed = document.querySelector<HTMLInputElement>('#new-dialog input[name="seed"]')!;
     seed.value = String(1 + Math.floor(Math.random() * 99_999));
+    schedulePreview(0);
   };
+  // The map as it will be, redrawn as its settings change (the seed typed waits for a pause).
+  $('#seed-reroll').onclick = () => $('#seed-random').click();
+  const form = $('#new-dialog form');
+  form.querySelector('input[name="seed"]')!.addEventListener('input', () => schedulePreview(300));
+  for (const name of ['size', 'water']) form.querySelector(`[name="${name}"]`)!.addEventListener('change', () => schedulePreview(0));
   $('#btn-photo').onclick = () => {
     renderer.draw(city, cam, overlay, null, null); // without the pointer's preview or selection
     const d = city.stats().date;
@@ -153,6 +168,32 @@ export function setupMenu(): void {
       heightmap,
     }));
   });
+}
+
+/** The new city's heightmap image as read for the preview (the city itself reads it again when made). */
+let previewMap: Heightmap | undefined;
+let previewTimer = 0;
+const schedulePreview = (ms: number) => {
+  clearTimeout(previewTimer);
+  previewTimer = window.setTimeout(drawPreview, ms);
+};
+
+/** The new map in small: water, woods and the lie of the land, in the minimap's colours (a city made just to look). */
+function drawPreview(): void {
+  const f = new FormData($<HTMLFormElement>('#new-dialog form'));
+  const size = Number(f.get('size')) || 128;
+  const s = new City({ name: '', size, difficulty: 'easy', seed: Number(f.get('seed')) || 1, water: f.get('water') === 'on', heightmap: previewMap }).state;
+  const canvas = $<HTMLCanvasElement>('#new-preview');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d')!;
+  const img = ctx.createImageData(size, size);
+  for (let i = 0; i < size * size; i++) {
+    const t = Math.min(1, s.height[i]! / 120);
+    const c = s.terrain[i] === Terrain.Water ? [93, 143, 199] : s.trees[i] ? [76, 122, 78] : [207 - 40 * t, 216 - 30 * t, 184 - 50 * t];
+    img.data.set([c[0]!, c[1]!, c[2]!, 255], i * 4);
+  }
+  ctx.putImageData(img, 0, 0);
 }
 
 /** Decodes an image file to grayscale pixels (luminance) for a topographical map. */

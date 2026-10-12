@@ -2571,3 +2571,20 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .region-key .k-here { background: var(--accent); }
 .region-key .k-beside { box-shadow: inset 0 0 0 1.5px var(--accent); }
 .region-key .k-empty { box-shadow: inset 0 0 0 1px var(--line-strong); }
+/* 새 도시: the fields beside a picture of the map they make (seed, size, water, a heightmap redraw it). */
+.new-top { display: grid; grid-template-columns: minmax(0, 1fr) 148px; gap: 16px; align-items: start; }
+.new-fields { display: grid; gap: 12px; min-width: 0; }
+.new-fields :is(input, select) { width: 100%; min-width: 0; } /* (on a phone the inputs' own width ran under the picture) */
+.new-preview { margin: 0; display: grid; gap: 6px; justify-items: center; }
+.new-preview canvas { width: 148px; height: 148px; border-radius: 10px; image-rendering: pixelated; background: var(--surface-2); box-shadow: 0 0 0 1px var(--line); }
+.new-preview figcaption { font-size: 12.5px; }
+@media (max-width: 420px) {
+  .new-top { grid-template-columns: minmax(0, 1fr) 112px; gap: 12px; }
+  .new-preview canvas { width: 112px; height: 112px; }
+}
+/* The narrowest phones: the picture on a row of its own above the fields (beside them, 보통 (§200,000) was cut). */
+@media (max-width: 360px) {
+  .new-top { grid-template-columns: minmax(0, 1fr); }
+  .new-preview { order: -1; grid-template-columns: auto auto; justify-content: start; align-items: end; gap: 12px; }
+  .new-preview canvas { width: 96px; height: 96px; }
+}

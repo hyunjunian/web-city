@@ -234,21 +234,29 @@
     <dialog id="new-dialog" aria-labelledby="new-title">
       <form method="dialog">
         <h2 id="new-title">새 도시</h2>
-        <label>이름 <input name="name" value="새 도시" /></label>
-        <label>크기
-          <select name="size">
-            <option value="64">작음 (64×64)</option>
-            <option value="128" selected>중간 (128×128)</option>
-            <option value="256">큼 (256×256)</option>
-          </select>
-        </label>
-        <label>난이도
-          <select name="difficulty">
-            <option value="easy">쉬움 (§500,000)</option>
-            <option value="medium" selected>보통 (§200,000)</option>
-            <option value="hard">어려움 (§100,000)</option>
-          </select>
-        </label>
+        <div class="new-top">
+          <div class="new-fields">
+            <label>이름 <input name="name" value="새 도시" /></label>
+            <label>크기
+              <select name="size">
+                <option value="64">작음 (64×64)</option>
+                <option value="128" selected>중간 (128×128)</option>
+                <option value="256">큼 (256×256)</option>
+              </select>
+            </label>
+            <label>난이도
+              <select name="difficulty">
+                <option value="easy">쉬움 (§500,000)</option>
+                <option value="medium" selected>보통 (§200,000)</option>
+                <option value="hard">어려움 (§100,000)</option>
+              </select>
+            </label>
+          </div>
+          <figure class="new-preview">
+            <canvas id="new-preview" width="128" height="128" role="img" aria-label="새 지도의 지형 미리보기"></canvas>
+            <figcaption><button type="button" id="seed-reroll" class="link" title="같은 크기의 다른 지형 (무작위 시드)">다른 지형</button></figcaption>
+          </figure>
+        </div>
         <details class="new-more"><summary>고급 설정 (시드·강·높이 지도)</summary>
         <label>시드 (같은 시드는 같은 지형)
           <span class="seed-row"><input name="seed" type="number" value="1" /><button type="button" id="seed-random" title="무작위 시드" aria-label="무작위 시드"><span data-icon="dice"></span></button></span>
