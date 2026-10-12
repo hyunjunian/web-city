@@ -11,7 +11,7 @@ import { ABANDON_NAME, DISASTER_NAME, NETWORK_NAME, STRUCTURE_NAME, TYPE_NAME, Z
 import { updatePanels } from './panels';
 import { type Preview, zoneTint } from './render';
 import { coverageRadius, GROWTH_LABEL, growthNow, overlayReading } from './views';
-import { facilityLine, newlyReached, smokeClear } from './readings';
+import { facilityLine, newlyReached, plantsReached, smokeClear } from './readings';
 import { goalOfStructure } from './goals';
 import { cam, centerOn, city, drag, fitCamera, glideTo, hover, mapBand, overlay, redraw, renderer, selected, setDrag, setHover, speed, stopFlight } from './state';
 import { drive, SPECIAL } from './udi';
@@ -306,7 +306,9 @@ export function updatePreview(): void {
     const goal = reach && check.ok && !city.stepping ? goalOfStructure(kind) : null; // (not mid-day: its cover is being redone)
     const gained = goal && (goal === 'police' || goal === 'fire' || goal === 'health' || goal === 'education')
       ? newlyReached(goal, sx + def.w / 2, sy + def.h / 2, reach) : -1;
-    const reached = gained < 0 ? '' : `새로 닿는 ${goal === 'health' || goal === 'education' ? '집' : '건물'} ${gained ? `${fmt(gained)}채` : '없음'}`;
+    // (A fire station: the plants it would take in too.)
+    const plants = gained >= 0 && goal === 'fire' ? plantsReached(sx + def.w / 2, sy + def.h / 2, reach) : 0;
+    const reached = gained < 0 ? '' : `새로 닿는 ${plants ? `발전소 ${fmt(plants)}곳 · ` : ''}${goal === 'health' || goal === 'education' ? '집' : '건물'} ${gained ? `${fmt(gained)}채` : '없음'}`;
     const extraNow = reached ? `${extra} · ${reached}` : extra;
     // Warnings and refusals first: the hint shows three lines, and the ⚠ were last to be cut.
     // (Name and price are on the tool chip and by the pointer: the bar says what they don't.)
@@ -898,12 +900,13 @@ export function applyTool(): void {
       const goal = placeable ? goalOfStructure(kind) : null;
       const reach = reachAt(kind, sx, sy);
       const gained = reach && (goal === 'police' || goal === 'fire' || goal === 'health' || goal === 'education') ? newlyReached(goal, sx + def.w / 2, sy + def.h / 2, reach) : 0;
+      const plants = reach && goal === 'fire' ? plantsReached(sx + def.w / 2, sy + def.h / 2, reach) : 0;
       res = city.placeStructure(kind, sx, sy);
       // Say it stands (the hint over it would now read "has a building"), and what it still needs.
       // (Where to take it back, if it landed a tile off: Ctrl+Z, or the ↶ at the top on a touch screen.)
       if (res.ok) {
         justBuilt = { x: sx, y: sy, w: def.w, h: def.h, kind };
-        const reached = gained ? ` · 새로 닿는 ${goal === 'health' || goal === 'education' ? '집' : '건물'} ${fmt(gained)}채` : '';
+        const reached = gained || plants ? ` · 새로 닿는 ${[plants ? `발전소 ${fmt(plants)}곳` : '', gained ? `${goal === 'health' || goal === 'education' ? '집' : '건물'} ${fmt(gained)}채` : ''].filter(Boolean).join(' · ')}` : '';
         built = [`${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 지었습니다 · −§${fmt(res.cost)}${reached}${warn}${warn ? '' : touchFirst() ? ' · 위쪽 ↶로 되돌리기' : ' · Ctrl+Z로 되돌리기'}`, warn ? 'bad' : 'info'];
         flash(...built);
       }

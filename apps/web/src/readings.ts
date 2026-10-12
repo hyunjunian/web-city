@@ -457,7 +457,10 @@ export function forecast(k: StructureKind): string {
     // 새로 닿는 건물 82채 once built.)
     const spot = suggestSpot(id);
     const gain = spot ? newlyReached(id, spot.x + 0.5, spot.y + 0.5, coverageRadius(k)) : 0;
-    return gain ? `과녁에 지으면 새로 닿는 건물 ${fmt(gain)}채` : '';
+    // (And the plants it takes in, which the fire spot is weighed for.)
+    const plants = spot && id === 'fire' ? plantsReached(spot.x + 0.5, spot.y + 0.5, coverageRadius(k)) : 0;
+    const what = [plants ? `발전소 ${fmt(plants)}곳` : '', gain ? `건물 ${fmt(gain)}채` : ''].filter(Boolean).join(' · ');
+    return what ? `과녁에 지으면 새로 닿는 ${what}` : '';
   }
   if (d.school && !classroom(k)) return '';
   if (d.health || d.school) {
@@ -477,33 +480,41 @@ function need(id: GoalId): ((i: number) => number) | null {
   const s = city.state;
   const f = city.fields;
   const home = (i: number) => s.zone[i]! >= 1 && s.zone[i]! <= 3;
-  // (The stations' gaps as their views count them: a building — a home, for a hospital or a school — on every tile of
-  // it when its middle tile is out of reach. Not empty zoned land: 모든 집이 학교 범위 안입니다 stood over a spot of
-  // empty lots "where no school reaches", with 여기에 짓기.)
+  // (The stations' gaps as their views count them: a building — a home, for a hospital or a school — when its middle
+  // tile is out of reach. Not empty zoned land: 모든 집이 학교 범위 안입니다 stood over a spot of empty lots "where no
+  // school reaches", with 여기에 짓기. Each building once, spread over its tiles: by area, three big factories
+  // outweighed twenty homes, and the spot said 3채 beside a view of 23.)
   const n = city.size;
   const gap = (cover: ArrayLike<number>, homes = false) => (i: number) => {
     const o = s.occupant[i]!;
     const b = o > 0 ? s.buildings.get(o) : undefined;
     if (!b?.type || (homes && b.type[0] !== 'R')) return 0;
-    return cover[(b.y + (b.h >> 1)) * n + b.x + (b.w >> 1)]! > 0 ? 0 : 1;
+    return cover[(b.y + (b.h >> 1)) * n + b.x + (b.w >> 1)]! > 0 ? 0 : 1 / (b.w * b.h);
   };
   // How much a tile counts (0: it doesn't need it, or has it).
   switch (id) {
     case 'police': return gap(f.policeCover);
-    // (A power plant outside cover counts many times over: one that burns explodes.)
+    // (A power plant outside cover ahead of any block of buildings — a block holds 144 at most: one that burns explodes,
+    // and the screen leads with it.)
     case 'fire': {
       const building = gap(f.fireCover);
       return (i) => {
         const occ = s.occupant[i]!;
         const st = occ < 0 ? s.structures.get(-occ) : undefined;
-        if (st && STRUCTURES[st.kind].plant) return f.fireCover[i]! > 0 ? 0 : 12;
+        if (st && STRUCTURES[st.kind].plant) return unprotected(st) ? 1000 / (st.w * st.h) : 0;
         return building(i);
       };
     }
     case 'health': return gap(f.hospitalCover, true);
     case 'education': return gap(f.schoolQuality, true);
     case 'power': return (i) => (s.zone[i]! > 0 && s.zone[i] !== 10 && !f.powered[i] ? 1 : 0);
-    case 'water': return (i) => (s.occupant[i]! > 0 && !f.watered[i] && s.buildings.get(s.occupant[i]!)?.type ? 1 : 0);
+    // (A building's own water, as the view and the metric count it: one cut by rationing on a covered tile is dry, and
+    // one with a corner in reach is not.)
+    case 'water': return (i) => {
+      const o = s.occupant[i]!;
+      const b = o > 0 ? s.buildings.get(o) : undefined;
+      return b?.type && !b.watered ? 1 / (b.w * b.h) : 0;
+    };
     // Open land the well-off would take (zoned for homes, or not yet zoned): where to zone, and keep fine.
     case 'wealth': {
       const d = city.desirabilityMap('R$$$');
@@ -531,6 +542,22 @@ function need(id: GoalId): ((i: number) => number) | null {
  * it and that its service misses now, counted as the service's view counts them (homes only, for a hospital or
  * school) — so the view's count falls by what the pointer said. For the pointer, as a station is moved about.
  */
+/** A power plant no fire station reaches (by its middle tile, as buildings are counted). */
+function unprotected(st: Structure): boolean {
+  return !(city.fields.fireCover[(st.y + (st.h >> 1)) * city.size + st.x + (st.w >> 1)]! > 0);
+}
+
+/** The power plants out of fire cover that a fire station's reach r at (cx, cy) would take in. */
+export function plantsReached(cx: number, cy: number, r: number): number {
+  let count = 0;
+  for (const st of city.state.structures.values()) {
+    if (!STRUCTURES[st.kind].plant || !unprotected(st)) continue;
+    const [mx, my] = [st.x + (st.w >> 1), st.y + (st.h >> 1)];
+    if ((mx + 0.5 - cx) ** 2 + (my + 0.5 - cy) ** 2 <= r * r) count++;
+  }
+  return count;
+}
+
 export function newlyReached(goal: GoalId, cx: number, cy: number, r: number): number {
   const f = city.fields;
   const n = city.size;
@@ -1774,7 +1801,7 @@ function litBy(kind: StructureKind, x: number, y: number, dark: { per: Map<numbe
   return sum;
 }
 
-export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; crowded?: true; of?: [number, number]; lit?: number; blds?: number } | null {
+export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; crowded?: true; of?: [number, number]; lit?: number; blds?: number; plants?: number } | null {
   const key = `${id}|${changeKey()}`;
   if (spotMemo?.key === key) return spotMemo.spot;
   // A school or hospital on strike or far over its places: the new one goes beside it, to take some of
@@ -1804,7 +1831,7 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
     }
   }
   const want = need(id);
-  let spot: { x: number; y: number; tiles: number; crowded?: true; of?: [number, number]; lit?: number; blds?: number } | null = null;
+  let spot: { x: number; y: number; tiles: number; crowded?: true; of?: [number, number]; lit?: number; blds?: number; plants?: number } | null = null;
   let lit = 0;
   if (want) {
     // Counted in blocks of 12 tiles; the fullest block's middle of its needing tiles.
@@ -1906,8 +1933,9 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
           }
         }
       }
-      // (For a station: the buildings among them, in the unit its view counts.)
+      // (For a station: the buildings among them, in the unit its view counts — and the plants out of fire cover, apart.)
       let blds = 0;
+      let plants = 0;
       if (SERVICE.has(id) || id === 'water') {
         const seen = new Set<number>();
         const bx = (best % per) * B;
@@ -1916,9 +1944,9 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
           const i = y * n + x;
           if (want(i) > 0 && s.occupant[i]) seen.add(s.occupant[i]!);
         }
-        blds = seen.size;
+        for (const o of seen) o > 0 ? blds++ : plants++;
       }
-      spot = { x: at[0], y: at[1], tiles: hits[best]!, ...(lit ? { lit } : {}), ...(blds ? { blds } : {}) };
+      spot = { x: at[0], y: at[1], tiles: hits[best]!, ...(lit ? { lit } : {}), ...(blds ? { blds } : {}), ...(plants ? { plants } : {}) };
     }
   }
   // Every home in reach but the places short (a school level, or the hospitals, past their places): beside the fullest
