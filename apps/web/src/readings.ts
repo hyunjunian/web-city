@@ -156,7 +156,7 @@ function readStatus(id: GoalId): Status {
     case 'health': {
       const list = facilities(GOALS.health);
       const [l, c] = loadOf(list);
-      return pick(c > 0 && l > c ? 'warn' : '', `HQ ${Math.round(avg(st.hq, st.residents))}`, list.length ? `환자 ${fmt(l)} / 정원 ${fmt(c)}${l > c ? ' · 넘침' : ''}` : '병원 없음', c ? l / c : undefined);
+      return pick(c > 0 && l > c ? 'warn' : '', `건강 지수 ${Math.round(avg(st.hq, st.residents))}`, list.length ? `환자 ${fmt(l)} / 정원 ${fmt(c)}${l > c ? ' · 넘침' : ''}` : '병원 없음', c ? l / c : undefined);
     }
     case 'education': {
       const list = facilities(GOALS.education).filter((f) => classroom(f.kind));
@@ -164,7 +164,7 @@ function readStatus(id: GoalId): Status {
       // By level: seats at a primary school don't take high-school students (the total hid a full high school).
       const lv = levelShort();
       const over = lv && lv.load > lv.cap;
-      return pick(c > 0 && (l > c || over) ? 'warn' : '', `EQ ${Math.round(avg(st.eq, st.residents))}`,
+      return pick(c > 0 && (l > c || over) ? 'warn' : '', `교육 지수 ${Math.round(avg(st.eq, st.residents))}`,
         list.length ? (over && l <= c ? `${LEVEL_NAME[lv.curve]} 학생 ${fmt(lv.load)} / 정원 ${fmt(lv.cap)} · 넘침` : `학생 ${fmt(l)} / 정원 ${fmt(c)}${l > c ? ' · 넘침' : ''}`) : '학교 없음', c ? l / c : undefined);
     }
     case 'traffic': {

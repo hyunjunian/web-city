@@ -54,8 +54,8 @@ export function overlayReading(city: City, overlay: Overlay, x: number, y: numbe
     case 'power': return f.powered[i] ? '전력망에 연결됨' : '전기 없음';
     case 'health': return `병원 효과 ${r(f.healthQuality[i]! * 100)}%`;
     case 'school': return `학교 효과 ${r(f.schoolQuality[i]! * 100)}%`;
-    case 'hq': { const b = resident(); return b ? `HQ ${r(b.hq)}` : ''; }
-    case 'eq': { const b = resident(); return b ? `EQ ${r(b.eq)}` : ''; }
+    case 'hq': { const b = resident(); return b ? `건강 지수 ${r(b.hq)}` : ''; } // (as the view's own name says it, not HQ)
+    case 'eq': { const b = resident(); return b ? `교육 지수 ${r(b.eq)}` : ''; }
     case 'commute': {
       const b = resident() ?? (() => {
         const occ = s.occupant[i]!;
