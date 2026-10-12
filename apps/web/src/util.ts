@@ -65,7 +65,7 @@ export function endFlash(): void {
 /** Shows a message in the hint bar for a few seconds (longer for long ones). */
 export function flash(msg: string, tone: 'info' | 'bad' = 'info'): void {
   const hint = $('#hint');
-  hint.textContent = msg;
+  hint.textContent = glue(msg);
   hint.dataset.tone = tone;
   // Read out too (the hint bar itself changes with every hover, so it isn't a live region).
   const sr = document.getElementById('sr-status');
@@ -187,6 +187,13 @@ export const landfillSpan = (months: number) => (months >= 1200 ? '100년 넘게
 
 /** A message's first sentence: a toast says what happened; the screen it opens says the rest. */
 export const firstSentence = (t: string) => /^.*?[.!?](?=\s|$)/.exec(t)?.[0] ?? t;
+
+/**
+ * Korean line breaks the browser leaves loose, held with word joiners (unseen, unread): a closing parenthesis with
+ * the particle after it ("상한(21,560명)에" put "에 닿았습니다" at the start of a line), an opening one with the
+ * word before it, and the halves of a 가·나 pair ("병원·" ended a line, "보건소가" began the next).
+ */
+export const glue = (t: string) => t.replace(/\)(?=[가-힣])/g, ')\u2060').replace(/([가-힣\d%])(?=\()/g, '$1\u2060').replace(/([가-힣])·(?=[가-힣])/g, '$1\u2060·\u2060');
 
 /** Said when the clock was stopped for something (a toast's tail). */
 export const stoppedNote = () => ` · 멈춤 (${touchFirst() ? '▶로 계속' : 'Space로 계속'})`;

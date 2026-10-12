@@ -5,6 +5,7 @@ import { chooseSpeed, runningSpeed } from './controls';
 import { icon } from './icons';
 import { centerOn, redraw, renderer, speed } from './state';
 import { revealMap } from './tabs';
+import { glue } from './util';
 
 /** Toasts at once: three over a wide map, one on a phone (more covered the town being built). */
 const max = () => (matchMedia('(max-width: 860px)').matches ? 1 : 3);
@@ -55,9 +56,9 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
   const head = /^([^:]{1,16}): (.+)$/s.exec(words);
   if (head) {
     const b = document.createElement('b');
-    b.textContent = head[1]!;
-    body.append(b, document.createTextNode(head[2]!));
-  } else body.textContent = words;
+    b.textContent = glue(head[1]!);
+    body.append(b, document.createTextNode(glue(head[2]!)));
+  } else body.textContent = glue(words);
   body.dataset.text = text;
   body.dataset.at = where;
   el.append(badge, body);

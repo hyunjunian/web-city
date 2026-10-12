@@ -10,7 +10,7 @@ import { updatePanels } from './panels';
 import { ROUTE_COLOR, structureColor, TYPE_COLOR, zoneTint } from './render';
 import { cam, city, overlay, overlayType, redraw, renderer, setSelected } from './state';
 import { closeInfo, showTab } from './tabs';
-import { $, escapeHtml, flash, fmt, hours, josa, pct, touchFirst } from './util';
+import { $, escapeHtml, flash, fmt, glue, hours, josa, pct, touchFirst } from './util';
 import { refreshTaxes } from './controls';
 import { toolGlyph, TOOLS } from './tools';
 import { choice, remember } from './undo';
@@ -611,7 +611,7 @@ function growthSection(x: number, y: number): string {
     return f ? ` <button type="button" class="advice-view" data-tool="${f[0]}" title="${f[1]} 도구 고르기">${icon('plus')}${f[1]}</button>` : '';
   };
   const abandoned = abandonedHere(x, y);
-  return `<h3 class="sub">${abandoned ? '다시 입주하려면' : '개발 조건'}</h3><ul class="growth">${items.map(([tone, text], i) => `<li class="${tone}">${text}${fix(blockers[i]!)}</li>`).join('')}</ul>`;
+  return `<h3 class="sub">${abandoned ? '다시 입주하려면' : '개발 조건'}</h3><ul class="growth">${items.map(([tone, text], i) => `<li class="${tone}">${glue(text)}${fix(blockers[i]!)}</li>`).join('')}</ul>`;
 }
 
 /** What lifts each demand cap. */

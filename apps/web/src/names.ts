@@ -4,7 +4,7 @@ import {
   type AbandonReason, type AdvisorId, type CitySpan, type DevType, type DisasterKind, type NetworkKind, type OrdinanceId, type PollTopic, type StructureKind,
   type ThoughtSubject, type TripMeans, type ZoneKind,
 } from '@web-city/engine';
-import { fmt } from './util';
+import { fmt, glue } from './util';
 
 export const STRUCTURE_NAME: Record<StructureKind, string> = {
   smallParkGreen: '작은 공원', mediumParkGreen: '중간 공원', largeParkGreen: '큰 공원',
@@ -225,6 +225,8 @@ export const ADVICE_TEXT: Record<string, (v: number, type?: DevType) => string> 
   mayorLow: (v) => `시장 평점이 ${v}입니다. 평점이 아주 낮은 곳이 모이면 폭동이 일어날 수 있습니다.`,
   mayorHigh: (v) => `시민들이 시장을 좋아합니다(평점 ${v}).`,
 };
+// (Wherever the advisors' words are shown — a toast, a screen's headline, its diagnosis — they break between words.)
+for (const [code, say] of Object.entries(ADVICE_TEXT)) ADVICE_TEXT[code] = (v, type) => glue(say(v, type));
 
 export const MEANS_NAME: Record<TripMeans, string> = {
   walk: '걷기', car: '자동차', bus: '버스', train: '열차', subway: '지하철·고가 철도', monorail: '모노레일', ferry: '페리', freight: '화물',

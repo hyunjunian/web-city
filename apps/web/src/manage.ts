@@ -19,7 +19,7 @@ import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
-import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote, straightRuns } from './util';
+import { $, escapeHtml, firstSentence, flash, fmt, glue, josa, stoppedNote, straightRuns } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
 import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
@@ -106,10 +106,10 @@ function qualityGrid(counts: string, top: string, figs: PaneFigs): string {
     const g = GOALS[id];
     const wait = journal().pending[id] ? '<small class="s-wait" title="한 조치의 결과를 기다리는 중 (석 달 뒤 알려 드립니다)">결과 기다리는 중</small>' : '';
     // (A row with a line under it lays that line across the row: has-note.)
-    return `<button type="button" class="s-row ${s.tone || 'ok'}${s.tone || id === 'growth' ? ' has-note' : ''}${active === id ? ' on' : ''}" data-goal="${id}" title="${g.name}: ${escapeHtml(s.note)} · 눌러서 자세히" aria-label="${g.name}${s.tone === 'bad' ? ', 조치 필요' : s.tone === 'warn' ? ', 주의' : ''}: ${s.value}">
+    return `<button type="button" class="s-row ${s.tone || 'ok'}${s.tone || id === 'growth' ? ' has-note' : ''}${active === id ? ' on' : ''}" data-goal="${id}" title="${g.name}: ${escapeHtml(glue(s.note))} · 눌러서 자세히" aria-label="${g.name}${s.tone === 'bad' ? ', 조치 필요' : s.tone === 'warn' ? ', 주의' : ''}: ${s.value}">
       <span class="s-ic">${icon(g.icon)}</span><span class="s-main"><span class="s-name">${g.name}${wait}</span>${id === 'growth'
-        ? `<small class="s-note"><span class="s-sub">일자리 ${fmt(figs.jobs)}${figs.jobsTrend}</span>${s.tone ? ` · ${escapeHtml(s.note)}` : ''}</small>`
-        : s.tone ? `<small class="s-note">${escapeHtml(s.note)}</small>` : ''}</span><b class="s-val">${drift(id)}${id === 'growth' ? `${rciMini()}${s.value.replace(' 수요 ', ' ')}` : s.value}</b>${icon('chevronRight', 's-go')}</button>`;
+        ? `<small class="s-note"><span class="s-sub">일자리 ${fmt(figs.jobs)}${figs.jobsTrend}</span>${s.tone ? ` · ${escapeHtml(glue(s.note))}` : ''}</small>`
+        : s.tone ? `<small class="s-note">${escapeHtml(glue(s.note))}</small>` : ''}</span><b class="s-val">${drift(id)}${id === 'growth' ? `${rciMini()}${s.value.replace(' 수요 ', ' ')}` : s.value}</b>${icon('chevronRight', 's-go')}</button>`;
   };
   // 시장 평점: no goal of its own, a row all the same (below 0 it is a problem); pressed, the polls.
   const rTone: Tone = figs.rating < 0 ? 'bad' : figs.rating < 20 ? 'warn' : '';
@@ -242,7 +242,7 @@ function guideHtml(id: GoalId): string {
   const offGrid = id === 'power' && st.kind === 'line' && st.lay === 'powerline' && !['noPower', 'powerCutOff', 'idlePlant', 'powerShort'].includes(worst?.code ?? '');
   const said = st.said ?? (offGrid ? `전기 없는 구역이 ${fmt(unpoweredZones().off)}칸 있습니다` : told);
   const problem = said || s.note;
-  const title = said ? `<b>${escapeHtml(said)}</b>` : `<b>${escapeHtml(s.value)}</b> <span class="g-note">${escapeHtml(s.note)}</span>`;
+  const title = said ? `<b>${escapeHtml(glue(said))}</b>` : `<b>${escapeHtml(s.value)}</b> <span class="g-note">${escapeHtml(glue(s.note))}</span>`;
   const spot = suggestSpot(id);
   let action: string;
   if (st.kind === 'open') {
@@ -694,7 +694,7 @@ function nextHtml(tones: Tone[]): Step {
   // A problem reads as what is wrong, what it will cost if left, and the one thing to do;
   // with nothing wrong, the way to grow (under 지금 할 일, after the all-clear).
   const head = tone
-    ? `<p class="lead-title">${icon(g.icon)}<span><b>${g.name}</b> ${escapeHtml(goalStatus(id).note)}</span>${tone === 'bad' ? '<em>급함</em>' : ''}</p><p class="lead-risk">${RISK[id]}</p>`
+    ? `<p class="lead-title">${icon(g.icon)}<span><b>${g.name}</b> ${escapeHtml(glue(goalStatus(id).note))}</span>${tone === 'bad' ? '<em>급함</em>' : ''}</p><p class="lead-risk">${RISK[id]}</p>`
     : `<p class="lead-title">${icon('check')}<span>지금은 모두 순조롭습니다</span></p>`;
   // (A step laid in one press from the screen leaves the dock's 추천 dot off: its tool isn't the way.)
   return { goal: id, problem: !!tone, act: tone && kind !== 'line' ? step.act : '', html: `<div class="lead ${tone || 'calm'}">${head}
