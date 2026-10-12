@@ -2013,8 +2013,9 @@ export class Renderer {
       const inTop = Math.min(250, b.top + (b.bottom - b.top) * 0.25);
       const inBottom = Math.min(b.bottom - 12, cssH - 96);
       const [left, top, right, bottom] = [cam.x + (b.left + 36) * u, cam.y + inTop * u, cam.x + (b.right - 36) * u, cam.y + inBottom * u];
-      // (In sight anywhere in the band, it has none: one in the strip kept for the hint bar got an arrow on itself.)
-      const [vl, vt, vr, vb] = [cam.x + (b.left + 8) * u, cam.y + (b.top + 8) * u, cam.x + (b.right - 8) * u, cam.y + (b.bottom - 8) * u];
+      // (In sight below the corner cards — the view's legend, the minimap — it has none: one in the strip kept for the
+      // hint bar got an arrow drawn on itself. One under a corner card still gets its arrow.)
+      const [vl, vt, vr, vb] = [cam.x + (b.left + 8) * u, top, cam.x + (b.right - 8) * u, cam.y + (b.bottom - 8) * u];
       this.edgeMarks = [];
       // (No room for one: none.)
       if (bottom - top >= 30 * u && right - left >= 30 * u) for (const m of this.marks) {

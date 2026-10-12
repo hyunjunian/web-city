@@ -635,16 +635,28 @@ function goalLink(kind: Structure['kind'] | undefined, zone: string, way = false
  * no other station's of its service, as the views count reach — what clearing it or cutting its budget leaves out.
  * Null for one that serves no area, or where a city-wide one of its service reaches all.
  */
-export function aloneReached(st: Structure): { n: number; what: string } | null {
-  // (Schools by their level: a high school takes none of a primary school's pupils.)
-  const service = (k: StructureKind) => { const d = STRUCTURES[k]; return d.police?.radius ? 'police' : d.fire?.radius ? 'fire' : d.health ? 'health' : d.school ? `school:${d.school.curve}` : null; };
+export function aloneReached(st: Structure, gone: ReadonlySet<number> = new Set()): { n: number; what: string } | null {
+  // (Schools by their level: a high school takes none of a primary school's pupils. Of health, the hospitals and the
+  // research lab give the cover the views count; a farmer's market only lifts health, reaching no one.)
+  const service = (k: StructureKind) => {
+    const d = STRUCTURES[k];
+    return d.police?.radius ? 'police' : d.fire?.radius ? 'fire' : d.health ? (d.health.radius < 300 || d.health.boost >= 1 ? 'health' : null) : d.school ? `school:${d.school.curve}` : null;
+  };
+  // (How far each reaches now, as the engine draws it: a police or fire station by its funding, a strike, a missing road.)
+  const reach = (s: Structure) => {
+    const d = STRUCTURES[s.kind];
+    const r = d.police?.radius ?? d.fire?.radius;
+    return r ? r * Math.min(1.1, s.effectiveness) : coverageRadius(s.kind, s);
+  };
   const mine = service(st.kind);
-  const r = coverageRadius(st.kind, st);
+  const r = reach(st);
   if (!mine || !r) return null;
-  const others = [...city.state.structures.values()].filter((o) => o.id !== st.id && service(o.kind) === mine);
+  // (Others of its service; those being taken down with it don't count: two stations bulldozed together left out
+  // what they shared.)
+  const others = [...city.state.structures.values()].filter((o) => o.id !== st.id && !gone.has(o.id) && service(o.kind) === mine);
   // (One reaching the whole city — a research lab, a university — leaves none to this one alone.)
-  if (others.some((o) => !coverageRadius(o.kind, o))) return null;
-  const rings = others.map((o) => [o.x + o.w / 2, o.y + o.h / 2, coverageRadius(o.kind, o)] as const);
+  if (others.some((o) => !STRUCTURES[o.kind].police && !STRUCTURES[o.kind].fire && !coverageRadius(o.kind, o))) return null;
+  const rings = others.map((o) => [o.x + o.w / 2, o.y + o.h / 2, reach(o)] as const);
   const homes = mine === 'health' || mine.startsWith('school');
   const [cx, cy] = [st.x + st.w / 2, st.y + st.h / 2];
   let n = 0;

@@ -14,7 +14,7 @@ import { closeInfo, closePane, closeSheet, showTab } from './tabs';
 import { cancelMySimAction } from './mysims';
 import { $, endFlash, flash, fmt, touchFirst } from './util';
 import { GOAL_ORDER, GOALS, type GoalId } from './goals';
-import { capped, goalStatus } from './readings';
+import { capped, goalStatus, readStats } from './readings';
 
 export type Category = 'power' | 'water' | 'garbage' | 'safety' | 'health' | 'education' | 'park' | 'transport' | 'reward' | 'deal' | 'landmark';
 
@@ -690,7 +690,9 @@ function refreshZoneDemand(): void {
     const goal = VIEW_GOAL[sec.dataset.view!]!;
     const bar = goal === 'power' || goal === 'water' || goal === 'health' || goal === 'education' ? goalStatus(goal).bar : undefined;
     const pct = bar !== undefined && Number.isFinite(bar) ? Math.round(bar * 100) : 0;
-    const text = gap || (goal === 'power' || goal === 'water' ? (pct > 85 ? `${goal === 'power' ? '발전량' : '급수량'}의 ${pct}% 사용 중` : '') : pct > 100 ? `정원의 ${pct}% · 넘침` : '');
+    // (A grid with nothing feeding it reads no share: with no pump at all, 급수량의 200% 사용 중 was said.)
+    const fed = goal === 'power' ? readStats().power.supply > 0 : goal === 'water' ? readStats().water.supply > 0 : true;
+    const text = gap || (goal === 'power' || goal === 'water' ? (fed && pct > 85 ? `${goal === 'power' ? '발전량' : '급수량'}의 ${pct}% 사용 중` : '') : pct > 100 ? `정원의 ${pct}% · 넘침` : '');
     if (el.textContent !== text) el.textContent = text;
     // (Amber only while the goal itself asks for a look, as the city's list colours it: a gap in police cover
     // while crime stays low is a fact to build by, not an alarm.)

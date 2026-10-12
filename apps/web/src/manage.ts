@@ -1522,7 +1522,7 @@ function spotLine(id: GoalId): string {
   const build = (SERVICE_SITE.has(id) || site) && fit && kind
     ? `<button type="button" class="advice-view spot-build" data-spot-build="${fit.join(',')}" data-build-kind="${kind}" title="${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 이 자리에 짓기">${icon('plus')}여기에 짓기</button>` : '';
   return `<p class="mg-spot">${icon('target')}<span>${site
-    ? `<b>${SPOT_WORD[id]}</b>: ${id === 'power' ? '전기 없는 구역' : '물이 없는 건물'} ${fmt(spot.tiles)}칸${far ? '에서 연기가 주거에 닿지 않을 만큼 떨어진' : ' 가까이,'} 도로 옆${!far && id === 'power' && kind && smokyPlant(kind) ? ' · 주거에서 떨어진' : ''} 빈 땅 (지도의 과녁)`
+    ? `<b>${SPOT_WORD[id]}</b>: ${id === 'power' ? '전기 없는 구역' : '물이 없는 건물'} ${fmt(spot.tiles)}칸${far ? (kind && smokyPlant(kind) ? '에서 연기가 주거에 닿지 않을 만큼 떨어진' : '에서 가장 가까운') : ' 가까이,'} 도로 옆${!far && id === 'power' && kind && smokyPlant(kind) ? ' · 주거에서 떨어진' : ''} 빈 땅 (지도의 과녁)`
     : `<b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${fmt(spot.tiles)}칸 (지도의 과녁)`}</span>
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button>${build}</span></p>`;
 }
@@ -1627,8 +1627,9 @@ function placeToolMark(): void {
   };
   // (Not a jail, nor a library, university or research lab that reaches the whole city: where it stands changes nothing.)
   const local = !!d && (d.police ? d.police.radius > 0 : d.school ? d.school.radius < 300 : d.health ? d.health.radius < 300 : !!d.fire);
-  const at = !kind || !d || !id ? null
-    : SERVICE_SITE.has(id) ? (local ? nearSpot(id) : null)
+  // (A deal has no goal of its own: only a station's search needs one.)
+  const at = !kind || !d ? null
+    : id && SERVICE_SITE.has(id) ? (local ? nearSpot(id) : null)
     : d.plant ? siteByPlants(kind) ?? nearSpot('power') ?? plantNear(kind)
     : d.pump ? siteOnPipes(kind) ?? nearSpot('water')
     : d.incinerator || d.recycling ? siteAwayFromHomes(kind)
@@ -1644,9 +1645,16 @@ function placeToolMark(): void {
   // carries no one) — a side already with a stop within 8 tiles left out, so the next goes to the other side.
   if (kind && d?.station?.mode === 'bus') {
     const stops = [...city.state.structures.values()].filter((st) => STRUCTURES[st.kind].station?.mode === 'bus');
-    (stopPair(kind) ?? []).forEach(([x, y], k) => {
-      if (stops.some((st) => Math.max(Math.abs(st.x - x), Math.abs(st.y - y)) <= 8)) return;
-      marks.push({ x, y, w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]} (${k ? '일터 쪽' : '집 쪽'})` });
+    const pair = stopPair(kind, 1);
+    // (A side is served by a stop within 8 tiles of it and nearer it than the other side: home and work 8 to 16 tiles
+    // apart, the new home stop also stood within 8 of the work side, and both went.)
+    const near = (p: readonly [number, number], q: readonly [number, number]) => stops.some((st) => {
+      const dp = Math.max(Math.abs(st.x - p[0]), Math.abs(st.y - p[1]));
+      return dp <= 8 && dp < Math.max(Math.abs(st.x - q[0]), Math.abs(st.y - q[1]));
+    });
+    pair?.forEach((p, k) => {
+      if (near(p, pair[1 - k]!)) return;
+      marks.push({ x: p[0], y: p[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]} (${k ? '일터 쪽' : '집 쪽'})` });
     });
   }
   if (JSON.stringify(marks) === JSON.stringify(renderer.marks)) return;

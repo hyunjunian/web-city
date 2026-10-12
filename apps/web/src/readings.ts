@@ -1349,8 +1349,9 @@ let fillMemo: { key: string; at: ReturnType<typeof landfillSite> } | null = null
  * no one: a trip rides from a stop near home to one near work), each beside a road and within 8 tiles of the
  * middle of its block (blocks of 12 tiles). Their middle tiles, or null.
  */
-export function stopPair(kind: StructureKind): [[number, number], [number, number]] | null {
-  if (!buildable(kind, 2)) return null;
+export function stopPair(kind: StructureKind, afford = 2): [[number, number], [number, number]] | null {
+  // (The money for both, as the guide builds them together; for one where a stop already stands on the other side.)
+  if (!buildable(kind, afford)) return null;
   const key = `stops|${kind}|${siteKey()}`;
   if (pairMemo?.key === key) return pairMemo.at;
   const n = city.size;

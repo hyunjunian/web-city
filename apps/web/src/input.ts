@@ -813,7 +813,7 @@ export function applyTool(): void {
         const occ = city.state.occupant[y * city.size + x] ?? 0;
         if (occ < 0) ids.add(-occ);
       }
-      const alone = [...ids].map((id) => city.state.structures.get(id)).map((st) => (st ? aloneReached(st) : null)).filter((a): a is NonNullable<typeof a> => !!a?.n);
+      const alone = [...ids].map((id) => city.state.structures.get(id)).map((st) => (st ? aloneReached(st, ids) : null)).filter((a): a is NonNullable<typeof a> => !!a?.n);
       lostCover = alone.length ? { n: alone.reduce((sum, a) => sum + a.n, 0), what: alone.some((a) => a.what === '건물') ? '건물' : '집' } : null;
       res = city.bulldoze(x0, y0, x1, y1);
       break;
