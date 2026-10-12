@@ -17,7 +17,7 @@ import { abandonHint, capBest, capHint, jobHint, pushNotice, rciMini, updatePane
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, flightCount, glideTo, graphs, redraw, renderer, setHover, speed, stopFlight } from './state';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
-import { dropToasts, toast } from './toast';
+import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote, straightRuns } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
@@ -821,7 +821,7 @@ export function watchGoals(): void {
     // (No advisor's word for it: the goal's own reading says what is wrong — "조치가 필요해졌습니다" said nothing.)
     const why = (word ? ADVICE_TEXT[word.code]?.(word.value ?? 0, word.type) : undefined) ?? (goalStatus(id).note || undefined);
     // (Paused, the toast stays until it is read or time goes on: one that left in seconds left only a badge.)
-    toast(`${inc ? inc.title : `${GOALS[id].name}: ${why ? firstSentence(why) : '조치가 필요해졌습니다'}`}${stop ? stoppedNote() : ''}`, 'bad', inc?.at ?? word?.at, () => openGoal(id, inc?.at ?? word?.at), stop);
+    toast(`${inc ? inc.title : `${GOALS[id].name}: ${why ? firstSentence(why) : '조치가 필요해졌습니다'}`}${stop ? stoppedNote() : ''}`, 'bad', inc?.at ?? word?.at, () => openGoal(id, inc?.at ?? word?.at), stop, undefined, id);
     if (inc && stop) centerOn(inc.at[0], inc.at[1]); // a fire or a riot: the map goes to it
   }
   const j = journal();
@@ -838,7 +838,7 @@ export function watchGoals(): void {
     // Told on the goal's log too, under what was done.
     j.done.unshift({ goal: id, day, text: `└ 3개월 뒤: ${line}`, key: 'result' });
     pushNotice({ text: `${GOALS[id].name} · ${p.text}${p.count > 1 ? ` 외 ${p.count - 1}건` : ''} → 3개월 뒤 ${line}`, warn: better === false, goal: id, until: day + 360 });
-    toast(`${GOALS[id].name} · ${p.text}${p.count > 1 ? ` 외 ${p.count - 1}건` : ''} 3개월 뒤: ${line}`, !d ? 'info' : better === false ? 'bad' : 'good', undefined, () => openGoal(id));
+    toast(`${GOALS[id].name} · ${p.text}${p.count > 1 ? ` 외 ${p.count - 1}건` : ''} 3개월 뒤: ${line}`, !d ? 'info' : better === false ? 'bad' : 'good', undefined, () => openGoal(id), false, undefined, id);
   }
 }
 
@@ -886,6 +886,7 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
   // Its notice ("수도: 단수 69곳 · 살펴보기") has done its job once the screen is open: on a phone it stayed over the
   // map where the fix was then laid. (The clock's own buttons, and the screen's 멈춤, still start time again.)
   dropToasts(`${GOALS[id].name}: `);
+  dropGoalToasts(id); // (an advisor's alarm too, worded with the advisor's name: 공공시설: …)
   if (changed) {
     if (!active) {
       viewBefore = currentView();

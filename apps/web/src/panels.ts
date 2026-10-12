@@ -937,7 +937,7 @@ export function flushAlarms(): void {
     toast(firstSentence(a.text), 'bad', a.at, () => {
       closeSheet(); // the place is on the map: the sheet over it goes
       openGoal(a.goal, a.at, true);
-    });
+    }, false, undefined, a.goal);
   }
 }
 

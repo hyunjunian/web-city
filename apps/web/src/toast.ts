@@ -19,8 +19,17 @@ export function dropToasts(prefix: string): void {
   }
 }
 
-/** `at`: a tile the notice is about; clicking the notice then shows it. */
-export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'good', at?: [number, number], open?: () => void, sticky = false, label?: string): void {
+/** Puts away the notices about a goal (whatever their words begin with): its screen is open now. */
+export function dropGoalToasts(goal: string): void {
+  for (const el of document.querySelectorAll<HTMLElement>('#toasts .toast')) {
+    if (el.dataset.goal !== goal || el.classList.contains('leaving')) continue;
+    el.classList.add('leaving');
+    setTimeout(() => el.remove(), 250);
+  }
+}
+
+/** `at`: a tile the notice is about; clicking the notice then shows it. `goal`: the screen it opens, to put it away when that opens. */
+export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'good', at?: [number, number], open?: () => void, sticky = false, label?: string, goal?: string): void {
   const box = document.querySelector('#toasts');
   if (!box) return;
   // The same words about the same place already showing: not again (picking two checklist steps stacked two of
@@ -32,6 +41,7 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
   el.tabIndex = 0;
   el.setAttribute('role', 'button');
   el.className = `toast ${tone}`;
+  if (goal) el.dataset.goal = goal;
   el.title = label ?? (open ? '눌러서 관리 화면 열기' : at ? '눌러서 그곳 보기' : '닫기');
   // A tone badge, the text (its subject in bold: "개발·수요: …"), and a chevron when it leads somewhere.
   const badge = document.createElement('span');
