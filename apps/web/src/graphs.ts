@@ -324,7 +324,8 @@ export class Graphs {
       // (the line's shape said rising or falling; the size of it took reading the axis).
       const change = vals.at(-1)! - vals[0]!;
       const size = g.format(Math.abs(change));
-      if (!hovered && size !== g.format(0) && Math.abs(change) >= 0.005 * Math.max(...vals.map(Math.abs))) {
+      // (Not where two lines share the graph: a change of one of them, beside both values, read as the gap.)
+      if (!hovered && !other && size !== g.format(0) && Math.abs(change) >= 0.005 * Math.max(...vals.map(Math.abs))) {
         const tone = g.better ? (Math.sign(change) === g.better ? 'up' : 'down') : '';
         const delta = document.createElement('small');
         delta.className = `graph-delta${tone ? ` ${tone}` : ''}`;
