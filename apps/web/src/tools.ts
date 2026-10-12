@@ -685,11 +685,16 @@ function refreshZoneDemand(): void {
   document.querySelectorAll<HTMLElement>('#tools .tray-section[data-view]').forEach((sec) => {
     const el = sec.querySelector<HTMLElement>('.zone-demand')!;
     // (Under its own heading the service needn't be named again: 경찰 · 닿지 않는 건물 147채.)
-    const text = viewProblem(sec.dataset.view!).replace(/^(경찰|소방|병원|학교)[이가] /, '');
+    const gap = viewProblem(sec.dataset.view!).replace(/^(경찰|소방|병원|학교)[이가] /, '');
+    // (Nothing out of reach: how full it runs, where that is the trouble — hospitals past their places, the grid near its output.)
+    const goal = VIEW_GOAL[sec.dataset.view!]!;
+    const bar = goal === 'power' || goal === 'water' || goal === 'health' || goal === 'education' ? goalStatus(goal).bar : undefined;
+    const pct = bar !== undefined && Number.isFinite(bar) ? Math.round(bar * 100) : 0;
+    const text = gap || (goal === 'power' || goal === 'water' ? (pct > 85 ? `${goal === 'power' ? '발전량' : '급수량'}의 ${pct}% 사용 중` : '') : pct > 100 ? `정원의 ${pct}% · 넘침` : '');
     if (el.textContent !== text) el.textContent = text;
     // (Amber only while the goal itself asks for a look, as the city's list colours it: a gap in police cover
     // while crime stays low is a fact to build by, not an alarm.)
-    el.className = `zone-demand${text && goalStatus(VIEW_GOAL[sec.dataset.view!]!).tone ? ' cap' : ''}`;
+    el.className = `zone-demand${text && goalStatus(goal).tone ? ' cap' : ''}`;
   });
   const dem = city.demand;
   document.querySelectorAll<HTMLElement>('#tools .tray-section[data-cap]').forEach((sec) => {
