@@ -21,7 +21,7 @@ import { toast } from './toast';
 import { choice } from './undo';
 import { $, escapeHtml, firstSentence, flash, fmt, josa, stoppedNote } from './util';
 import { type Dept, type Goal, GOAL_ORDER, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, siteNear, siteNearHomes, siteOnPipes, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
+import { type Incident, adviceFor, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, siteByPlants, siteNear, siteNearHomes, siteOnPipes, suggestSpot, sum, unpoweredZones, waterApart } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -240,12 +240,13 @@ function guideHtml(id: GoalId): string {
     // for the one recommended (the mark was found for the one that would relieve it, often smaller); a park
     // for the cap does anywhere, so the free ground nearest the homes (the land was all zoned, and 해 보기 left
     // the player to hunt for a gap); a water source where its water counts, touching the pipes (one standing
-    // alone added nothing to the shortage).
+    // alone added nothing to the shortage); a plant beside the plants (only the margin short: nothing to mark).
     const what = id === 'education' ? '학교' : '병원';
     const own = site || !st.build ? null
       : spot?.crowded && st.kind === 'best' ? { at: siteNear(st.build, spot.x, spot.y), title: `넘치는 ${what} 가까이, 길가 빈 땅에 바로 짓기` }
       : st.anywhere ? { at: siteNearHomes(st.build), title: '주거지에서 가장 가까운 길가 빈 땅에 바로 짓기' }
-      : id === 'water' && STRUCTURES[st.build].pump ? { at: siteOnPipes(st.build), title: '수도관에 닿고 전기가 들어오는 빈 땅에 바로 짓기' } : null;
+      : id === 'water' && STRUCTURES[st.build].pump ? { at: siteOnPipes(st.build), title: '수도관에 닿고 전기가 들어오는 빈 땅에 바로 짓기' }
+      : id === 'power' && STRUCTURES[st.build].plant ? { at: siteByPlants(st.build), title: '있는 발전소 옆, 전력망에 닿는 길가 빈 땅에 바로 짓기' } : null;
     const siteTitle = `지도의 과녁(${SPOT_WORD[id] ?? ''})에 바로 짓기`;
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b>${st.sub ? `<small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small>` : ''}</p>
       ${why ? `<p class="${st.fx ? 'g-act-fx' : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}

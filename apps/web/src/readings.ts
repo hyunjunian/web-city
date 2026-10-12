@@ -687,6 +687,47 @@ export function siteNear(kind: StructureKind, x: number, y: number, reach = 12):
 }
 let nearMemo: { key: string; at: [number, number] | null } | null = null;
 
+/** Homes (a residential zone) within 6 tiles of a rectangle: no place for a smoky plant. */
+function homesNear(lx: number, ly: number, w: number, h: number): boolean {
+  const s = city.state;
+  const n = city.size;
+  const R = 6;
+  for (let y = Math.max(0, ly - R); y < Math.min(n, ly + h + R); y++) for (let x = Math.max(0, lx - R); x < Math.min(n, lx + w + R); x++) {
+    const z = s.zone[y * n + x]!;
+    if (z >= 1 && z <= 3) return true;
+  }
+  return false;
+}
+
+/**
+ * A site for one more power plant while nothing is dark yet (only the margin is short, so the map has no
+ * mark): beside a plant the city has (clear of homes and on the grid already), with a road beside it, in
+ * reach of the powered grid and, for a smoky one, away from homes. Its middle tile, or null.
+ */
+export function siteByPlants(kind: StructureKind): [number, number] | null {
+  const key = `plants|${kind}|${changeKey()}`;
+  if (plantMemo?.key === key) return plantMemo.at;
+  const d = STRUCTURES[kind];
+  const smoky = (d.plant?.air[0] ?? 0) > 0;
+  let at: [number, number] | null = null;
+  let near = Infinity;
+  for (const p of city.state.structures.values()) {
+    if (!STRUCTURES[p.kind].plant) continue;
+    const [cx, cy] = [p.x + (p.w >> 1), p.y + (p.h >> 1)];
+    ring: for (let r = 0; r <= 16 && r < near; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const [lx, ly] = [cx + dx - ((d.w - 1) >> 1), cy + dy - ((d.h - 1) >> 1)];
+      if (!city.canPlaceStructure(kind, lx, ly).ok || !city.roadBeside(lx, ly, d.w, d.h) || city.powerReach(kind, lx, ly) !== 'powered'
+        || (smoky && homesNear(lx, ly, d.w, d.h))) continue;
+      [near, at] = [r, [cx + dx, cy + dy]];
+      break ring;
+    }
+  }
+  plantMemo = { key, at };
+  return at;
+}
+let plantMemo: { key: string; at: [number, number] | null } | null = null;
+
 let spotMemo: { key: string; spot: { x: number; y: number; tiles: number; crowded?: true } | null } | null = null;
 /** Buildings go without water though the pumps make enough for all: their networks aren't joined. */
 export function waterApart(): boolean {
@@ -778,14 +819,6 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
         // build, and put a gas plant on top of a zone, or on a crossroads).
         const kind = SERVICE.has(id) ? cheapestOf(GOALS[id]) : id === 'power' ? siteKind('power') : id === 'water' ? siteKind('water') : null;
         const smoky = !!kind && (STRUCTURES[kind].plant?.air[0] ?? 0) > 0;
-        const homesNear = (lx: number, ly: number, w: number, h: number) => {
-          const R = 6;
-          for (let y = Math.max(0, ly - R); y < Math.min(n, ly + h + R); y++) for (let x = Math.max(0, lx - R); x < Math.min(n, lx + w + R); x++) {
-            const z = s.zone[y * n + x]!;
-            if (z >= 1 && z <= 3) return true;
-          }
-          return false;
-        };
         const fits = (x: number, y: number) => {
           if (!open(x, y)) return false;
           if (!kind) return true;
