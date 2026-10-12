@@ -310,7 +310,8 @@ function guideHtml(id: GoalId): string {
       })() : null;
     // (A station's spot is where those it misses gather, not on them: "과녁(경찰이 닿지 않는 건물)에 짓기" read as building
     // on the buildings.)
-    const siteTitle = SERVICE_SITE.has(id) ? `지도의 과녁에 바로 짓기: ${SPOT_WORD[id]}${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 가까이` : `지도의 과녁(${SPOT_WORD[id] ?? ''})에 바로 짓기`;
+    const siteTitle = spot?.plants ? '지도의 과녁에 바로 짓기: 소방이 닿지 않는 발전소 가까이'
+      : SERVICE_SITE.has(id) ? `지도의 과녁에 바로 짓기: ${SPOT_WORD[id]}${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 가까이` : `지도의 과녁(${SPOT_WORD[id] ?? ''})에 바로 짓기`;
     // What the press does: an ordinance or a finance lever takes effect at once (해 보기 sounded like a tool to try).
     const go = st.kind === 'ord' ? '시행하기' : st.fin === 'loan' ? '빌리기' : st.fin || st.kind === 'budget' ? '적용하기' : '해 보기';
     if (own) guideSite = { id, sites: own.at.map((at, k) => ({ at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}${own.labels[k] ? ` (${own.labels[k]})` : ''}` })) };
@@ -1520,7 +1521,9 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   // (While something burns, the fire is the place to look, not the gap in cover.)
   const spot = incidents().some((x) => x.goal === id) ? null : suggestSpot(id);
   // (Its label says what the panel's line says: next to a full hospital or school, the dry buildings, or the gap.)
-  const label = spot?.crowded ? `넘치는 ${id === 'education' ? '학교' : '병원'} 옆` : id === 'water' && spot && waterApart() ? '물이 끊긴 건물' : SPOT_WORD[id];
+  // (A fire spot weighed for a plant out of cover says so, as its line does.)
+  const label = spot?.crowded ? `넘치는 ${id === 'education' ? '학교' : '병원'} 옆` : id === 'water' && spot && waterApart() ? '물이 끊긴 건물'
+    : spot?.plants ? '소방이 닿지 않는 발전소' : SPOT_WORD[id];
   // The guide's own site too, so 추천 자리에 짓기 shows where before it builds (beside a full hospital it takes
   // the place of the mark it was found near).
   const own = guideSite?.id === id ? guideSite : null;
