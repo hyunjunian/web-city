@@ -572,9 +572,11 @@ function lineTag(plan: { tiles: number; cost: number; message?: string | null })
 
 /** Why a plan can't go ahead, in words: short of money says by how much (자금이 부족합니다 alone left it to guess). */
 function reason(plan: { cost?: number; message?: string | null }): string {
-  return plan.message === 'not enough funds' && plan.cost
-    ? `§${fmt(Math.ceil(plan.cost - Math.max(0, city.state.funds)))} 모자람 (가진 돈 §${fmt(Math.max(0, Math.floor(city.state.funds)))})` // (the price and 자금 부족 ride in the chip)
-    : ko(plan.message ?? '');
+  if (plan.message !== 'not enough funds' || !plan.cost) return ko(plan.message ?? '');
+  // Against the money as it stands: in debt, the debt is paid off first (§300 at −§2,000 is §2,300 short).
+  // (The price and 자금 부족 ride in the chip.)
+  const funds = city.state.funds;
+  return `§${fmt(Math.ceil(plan.cost - funds))} 모자람 (${funds < 0 ? `빚 §${fmt(Math.ceil(-funds))}` : `가진 돈 §${fmt(Math.floor(funds))}`})`;
 }
 
 /**
