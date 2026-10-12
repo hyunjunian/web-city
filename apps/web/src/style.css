@@ -2331,14 +2331,14 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 /* ---- the pane's head: the region › the city */
 .crumbs { order: -2; display: flex; align-items: center; gap: 1px; min-width: 0; margin: -6px 0 -8px -6px; }
 .crumbs button { min-height: 32px; padding: 4px 6px; border-radius: 9px; background: transparent; white-space: nowrap; }
-.crumb-region { flex: 0 1 auto; min-width: 0; gap: 5px; color: var(--muted); font-size: 13px; font-weight: 550; }
+.crumb-region { flex: 0 12 auto; min-width: 5.5em; gap: 5px; color: var(--muted); font-size: 13px; font-weight: 550; } /* (a long region's name gives way before the city's) */
 .crumb-region > span:last-child { overflow: hidden; text-overflow: ellipsis; }
 .crumb-region .i { width: 15px; height: 15px; }
 .crumb-region.none { color: var(--faint); font-weight: 500; }
 .crumb-region.open { background: var(--accent-soft); color: var(--accent-hi); }
 .crumb-sep { display: grid; place-items: center; flex: none; color: var(--faint); }
 .crumb-sep .i { width: 14px; height: 14px; }
-.crumb-city { flex: 0 1 auto; min-width: 0; gap: 6px; color: var(--text); font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.crumb-city { flex: 0 0 auto; min-width: 0; max-width: calc(100% - 7.5em); gap: 6px; color: var(--text); font-size: 16px; font-weight: 700; letter-spacing: -0.01em; } /* (whole unless it alone is too long) */
 .crumb-city > span:first-child { overflow: hidden; text-overflow: ellipsis; }
 /* (Its pencil comes up under the pointer or the keyboard: pressed, the name changes.) */
 .crumb-city .i { width: 14px; height: 14px; color: var(--muted); opacity: 0; transition: opacity 0.15s; }
@@ -2535,7 +2535,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #view.info-open #map-controls { right: 8px; }
   #goal-strip:not([hidden]) { top: calc(70px + env(safe-area-inset-top)); left: calc(var(--dock-w) + 16px); right: 56px; }
   #manage-chip:not([hidden]) { top: calc(66px + env(safe-area-inset-top)); left: calc(var(--dock-w) + 16px); }
-  #toasts { top: calc(66px + env(safe-area-inset-top)); left: calc(var(--dock-w) + 16px); right: 56px; width: auto; transform: none; animation: none; }
+  #toasts { top: calc(66px + env(safe-area-inset-top)); bottom: auto; align-content: start; left: calc(var(--dock-w) + 16px); right: 56px; width: auto; transform: none; animation: none; }
   #view:has(#goal-strip:not([hidden])) #toasts { top: calc(116px + env(safe-area-inset-top)); }
   #view:has(#manage-chip:not([hidden])) #toasts { margin-top: 50px; }
   /* A goal's chip (its screen put away) under the top bar: the view's card below it. */
@@ -2571,6 +2571,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #map-controls, #view.info-open #map-controls { top: calc(8px + env(safe-area-inset-top)); right: 8px; }
   #view #mapbar #map-layer:not(.picking) { right: auto; width: 300px; }
   #view #mapbar #map-layer.picking { right: auto; width: min(560px, calc(100vw - 16px)); }
+  #toasts { right: auto; width: min(440px, calc(100% - var(--dock-w) - 72px)); } /* (a card, not a banner across the map) */
 }
 /* Sideways, the side panels open under that row, so the bar never covers their heads. */
 @media (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
