@@ -11,7 +11,7 @@ import { ko } from './messages';
 import { renderMySims } from './mysims';
 import { ABANDON_NAME, ADVICE_TEXT, plainCodes, ADVISOR_NAME, CRIME_NAME, EDGE_NAME, ORDINANCE_NAME, POLL_NAME, REPORT_NAME, RESOURCE_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME, TYPE_SHORT } from './names';
 import { renderOnboarding } from './onboarding';
-import { renderNeighbours } from './region';
+import { region, renderNeighbours } from './region';
 import { TYPE_COLOR } from './render';
 import { GROWTH_LABEL } from './views';
 import { checkLeft, checkText, renderAges, renderPolls, renderRewards, rewardShare } from './reports';
@@ -364,12 +364,25 @@ export function updatePanels(): void {
   };
   // Always a word with the arrow (a bare ≋ → read as a glyph puzzle).
   const wind = `바람 ${'→↘↓↙←↖↑↗'[city.state.wind.dir]}${city.state.wind.strength > 0.5 ? ' 강풍' : ''}`;
-  $('#city-title').textContent = city.state.name;
+  // The pane's head: the region (or none: a city of its own, which the 지역 sheet can make one of) › the city.
+  const cityName = $('#city-name');
+  if (cityName.textContent !== city.state.name) {
+    cityName.textContent = city.state.name;
+    $('#city-title').setAttribute('aria-label', `${city.state.name}: 도시 이름 바꾸기`);
+  }
+  const regionName = region ? region.name : '지역 없음';
+  const regionEl = $('#crumb-region-name');
+  if (regionEl.textContent !== regionName) {
+    regionEl.textContent = regionName;
+    $('#crumb-region').classList.toggle('none', !region);
+    $('#crumb-region').title = region ? `${region.name}: 지역의 도시·이웃·거래 (J)` : '지역에 속하지 않은 도시 · 이웃 도시·거래, 새 지역 만들기 (J)';
+  }
   const dateEl = $('#sb-date');
   const label = `${d.year}년 ${d.month}월`;
   // A new month eases in; a hairline under the date fills as the month goes by (time otherwise jumped month to month).
   if (dateEl.textContent !== label) {
-    dateEl.textContent = label;
+    // (Year and month apart: on a phone's narrow bar they stack.)
+    dateEl.innerHTML = `<span class="d-y">${d.year}년</span> <span class="d-m">${d.month}월</span>`;
     dateEl.classList.remove('turned');
     void dateEl.offsetWidth;
     dateEl.classList.add('turned');
@@ -378,7 +391,7 @@ export function updatePanels(): void {
   $('#sb-wind').innerHTML = `${icon('wind')}<span>${wind}</span>`;
   // The wind matters where fire spreads: in sight in a gale or while something burns, else out of the way.
   $('#sb-wind').hidden = !(city.state.wind.strength > 0.5 || city.state.fires.length || city.state.treeFires.length);
-  // (The status bar keeps the date and the clock: population and money are read in the city pane.)
+  // (The map's top bar keeps the date and the clock: population and money are read in the city pane.)
   // The advisors first: the watch list reads their latest word (a row lagged an update behind).
   const adv = advice();
   watchGoals(); // a goal turning to 조치 필요 may stop the clock; an action's result is told

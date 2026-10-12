@@ -63,11 +63,11 @@ export function showHelp(): void {
   const tips: [string, string][] = touch ? [
     ['끄는 동안 보이는 것', '끄는 동안 손가락 위에 칸 수와 비용이, 화면 아래에 자세한 내용이 나오고, 지을 수 없으면 빨갛게 이유를 알려 줍니다(구역은 함께 놓일 골목 자리까지 미리 보임).'],
     ['같은 묶음의 다른 도구', '도구를 든 동안 지도 아래쪽 줄에서 다른 도로 종류·밀도·시설 종류로 바로 바꿀 수 있습니다. 도구 카드 위의 찾기 칸에 이름(예: 소방서)을 쓰면 어느 묶음에 있든 찾아 주고, 최근 쓴 도구도 거기 모여 있습니다.'],
-    ['짓기 메뉴와 도구 카드', '지도 위쪽 메뉴의 <b>짓기</b>를 누르면 그 아래로 도구 카드가 열립니다. 카드 맨 위에서 교통·구역·공공시설 같은 묶음을 고르고 종류를 누르세요. 지도를 누르기 시작하면 카드는 접힙니다. 묶음 이름 옆에는 지금 모자란 것(닿지 않는 건물 수, 구역 수요)이 나옵니다. 시설을 고르면 지도에 <b>추천 자리</b> 과녁이(구역은 블록 테두리, 송전선·수도관은 점선 길이) 나오고, 화면 밖이거나 시트 아래면 가장자리의 파란 화살표를 눌러 그곳으로 갑니다. 놓을 자리를 누르면 아래 막대에 그 자리에서 새로 닿는 건물 수가 나옵니다.'],
+    ['짓기 메뉴와 도구 카드', '지도 왼쪽 막대의 <b>짓기</b>를 누르면 도구 카드가 열립니다. 카드 맨 위에서 교통·구역·공공시설 같은 묶음을 고르고 종류를 누르세요. 지도를 누르기 시작하면 카드는 접힙니다. 묶음 이름 옆에는 지금 모자란 것(닿지 않는 건물 수, 구역 수요)이 나옵니다. 시설을 고르면 지도에 <b>추천 자리</b> 과녁이(구역은 블록 테두리, 송전선·수도관은 점선 길이) 나오고, 화면 밖이거나 시트 아래면 가장자리의 파란 화살표를 눌러 그곳으로 갑니다. 놓을 자리를 누르면 아래 막대에 그 자리에서 새로 닿는 건물 수가 나옵니다.'],
     ['칸 정보 보기', '도구를 들지 않은 채 칸을 살짝 누르면 아래에서 정보 카드가 올라옵니다. 건물·길을 누르면 그곳을 오가는 길이 지도에 그려지고, 집이면 주민 생각도 함께 나옵니다. 문제가 있는 시설의 카드에는 고치는 버튼(옆에 하나 더 짓기, 예산 100%로 등)이 함께 나옵니다.'],
     ['조언의 보기·+ 버튼', '조언·알림의 <b>보기</b>를 누르면 문제를 보여 주는 지도 보기로 바뀌고 그 장소로 옮겨 갑니다. <b>+ 학교</b>처럼 생긴 버튼은 그 문제를 고칠 도구를 바로 골라 줍니다.'],
     ['건물이 안 들어설 때', '건물이 안 들어서면 빈 구역 칸을 눌러 보세요. 전기·도로·일터 연결·수요·쾌적도 중 무엇이 막는지 알려 줍니다.'],
-    ['도시 현황', '<b>도시</b>를 열면 위에 도시의 크기와 다음 보상이, 그 아래 도시 상태(재정·시장 평점·개발·전력 등 모든 분야)가 보이고, 누르면 그 관리 화면과 통계가 나옵니다. 세율·예산·대출·조례는 도시 상태의 <b>재정·정책</b>에서 바꿉니다. 위쪽 막대에서 <b>주민</b>·<b>지역</b>을 봅니다. 저장·불러오기·테마는 <b>⋯</b> 메뉴에 있습니다.'],
+    ['도시 현황', '<b>도시</b>를 열면 위에 도시의 크기와 다음 보상이, 그 아래 도시 상태(재정·시장 평점·개발·전력 등 모든 분야)가 보이고, 누르면 그 관리 화면과 통계가 나옵니다. 세율·예산·대출·조례는 도시 상태의 <b>재정·정책</b>에서 바꿉니다. 맨 위의 <b>지역 › 도시 이름</b>에서 지역을 열고 이름을 바꿉니다. <b>주민</b>·<b>지역</b>과 저장·불러오기·테마는 위쪽 막대의 <b>⋯</b> 메뉴에 있습니다.'],
     ['도시 상태 읽기', '<b>도시 상태</b>에서 조치가 필요한 곳(빨강·주황)을 누르면 그 화면 맨 위에 무엇이 문제인지와 추천 조치가 나오고, 해 보기를 누르면 그 도구가 손에 들리고, <b>추천 자리에 짓기</b>를 누르면 알맞은 빈 땅(서비스가 닿지 않는 곳, 수도관·전력망에 닿는 곳 등)에 바로 지어집니다(매립지·구역은 알맞은 크기로 <b>추천 자리에 N×N 놓기</b>). 과녁이 화면 밖이면 가장자리의 파란 화살표가 그쪽을 가리키고, 누르면 그곳으로 갑니다. 전기·물·도로가 닿지 않는 곳은 지도에 점선으로 그려 둔 가장 짧은 송전선·수도관·도로를 <b>바로 잇기</b>로 한 번에 놓습니다(위쪽 ↶로 되돌리기). 예산·조례·대출을 바꾸는 추천은 적용하기·시행하기·빌리기로 바로 바뀝니다(불·폭동은 도시 상태 위에 출동 카드가 먼저 뜹니다). 어느 항목이 조치 필요로 바뀌면 시간이 멈추고(⋯ 메뉴에서 끄기), 관리 화면에서 한 조치는 3개월 뒤 결과(핵심 수치의 변화)를 알려 줍니다. 도시 상태는 급한 곳(빨강)·살펴볼 곳(주황)이 위에 이유와 함께, 양호한 곳이 아래에 나오고, ▲▼는 지난 3개월의 흐름, "결과 기다리는 중"은 결과를 기다리는 조치입니다. 지나간 알림은 <b>소식</b>에 남고 도시와 함께 저장됩니다.'],
     ['관리 화면', '<b>도시</b>의 도시 상태(개발·전력·수도·교육 등)에서 항목을 누르면 그 분야의 관리 화면이 열립니다: 지도 보기가 맞춰지고, 수치와 변화, 진단, 지을 것·예산·조례가 한곳에 모입니다. 시설 버튼을 누르면 지도로 넘어가고, 지도 위 칩을 누르면 관리 화면으로 돌아옵니다. 지도의 과녁은 서비스가 가장 많이 빠진 곳입니다.'],
     ['불·폭동 출동', '불·폭동은 <b>시민 서비스</b>의 소방 출동·경찰 출동 도구로(또는 도시 상태 위 출동 카드의 출동 준비) 그곳을 누르면 가까운 서에서 차가 갑니다(서의 크기만큼 대수 제한). 폭동은 경찰차 3대 이상이 모여야 진압되니(막다른 길 제외) 같은 곳을 여러 번 누르세요. 아무것도 짓기 전의 새 도시에서는 지형 편집이 무료입니다.'],
@@ -76,8 +76,8 @@ export function showHelp(): void {
   ] : [
     ['키보드로 짓기', '키보드만으로도 지을 수 있습니다: 건설 도구를 들고 방향키로 커서를 옮겨(Shift: 5칸, 지도가 따라감) Enter로 짓습니다. 도로·구역처럼 끌어 짓는 도구는 시작점과 끝점에서 Enter를 한 번씩 누르고, Esc로 취소합니다.'],
     ['끄는 동안 보이는 것', '끄는 동안 그 자리 바로 옆 칩에 칸 수·비용과 걸리는 점이 나오고, 지을 수 없으면 빨갛게 이유를 알려 줍니다(구역은 함께 놓일 골목 자리까지 미리 보임). 도로는 처음 끈 방향으로 먼저 뻗어 꺾이고, Shift를 누르면 곧게 뻗습니다. 짓거나 철거하는 도구를 든 동안에는 시간이 잠시 멈추고, 도구를 내려놓으면 다시 흐릅니다(도구 막대의 멈춤을 누르면 바로 흐름).'],
-    ['같은 묶음의 다른 도구', '도구를 들면 지도 위쪽 막대에 그 도구와 같은 묶음의 다른 도구(도로 종류·밀도·시설 종류)가 함께 나와 한 번에 바꿀 수 있습니다(, . 키). 자주 쓰지 않는 도구는 도구 카드의 <b>더 보기</b>에 있습니다. / 키로 도구·시설을 이름으로 찾고 Enter로 바로 고릅니다(세율·대출·범죄처럼 하려는 일을 쓰면 그 관리 화면도 나옵니다).'],
-    ['도구 메뉴와 도구 카드', '지도 위쪽 메뉴는 철거, 짓기(교통·구역·공공시설·서비스), 보상·지형 순서입니다(도구를 들지 않으면 지도는 그대로 조회). 묶음을 누르면 그 아래로 도구 카드가 열리고, 도구를 고르면 같은 자리에 든 도구의 막대가 메뉴 대신 섭니다(카드 안에서는 방향키로 도구를 옮겨 고를 수 있음). 시설은 카드에서 종류를 바로 누르면 됩니다. 지도를 누르기 시작하면 카드는 접힙니다. 둘러보기만 하고 ×나 Esc로 닫으면 묶음이 집어 든 도구도 내려놓습니다. 가장 급한 곳의 추천 조치가 쓰는 도구의 묶음에는 작은 점이 하나 붙습니다. 알림은 지도 오른쪽 아래에 잠시 떴다가 사라집니다(아랫줄이 남은 시간, 가리키고 있으면 기다림).'],
+    ['같은 묶음의 다른 도구', '도구를 들면 지도 아래쪽에 서는 도구 막대에 그 도구와 같은 묶음의 다른 도구(도로 종류·밀도·시설 종류)가 함께 나와 한 번에 바꿀 수 있습니다(, . 키). 자주 쓰지 않는 도구는 도구 카드의 <b>더 보기</b>에 있습니다. / 키로 도구·시설을 이름으로 찾고 Enter로 바로 고릅니다(세율·대출·범죄처럼 하려는 일을 쓰면 그 관리 화면도 나옵니다).'],
+    ['도구 메뉴와 도구 카드', '지도 왼쪽 막대는 위에서부터 철거, 짓기(교통·구역·공공시설·서비스), 보상·지형 순서입니다(도구를 들지 않으면 지도는 그대로 조회). 묶음을 누르면 그 옆으로 도구 카드가 열리고, 도구를 고르면 지도 아래쪽에 든 도구의 막대가 섭니다(카드 안에서는 방향키로 도구를 옮겨 고를 수 있음). 시설은 카드에서 종류를 바로 누르면 됩니다. 지도를 누르기 시작하면 카드는 접힙니다. 둘러보기만 하고 ×나 Esc로 닫으면 묶음이 집어 든 도구도 내려놓습니다. 가장 급한 곳의 추천 조치가 쓰는 도구의 묶음에는 작은 점이 하나 붙습니다. 알림은 지도 오른쪽 아래에 잠시 떴다가 사라집니다(아랫줄이 남은 시간, 가리키고 있으면 기다림).'],
     ['칸 정보 보기', '도구를 들지 않은 채 지도 위에 마우스를 올리면 그 칸이 무엇인지 바로 옆에 나옵니다. 누르면 오른쪽 정보 카드에 자세히 나오고, 두 번 누르면 그곳으로 확대됩니다. 문제가 있는 시설의 카드에는 고치는 버튼(옆에 하나 더 짓기, 예산 100%로 등)이 함께 나옵니다.'],
     ['조언의 보기·+ 버튼', '조언·알림의 <b>보기</b>를 누르면 문제를 보여 주는 지도 보기로 바뀌고 그 장소로 옮겨 갑니다. <b>+ 학교</b>처럼 생긴 버튼은 그 문제를 고칠 도구를 바로 골라 줍니다. 오른쪽 위 미니맵을 눌러 이동할 수 있습니다.'],
     ['밀도 올리기 (재개발)', '건물이 선 땅에도 같은 종류의 더 높은 밀도(저 → 중 → 고밀도)를 칠할 수 있습니다. 건물은 그대로 있다가 재개발될 때 새 밀도로 다시 지어집니다.'],
@@ -87,7 +87,7 @@ export function showHelp(): void {
     ['관리 화면', '왼쪽 도시 상태에서 항목(개발·전력·수도·교육 등)을 누르면 그 분야의 관리 화면이 열립니다: 지도 보기가 그에 맞게 바뀌고, 수치와 최근 추세, 조언자의 진단, 지을 수 있는 시설·예산·조례가 한곳에 모입니다. 수치 옆 ▲▼는 화면을 연 뒤의 변화입니다. 지도에는 그 분야의 시설이 테두리로, 문제가 가장 많이 모인 곳(서비스가 닿지 않는 곳, 막힌 길, 공기가 나쁜 주거지, 부유층이 살 만한 땅 등)이 과녁으로 표시되고, 짓기 버튼은 지으면 여유가 얼마나 될지 알려 줍니다. ← 또는 Esc로 돌아갑니다(M: 가장 급한 분야).'],
     ['불·폭동 출동', '불·폭동은 <b>시민 서비스</b>의 소방 출동·경찰 출동 도구로(또는 도시 상태 위 출동 카드의 출동 준비) 그곳을 누르면 가까운 서에서 차가 갑니다(서의 크기만큼 대수 제한). 폭동은 경찰차 3대 이상이 모여야 진압되니(막다른 길 제외) 같은 곳을 여러 번 누르세요. 아무것도 짓기 전의 새 도시에서는 지형 편집이 무료입니다.'],
     ['발전소와 낡은 시설', '발전소는 불타거나 수명이 다하면 폭발합니다: 소방서 반경 안에 두고, 조언자가 수명을 알려 주면 새로 지어 바꾸세요. 송전선·수도관이 낡으면 불꽃·파열이 나니 <b>노후 시설</b> 보기와 부서 예산(위생 포함)을 살피세요.'],
-    ['재정·주민·지역·저장', '왼쪽 도시 상태의 항목(B: 재정·정책)을 누르면 그 관리 화면과 통계(그래프·보고서)가 나옵니다. 세율·예산·대출·조례는 재정·정책에서 바꿉니다. 위쪽 막대의 <b>주민</b>(U)·<b>지역</b>(J)에서 My Sim·이웃 도시를 봅니다. 도시 이름은 위쪽 막대에서 눌러 바꾸고, <b>⋯</b> 메뉴에서 저장·불러오기·테마를 고릅니다.'],
+    ['재정·주민·지역·저장', '왼쪽 도시 상태의 항목(B: 재정·정책)을 누르면 그 관리 화면과 통계(그래프·보고서)가 나옵니다. 세율·예산·대출·조례는 재정·정책에서 바꿉니다. 지도 위 막대의 <b>주민</b>(U)에서 My Sim을, 도시 현황 맨 위의 지역 이름(J)에서 이웃 도시를 봅니다. 도시 이름은 그 옆을 눌러 바꾸고, 위 막대의 <b>⋯</b> 메뉴에서 저장·불러오기·테마를 고릅니다.'],
   ];
   // The basic loop in five steps (the getting-started list, in short), then the keys by what they are for.
   // (Each step is also the way to do it: pressed, the help closes on its tool, its screen or the clock.)
@@ -139,7 +139,7 @@ export function showHelp(): void {
   dialog.scrollTop = 0;
 }
 
-/** The speed selector in the status bar, beside the date: pause and play buttons (⏸ ▶ ▶▶ ▶▶▶). */
+/** The speed selector in the map's top bar, beside the date: pause and play buttons (⏸ ▶ ▶▶ ▶▶▶). */
 export function buildSpeed(): void {
   for (const el of document.querySelectorAll<HTMLElement>('.gear')) {
     el.innerHTML = '';
@@ -265,6 +265,10 @@ const VIEW_GROUPS: [string, IconName, [string, string, string?][]][] = [
 ];
 for (const [, , views] of VIEW_GROUPS) for (const v of views) v[2] ??= v[1];
 
+/** Closes the list of views if it is open (Esc, wherever the keyboard is); whether it was. */
+export const closeViewPicker = (): boolean => closePicker();
+let closePicker = (): boolean => false;
+
 export function buildOverlay(): void {
   const el = $('#overlay');
   const groups = VIEW_GROUPS.map(([label, ic, views]) => `
@@ -284,6 +288,8 @@ export function buildOverlay(): void {
     <div class="overlay-scale" id="overlay-scale" hidden><div class="scale-bar"></div><div class="ends"><span></span><span></span></div></div>
     <div class="legend" id="overlay-legend"></div>
     <p class="overlay-sum" id="overlay-sum" hidden></p>`;
+  // (The view's button in the map's top bar; its list, legend and count in the card under it.)
+  $('#mb-view').append(el.querySelector('.view-current')!);
   const kind = $<HTMLSelectElement>('#overlay-kind');
   const type = $<HTMLSelectElement>('#overlay-type');
   const title = $<HTMLButtonElement>('#layer-title');
@@ -307,7 +313,7 @@ export function buildOverlay(): void {
     const chip = el.querySelector<HTMLButtonElement>(`.vchip[data-v="${kind.value}"]`);
     // The chip's name in the card's head; what it leaves out (보건 → 병원이 닿는 범위; 개발 막힘 → 빈 구역·버려진 건물)
     // as a quiet line over the legend, not the name said again.
-    $('#view-name').textContent = off ? '지도 보기' : chip?.textContent ?? '';
+    $('#view-name').textContent = $('#layer-name').textContent = off ? '지도 보기' : chip?.textContent ?? ''; // (the card says it on a phone, where the bar shows the icon)
     const full = kind.selectedOptions[0]?.textContent ?? '';
     const aside = /^.+? \((.+)\)$/.exec(full)?.[1] ?? (full !== chip?.textContent ? full : '');
     const legendEl = $('#overlay-legend');
@@ -417,6 +423,7 @@ export function buildOverlay(): void {
     }
     redraw();
     refreshViewSummary();
+    fitMapbar(); // (a longer name may want the room)
   };
   kind.onchange = apply;
   const pick = $<HTMLButtonElement>('#view-pick');
@@ -452,9 +459,14 @@ export function buildOverlay(): void {
     $('#map-layer').classList.toggle('picking', on);
   };
   pick.onclick = () => showGrid(pick.getAttribute('aria-expanded') !== 'true');
-  $('#view-off').onclick = () => showOverlay('none');
+  closePicker = () => {
+    if (pick.getAttribute('aria-expanded') !== 'true') return false;
+    showGrid(false);
+    return true;
+  };
+  $('#view-off').onclick = $('#layer-off').onclick = () => showOverlay('none'); // (the bar's ×; on a phone, the card's)
   document.addEventListener('pointerdown', (e) => {
-    if (!$('#map-layer').contains(e.target as Node)) showGrid(false);
+    if (!$('#map-layer').contains(e.target as Node) && !$('#mb-view').contains(e.target as Node)) showGrid(false);
   }, true); // capture: the map handles its own presses
   el.querySelectorAll<HTMLButtonElement>('.vchip').forEach((c) => (c.onclick = (e) => {
     // A second tap on the view showing turns it off.
@@ -464,7 +476,8 @@ export function buildOverlay(): void {
     if (e.detail === 0) pick.focus();
     else (document.activeElement as HTMLElement | null)?.blur();
   }));
-  el.addEventListener('keydown', (e) => {
+  // (Esc on the list or on its button in the bar.)
+  for (const box of [el, $('#mb-view')]) box.addEventListener('keydown', (e) => {
     if ((e as KeyboardEvent).key === 'Escape' && pick.getAttribute('aria-expanded') === 'true') {
       showGrid(false);
       pick.focus();
@@ -476,6 +489,15 @@ export function buildOverlay(): void {
     type.blur();
   };
   apply();
+  // The bar fits itself again when the map's width changes (window, pane, map alone) and when its parts grow or
+  // shrink (undo and redo appearing, the wind): a frame later, so its own change is not a loop.
+  let queued = 0;
+  const refit = () => (queued ||= requestAnimationFrame(() => {
+    queued = 0;
+    fitMapbar();
+  }));
+  const watch = new ResizeObserver(refit);
+  for (const part of [$('#view'), ...document.querySelectorAll('#mapbar > .mb-group')]) watch.observe(part);
 }
 
 /** Whether the per-type tax rates are shown (the classes are always). */
@@ -575,12 +597,41 @@ export function toggleFocus(): void {
   const app = $('#app');
   const on = app.classList.toggle('focus');
   $('#btn-focus').setAttribute('aria-pressed', String(on));
-  $('#btn-focus').innerHTML = icon(on ? 'minimize' : 'maximize');
+  $('#btn-focus').innerHTML = icon(on ? 'panelOpen' : 'panelClose'); // (the pane put away, or brought back)
   const label = on ? '원래 화면으로 (F)' : '지도만 크게 보기 (F)';
   $('#btn-focus').title = label;
   $('#btn-focus').setAttribute('aria-label', label);
+  const item = $('#btn-focus-menu');
+  item.setAttribute('aria-pressed', String(on));
+  item.title = label;
+  item.innerHTML = `${icon(on ? 'panelOpen' : 'panelClose')}<span class="menu-label">${on ? '원래 화면으로' : '지도만 크게 보기'}</span>`;
   // The map's size changed: let it fit the new space.
   window.dispatchEvent(new Event('resize'));
+}
+
+/** The map's top bar keeps to one row between the build bar and 전체 보기. Short of room (a narrow window, a long
+ *  view name, undo and redo, the wind) it gives up, in turn: its words (주민's, the wind's); then help and the map
+ *  alone (both in the menu); then the view's name (its card says it, with the ×), the date stacked and 주민 and
+ *  지역 to the menu. A phone always takes the last step. */
+export function fitMapbar(): void {
+  const bar = document.getElementById('mapbar');
+  const view = document.getElementById('view');
+  if (!bar || !view) return;
+  const set = (level: number) => {
+    for (let i = 1; i <= 3; i++) bar.classList.toggle(`fit${i}`, level >= i);
+  };
+  if (matchMedia('(max-width: 860px)').matches) return set(3);
+  const cs = getComputedStyle(bar);
+  const room = view.clientWidth - parseFloat(cs.left) - parseFloat(cs.right);
+  let level = 0;
+  for (; level < 3; level++) {
+    set(level);
+    bar.classList.add('measuring'); // (at its whole width, as it would be with room)
+    const wide = bar.offsetWidth;
+    bar.classList.remove('measuring');
+    if (wide <= room) break;
+  }
+  set(level);
 }
 
 /** Switches the map to a data view by its menu value (from an advisor's 보기). */

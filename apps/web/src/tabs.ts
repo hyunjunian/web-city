@@ -1,6 +1,6 @@
 // What sits beside and over the map besides tools: the city pane on the left (the
-// city's state, 재정·정책, each goal's screen with its statistics), the status bar's
-// sheets (주민 and 지역), the info card (what the query tool found) and, on small
+// city's state, 재정·정책, each goal's screen with its statistics), the sheets (주민 from
+// the map's top bar, 지역 from the pane's head), the info card (what the query tool found) and, on small
 // screens, the pane as a bottom sheet. Esc closes the topmost.
 
 import { closeGoal, openFinance, paneClosed } from './manage';
@@ -11,7 +11,7 @@ import { $, flash } from './util';
 
 /** 'budget': the pane's 재정·정책 (taxes, budgets, loans, ordinances and the books). */
 export type Tab = 'city' | 'info' | 'budget' | SheetTab;
-/** The status bar's sheets: 주민 (My Sim, U-Drive-It) and 지역 (neighbours, deals). */
+/** The sheets: 주민 (My Sim, U-Drive-It; the top bar) and 지역 (neighbours, deals; the pane's head). */
 export type SheetTab = 'sims' | 'region';
 
 const SHEET_TITLE: Record<SheetTab, string> = { sims: '주민', region: '지역' };
@@ -30,7 +30,7 @@ export function sheetShown(tab: SheetTab): boolean {
   return sheetTab === tab;
 }
 
-/** Shows a panel: the info card, the city pane, its 재정·정책, or one of the status bar's sheets. */
+/** Shows a panel: the info card, the city pane, its 재정·정책, or one of the sheets (주민, 지역). */
 export function showTab(tab: Tab): void {
   if (tab === 'info') openInfo();
   else if (tab === 'city') openPane();
@@ -149,7 +149,7 @@ function markOpen(): void {
   });
 }
 
-/** Opens a sheet, or closes it when it is the one open (the status bar's buttons; U, J). */
+/** Opens a sheet, or closes it when it is the one open (주민 on the top bar, 지역 at the pane's head; U, J). */
 export function toggleSheet(tab: SheetTab): void {
   if (sheetTab === tab) closeSheet();
   else openSheet(tab);

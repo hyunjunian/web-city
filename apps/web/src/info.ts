@@ -466,7 +466,9 @@ ${paths}${voice}
           flash(ko(res.message ?? 'pick a lived-in home'), 'bad');
           return;
         }
-        flash(`${res.sim!.name}${josa(res.sim!.name, '이', '가')} 입주했습니다 — 위쪽 막대의 '주민'에서 생각을 들어 보세요`);
+        // (주민 is on the top bar, or in its ⋯ menu when the bar is short of room.)
+        const sims = document.getElementById('btn-sims')?.offsetParent ? "위쪽 막대의 '주민'" : "위쪽 ⋯ 메뉴의 '주민'";
+        flash(`${res.sim!.name}${josa(res.sim!.name, '이', '가')} 입주했습니다 — ${sims}에서 생각을 들어 보세요`);
         renderMySims(true);
         showInfo(x, y);
       };

@@ -1,11 +1,13 @@
-/* Web City viewer — a car-touchscreen-style shell around the map: a status bar,
-   an instrument pane, and the full-bleed map with floating cards and the build menu.
+/* Web City viewer — a car-touchscreen-style shell around the map: an instrument pane (the city, headed by its
+   region › name) and the full-bleed map with its floating controls — the top bar (the view, the clock, the menu),
+   the build bar down the left — and cards.
    Design tokens first (dark, then light); components after; small screens last. */
 
 :root {
   --font: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', system-ui, sans-serif; /* Korean faces before system-ui, which picked a Latin-only face for the digits when the web font was blocked */
-  --bar-h: 52px;
+  --bar-h: 0px; /* (no bar above the map: its controls float on it) */
   --dock-h: 0px; /* (no bottom bar: the build menu floats on the map) */
+  --dock-w: 70px; /* the build bar down the map's left */
   --bb: 80px; /* room the floating build menu takes at the map's foot */
   --pane-w: 340px;
   --info-w: 380px;
@@ -140,8 +142,8 @@ html, body {
   height: 100vh;
   height: 100dvh;
   grid-template-columns: var(--pane-w) minmax(0, 1fr);
-  grid-template-rows: var(--bar-h) minmax(0, 1fr);
-  grid-template-areas: 'bar bar' 'pane view';
+  grid-template-rows: minmax(0, 1fr);
+  grid-template-areas: 'pane view';
 }
 
 /* Map-only view: the instrument pane steps aside. */
@@ -304,31 +306,8 @@ kbd {
   font: 600 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; color: var(--muted);
 }
 
-/* ------------------------------------------------------------------ status bar */
+/* ------------------------------------------------------------------ the clock (in the map's top bar) */
 
-#statusbar {
-  grid-area: bar;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 0 10px 0 16px;
-  background: var(--chrome);
-  border-bottom: 1px solid var(--line);
-  min-width: 0;
-  z-index: 10;
-}
-.sb-left { display: flex; align-items: center; gap: 10px; flex: 1 1 0; min-width: 0; }
-.logo {
-  display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; flex: none;
-  background: var(--accent); color: #fff;
-}
-.logo .i { width: 16px; height: 16px; stroke-width: 2.2; }
-#city-title {
-  min-height: 34px; padding: 4px 8px; background: none; border-radius: 10px; color: var(--text);
-  font-size: 15px; font-weight: 650; letter-spacing: 0.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block;
-}
-@media (hover: hover) { #city-title:hover { background: var(--surface-2); } }
-.sb-center { display: flex; align-items: center; justify-content: center; gap: 16px; flex: none; font-variant-numeric: tabular-nums; }
 #sb-date { position: relative; }
 #sb-date::after { content: ''; position: absolute; left: 0; bottom: -2px; height: 2px; width: var(--month-pct, 0%); border-radius: 1px; background: var(--accent); opacity: 0.55; transition: width 0.25s linear; }
 #sb-date.turned { animation: month-in 0.3s var(--ease); }
@@ -336,10 +315,6 @@ kbd {
 .sb-date { font-size: 15px; font-weight: 650; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; min-width: 6.6em; text-align: right; } /* months of different length don't shift the speed buttons */
 .sb-wind { display: inline-flex; align-items: center; gap: 5px; min-width: 5.5em; color: var(--muted); font-size: 13px; } /* "↙ 강풍" and "→" take the same room */
 .sb-wind .i { width: 17px; height: 17px; }
-/* Population and money in sight while building (the pane that also lists them can be closed, or folded on a new map). */
-.sb-kpis { display: flex; gap: 12px; white-space: nowrap; font-size: 13px; color: var(--muted); }
-.sb-kpis b { color: var(--text); font-weight: 650; }
-.sb-right { display: flex; align-items: center; justify-content: flex-end; gap: 2px; flex: 1 1 0; }
 
 .dropdown { position: relative; }
 .dropdown > summary { list-style: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -384,7 +359,7 @@ kbd {
 .watch-fold > summary { padding: 0 6px; }
 .watch-fold > summary h2 { margin: 0; font-size: 13.5px; font-weight: 650; }
 .watch-fold[open] > summary { margin-bottom: 8px; }
-@media (max-width: 860px) { #pane.fresh #onboarding, #pane:not(.fresh) #status { margin-top: 34px; } } /* clear of the close button */
+@media (max-width: 860px) { .crumbs { padding-right: 40px; } } /* clear of the close button */
 
 #status { display: grid; gap: 14px; } /* the same rhythm as the cards below it */
 .hero { display: grid; gap: 4px; padding: 2px 4px 4px; }
@@ -800,10 +775,6 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
   backdrop-filter: blur(18px) saturate(1.3);
 }
 
-#map-layer { top: 14px; left: 14px; z-index: 3; width: min(300px, calc(100% - 96px)); padding: 6px; }
-#map-layer:not(.off) { padding-bottom: 12px; }
-#map-layer.off:not(.picking) { width: auto; } /* closed, as wide as its label (a 300px slab sat over the map) */
-#view.info-open #map-layer.off:not(.picking) { width: auto; } /* (the info card's width rule would win) */
 #map-layer:not(.off) #overlay > :not(.view-current, #view-grid) { width: auto; margin: 0 6px; }
 #map-layer .layer-title {
   display: none; align-items: center; justify-content: flex-start; gap: 6px; width: 100%; min-height: 0; margin: 0 0 8px; padding: 0;
@@ -819,18 +790,17 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
   background: transparent; color: var(--text); font-weight: 600; border-radius: var(--r-sm);
 }
 @media (hover: hover) { #view-pick:hover { background: var(--surface-2); } } /* one frame, not a box in a box */
-#map-layer.off #view-pick span { color: var(--muted); font-weight: 500; }
+#mapbar:has(#map-layer.off) #view-pick span { color: var(--text); font-weight: 600; }
 #view-pick span { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #view-pick .i { width: 16px; height: 16px; color: var(--muted); transition: transform 0.2s var(--ease); }
 #view-pick .i:first-child { width: 18px; height: 18px; }
-#map-layer:not(.off) #view-pick .i:first-child { color: var(--accent-hi); }
+#mapbar:has(#map-layer:not(.off)) #view-pick .i:first-child { color: var(--accent-hi); }
 #view-pick[aria-expanded='true'] .i:last-child { transform: rotate(180deg); }
 #view-off { width: 40px; height: 40px; flex: none; }
 #view-grid { display: grid; gap: 10px; max-height: min(60vh, 460px); overflow-y: auto; padding: 2px 2px 4px; overscroll-behavior: contain; }
 /* A drag that starts on the view's card selected its text; with a building tool in hand its legend steps aside (the map is the work). */
 #map-layer { -webkit-user-select: none; user-select: none; }
 #view.holding #map-layer:not(.picking) #overlay-legend { display: none !important; }
-#map-layer.picking { z-index: 6; width: min(400px, calc(100% - 96px)); background: var(--float-solid); } /* over the toasts while choosing */
 #map-layer.picking #overlay-legend, #map-layer.picking #overlay-scale, #map-layer.picking #overlay-type { display: none !important; }
 .vg-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
 .vg-head .i { width: 14px; height: 14px; }
@@ -853,7 +823,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 
 /* What tool is in hand (none shown for 조회). */
 #tool-chip {
-  top: 14px; left: 50%; transform: translateX(-50%); z-index: 4;
+  bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 4;
   display: flex; align-items: center; gap: 10px; max-width: calc(100% - 2 * 360px);
   padding: 5px 5px 5px 14px; border-radius: 999px; animation: pop-in 0.18s var(--ease);
 }
@@ -889,8 +859,6 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #map-controls { position: absolute; top: 14px; right: 14px; z-index: 3; display: grid; gap: 10px; justify-items: end; transition: right 0.22s var(--ease); }
 #view.info-open #map-controls { right: calc(var(--info-w) + 28px); }
 /* The view picker gives the zoom buttons, now beside the card, room. */
-#view.info-open #map-layer { width: max(200px, min(300px, calc(100% - var(--info-w) - 124px))); }
-#view.info-open #map-layer.picking { width: max(200px, min(400px, calc(100% - var(--info-w) - 124px))); }
 /* Too narrow for both: the buttons step aside while the card is open (wheel and pinch still zoom). */
 @media (min-width: 861px) and (max-width: 941px) { #view.info-open #map-controls { visibility: hidden; } }
 #map-zoom { position: static; display: grid; gap: 2px; padding: 4px; border-radius: var(--r-lg); }
@@ -1399,7 +1367,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @keyframes slide-left { from { opacity: 0; transform: translateX(16px); } }
 @keyframes slide-right { from { opacity: 0; transform: translateX(-16px); } }
 #tool-chip { animation-name: chip-in; }
-@keyframes chip-in { from { opacity: 0; transform: translate(-50%, -6px); } }
+@keyframes chip-in { from { opacity: 0; transform: translate(-50%, 6px); } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
@@ -1421,36 +1389,13 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @media (max-width: 1180px) {
   :root { --pane-w: 288px; }
   .sb-wind span { display: none; }
-  #tool-chip, #tool-alts { max-width: calc(100% - 2 * 200px); }
 }
 
 /* Phones and small tablets: map first; the pane, apps, info and tools become bottom sheets. */
 @media (max-width: 860px) {
-  :root { --bar-h: 56px; --bb: 76px; }
-  #app { grid-template-columns: minmax(0, 1fr); grid-template-rows: var(--bar-h) minmax(0, 1fr); grid-template-areas: 'bar' 'view'; }
+  :root { --bb: 76px; }
+  #app { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); grid-template-areas: 'view'; }
   #app.focus { grid-template-columns: minmax(0, 1fr); }
-  #statusbar { gap: 8px; padding: 0 6px 0 10px; }
-  /* The status bar reads in two lines: the date over population and funds. */
-  .sb-left, .sb-wind, #btn-help, #btn-focus { display: none; }
-  /* The date with the speed selector beside it, population and funds below. */
-  .sb-center {
-    flex: 1 1 auto; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'date speed' 'kpis kpis';
-    align-items: center; justify-items: start; align-content: center; column-gap: 8px; row-gap: 3px; min-width: 0; overflow: hidden; line-height: 1.25;
-  }
-  #sb-date { grid-area: date; }
-  #sb-kpis { grid-area: kpis; }
-  #speed { grid-area: speed; }
-  .sb-date { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; min-width: 6.4em; text-align: left; }
-  .sb-kpis { display: flex; white-space: nowrap; font-size: 13.5px; color: var(--text); }
-  .sb-kpis b { font-weight: 650; }
-  .gear-compact { padding: 2px; }
-  .gear-compact button { min-width: 32px; height: 26px; }
-  .gear button .i { width: 16px; height: 16px; }
-  .sb-right .icon-btn { width: 36px; height: 36px; }
-  /* While 다시 하기 shows, the night button makes room (the row ran under the fastest speed). */
-  .sb-right { flex: none; }
-
-  #statusbar { z-index: 30; } /* its menu opens over the city pane */
   #pane {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
     max-height: min(80dvh, calc(100dvh - var(--bar-h) - 12px)); padding-top: 26px; padding-bottom: calc(24px + env(safe-area-inset-bottom));
@@ -1479,29 +1424,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .tray-cat.open { background: var(--surface-2); color: var(--text); }
   .tray-cat.open .i { color: var(--accent-hi); }
 
-  /* The data view card is one row: the picker, and a button that unfolds its legend. */
-  #map-layer { top: 10px; left: 10px; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 6px; width: calc(100% - 76px); padding: 6px; }
-  /* The info card is a bottom sheet here: it takes no width from the view card. */
-  #view.info-open #map-layer:is(:not(.off), .picking) { width: calc(100% - 76px); }
-  #view.info-open #map-layer.off:not(.picking) { width: auto; }
-  #map-layer .layer-title { display: flex; order: 2; width: 40px; height: 40px; margin: 0; justify-content: center; border-radius: var(--r-sm); cursor: pointer; }
-  #map-layer .layer-title > span { display: none !important; }
-  #map-layer .layer-title > .i { width: 20px; height: 20px; }
-  #map-layer.off .layer-title { display: none; } /* no legend to unfold */
-  /* Off, the picker shrinks to its icon (a 300px pill sat over the map for nothing). */
-  #map-layer.off:not(.picking) { width: auto; padding: 4px; }
-  #map-layer.off:not(.picking) #view-pick { width: 44px; height: 44px; padding: 0; justify-content: center; }
-  #map-layer.off:not(.picking) #view-pick > :not(.i:first-child) { display: none; }
-  /* A building tool in hand: the view's card shrinks to its icon too (the tool's chip, alternatives and hint need the room; the view stays drawn). */
-  #view.holding #map-layer:not(.picking) { width: auto; padding: 4px; }
-  #view.holding #map-layer:not(.picking) :is(.layer-title, #view-off), #view.holding #map-layer:not(.picking) #overlay > :not(.view-current) { display: none !important; }
-  #view.holding #map-layer:not(.picking) #view-pick { width: 44px; height: 44px; padding: 0; justify-content: center; }
-  #view.holding #map-layer:not(.picking) #view-pick > :not(.i:first-child) { display: none; }
-  #map-layer:not(.off) { padding-bottom: 6px; }
-  #map-layer.open:not(.off) { padding-bottom: 12px; }
-  #map-layer.open .layer-title { background: var(--surface-2); color: var(--accent-hi); }
-  #overlay { order: 1; flex: 1; min-width: 0; }
-  #map-layer:not(.open) #overlay-legend, #map-layer:not(.open) #overlay-scale { display: none !important; }
   #map-controls { top: 10px; right: 10px; }
   #view.info-open #map-controls { right: 10px; }
   #minimap { display: none; }
@@ -1540,11 +1462,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @keyframes rise { from { opacity: 0.6; transform: translateY(30px); } }
 
 /* Sheets close with a tap on their header area on phones, so keep a visible close button there. */
-@media (max-width: 420px) {
-  .sb-kpis .lbl { display: none; }
-  #sb-kpis .i { display: inline-block; width: 14px; height: 14px; margin-right: 3px; vertical-align: -2px; color: var(--muted); }
-  .gear-compact button { min-width: 34px; }
-}
 
 @media (max-width: 860px) {
   /* The tabs name the section; only the close button stays, at the end of the tab row. */
@@ -1557,7 +1474,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .tray-cat .dock-label { font-size: 10.5px; letter-spacing: -0.02em; } /* 공공시설 whole at 360px */
   #tabs button .i { display: none; } /* words alone fit, clear of the close button */
   #tabs button { padding: 0 6px; font-size: 13.5px; }
-  .gear-compact button { min-width: 28px; } /* the speeds fit beside the undo and night buttons */
 }
 .i.inline-i { width: 15px; height: 15px; vertical-align: -3px; margin-right: 3px; }
 
@@ -1565,7 +1481,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
    (labels beside icons), the data view card stays card-sized, and sheets may
    take most of the height. */
 @media (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
-  #map-layer { width: min(360px, calc(100% - 76px)); }
   /* Sideways there is width to spare and little height: cards become side panels
      (the city pane from the left, the rest from the right) and the map stays in view. */
   #tray, #info-card, #sheet {
@@ -1651,9 +1566,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* A drag that starts on the tray must not select its text. */
 #tray { -webkit-user-select: none; user-select: none; }
 
-/* The status line's icons stand in for its labels on phones only. */
-.sb-kpis .i { display: none; }
-
 /* The app's own confirm (util ask): a question and its two answers. */
 #ask-dialog { max-width: min(420px, calc(100vw - 32px)); }
 #ask-dialog .ask-title { margin: 0 0 8px; font-size: 20px; }
@@ -1716,8 +1628,9 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @media (hover: hover) { .info-more > summary:hover { color: var(--text); } }
 #info .info-more > h3.sub:first-of-type { border-top: 0; margin-top: 6px; }
 .info-more #bname { margin: 10px 0 8px; }
-/* Undo appears once there is something to take back (a greyed arrow sat there from the start). */
-#btn-undo:disabled { visibility: hidden; }
+/* Undo appears once there is something to take back (a greyed arrow sat there from the start), and takes
+   no room till then (a hole after the bar's divider). */
+#btn-undo:disabled { display: none; }
 
 /* The city pane is one surface: its parts are set apart by space and a hairline, not by boxes on grey. */
 #pane { background: var(--surface); }
@@ -1733,40 +1646,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 #sheet [data-pane] > .card { background: transparent; border-radius: 0; margin: 0; padding: 16px 4px 18px; border-top: 1px solid var(--line); }
 #goal-strip button.strip-more { padding: 0 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-/* ------------------------------------------------------------------ build menu (floating on the map) */
-
-/* At the map's foot, centred: looking and removing, then building, then rewards and the land.
-   A category opens its tools in the card above it (as the view picker unfolds its list). */
-#dock {
-  position: absolute; left: 50%; bottom: 14px; z-index: 5; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 2px; padding: 5px; max-width: calc(100% - 28px);
-  border-radius: 18px; overflow-x: auto; scrollbar-width: none;
-}
-#dock::-webkit-scrollbar { display: none; }
-#dock-tools { display: flex; align-items: center; gap: 2px; }
-.dock-sep { flex: none; width: 1px; height: 28px; margin: 0 5px; background: var(--line-strong); }
-.dock-btn {
-  position: relative; flex: none; flex-direction: column; gap: 3px;
-  width: 62px; height: 50px; min-height: 0; padding: 0; border-radius: 13px;
-  background: transparent; color: var(--muted);
-}
-.dock-btn .i { width: 21px; height: 21px; stroke-width: 1.7; }
-.dock-label { font-size: 11px; font-weight: 600; white-space: nowrap; }
-@media (hover: hover) { .dock-btn:hover { background: var(--surface-2); color: var(--text); } }
-.dock-btn.current { color: var(--accent-hi); background: var(--accent-soft); }
-.dock-btn.open { background: var(--surface-2); color: var(--text); }
-.dock-btn.open.current { color: var(--accent-hi); background: var(--accent-soft); }
-#dock.sheet-open .dock-btn.current:not(.open), #dock:has(.dock-btn.open) .dock-btn.current:not(.open) { color: inherit; background: transparent; }
-.dock-city, .dock-build, #tray-cats { display: none; }
-.dock-btn[data-alerts]::after {
-  content: attr(data-alerts); position: absolute; top: 3px; right: 8px; min-width: 16px; height: 16px; padding: 0 4px;
-  border-radius: 8px; background: var(--danger); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 16px; text-align: center;
-}
-.dock-btn.unread::before { content: ''; position: absolute; top: 6px; right: 14px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
-/* Beside an open info card, centred on the map that is left (as the hint). */
-@media (min-width: 1100px) { #view.info-open #dock { left: calc((100% - var(--info-w) - 28px) / 2); max-width: calc(100% - var(--info-w) - 56px); } }
-/* A sheet and a tool card cover the map's foot: the menu steps back under them. */
-#view.sheet-open #dock { visibility: hidden; }
 
 /* ------------------------------------------------------------------ a goal's statistics */
 
@@ -1778,46 +1657,13 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 #goal-stats .graph.off, #goal-stats h3.sub.off { display: none; }
 #goal-stats #ages h3.sub:first-child { margin-top: 4px; }
 
-/* ------------------------------------------------------------------ 주민 · 지역 · 정책, in the status bar */
+/* ------------------------------------------------------------------ 주민 · 지역 sheets */
 
-.sb-policy {
-  gap: 6px; height: 34px; min-height: 0; padding: 0 12px; border-radius: 999px;
-  background: var(--surface-2); color: var(--text); font-size: 13px; font-weight: 600;
-}
-.sb-policy .i { width: 16px; height: 16px; color: var(--muted); }
-@media (hover: hover) { .sb-policy:hover { background: var(--surface-3); } }
-.sb-policy.open { background: var(--accent-soft); color: var(--accent-hi); }
-.sb-policy.open .i { color: var(--accent-hi); }
 #sheet .sheet-body .card-head { display: flex; }
 #sheet-title { display: block; }
-
 @media (max-width: 860px) {
-  /* Phones: the menu across the foot (도시 · 살펴보기 · 철거 · 짓기), floating clear of the edges. */
-  #dock { left: 10px; right: 10px; bottom: calc(10px + env(safe-area-inset-bottom)); transform: none; max-width: none; justify-content: space-around; padding: 4px; }
-  #dock-tools { display: contents; }
-  .dock-sep, .dock-build-cat { display: none; }
-  .dock-city, .dock-build { display: inline-flex; }
-  .dock-btn { flex: 1 1 0; width: auto; max-width: 96px; height: 54px; }
-  .dock-build { order: 1; }
-  .dock-btn .i { width: 22px; height: 22px; }
   /* A sheet: its own title and close button. */
   #sheet .sheet-body .card-head { position: static; padding: 16px 12px 6px 18px; }
-  .sb-policy { padding: 0 10px; height: 32px; }
-}
-/* Narrow: the three as plain icons beside 되돌리기 and ⋯ (their titles name them; lit while open). */
-@media (max-width: 560px) {
-  .sb-policy-label { display: none; }
-  .sb-policy { width: 32px; height: 36px; padding: 0; background: transparent; border-radius: 10px; }
-  .sb-policy .i { width: 19px; height: 19px; color: var(--text); }
-  .sb-right { gap: 0; }
-  .sb-right .icon-btn { width: 32px; }
-  .sb-date { min-width: 0; }
-}
-@media (max-width: 400px) {
-  #statusbar { gap: 4px; padding: 0 4px 0 8px; }
-  .sb-right .icon-btn, .sb-policy { width: 30px; }
-  .gear-compact button { min-width: 25px; padding: 0; }
-  .sb-center { column-gap: 5px; }
 }
 
 /* ------------------------------------------------------------------ 재정·정책 */
@@ -1975,7 +1821,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* ------------------------------------------------------------------ the tool in hand: one bar */
 
 /* The tool's name and price, its siblings after a hairline, and the way out — one bar, not two. */
-#tool-chip { gap: 8px; max-width: min(860px, calc(100% - 2 * 200px)); }
+#tool-chip { gap: 8px; max-width: min(860px, calc(100% - 28px)); }
 #tool-chip #tool-alts {
   position: static; inset: auto; transform: none; z-index: auto; flex: 0 1 auto; min-width: 0; max-width: none;
   margin: 0; padding: 0 0 0 8px; border-radius: 0; border-left: 1px solid var(--line);
@@ -2024,8 +1870,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .pick.suggested .pick-stat::after { content: '추천'; margin-left: auto; padding: 1px 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 10.5px; font-weight: 700; } /* (on the line under the name: the name keeps its room) */
 .tray-section:not(.show-more) .pick.more:not(.active) { display: none; }
 @media (hover: hover) { .chip-held:hover { background: var(--accent); color: #fff !important; } }
-/* Narrower wide screens: the city's name gives way (cut to "예..", it said nothing; ⋯ renames it). */
-@media (min-width: 861px) and (max-width: 1023px) { #city-title { display: none; } }
 #tool-chip-label { background: transparent; color: inherit; min-height: 0; font-weight: 400; border: 0; }
 /* (The open tool card takes that place: the bar steps aside until the card closes, then stands where it was.) */
 @media (min-width: 861px) { #view:has(#tray.at-top:not([hidden])) #tool-chip { display: none; } }
@@ -2049,55 +1893,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* A pale facility colour (a hospital's white) keeps its square on a pale card: a hairline round it. */
 .pick-swatch { box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.22), 0 0 0 1px var(--line-strong); }
 
-/* ------------------------------------------------------------------ a tool in hand: one bar at the top */
-
-/* Picked, the tool's bar at the top is all the building there is: the menu at the foot goes until the tool is
-   put down (its card, opened from the bar's name, drops from the top where the bar is). */
-#view.holding:not(:has(#tray:not([hidden]):not(.at-top))) { --bb: 12px; }
-#view.holding:not(:has(#tray:not([hidden]):not(.at-top))) #dock { display: none; }
-@media (min-width: 861px) {
-  #tray.at-top { top: 14px; bottom: auto; animation-name: pop-in; }
-  /* The view's card folds while a tool is in hand (the bar takes the top); to its icon where the map is narrower. */
-  #view.holding #map-layer:not(.picking) { width: auto; max-width: 220px; padding-bottom: 6px; }
-  #view.holding #map-layer:not(.picking) :is(.layer-title, #view-off), #view.holding #map-layer:not(.picking) #overlay > :not(.view-current) { display: none !important; }
-}
-@media (min-width: 861px) and (max-width: 1279px) {
-  #view.holding #map-layer:not(.picking) { padding: 4px; }
-  #view.holding #map-layer:not(.picking) #view-pick { width: 44px; height: 44px; padding: 0; justify-content: center; }
-  #view.holding #map-layer:not(.picking) #view-pick > :not(.i:first-child) { display: none; }
-  #tool-chip { max-width: calc(100% - 2 * 80px); }
-}
-@media (max-width: 860px) {
-  /* Phones: the bar between the view and map buttons at the top. */
-  #tool-chip { top: 10px; bottom: auto; left: 66px; right: 66px; width: auto; max-width: none; animation-name: pop-in; }
-  /* Its words give way inside the bar rather than run under the map button beside it (a zone's demand and 멈춤
-     pushed the × off the bar): the siblings' row first, then the price, then the demand; × and 멈춤 stay whole. */
-  #tool-chip { gap: 6px; padding-left: 12px; }
-  #tool-chip > :is(#tool-chip-icon, .icon-btn) { flex: none; }
-  #tool-chip-label { flex: 0 1 auto; min-width: 0; overflow: hidden; gap: 6px; justify-content: flex-start; }
-  #tool-chip-label > :is(b, span) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #tool-chip-label > span { flex: 0 100 auto; }
-  #tool-chip-label > .zone-demand { flex: 0 20 auto; }
-  #tool-chip-label > b { flex: 0 1 auto; min-width: 3em; }
-  #tool-chip-label > :is(.chip-held, .chip-more) { flex: none; }
-  #tool-chip #tool-alts:empty { display: none; }
-  /* (Room for the name: the siblings' rule and the ×'s margin were a name's worth of width on a phone.) */
-  #tool-chip #tool-alts { padding-left: 4px; border-left: 0; }
-  #tool-chip #tool-chip-close { width: 34px; height: 34px; }
-  /* A phone's bar keeps the name and the demand: 멈춤 is its pause sign alone (its tooltip says the rest), and the
-     ⌄ goes (the name still opens the card). */
-  #tool-chip { left: 62px; right: 62px; }
-  #tool-chip-label { padding-left: 4px; padding-right: 4px; margin-left: -4px; }
-  #tool-chip-label .held-word, #tool-chip-label .chip-more { display: none; }
-  #tool-chip-label .chip-held { padding: 4px 6px; }
-  /* A zone's price per tile (§10–§50) gives way to its demand, what decides where to paint. */
-  #tool-chip-label:has(.zone-demand) > span:not(.zone-demand, .chip-held) { display: none; }
-  /* A facility's price is said again where it is placed (짓기 §9,000): its name keeps the room. */
-  #tool-chip[data-kind='structure'] #tool-chip-label > span:not(.chip-held) { display: none; }
-  #tool-chip #tool-alts { flex: 1 1 0; }
-  #view:has(#tool-chip:not([hidden])) #hint { bottom: calc(var(--bb) + 4px); }
-  #view:not(.sheet-open):has(#tool-alts:not([hidden])):not(:has(#map-layer.picking)) #hint { bottom: calc(var(--bb) + 4px); }
-}
 /* Who comes and goes (the map's lines, in their colours) and what the residents think: a line each, no toggle. */
 .info-paths, .info-voice { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
 .info-paths > .i, .info-voice > .i { width: 15px; height: 15px; color: var(--accent-hi); }
@@ -2150,46 +1945,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* With a tool in hand the view's card folds, but its count stays: where the service is missing is where to place. */
 #view.holding #map-layer:not(.picking) #overlay > #overlay-sum:not([hidden]) { display: flex !important; margin: 4px 8px 2px; }
 #view.holding #map-layer:not(.picking):has(#overlay-sum:not([hidden])) { width: 220px; }
-/* (Narrower maps fold the card to its icon while a tool is in hand: no room for the count beside the bar.) */
-@media (max-width: 1279px) {
-  #view.holding #map-layer:not(.picking) #overlay > #overlay-sum:not([hidden]) { display: none !important; }
-  #view.holding #map-layer:not(.picking):has(#overlay-sum:not([hidden])) { width: auto; }
-}
 /* The view picker, closed, dotted when a view would show what needs a look now. */
 
-/* ------------------------------------------------------------------ the build bar heads the map */
-
-/* The build bar sits at the top of the map, where a picked tool's bar shows: choosing and what is chosen,
-   in one place. A category's tools drop down under it; the map's foot keeps only the hint. */
-:root { --bb: 12px; }
-#dock {
-  top: 14px; bottom: auto; gap: 1px; padding: 4px; border-radius: 16px;
-  background: var(--float-solid); box-shadow: var(--shadow); animation: chip-in 0.18s var(--ease);
-}
-#dock-tools { gap: 1px; }
-.dock-btn { flex-direction: row; gap: 7px; width: auto; height: 40px; padding: 0 13px 0 11px; border-radius: 12px; }
-.dock-btn .i { width: 19px; height: 19px; stroke-width: 1.8; }
-.dock-label { font-size: 13px; font-weight: 600; letter-spacing: -0.01em; }
-.dock-sep { height: 22px; margin: 0 5px; }
-/* The open category is lit, as its card hangs under the bar. */
-.dock-btn.open { background: var(--accent-soft); color: var(--accent-hi); }
-/* 철거 takes things away: it says so in red while it is chosen. */
-.dock-btn[data-cat='bulldoze'].open, .dock-btn[data-cat='bulldoze'].current { background: var(--danger-soft); color: var(--danger-ink); }
-@media (hover: hover) { .dock-btn[data-cat='bulldoze']:hover .i { color: var(--danger); } }
-.dock-btn.suggest::after { top: 7px; left: 25px; }
-/* The category's card hangs from the bar. */
-#tray { top: 70px; bottom: auto; max-height: min(calc(100% - 84px), 560px); animation-name: tray-drop; }
-@keyframes tray-drop { from { opacity: 0; transform: translate(-50%, -10px); } }
-@media (min-width: 861px) { #tray.at-top { top: 14px; } }
-/* A narrower map: each category's name under its icon, so the bar keeps clear of the view's button and 전체 보기. */
-@media (min-width: 861px) and (max-width: 1299px) {
-  #dock { padding: 3px; }
-  .dock-btn { flex-direction: column; gap: 2px; width: 54px; height: 46px; padding: 0; }
-  .dock-btn .i { width: 19px; height: 19px; }
-  .dock-label { font-size: 11px; }
-  .dock-sep { margin: 0 3px; }
-  .dock-btn.suggest::after { top: 4px; left: calc(50% + 7px); }
-}
 
 /* Notices: small cards stacked in the map's lower right corner, clear of the bar, the tool and the town's middle. */
 @media (min-width: 861px) {
@@ -2237,38 +1994,11 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .toast-resume { flex: none; }
 .toast.sticky { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08), inset 0 0 0 1px var(--danger-soft); }
 
-/* Phones: the bar takes the top row between the view's button and 전체 보기, as a picked tool's bar does;
-   the goals that need a look and the notices come below it. */
-@media (max-width: 860px) {
-  :root { --bb: calc(12px + env(safe-area-inset-bottom)); }
-  #dock { top: 10px; bottom: auto; left: 70px; right: 70px; padding: 3px; gap: 2px; justify-content: stretch; animation-name: pop-in; }
-  .dock-btn { flex: 1 1 0; max-width: none; height: 44px; padding: 0 6px; gap: 6px; }
-  .dock-btn .i { width: 20px; height: 20px; }
-  .dock-label { font-size: 13.5px; }
-  .dock-btn.unread::before { top: 8px; right: auto; left: calc(50% - 4px); }
-  /* The count of urgent areas already says "look here": the unread dot beside it was a second red mark. */
-  .dock-btn.unread[data-alerts]::before { display: none; }
-  .dock-btn.suggest::after { top: 8px; left: calc(50% + 2px); }
-  #goal-strip:not([hidden]) { top: 72px; left: 10px; right: 10px; }
-  #toasts { top: 72px; left: 10px; right: 10px; width: auto; animation: none; }
-  #view:has(#goal-strip:not([hidden])) #toasts { top: 118px; }
-  #view:has(#tray:not([hidden])) #hint { display: none; } /* (it peeked out under the card) */
-  .toast { animation-name: drop-in; }
-  .toast.leaving { transform: translateY(-6px); }
-}
 @media (max-width: 860px) and (orientation: portrait), (max-width: 860px) and (min-height: 521px) {
   #tray {
     top: 70px; bottom: auto; left: 8px; right: 8px; max-height: calc(100% - 82px);
     border-radius: var(--r-xl); border-bottom: 1px solid var(--line); animation: drop-in 0.22s var(--ease);
   }
-}
-/* Sideways: the bar as wide as its three buttons need, the notices card-sized, and the side card below the bar's row. */
-@media (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
-  #dock { left: 50%; right: auto; width: min(420px, calc(100% - 140px)); transform: translateX(-50%); animation: none; }
-  /* The info card's side panel takes the right: the bar centres on the map left beside it (it ran under the card). */
-  #view.info-open #dock { left: calc((100% - min(420px, 58%) + 64px) / 2); width: min(420px, calc(100% - min(420px, 58%) - 84px)); }
-  #toasts { right: auto; width: min(360px, calc(100% - 84px)); }
-  #tray { top: 70px; border-radius: var(--r-xl) 0 0 0; }
 }
 
 /* The top row is for controls (the view, the bar, 전체 보기); cards open below it. The info card starts under
@@ -2276,21 +2006,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @media (min-width: 861px) {
   #info-card { top: 70px; max-height: calc(100% - 84px); }
   #view.info-open #map-controls { right: 14px; }
-  #view.info-open #dock { left: 50%; max-width: calc(100% - 28px); }
 }
 @media (min-width: 861px) and (max-width: 941px) { #view.info-open #map-controls { visibility: visible; } }
-/* Phones: a view that is on shows as its card under the row, and the bar takes the row's left end. */
-@media (max-width: 860px) {
-  #view:not(.holding) #map-layer:not(.off):not(.picking) { top: 72px; }
-  #view:not(.holding):has(#map-layer:not(.off):not(.picking)) #toasts { top: 132px; }
-  /* A goal's chip takes that place (opening a goal turns its view on): the card goes under the chip. */
-  #app:not(.pane-open) #view:not(.holding):has(#manage-chip:not([hidden])) #map-layer:not(.off):not(.picking) { top: 116px; }
-  #app:not(.pane-open) #view:not(.holding):has(#manage-chip:not([hidden])):has(#map-layer:not(.off):not(.picking)) #toasts { top: 176px; }
-}
-/* (Upright only: sideways the bar is centred at its own width, clear of the card.) */
-@media (max-width: 860px) and (orientation: portrait), (max-width: 860px) and (min-height: 521px) {
-  #view:not(.holding):has(#map-layer:not(.off):not(.picking)) #dock { left: 10px; }
-}
 
 /* ------------------------------------------------------------------ the pane: one thing stands out */
 
@@ -2316,14 +2033,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .s-row.ok > .dot { background: var(--line-strong); }
 .s-row.warn .s-val { color: var(--text); }
 .score-next .score-pct { color: var(--muted); }
-/* The status bar's 주민 · 지역: plain buttons (two grey pills beside the clock's read as more controls of it). */
-.sb-policy:not(.open) { background: transparent; }
-@media (hover: hover) { .sb-policy:not(.open):hover { background: var(--surface-2); } }
-/* Wide screens too: a view that is on (its name, legend and summary) is a card under the top row, not one
-   the bar runs over. (With a tool in hand it folds back to its button in the row.) */
-@media (min-width: 861px) {
-  #view:not(.holding) #map-layer:not(.off):not(.picking) { top: 70px; }
-}
 #overlay-legend[data-title]::before { color: var(--muted); font-weight: 500; margin-bottom: 2px; }
 /* 주민 생각: a complaint in red, a liking as a quiet chip with a small green mark. */
 .thought.pos { display: inline-flex; align-items: center; gap: 5px; background: var(--surface-2); color: var(--muted); }
@@ -2341,16 +2050,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 #pane .mg-m { background: transparent; border-radius: 0; padding: 9px 2px 8px; border-top: 1px solid var(--line); }
 #pane .mg-m:nth-child(-n + 2) { border-top: 0; padding-top: 2px; }
 .mg-m.good b { color: inherit; }
-/* The top row reads as one family: the view's button, the bar (or the tool's bar in its place) and 전체 보기
-   are the same height on the same solid surface with the same light shadow. */
-@media (min-width: 861px) {
-  #map-layer, #map-zoom, #dock, #tool-chip { background: var(--float-solid); box-shadow: var(--shadow-sm); }
-  #map-layer.off:not(.picking) { padding: 4px; }
-  #map-layer.off:not(.picking) #view-pick { min-height: 40px; }
-  #map-zoom { padding: 4px; border-radius: 16px; }
-  #map-layer { border-radius: 16px; }
-  #tool-chip { min-height: 50px; }
-}
 #sheet [data-pane] > .card { box-shadow: none; } /* (sections ruled by hairlines: a card's shadow drew a frame round each) */
 /* Sliders lighter: a thin track and a smaller knob (a dozen thick blue bars filled the 재정 screen). */
 input[type='range']::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; }
@@ -2370,11 +2069,6 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .act.wanted, .act.best { box-shadow: inset 0 0 0 1.5px var(--accent); }
 .act-best { background: var(--accent-soft); color: var(--accent-hi); }
 .overlay-sum.good { color: var(--good-ink); font-weight: 500; } /* all well, said calmly; a gap is the bold red line */
-/* A narrow map (861–1099): the closed view button is its icon (as on phones), so the bar clears it. */
-@media (min-width: 861px) and (max-width: 1099px) {
-  #map-layer.off:not(.picking) #view-pick { width: 44px; height: 44px; min-height: 44px; padding: 0; justify-content: center; } /* (as while holding a tool) */
-  #map-layer.off:not(.picking) #view-pick > :not(.i:first-child) { display: none; }
-}
 .score-bar i { background: var(--gold); } /* progress to the next stage, in the trophy's gold (blue is for what to press) */
 /* Wide screens: a sheet as tall as what it holds (up to the map's height), not a full-height panel with an
    empty half under a short 지역. */
@@ -2386,9 +2080,6 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 #view:has(#tray:not([hidden]) #tray-results:not([hidden])) .dock-btn.open { background: transparent; color: var(--muted); }
 #tray:has(#tray-results:not([hidden])) .tray-cat.open { background: transparent; color: var(--muted); } /* (a phone's tabs in the card, the same) */
 #tray:has(#tray-results:not([hidden])) .tray-cat.open .i { color: inherit; }
-/* With a view on, its list opens where its card is (under the row), not jumping up over the bar. */
-#view:not(.holding) #map-layer:not(.off).picking { top: 70px; }
-@media (max-width: 860px) { #view:not(.holding) #map-layer:not(.off).picking { top: 72px; } }
 .advice > .adv-i + b { font-weight: 600; opacity: 0.72; margin-right: 2px; } /* who says it, as a quiet label: what is said is the line */
 .act-sub b { font-weight: 400; color: var(--text); } /* (figures in plain ink, as on the tool cards) */
 .mg-sec > button.link[data-mg-tab] { justify-self: start; justify-content: flex-start; width: auto; margin-left: 0; padding-left: 2px; } /* (a section's way on, under its heading, not floated mid-pane) */
@@ -2536,9 +2227,6 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 /* (A flex column: the lead's grid placed the cost line after the label.) */
 .mg-guide { display: flex; flex-direction: column; align-items: stretch; }
 .g-note { color: var(--muted); font-weight: 400; }
-/* The status bar: the date and the clock only (population and money are in the city pane). */
-#sb-kpis { display: none !important; }
-@media (max-width: 860px) { .sb-center { grid-template-areas: 'date speed'; } }
 .s-sub { display: inline-flex; align-items: baseline; gap: 3px; color: var(--muted); }
 .s-sub .k-sub { font-size: 10.5px; }
 
@@ -2587,16 +2275,6 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .mg-usage.warn .mg-usage-text b { color: var(--warn-ink); }
 .mg-usage.bad .mg-usage-text b { color: var(--danger-ink); }
 
-/* The narrowest phones (320 px): the speeds and the three dock buttons kept whole (the fastest speed and 짓기
-   were cut at the edge). */
-@media (max-width: 359px) {
-  .gear-compact button { min-width: 22px; }
-  .sb-date { font-size: 12.5px; }
-  #dock .dock-btn { gap: 4px; padding: 0 6px; }
-  #dock .dock-btn .i { width: 18px; height: 18px; }
-  #dock .dock-label { font-size: 12px; }
-}
-
 /* A tablet held upright gets the phone's sheets, but not stretched edge to edge: they rise 600 px wide in the
    middle, the map in sight on either side (rows of the city pane ran 768 px from name to figure). */
 @media (min-width: 640px) and (max-width: 860px) and (orientation: portrait) {
@@ -2607,12 +2285,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
    names the view and reads its figures), so the city drawn above the sheet gets that room too (it was a stamp
    between the card and the sheet). */
 @media (max-width: 860px) and (orientation: portrait) {
-  #app.pane-open:has(#pane.managing) #view:not(.holding) #map-layer:not(.picking) { top: 10px; width: auto; padding: 4px; }
-  #app.pane-open:has(#pane.managing) #view:not(.holding) #map-layer:not(.picking) :is(.layer-title, #view-off),
-  #app.pane-open:has(#pane.managing) #view:not(.holding) #map-layer:not(.picking) #overlay > :not(.view-current) { display: none !important; }
-  #app.pane-open:has(#pane.managing) #view:not(.holding) #map-layer:not(.picking) #view-pick { width: 44px; height: 44px; padding: 0; justify-content: center; }
-  #app.pane-open:has(#pane.managing) #view:not(.holding) #map-layer:not(.picking) #view-pick > :not(.i:first-child) { display: none; }
-  #app.pane-open:has(#pane.managing) #view:not(.holding) #dock { left: 70px; }
+  #app.pane-open:has(#pane.managing) #view:not(.holding) #map-layer:not(.picking) { display: none; }
 }
 /* The kinds of neighbour side by side: the name, then what it gives (a paragraph of three made them hard to compare). */
 .nb-kinds { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; margin: 10px 0 0; font-size: 12.5px; line-height: 1.45; }
@@ -2680,3 +2353,263 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 /* The vehicles one can drive: chips with what each runs on (road, rail, water, air). */
 .udi-vehicles { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 12.5px; }
 .udi-vehicles .chip .i { width: 13px; height: 13px; color: var(--muted); }
+
+/* ================================================================== the map's chrome
+
+   No bar above the map: the pane is headed by where the city is (its region › its name), and the map carries its
+   controls, floating — the top bar (what the map shows; the clock: date, speed, wind; then undo, 주민, help, the map
+   alone and the menu) with the view's card hanging under it; the build bar down the left, its tools' card opening
+   beside it; the tool in hand at the foot; 전체 보기 and the minimap in the top right corner. */
+
+:root { --bb: 12px; } /* (no menu at the map's foot: the hint and the notices keep to the edge) */
+
+/* ---- the pane's head: the region › the city */
+.crumbs { order: -2; display: flex; align-items: center; gap: 1px; min-width: 0; margin: -6px 0 -8px -6px; }
+.crumbs button { min-height: 32px; padding: 4px 6px; border-radius: 9px; background: transparent; white-space: nowrap; }
+.crumb-region { flex: 0 1 auto; min-width: 0; gap: 5px; color: var(--muted); font-size: 13px; font-weight: 550; }
+.crumb-region > span:last-child { overflow: hidden; text-overflow: ellipsis; }
+.crumb-region .i { width: 15px; height: 15px; }
+.crumb-region.none { color: var(--faint); font-weight: 500; }
+.crumb-region.open { background: var(--accent-soft); color: var(--accent-hi); }
+.crumb-sep { display: grid; place-items: center; flex: none; color: var(--faint); }
+.crumb-sep .i { width: 14px; height: 14px; }
+.crumb-city { flex: 0 1 auto; min-width: 0; gap: 6px; color: var(--text); font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.crumb-city > span:first-child { overflow: hidden; text-overflow: ellipsis; }
+/* (Its pencil comes up under the pointer or the keyboard: pressed, the name changes.) */
+.crumb-city .i { width: 14px; height: 14px; color: var(--muted); opacity: 0; transition: opacity 0.15s; }
+.crumb-city:is(:hover, :focus-visible) .i { opacity: 1; }
+@media (hover: none) { .crumb-city .i { opacity: 0.6; } }
+@media (hover: hover) {
+  .crumbs button:hover { background: var(--surface-2); }
+  .crumb-region:hover { color: var(--text); }
+}
+
+/* ---- the top bar: centred on the map, between the build bar and 전체 보기 */
+#mapbar {
+  top: 14px; left: calc(var(--dock-w) + 24px); right: 72px; z-index: 8; width: fit-content; margin: 0 auto;
+  display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 16px;
+  background: var(--float-solid); box-shadow: var(--shadow-sm); white-space: nowrap;
+  -webkit-user-select: none; user-select: none;
+}
+#mapbar.measuring { width: max-content; } /* (fitMapbar reads the width it would take) */
+.mb-group { display: flex; align-items: center; gap: 2px; }
+.mb-sep { flex: none; width: 1px; height: 22px; margin: 0 4px; background: var(--line-strong); }
+.mb-time { gap: 10px; padding: 0 2px 0 8px; }
+#mapbar .icon-btn, #mapbar .dropdown > summary { width: 40px; height: 40px; min-height: 0; padding: 0; border-radius: 12px; }
+#mapbar .icon-btn .i, #mapbar .dropdown > summary .i { width: 19px; height: 19px; }
+.mb-btn { gap: 6px; height: 40px; min-height: 0; padding: 0 12px 0 10px; border-radius: 12px; background: transparent; color: var(--text); font-size: 13px; font-weight: 600; }
+.mb-btn .i { width: 18px; height: 18px; color: var(--muted); }
+@media (hover: hover) { .mb-btn:hover { background: var(--surface-2); } }
+.mb-btn.open { background: var(--accent-soft); color: var(--accent-hi); }
+.mb-btn.open .i { color: var(--accent-hi); }
+/* What the map shows: its name, and × to turn it off. */
+#mb-view .view-current { gap: 2px; }
+#mb-view #view-pick { flex: none; max-width: 210px; min-height: 40px; border-radius: 12px; }
+#mb-view #view-off { width: 32px; height: 32px; min-height: 0; padding: 0; margin-right: 2px; border-radius: 10px; }
+#mb-view #view-off .i { width: 16px; height: 16px; }
+/* The menu from the bar's end, down the map. */
+#mapbar .dropdown-menu { top: calc(100% + 10px); max-height: calc(100dvh - 96px); }
+.menu-phone, .menu-fit2 { display: none !important; }
+.layer-off { display: none; } /* (the view's × is in the bar; short of room, in its card) */
+
+/* Short of room the bar gives up, in turn (fitMapbar; a phone takes all three):
+   1. its words: 주민 and the wind as their icons, the speeds narrower; */
+#mapbar.fit1 :is(.mb-label, .sb-wind > span) { display: none; }
+#mapbar.fit1 .mb-btn { width: 40px; padding: 0; justify-content: center; }
+#mapbar.fit1 .sb-wind { min-width: 0; }
+#mapbar.fit1 .gear-compact button { min-width: 34px; }
+/* 2. help and the map alone, both found in the menu; */
+#mapbar.fit2 :is(#btn-help, #btn-focus) { display: none; }
+#mapbar.fit2 .menu-fit2 { display: flex !important; }
+/* 3. the view's name (its card says it, and has the ×), the date stacked, 주민 and 지역 to the menu. */
+#mapbar.fit3 #mb-view #view-pick { width: 40px; padding: 0; justify-content: center; }
+#mapbar.fit3 #mb-view #view-pick > :not(.i:first-child) { display: none; }
+#mapbar.fit3 :is(#view-off, #btn-sims) { display: none; }
+#mapbar.fit3 .menu-phone { display: flex !important; }
+#mapbar.fit3 hr.menu-phone { display: block !important; }
+#mapbar.fit3 .sb-date { display: grid; justify-items: center; min-width: 0; line-height: 1.12; text-align: center; }
+#mapbar.fit3 .sb-date .d-y { font-size: 10.5px; font-weight: 600; color: var(--muted); }
+#mapbar.fit3 .sb-date .d-m { font-size: 14.5px; font-weight: 700; }
+#mapbar.fit3 #sb-date::after { bottom: -3px; }
+/* (The card then heads with the name, its fold and the ×; the legend unfolds under it.) */
+#mapbar.fit3 #map-layer { display: flex; flex-wrap: wrap; align-items: center; }
+#view #mapbar.fit3 #map-layer:not(.picking) { padding: 3px 3px 8px; }
+@media (min-width: 861px) { #view #mapbar.fit3 #map-layer:not(.picking) { width: 260px; } } /* (clear of the minimap on the narrowest map) */
+#view #mapbar.fit3 #map-layer.open:not(.off):not(.picking) { padding-bottom: 12px; }
+#mapbar.fit3 #map-layer:not(.off):not(.picking) .layer-title {
+  display: flex; order: 0; flex: 1 1 0; min-width: 0; height: 36px; margin: 0; padding: 0 6px 0 9px; gap: 5px;
+  border-radius: 11px; color: var(--text); font-size: 13.5px; font-weight: 650; cursor: pointer;
+}
+#mapbar.fit3 #map-layer .layer-title > .i:first-child { display: none; }
+#layer-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#mapbar.fit3 #map-layer .legend-toggle { display: inline-flex; margin-left: 0; color: var(--muted); transition: transform 0.2s var(--ease); }
+#mapbar.fit3 #map-layer.open .legend-toggle { transform: rotate(180deg); }
+#mapbar.fit3 #map-layer:not(.off):not(.picking) .layer-off { display: inline-flex; order: 0; flex: none; width: 36px; height: 36px; }
+#mapbar.fit3 #overlay { order: 1; flex: 1 0 100%; min-width: 0; }
+#mapbar.fit3 #map-layer:not(.off):not(.picking) #overlay { gap: 6px; }
+#mapbar.fit3 #map-layer:not(.open) :is(#overlay-legend, #overlay-scale) { display: none !important; }
+/* (With a tool in hand the legend steps aside: no unfolding then.) */
+#view.holding #mapbar.fit3 #map-layer .legend-toggle { display: none; }
+#view.holding #mapbar.fit3 #map-layer .layer-title { pointer-events: none; }
+
+/* ---- the view's card, hanging from the bar's left end: the list of views while picking, else the legend and the count */
+#view #mapbar #map-layer {
+  top: calc(100% + 8px); left: 0; z-index: 1; width: 300px; padding: 10px 6px 12px;
+  background: var(--float-solid); border-radius: 16px; box-shadow: var(--shadow); white-space: normal;
+  animation: drop-in 0.18s var(--ease);
+}
+#view #mapbar #map-layer.off:not(.picking) { display: none; }
+#view #mapbar #map-layer.picking { width: 400px; padding: 10px; }
+/* (A tool in hand: the legend steps aside; the count stays, where the service is missing being where to place.) */
+#view.holding #mapbar #map-layer:not(.picking):not(:has(#overlay-sum:not([hidden]))) { display: none; }
+#view.holding #mapbar #map-layer:not(.picking) { width: auto; max-width: 300px; padding: 6px; }
+
+/* ---- the build bar, down the map's left */
+#dock {
+  position: absolute; top: 14px; left: 14px; z-index: 5;
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 4px;
+  max-height: calc(100% - 28px); overflow-x: hidden; overflow-y: auto; scrollbar-width: none;
+  border-radius: 16px; background: var(--float-solid); box-shadow: var(--shadow-sm);
+  animation: pop-in 0.18s var(--ease);
+}
+#dock::-webkit-scrollbar { display: none; }
+#dock-tools { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
+.dock-sep { flex: none; height: 1px; margin: 4px 12px; background: var(--line-strong); }
+.dock-btn {
+  position: relative; flex: none; flex-direction: column; gap: 3px;
+  width: 60px; height: 54px; min-height: 0; padding: 0; border-radius: 12px;
+  background: transparent; color: var(--muted);
+}
+.dock-btn .i { width: 21px; height: 21px; stroke-width: 1.7; }
+.dock-label { font-size: 11px; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; }
+@media (hover: hover) { .dock-btn:hover { background: var(--surface-2); color: var(--text); } }
+.dock-btn.current { color: var(--accent-hi); background: var(--accent-soft); }
+/* The open category is lit, as its card stands beside the bar. */
+.dock-btn.open { background: var(--accent-soft); color: var(--accent-hi); }
+#dock.sheet-open .dock-btn.current:not(.open), #dock:has(.dock-btn.open) .dock-btn.current:not(.open) { color: inherit; background: transparent; }
+/* 철거 takes things away: it says so in red while it is chosen. */
+.dock-btn[data-cat='bulldoze'].open, .dock-btn[data-cat='bulldoze'].current { background: var(--danger-soft); color: var(--danger-ink); }
+@media (hover: hover) { .dock-btn[data-cat='bulldoze']:hover .i { color: var(--danger); } }
+.dock-city, .dock-build, #tray-cats { display: none; }
+.dock-btn[data-alerts]::after {
+  content: attr(data-alerts); position: absolute; top: 3px; right: 5px; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: 8px; background: var(--danger); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 16px; text-align: center;
+}
+.dock-btn.unread::before { content: ''; position: absolute; top: 6px; right: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
+.dock-btn.suggest::after { top: 6px; left: calc(50% + 8px); }
+/* A sheet covers the map's left: the bar steps back under it. */
+#view.sheet-open #dock { visibility: hidden; }
+
+/* ---- the tools' card, beside the build bar under the top row */
+@media (min-width: 861px) {
+  #tray {
+    top: 70px; bottom: auto; left: calc(var(--dock-w) + 24px); transform: none;
+    width: min(860px, calc(100% - var(--dock-w) - 38px)); max-height: min(calc(100% - 84px), 600px);
+    animation: tray-beside 0.2s var(--ease);
+  }
+  #tray[data-cat='zones'] { width: min(720px, calc(100% - var(--dock-w) - 38px)); }
+  /* The 주민 · 지역 sheet under the top row too, so the clock stays in reach. */
+  #sheet { top: 70px; max-height: calc(100% - 84px); }
+}
+@keyframes tray-beside { from { opacity: 0; transform: translateX(-10px); } }
+
+/* ---- the tool in hand at the foot: the hint over it, the notices clear of it */
+#view:has(#tool-chip:not([hidden])) #hint { bottom: 76px; }
+@media (min-width: 861px) {
+  #view:has(#tool-chip:not([hidden])) #toasts { bottom: 76px; }
+  #view:has(#tool-chip:not([hidden])):has(#hint:not(:empty)) #toasts { bottom: 124px; }
+}
+
+/* ---- map only (F): the pane gone, the open goal's chip under the top row */
+#app.focus #manage-chip:not([hidden]) { top: 70px; left: calc(var(--dock-w) + 24px); right: auto; }
+
+/* ---- what steps back while a drag lays something down, or while driving */
+#view :is(#mapbar) { transition: opacity 0.2s var(--ease); }
+#view.drawing #mapbar { opacity: 0.25; }
+
+/* ---- phones and small tablets: the top bar across the top, the build bar (도시 · 철거 · 짓기) down the left under it */
+@media (max-width: 860px) {
+  :root { --dock-w: 62px; --bb: calc(12px + env(safe-area-inset-bottom)); }
+  #mapbar {
+    top: calc(8px + env(safe-area-inset-top)); left: 8px; right: 8px; width: auto; z-index: 30; /* (its menu opens over the city pane) */
+    gap: 0; padding: 3px; border-radius: 14px;
+  }
+  .mb-time { flex: 1 1 auto; justify-content: center; gap: 8px; min-width: 0; padding: 0 4px; }
+  .mb-sep { margin: 0 2px; }
+  #mapbar .icon-btn, #mapbar .dropdown > summary { width: 38px; height: 40px; }
+  .gear-compact { padding: 2px; }
+  #mapbar.fit1 .gear-compact button { min-width: 30px; height: 30px; padding: 0; }
+  .gear button .i { width: 16px; height: 16px; }
+  /* (The bar takes all three steps; the wind and the map alone are not for a phone's bar or menu.) */
+  #sb-wind, #mapbar #btn-focus-menu { display: none !important; }
+  #mapbar .dropdown-menu { max-height: calc(100dvh - 80px); }
+  /* The view's card beside the build bar, clear of 전체 보기; its list as wide as the top bar. */
+  #view #mapbar #map-layer { left: calc(var(--dock-w) + 2px); right: 54px; width: auto; max-width: none; top: calc(100% + 6px); }
+  #view #mapbar #map-layer.picking { left: 0; right: 0; width: auto; padding: 10px; }
+
+  /* The build bar: 도시, 철거 and 짓기 down the left under the top bar. */
+  #dock { top: calc(64px + env(safe-area-inset-top)); left: 8px; padding: 3px; gap: 2px; border-radius: 14px; }
+  #dock-tools { display: contents; }
+  .dock-sep, .dock-build-cat { display: none; }
+  .dock-city, .dock-build { display: inline-flex; }
+  .dock-btn { width: 54px; height: 54px; }
+  .dock-btn .i { width: 21px; height: 21px; }
+  .dock-label { font-size: 12px; }
+  .dock-build { order: 1; }
+  .dock-btn.unread::before { top: 6px; right: 10px; }
+  /* The count of urgent areas already says "look here": the unread dot beside it was a second red mark. */
+  .dock-btn.unread[data-alerts]::before { display: none; }
+  .dock-btn.suggest::after { top: 7px; left: calc(50% + 7px); }
+
+  /* 전체 보기 under the top bar's right end; the goals in trouble and the notices beside the build bar. */
+  #map-controls { top: calc(64px + env(safe-area-inset-top)); right: 8px; }
+  #view.info-open #map-controls { right: 8px; }
+  #goal-strip:not([hidden]) { top: calc(70px + env(safe-area-inset-top)); left: calc(var(--dock-w) + 16px); right: 56px; }
+  #manage-chip:not([hidden]) { top: calc(66px + env(safe-area-inset-top)); left: calc(var(--dock-w) + 16px); }
+  #toasts { top: calc(66px + env(safe-area-inset-top)); left: calc(var(--dock-w) + 16px); right: 56px; width: auto; transform: none; animation: none; }
+  #view:has(#goal-strip:not([hidden])) #toasts { top: calc(116px + env(safe-area-inset-top)); }
+  #view:has(#manage-chip:not([hidden])) #toasts { margin-top: 50px; }
+  #view:not(.holding):has(#map-layer:not(.off):not(.picking)) #toasts { top: calc(150px + env(safe-area-inset-top)); }
+  .toast { animation-name: drop-in; }
+  .toast.leaving { transform: translateY(-6px); }
+  /* The tool in hand at the foot, the hint over it; its card drops under the top bar. */
+  #tool-chip { bottom: calc(var(--bb) + 4px); left: 8px; right: 8px; transform: none; max-width: none; animation-name: pop-in; }
+  #tool-chip { gap: 6px; padding-left: 12px; }
+  #tool-chip > :is(#tool-chip-icon, .icon-btn) { flex: none; }
+  #tool-chip-label { flex: 0 1 auto; min-width: 0; overflow: hidden; gap: 6px; justify-content: flex-start; padding-left: 4px; padding-right: 4px; margin-left: -4px; }
+  #tool-chip-label > :is(b, span) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #tool-chip-label > span { flex: 0 100 auto; }
+  #tool-chip-label > .zone-demand { flex: 0 20 auto; }
+  #tool-chip-label > b { flex: 0 1 auto; min-width: 3em; }
+  #tool-chip-label > :is(.chip-held, .chip-more) { flex: none; }
+  #tool-chip-label .held-word, #tool-chip-label .chip-more { display: none; }
+  #tool-chip-label .chip-held { padding: 4px 6px; }
+  #tool-chip-label:has(.zone-demand) > span:not(.zone-demand, .chip-held) { display: none; }
+  #tool-chip[data-kind='structure'] #tool-chip-label > span:not(.chip-held) { display: none; }
+  #tool-chip #tool-alts:empty { display: none; }
+  #tool-chip #tool-alts { flex: 1 1 0; padding-left: 4px; border-left: 0; }
+  #tool-chip #tool-chip-close { width: 34px; height: 34px; }
+  #view:has(#tool-chip:not([hidden])) #hint { bottom: calc(var(--bb) + 60px); }
+  #view:has(#tray:not([hidden])) #hint { display: none; } /* (it peeked out under the card) */
+}
+/* Wider than a phone held upright (a tablet; a phone sideways): the top bar at its own width in the corner,
+   전체 보기 in the other. */
+@media (min-width: 640px) and (max-width: 860px), (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
+  #mapbar { right: auto; }
+  .mb-time { flex: none; }
+  #map-controls, #view.info-open #map-controls { top: calc(8px + env(safe-area-inset-top)); right: 8px; }
+  #view #mapbar #map-layer:not(.picking) { right: auto; width: 300px; }
+  #view #mapbar #map-layer.picking { right: auto; width: min(560px, calc(100vw - 16px)); }
+}
+/* Sideways, the side panels open under that row, so the bar never covers their heads. */
+@media (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
+  #tray, #info-card, #sheet, #pane { top: calc(62px + env(safe-area-inset-top)); }
+  /* The city pane open on the left: the view's card beside it (and gone if a card is open on the right too). */
+  #app.pane-open #view #mapbar #map-layer:not(.picking) { left: calc(min(380px, 50%) - 2px); }
+  #app.pane-open #view.info-open #mapbar #map-layer:not(.picking) { display: none; }
+}
+/* Narrower phones: the speeds a little narrower. */
+@media (max-width: 380px) {
+  #mapbar.fit1 .gear-compact button { min-width: 26px; }
+  .mb-time { gap: 6px; }
+}

@@ -858,7 +858,7 @@ export function refreshToolChip(): void {
     : tool.kind === 'terraform' && !city.established() ? '무료 (처음 짓기 전)' : toolPrice(tool);
   const short = !!kind && STRUCTURES[kind].cost > city.state.funds;
   const demand = tool.kind === 'zone' ? zoneDemandChip(tool.zone) : '';
-  // (The clock held for building says so here, where the eye is, not up in the status bar.)
+  // (The clock held for building says so here, where the eye is, not up in the top bar.)
   const held = isHeld() ? `<span class="chip-held" title="짓는 동안 시간이 잠시 멈춥니다 · 도구를 내려놓으면 다시 흐릅니다 · 누르면 지금 흐르게" aria-label="시간 멈춤">${icon('pause')}<span class="held-word">멈춤</span></span>` : '';
   const html = `<b>${kind ? STRUCTURE_NAME[kind] : toolName(tool)}</b>${price ? `<span${short ? ' class="short" title="자금이 모자랍니다"' : ''}>${price}</span>` : ''}${demand}${icon('chevronDown', 'chip-more')}${held}`;
   if ($('#tool-chip-label').innerHTML !== html) $('#tool-chip-label').innerHTML = html;
@@ -1028,7 +1028,7 @@ const SCREEN_WORDS: Record<GoalId, string> = {
   environment: '오염 공기 대기 수질 공원 쾌적도 시장평점 여론', wealth: '부유층 고급 땅값 보상 랜드마크',
 };
 
-/** The screens the box finds besides tools: each goal's, the status bar's sheets, and the help. */
+/** The screens the box finds besides tools: each goal's, the sheets (주민, 지역), and the help. */
 function screens(): Found[] {
   const out: Found[] = GOAL_ORDER.map((id) => ({
     key: `screen:${id}`, name: GOALS[id].name, where: '관리 화면', glyph: icon(GOALS[id].icon), sub: '', locked: '',

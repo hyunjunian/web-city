@@ -1019,8 +1019,9 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
 }
 
 /**
- * The screen's first target, on the map but under a corner card (the view's legend, the minimap): the map moves it
- * out from under, at the zoom it has. (The 개발 막힘 legend hid the 추천 자리's label just beside it.)
+ * The screen's first target, on the map but under something floating on it (the top bar and the view's card under
+ * it, the build bar, the minimap): the map moves it out from under, at the zoom it has. (The 개발 막힘 legend hid
+ * the 추천 자리's label just beside it.)
  */
 function clearOfCards(): void {
   const spot = renderer.marks.find((m) => m.tone === 'spot');
@@ -1028,16 +1029,19 @@ function clearOfCards(): void {
   const r = renderer.canvas.getBoundingClientRect();
   const [sx, sy] = [(spot.x + spot.w / 2 - cam.x) * cam.scale + r.left, (spot.y + spot.h / 2 - cam.y) * cam.scale + r.top];
   if (sx < r.left || sx > r.right || sy < r.top || sy > r.bottom) return; // (off the map: its edge arrow points there)
-  const cards = ['map-layer', 'minimap'].flatMap((k) => {
+  const cards = ['mapbar', 'map-layer', 'dock', 'map-zoom', 'minimap'].flatMap((k) => {
     const el = document.getElementById(k);
-    const c = el && !el.hidden && el.offsetParent ? el.getBoundingClientRect() : null;
+    const c = el && !el.hidden && el.offsetParent && getComputedStyle(el).visibility !== 'hidden' ? el.getBoundingClientRect() : null;
     return c && c.width > 0 ? [c] : [];
   });
   // (Its label runs beside it and above: some room around.)
   if (!cards.some((c) => sx > c.left - 80 && sx < c.right + 80 && sy > c.top - 16 && sy < c.bottom + 28)) return;
-  const [left, right] = [Math.max(0, ...cards.filter((c) => c.left - r.left < r.width / 2).map((c) => c.right - r.left)),
-    Math.min(r.width, ...cards.filter((c) => c.left - r.left >= r.width / 2).map((c) => c.left - r.left))];
-  centerOn(spot.x + (spot.w >> 1), spot.y + (spot.h >> 1), cam.scale, { left, top: 0, right: Math.max(left + 1, right), bottom: r.height });
+  // A card across the middle (the top bar, the view's card) keeps the target below it; one to a side, beside it.
+  const middle = (c: DOMRect) => c.left - r.left < r.width / 2 && c.right - r.left > r.width / 2;
+  const top = Math.max(0, ...cards.filter(middle).map((c) => c.bottom - r.top));
+  const left = Math.max(0, ...cards.filter((c) => !middle(c) && c.left - r.left < r.width / 2).map((c) => c.right - r.left));
+  const right = Math.min(r.width, ...cards.filter((c) => !middle(c) && c.left - r.left >= r.width / 2).map((c) => c.left - r.left));
+  centerOn(spot.x + (spot.w >> 1), spot.y + (spot.h >> 1), cam.scale, { left, top: Math.min(top, r.height / 2), right: Math.max(left + 1, right), bottom: r.height });
 }
 
 /** 재정·정책: opens it, or on it already brings its policy into sight (an advisor's "재정 열기", the policy links). */
@@ -2275,7 +2279,7 @@ export function setupGoals(): void {
   };
   window.addEventListener('pointerup', release);
   window.addEventListener('pointercancel', release);
-  // The clock in the header follows the speed however it was set (Space, the status bar, a dialog).
+  // The clock in the header follows the speed however it was set (Space, the top bar, a dialog).
   window.addEventListener('speedchange', () => {
     const b = el.querySelector('.mg-time');
     if (!b) return;

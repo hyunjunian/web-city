@@ -2,7 +2,7 @@
 
 import { active as activeGoal, closeGoal, handedPlaced, noteAction, toggleFinance, toggleUrgentGoal } from './manage';
 import { DEV_TYPES, GROWTH_CODES, isLocalNet, Net, linePath, type Rect, LIVE_KINDS, NETWORK_KINDS, STRUCTURES, Terrain, ZONES, type StructureKind } from '@web-city/engine';
-import { chooseSpeed, isHeld, resumeAfterBuilding, runningSpeed, showHelp, speedChosen, stepOverlay, toggleFocus, toggleGrowth, toggleNight, toggleOverlay } from './controls';
+import { chooseSpeed, closeViewPicker, isHeld, resumeAfterBuilding, runningSpeed, showHelp, speedChosen, stepOverlay, toggleFocus, toggleGrowth, toggleNight, toggleOverlay } from './controls';
 import { aloneReached, cancelGlide, keepInView, showInfo, showRoutes } from './info';
 import { grabDisaster, setSteering, steering } from './live';
 import { ko } from './messages';
@@ -1340,7 +1340,7 @@ export function setupInput(): void {
     if (plain && (e.key === ',' || e.key === '.') && !drag) stepAlt(e.key === '.' ? 1 : -1);
     // `: back to the tool before (a road, then the bulldozer, then the road again).
     if (plain && e.key === '`' && !drag) selectTool(previousTool);
-    // B: the pane's 재정·정책 (or back from it); U 주민, J 지역: the status bar's sheets (open, or close when showing).
+    // B: the pane's 재정·정책 (or back from it); U 주민, J 지역: the sheets of the top bar and the pane's head (open, or close when showing).
     if (plain && letter === 'b') toggleFinance();
     if (plain && letter === 'u') toggleSheet('sims');
     if (plain && letter === 'j') toggleSheet('region');
@@ -1350,7 +1350,7 @@ export function setupInput(): void {
     if (e.key === 'Escape') {
       if (proposal) dropProposal();
       else if (drag) setDrag(null);
-      else if (!closeTray(true) && !closeTopLayer()) {
+      else if (!closeViewPicker() && !closeTray(true) && !closeTopLayer()) {
         // Then the tool goes down, then the goal's screen gives way to the overview.
         if (tool.id !== 'query') selectTool('query');
         else closeGoal();

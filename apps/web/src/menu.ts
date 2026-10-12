@@ -138,7 +138,7 @@ export function setupMenu(): void {
     if (touchFirst()) (document.activeElement as HTMLElement | null)?.blur();
   };
   $('#btn-help').onclick = showHelp;
-  $('#btn-focus').onclick = toggleFocus;
+  $('#btn-focus').onclick = $('#btn-focus-menu').onclick = toggleFocus; // (the menu's, when the bar is short of room)
   dialog.addEventListener('close', async () => {
     if (dialog.returnValue !== 'sample' && dialog.returnValue !== 'ok') return;
     // The city on screen gives way: its progress since the last save goes with it.
