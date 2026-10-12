@@ -934,14 +934,29 @@ function ordinanceActions(g: Goal): string {
     ${off.length ? `<details class="acts-more ord-more"${open}><summary>${on.length ? '다른 조례' : '시행할 수 있는 조례'} ${off.length}개</summary>${off.map(row).join('')}</details>` : ''}</section>`;
 }
 
+/** A loan that lifts the treasury back over zero with a few months' spending to spare (null: none can be had). */
+function rescueLoan(): number | null {
+  const s = city.state;
+  if (s.funds >= 0 || s.impeached) return null;
+  const l = city.cfg.economy.loans;
+  const owed = s.loans.reduce((a, x) => a + city.loanBalance(x), 0);
+  const want = -s.funds + Math.max(5_000, 3 * (s.lastBudget?.expenses ?? 0));
+  const amount = [10_000, 25_000, 50_000, 75_000, 100_000, 150_000, 200_000].find((a) => a >= want) ?? l.max;
+  return s.loans.length < l.count && owed + amount <= l.totalMax ? amount : null;
+}
+
 /**
  * Money running out: the one lever that helps most, ready in one press — plants and pumps that send
  * nothing anywhere (their upkeep for nothing), budgets above 100%, taxes below neutral; else a loan.
  * (Following the recommendations once ran a city into the red with nothing offered to stop it.)
  */
-type FinanceFix = { kind: 'idle' | 'spare' | 'over' | 'under' | 'tax'; what: string; why: string; save: number };
+type FinanceFix = { kind: 'loan' | 'idle' | 'spare' | 'over' | 'under' | 'tax'; what: string; why: string; save: number };
 function financeFix(): FinanceFix | null {
   const b = city.state.lastBudget;
+  // Below zero nothing can be built at all: a loan to get going again comes first (with a monthly surplus
+  // the screen offered nothing, only 원인부터 살펴보세요).
+  const loan = rescueLoan();
+  if (loan) return { kind: 'loan', what: `§${fmt(loan)} 빌려 자금 메우기`, why: `자금이 §${fmt(-Math.round(city.state.funds))} 모자라 아무것도 지을 수 없습니다 · 10년간 월 §${fmt(city.loanPayment(loan))} 상환`, save: 0 };
   if (!b || b.income >= b.expenses) return null;
   const upkeep = (f: Structure) => { const u = city.structureUpkeep(f.id); return u ? u.running + u.overcapacity : 0; };
   const idle = [...city.state.structures.values()].filter((f) => STRUCTURES[f.kind].plant && f.capacity > 0 && f.load < 1 && f.funding > 0); // (plants: a pump's budget is the water department's)
@@ -982,9 +997,9 @@ function spareWater(): number {
 
 function financeActions(): string {
   const b = city.state.lastBudget;
-  if (!b || b.income >= b.expenses) return '';
   const fix = financeFix();
-  return `<section class="mg-sec"><h3>${icon('plus')}적자 줄이기</h3><div class="acts">${fix
+  if (fix?.kind !== 'loan' && (!b || b.income >= b.expenses)) return '';
+  return `<section class="mg-sec"><h3>${icon('plus')}${fix?.kind === 'loan' ? '자금 메우기' : '적자 줄이기'}</h3><div class="acts">${fix
     ? `<button type="button" class="act best" data-mg-fin="${fix.kind}"><span class="act-name">${icon('wallet')}${fix.what}<em class="act-best">추천</em></span><span class="act-fx">${fix.why}</span></button>`
     : `<button type="button" class="act best" data-sheet="budget"><span class="act-name">${icon('wallet')}대출·부서 예산 살피기<em class="act-best">추천</em></span><span class="act-fx">줄일 곳이 마땅치 않으면 대출로 버티며 세입을 늘리세요</span></button>`}</div></section>`;
 }
@@ -1494,6 +1509,19 @@ export function setupGoals(): void {
       const kind = fin.dataset.mgFin;
       const fix = financeFix();
       if (!fix || fix.kind !== kind) return;
+      if (kind === 'loan') {
+        const amount = rescueLoan();
+        const res = amount ? choice('대출', () => city.takeLoan(amount)) : null;
+        if (!res?.ok) {
+          flash(ko(res?.message ?? 'too much debt outstanding'), 'bad');
+          return;
+        }
+        flash(`§${fmt(amount!)}을 빌렸습니다 · 10년간 월 §${fmt(city.loanPayment(amount!))} 상환`, 'info');
+        noteAction(fix.what);
+        updatePanels();
+        renderGoal(true);
+        return;
+      }
       choice('적자 줄이기', () => {
         if (kind === 'idle') for (const f of [...city.state.structures.values()]) { if (STRUCTURES[f.kind].plant && f.capacity > 0 && f.load < 1) city.setFunding(f.id, 0); }
         if (kind === 'spare') city.setDepartmentFunding('water', spareWater());
