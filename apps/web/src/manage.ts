@@ -1496,7 +1496,7 @@ function spotLine(id: GoalId): string {
     const p = run ? city.previewNetwork(run[0], run[1], run[2], run[3], to) : null;
     const tiles = run ? Math.abs(run[2] - run[0]) + Math.abs(run[3] - run[1]) + 1 : 0;
     const widen = run && p && (p.ok || p.message === 'not enough funds')
-      ? `<button type="button" class="advice-view spot-build" data-widen="${run.join(',')}" data-widen-kind="${to}" title="가장 막힌 구간 ${fmt(tiles)}칸을 ${word}로 바로 넓히기 · §${fmt(p.cost)}">${icon('plus')}가장 막힌 구간 ${word}로 · ${fmt(tiles)}칸 §${fmt(p.cost)}</button>` : '';
+      ? `<button type="button" class="advice-view spot-build" data-widen="${run.join(',')}" data-widen-kind="${to}" title="가장 막힌 구간 ${fmt(tiles)}칸을 ${word}로 바로 넓히기 · §${fmt(p.cost)}">${icon('plus')}가장 막힌 구간 ${word}로 · ${fmt(tiles)}칸 §${fmt(p.cost)}${p.ok ? '' : ' · 자금 부족'}</button>` : '';
     return `<p class="mg-spot">${icon('target')}<span><b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${fmt(spot.tiles)}칸 (지도의 과녁)</span>
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button>${widen}</span></p>`;
   }

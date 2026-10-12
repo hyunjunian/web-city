@@ -732,7 +732,7 @@ function widenButton(x: number, y: number): string {
   const cap = fmt(DEFAULT_CONFIG.transport.speed[to].capacity);
   if (run && p && (p.ok || p.message === 'not enough funds')) {
     const tiles = Math.abs(run[2] - run[0]) + Math.abs(run[3] - run[1]) + 1;
-    return `<button type="button" class="chip" data-widen="${run.join(',')}" data-widen-kind="${to}" title="막힌 구간 ${fmt(tiles)}칸을 ${word}(용량 ${cap})로 바로 넓히기 · §${fmt(p.cost)}${p.ok ? '' : ' · 자금 부족'}">${icon('plus')}이 구간 ${word}로 넓히기 · ${fmt(tiles)}칸 §${fmt(p.cost)}</button> `;
+    return `<button type="button" class="chip" data-widen="${run.join(',')}" data-widen-kind="${to}" title="막힌 구간 ${fmt(tiles)}칸을 ${word}(용량 ${cap})로 바로 넓히기 · §${fmt(p.cost)}${p.ok ? '' : ' · 자금 부족'}">${icon('plus')}이 구간 ${word}로 넓히기 · ${fmt(tiles)}칸 §${fmt(p.cost)}${p.ok ? '' : ' · 자금 부족'}</button> `;
   }
   return `<button type="button" class="advice-view" data-tool="avenue" title="대로 도구 고르기: 기존 길 위로 그으면 넓어집니다">${icon('plus')}대로로 넓히기 (용량 ${cap})</button> `;
 }
