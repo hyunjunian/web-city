@@ -462,7 +462,7 @@ function rescueStep(a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
   const months = lack === 'power' ? [b.noPowerMonths, c.services.noPowerMonths] : lack === 'water' ? [b.noWaterMonths, c.services.noWaterMonths] : [b.noRoadMonths, c.development.noRoadMonths];
   const left = `${months[1]! - months[0]!}개월 뒤 버려집니다`;
   if (lack === 'power') {
-    const line = lineToStructure(b);
+    const line = lineToStructure(b, 'b');
     return line ? layStep('powerline', line, `전기가 끊긴 건물이 ${left}: 전력망에서 송전선을 이으면 됩니다`) : null;
   }
   if (lack === 'water') {

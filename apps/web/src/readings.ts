@@ -678,9 +678,10 @@ export function lineToDark(): [number, number][] | null {
 }
 
 /** The shortest power line from the grid to a facility or building without power (a pump that stopped for it), as lineToDark. */
-export function lineToStructure(st: { id: number; x: number; y: number; w: number; h: number }): [number, number][] | null {
+export function lineToStructure(st: { id: number; x: number; y: number; w: number; h: number }, of: 'f' | 'b' = 'f'): [number, number][] | null {
   const n = city.size;
-  return powerPath(`line|${st.id}|${siteKey()}`, (j) => { const x = j % n; const y = (j - x) / n; return x >= st.x && x < st.x + st.w && y >= st.y && y < st.y + st.h; });
+  // (Buildings and facilities number apart: 'f' or 'b' keeps one's memo from answering for the other.)
+  return powerPath(`line|${of}${st.id}|${siteKey()}`, (j) => { const x = j % n; const y = (j - x) / n; return x >= st.x && x < st.x + st.w && y >= st.y && y < st.y + st.h; });
 }
 
 /** The shortest power line from what has power (and every plant) to the first tile `target` takes, round buildings; null if none. */
