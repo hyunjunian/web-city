@@ -213,6 +213,9 @@ function tollBooth(ctx: CanvasRenderingContext2D, x: number, y: number): void {
   ctx.fillRect(x + 0.4, y + 0.2, 0.2, 0.6);
 }
 
+/** Whether the reader asked for less motion (looked up when first needed). */
+let lessMotion: MediaQueryList | null = null;
+
 /** A streetlight's pool of light, drawn once. */
 let glowSprite: HTMLCanvasElement | null = null;
 function streetGlow(): HTMLCanvasElement {
@@ -1856,8 +1859,8 @@ export class Renderer {
         if (k >= 1) continue;
         if (fx.kind === 'ping') {
           // What 찾아가기 found: a ring closing in on it, in the 추천 자리's colours (a pale flash went unseen on a
-          // pale view, and at once).
-          const e = 1 - (1 - Math.min(1, k / 0.7)) ** 3;
+          // pale view, and at once). Asked for less motion, the ring stands still at its end and fades.
+          const e = (lessMotion ??= matchMedia('(prefers-reduced-motion: reduce)')).matches ? 1 : 1 - (1 - Math.min(1, k / 0.7)) ** 3;
           const r = ((48 - 32 * e) * this.dpr) / sc;
           const a = k < 0.75 ? 1 : (1 - k) / 0.25;
           const [cx, cy] = [fx.x + fx.w / 2, fx.y + fx.h / 2];
