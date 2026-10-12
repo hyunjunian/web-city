@@ -264,6 +264,8 @@ function guideHtml(id: GoalId): string {
       : st.anywhere ? one(siteNearHomes(st.build), '주거지에서 가장 가까운 길가 빈 땅에 바로 짓기')
       : id === 'water' && STRUCTURES[st.build].pump ? one(siteOnPipes(st.build), '수도관에 닿고 전기가 들어오는 빈 땅에 바로 짓기')
       : id === 'power' && STRUCTURES[st.build].plant ? one(siteByPlants(st.build), '있는 발전소 옆, 전력망에 닿는 길가 빈 땅에 바로 짓기')
+      // (An incinerator smokes and a recycling centre is a works: clear of the homes, by the industry.)
+      : id === 'garbage' && (STRUCTURES[st.build].incinerator || STRUCTURES[st.build].recycling) ? one(siteAwayFromHomes(st.build), '주거지에서 떨어진 길가 빈 땅에 바로 짓기')
       : STRUCTURES[st.build].station?.mode === 'bus' ? (() => {
         const pair = stopPair(st.build!);
         return pair ? { at: pair, title: '주민이 가장 많은 곳과 일자리가 가장 많은 곳의 길가에 하나씩 바로 짓기', labels: ['집 쪽', '일터 쪽'] } : null;
