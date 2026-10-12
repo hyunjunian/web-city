@@ -273,7 +273,11 @@ function pollMetric(id: GoalId): Metric[] {
   if (pollMemo?.key !== key) pollMemo = { key, polls: city.opinionPolls() };
   const p = Math.round(pollMemo.polls[topic].approve * 100);
   // (Named by its topic: "주민 만족 100%" on the money screen read as the whole town's mood.)
-  return [[`주민 만족 (${POLL_NAME[topic]})`, `${p}%`, p < 25 ? 'bad' : p < 50 ? 'warn' : '', p, 1, `${POLL_NAME[topic]}에 불만이 없는 주민 비율 (여론 조사: 시장 평점을 움직입니다)`]];
+  // (The environment's: complaints start far past the 40 that spoils homes — 100% beside 공기 나쁜 주거지 110칸
+  // read as a contradiction.)
+  const mr = city.cfg.mayor?.pollution?.zero;
+  const why = topic === 'environment' && mr ? ` · 오염이 ${fmt(mr)}을 넘어야 불만이 되지만, 40만 넘어도 쾌적도와 건강은 떨어집니다` : '';
+  return [[`주민 만족 (${POLL_NAME[topic]})`, `${p}%`, p < 25 ? 'bad' : p < 50 ? 'warn' : '', p, 1, `${POLL_NAME[topic]}에 불만이 없는 주민 비율 (여론 조사: 시장 평점을 움직입니다)${why}`]];
 }
 
 export function metrics(id: GoalId): Metric[] {
