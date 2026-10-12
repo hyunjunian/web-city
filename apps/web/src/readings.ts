@@ -572,6 +572,11 @@ function siteKind(id: 'power' | 'water'): StructureKind | null {
   return cheapestOf(GOALS[id]);
 }
 
+/** The facility a goal's mark was found for (suggestSpot checks the site against it): what its 여기에 짓기 builds without the guide. */
+export function spotKind(id: GoalId): StructureKind | null {
+  return SERVICE.has(id) ? cheapestOf(GOALS[id]) : id === 'power' ? siteKind('power') : id === 'water' ? siteKind('water') : null;
+}
+
 /** Goals whose facility serves a radius: their target is a place to build one. */
 const SERVICE = new Set<GoalId>(['police', 'fire', 'health', 'education']);
 
@@ -595,7 +600,8 @@ export function cheapestOf(g: Goal): StructureKind | null {
 
 /** Forgets the sites found since the city last changed (a building grew on one: growth moves no revision). */
 export function forgetSites(): void {
-  siteMemo = pipeMemo = nearMemo = plantMemo = awayMemo = pairMemo = spotMemo = null;
+  siteMemo = pipeMemo = plantMemo = awayMemo = pairMemo = spotMemo = null;
+  nearMemo = new Map();
 }
 
 /** Whether `count` of a kind could be built now at all (unlocked, placements left, the money): else no site is worth a search. */
@@ -713,14 +719,19 @@ let pipeMemo: { key: string; at: [number, number] | null } | null = null;
  */
 export function siteNear(kind: StructureKind, x: number, y: number, reach = 12): [number, number] | null {
   if (!buildable(kind)) return null;
-  const key = `near|${kind}|${x},${y}|${reach}|${siteKey()}`;
-  if (nearMemo?.key === key) return nearMemo.at;
+  const key = `${kind}|${x},${y}|${reach}|${siteKey()}`;
+  if (nearMemo.has(key)) return nearMemo.get(key)!;
   const d = STRUCTURES[kind];
-  const at = nearestFit(kind, x, y, reach, (lx, ly) => city.roadBeside(lx, ly, d.w, d.h));
-  nearMemo = { key, at };
+  // (A smoky plant clear of homes, as suggestSpot sites one: the nearest open lot beside a mark among the
+  // dark zones was a zoned lot among the homes.)
+  const smoky = (d.plant?.air[0] ?? 0) > 0;
+  const at = nearestFit(kind, x, y, reach, (lx, ly) => city.roadBeside(lx, ly, d.w, d.h) && !(smoky && homesNear(lx, ly, d.w, d.h)));
+  // (A few kept: the mark's own check and its nearest fit, a full school's card, ran by turns and found again each time.)
+  if (nearMemo.size >= 8) nearMemo.delete(nearMemo.keys().next().value!);
+  nearMemo.set(key, at);
   return at;
 }
-let nearMemo: { key: string; at: [number, number] | null } | null = null;
+let nearMemo = new Map<string, [number, number] | null>();
 
 /** Homes (a residential zone) within 6 tiles of a rectangle: no place for a smoky plant. */
 function homesNear(lx: number, ly: number, w: number, h: number): boolean {
@@ -823,7 +834,8 @@ export function stopPair(kind: StructureKind): [[number, number], [number, numbe
   if (home && work && Math.max(Math.abs(home[0] - work[0]), Math.abs(home[1] - work[1])) >= 8) {
     const a = siteNear(kind, home[0], home[1], 8);
     const b = a && siteNear(kind, work[0], work[1], 8);
-    if (a && b) at = [a, b];
+    // (Home and work 8 to 16 tiles apart could land on the same free tile: one stop, not a pair.)
+    if (a && b && (a[0] !== b[0] || a[1] !== b[1])) at = [a, b];
   }
   pairMemo = { key, at };
   return at;
@@ -846,7 +858,9 @@ export function relieverFor(at: readonly [number, number]): StructureKind | null
   const kind = city.query(at[0], at[1])?.structure?.kind;
   if (!kind) return null;
   const d = STRUCTURES[kind];
-  const same = (k: StructureKind) => (d.school ? STRUCTURES[k].school?.curve === d.school.curve : !!d.health && STRUCTURES[k].health?.radius !== undefined && STRUCTURES[k].health!.radius < 300);
+  // (Health by its class as the engine splits patients: a clinic takes none of a full research lab's.)
+  const healthClass = (k: StructureKind) => { const h = STRUCTURES[k].health; return !h ? null : h.radius < 300 ? 'hospital' : h.boost >= 1 ? 'research' : 'market'; };
+  const same = (k: StructureKind) => (d.school ? STRUCTURES[k].school?.curve === d.school.curve : !!d.health && healthClass(k) === healthClass(kind));
   const kinds = (Object.keys(STRUCTURES) as StructureKind[]).filter((k) => same(k) && city.isUnlocked(k) && city.placementsLeft(k) > 0);
   return kinds.reduce<StructureKind | null>((a, k) => (!a || STRUCTURES[k].cost < STRUCTURES[a].cost ? k : a), null);
 }

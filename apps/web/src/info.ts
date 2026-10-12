@@ -60,6 +60,11 @@ const infoKey = () => `${city.revision}|${Math.floor(city.state.day / 30)}|${cit
  * showed is gone (bulldozed, burnt, redeveloped), else redraws it after edits
  * and each month. Not while the player is using a control in it.
  */
+/** Redraws the open card at once, after one of its own buttons (refreshInfo waits for the city to change and for focus to leave the card). */
+export function redrawInfo(): void {
+  if (shown && !$('#info-card').hidden) showInfo(shown.x, shown.y);
+}
+
 export function refreshInfo(): void {
   if ($('#info-card').hidden) shown = null; // closed: whatever opens it next starts afresh
   if (!shown) return;
@@ -207,7 +212,11 @@ export function showInfo(x: number, y: number): void {
   const land = !!(b || q.structure) || (!q.network && q.terrain !== 'water');
   // A chip or glance item that belongs to a goal: pressed, its screen opens on this spot (as the table's rows do).
   const go = (goal: GoalId) => ` data-row-goal="${goal}" data-row-at="${x},${y}"`;
-  const full = q.structure && (def?.health || def?.school) && q.structure.load > q.structure.capacity && q.structure.capacity > 0 ? q.structure : null;
+  // Over its places: past what it takes at full funding, one more beside it is the fix; within it, the budget is.
+  const places = q.structure ? (def?.health ?? def?.school)?.capacity ?? 0 : 0;
+  const over = q.structure && places > 0 && q.structure.load > q.structure.capacity && q.structure.capacity > 0 ? q.structure : null;
+  const full = over && over.load > places ? over : null;
+  const shortFunded = over && !full && over.funding < 100 ? over : null;
   const relieveKind = full ? relieverFor([full.x, full.y]) : null;
   const relieveAt = full && relieveKind ? siteNear(relieveKind, full.x + (full.w >> 1), full.y + (full.h >> 1)) : null;
   // A station's cells full and criminals let go for want of a jail (with room in one, arrests go there).
@@ -247,6 +256,7 @@ export function showInfo(x: number, y: number): void {
     q.structure && (def?.fire || def?.police?.radius) && q.structure.strike ? `<span class="chip bad" title="예산이 100%보다 낮으면 파업할 수 있습니다. 90%보다 높게(95% 이상) 올리면 다음 달 끝납니다.">${icon('alert')}파업 중 (효과 20%)</span>` : '',
     q.structure && (def?.fire || def?.police?.radius) && q.structure.strike && q.structure.funding < 100
       ? `<button type="button" class="chip" data-fund-full="${q.structure.id}" title="예산을 100%로 올리면 다음 달 파업이 끝납니다">${icon('wallet')}예산 100%로</button>` : '',
+    shortFunded ? `<button type="button" class="chip" data-fund-full="${shortFunded.id}" title="예산을 100%로 올리면 정원이 ${fmt(places)}명으로 늘어 넘치지 않습니다">${icon('wallet')}예산 100%로</button>` : '',
     q.garbage > 0.1 ? `<span class="chip warn">${icon('trash')}쓰레기 ${q.garbage.toFixed(1)} t</span>` : '',
   ].join('');
   // Who comes and goes here, drawn on the map whenever a building or road is looked at (no separate tool);
