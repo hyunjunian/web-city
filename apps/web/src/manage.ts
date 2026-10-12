@@ -265,7 +265,7 @@ function guideHtml(id: GoalId): string {
       })() : null;
     const siteTitle = `지도의 과녁(${SPOT_WORD[id] ?? ''})에 바로 짓기`;
     // What the press does: an ordinance or a finance lever takes effect at once (해 보기 sounded like a tool to try).
-    const go = st.kind === 'ord' ? '시행하기' : st.fin === 'loan' ? '빌리기' : st.fin ? '적용하기' : '해 보기';
+    const go = st.kind === 'ord' ? '시행하기' : st.fin === 'loan' ? '빌리기' : st.fin || st.kind === 'budget' ? '적용하기' : '해 보기';
     if (own) guideSite = { id, sites: own.at.map((at, k) => ({ at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}${own.labels[k] ? ` (${own.labels[k]})` : ''}` })) };
     if (mark) markSite = { id, at: site ? [spot.x, spot.y] : own?.at[0] ?? null };
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b>${st.sub ? `<small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small>` : ''}</p>
@@ -290,7 +290,7 @@ let markSite: { id: GoalId; at: [number, number] | null } | null = null;
  * (`anywhere`: its place doesn't matter to what it is for, as a park lifting the cap).
  */
 interface GuideStep {
-  kind: 'best' | 'fix' | 'ord' | 'open';
+  kind: 'best' | 'fix' | 'budget' | 'ord' | 'open';
   what: string; why: string; fixAct: string; act: string; glyph: string; sub: string; fx: string; site: boolean;
   build?: StructureKind; anywhere?: true;
   /** A finance lever the step pulls at once (a loan, a budget change), as its button says. */
@@ -299,6 +299,11 @@ interface GuideStep {
 
 /** A goal's own recommendation, read from what its screen would show (one source of truth). */
 function goalStep(id: GoalId): GuideStep {
+  // The trouble the card leads with ends with a budget (worn lines, a strike for want of funds): that first, before
+  // anything to build (a striking station's card said 예산 부족 and recommended a kiosk).
+  const { worst } = guideSaid(id);
+  const due = worst && BUDGET_FIX[worst.code] ? budgetStep(id, worst) : null;
+  if (due) return due;
   const tpl = document.createElement('template');
   tpl.innerHTML = (id === 'finance' ? financeActions() : '') + buildActions(GOALS[id]);
   const best = tpl.content.querySelector<HTMLElement>('.act.best');
@@ -311,6 +316,10 @@ function goalStep(id: GoalId): GuideStep {
       why: fx || sub, glyph: name?.querySelector('.i, .swatch, .pick-swatch')?.outerHTML ?? '', sub, fx, site: !!best.dataset.kind,
       build: best.dataset.kind as StructureKind | undefined, fin: best.dataset.mgFin };
   }
+  // A budget that ends the trouble (worn lines, a strike) before a tool for something said after it.
+  const lead = adviceFor(id).find((x) => x.level !== 'good' && (adviceTool(x.code) || BUDGET_FIX[x.code]));
+  const owed = lead && BUDGET_FIX[lead.code] ? budgetStep(id, lead) : null;
+  if (owed) return owed;
   const a = adviceFor(id).find((x) => x.level !== 'good' && adviceTool(x.code));
   if (a) {
     const act = adviceTool(a.code)![0].split(':')[0]!;
@@ -325,10 +334,12 @@ function goalStep(id: GoalId): GuideStep {
     }
     return { kind: 'fix' as const, what: adviceTool(a.code)![1], why: adviceText(a), fixAct: act, act, glyph: t ? toolGlyph(t) : '', sub: '', fx: '', site: false };
   }
-  // Nothing to build: an ordinance of the goal's that can be enacted now (dirty air had only 원인부터 살펴보세요,
-  // with 대기 정화법 folded away below).
+  // Nothing to build: an ordinance that fixes what the goal is about, enactable now (dirty air had only
+  // 원인부터 살펴보세요, with 대기 정화법 folded away below). Not any of the goal's list: that has related ones
+  // that cost (비핵 지대 shuts the nuclear plants, 도박 합법화 raises crime).
   // (Not one that costs the mayor's rating, and not a second while the first's result is awaited.)
-  const ord = journal().pending[id] ? undefined : GOALS[id].ordinances.find((o) => !city.state.ordinances.includes(o) && city.ordinanceAvailable(o)
+  // (Nor while the card leads with a budget trouble whose budget is already full: it mends on its own.)
+  const ord = journal().pending[id] || (worst && BUDGET_FIX[worst.code]) ? undefined : (ORD_FIX[id] ?? []).find((o) => !city.state.ordinances.includes(o) && city.ordinanceAvailable(o)
     && ((ORDINANCES[o] as { mayorRating?: number }).mayorRating ?? 0) >= 0);
   if (ord) {
     const cost = city.ordinanceCost(ord);
@@ -336,6 +347,32 @@ function goalStep(id: GoalId): GuideStep {
       sub: `조례 · 월 ${cost < 0 ? `+§${fmt(-cost)}` : `§${fmt(cost)}`}`, fx: '', site: false }; // (its effects plain, not a gain's green: some cost)
   }
   return { kind: 'open' as const, what: '', why: '', fixAct: '', act: '', glyph: '', sub: '', fx: '', site: false };
+}
+
+/** Ordinances that fix what a goal's screen is about, to recommend (by what each does: less crime, cleaner air…). */
+const ORD_FIX: Partial<Record<GoalId, readonly OrdinanceId[]>> = {
+  power: ['landfillGas', 'powerConservation'], water: ['waterConservation'], garbage: ['paperWaste', 'trashPresort', 'tireRecycling'],
+  police: ['neighborhoodWatch', 'juniorSports', 'youthCurfew'], fire: ['smokeDetector'], health: ['freeClinic', 'communityCpr'],
+  education: ['proReading'], traffic: ['carpool', 'commuterShuttle'], environment: ['cleanAir', 'automobileEmission'], wealth: ['cleanAir', 'proReading'],
+};
+
+/** Advice whose fix is a budget, not something to build or an ordinance: the department it names, or the striking facility's own. */
+const BUDGET_FIX: Record<string, Dept | 'facility'> = {
+  linesWorn: 'power', pipesWorn: 'water', potholes: 'roads',
+  policeStrike: 'facility', fireStrike: 'facility', hospitalStrike: 'facility', schoolStrike: 'facility',
+};
+
+/** The budget step for advice that a budget ends, while that budget is under 100% (else nothing: the cause is elsewhere). */
+function budgetStep(id: GoalId, a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
+  const fix = BUDGET_FIX[a.code]!;
+  const base = { kind: 'budget' as const, why: adviceText(a), act: '', glyph: icon('wallet'), fx: '', site: false };
+  if (fix !== 'facility') {
+    const level = city.state.departments[fix];
+    const name = Object.values(GOALS).flatMap((g) => g.depts).find(([k]) => k === fix)?.[1] ?? fix;
+    return level < 100 ? { ...base, what: `${name} 예산 100%로`, fixAct: `dept:${fix}`, sub: `부서 예산 · 지금 ${level}%` } : null;
+  }
+  const f = a.at ? city.query(a.at[0], a.at[1])?.structure : undefined;
+  return f && f.funding < 100 ? { ...base, what: `${STRUCTURE_NAME[f.kind]} 예산 100%로`, fixAct: `fac:${f.id}`, sub: `시설 예산 · 지금 ${f.funding}%` } : null;
 }
 
 function nextHtml(tones: Tone[]): Step {
@@ -1383,6 +1420,26 @@ export function setupGoals(): void {
     }
     // A goal screen's 추천 조치: the action it names, taken up (as if pressed below).
     const guide = (e.target as HTMLElement).closest<HTMLElement>('.mg-guide-go');
+    if (guide?.dataset.guideKind === 'budget') {
+      // A budget raised to 100% (undoable as the sliders are, logged for the result).
+      const [what, key] = guide.dataset.guideAct!.split(':') as [string, string];
+      if (what === 'dept') {
+        const name = Object.values(GOALS).flatMap((g) => g.depts).find(([k]) => k === key)?.[1] ?? key;
+        choice('부서 예산', () => city.setDepartmentFunding(key as Dept, 100));
+        noteAction(`부서 예산: ${name} 100%`);
+        flash(`${name} 예산을 100%로 올렸습니다`, 'info');
+      } else {
+        const f = city.state.structures.get(Number(key));
+        if (f) {
+          choice('시설 예산', () => city.setFunding(f.id, 100));
+          noteAction(`시설 예산: ${STRUCTURE_NAME[f.kind]} 100%`, `fund:${f.id}`);
+          flash(`${STRUCTURE_NAME[f.kind]} 예산을 100%로 올렸습니다`, 'info');
+        }
+      }
+      updatePanels();
+      renderGoal(true);
+      return;
+    }
     if (guide?.dataset.guideKind === 'ord') {
       // An ordinance, enacted as its switch below would (undoable, logged).
       const ordId = guide.dataset.guideAct as OrdinanceId;
