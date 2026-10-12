@@ -2,6 +2,7 @@
 // invariants every month. Usage: npx tsx scripts/fuzz.ts [years] [size] [seed]
 import { City, DISASTER_KINDS, ORDINANCES, STRUCTURES, loadCity, saveCity, type StructureKind, type ZoneKind } from '../src';
 import { Rng } from '../src/rng';
+import { DAYS_PER_MONTH } from '../src/sim/state';
 
 const years = Number(process.argv[2] ?? 20);
 const n = Number(process.argv[3] ?? 64);
@@ -76,7 +77,13 @@ function check(): void {
   }
   for (let i = 0; i < n * n; i++) if (s.occupant[i] !== 0 && !seen[i]) fail(`stray occupant ${s.occupant[i]} at ${i}`);
   for (const f of s.fires) if (!(f.target > 0 ? s.buildings.has(f.target) : s.structures.has(-f.target))) fail('fire on nothing');
-  for (const m of s.mySims) if (!s.buildings.has(m.home)) fail(`My Sim ${m.id} without a home`);
+  for (const m of s.mySims) if (!s.buildings.has(m.home)) {
+    // A displaced Sim may search for a replacement home for two months.
+    const since = m.homelessSince;
+    if (since === undefined || !Number.isSafeInteger(since) || since < 0 || since > s.day || s.day - since >= 2 * DAYS_PER_MONTH) {
+      fail(`My Sim ${m.id} without a home or a valid search period`);
+    }
+  }
 }
 
 const t0 = Date.now();
