@@ -3,7 +3,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, isLocalNet, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind } from '@web-city/engine';
 import { noRiders } from './info';
-import { ADVICE_TEXT, POLL_NAME, WEALTH_NAME } from './names';
+import { ADVICE_TEXT, POLL_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME } from './names';
 import { crimeKinds, currentAdvice, garbageFill } from './panels';
 import { changeKey, city, cityGeneration } from './state';
 import { kindsFor, structureStat, TOOLS } from './tools';
@@ -195,8 +195,11 @@ function readStatus(id: GoalId): Status {
       if (air === undefined) return pick('', '—', '첫 달이 지나면 기록됩니다');
       // The mean over all land counts the industry's own air too: what wants a hand is homes breathing it.
       const homes = smoggyHomes();
+      // (Where it comes from, said with it: most of it from one kind, or the two that bring the most.)
+      const [a, b] = airSources().filter((x) => x.key !== 'rest');
+      const from = !a ? '낮을수록 좋음' : a.share >= 0.5 || !b ? `주로 ${a.label}` : `${a.label}·${b.label} 등`;
       return pick(air > 40 && homes > 0 ? 'warn' : '', `대기 오염 ${air.toFixed(0)}`,
-        homes > 0 ? `공기 나쁜 주거지 ${fmt(homes)}칸 · 낮을수록 좋음` : '낮을수록 좋음 · 주거지 공기는 괜찮음');
+        homes > 0 ? `공기 나쁜 주거지 ${fmt(homes)}칸 · ${from}` : '낮을수록 좋음 · 주거지 공기는 괜찮음');
     }
   }
 }
@@ -590,6 +593,181 @@ function smoggyHomes(): number {
   for (let i = 0; i < zone.length; i++) if (zone[i] && want(i) > 0) n++;
   smogMemo = { key, n };
   return n;
+}
+
+/** A kind of source of the air over the smoggy homes: its share of it, how many there are, and the worst one (to go to). */
+export type AirSource = { key: string; label: string; share: number; count: number; at: [number, number] | null; lot: { x: number; y: number; w: number; h: number } | null };
+
+/**
+ * Where the air over the homes past 40 comes from: each kind of source's share of the pollution reaching them (each
+ * tile weighed by how far past 40 it is, as the screen's spot weighs it), with the worst one of each kind. The engine's
+ * own spread, worked again source by source (trees and parks only take away: they are left out; an emission
+ * ordinance cuts every source alike). Worked out once a game week or after an edit.
+ */
+export function airSources(): AirSource[] {
+  const key = changeKey();
+  if (airMemo?.key === key) return airMemo.list;
+  const s = city.state;
+  const f = city.fields;
+  const n = city.size;
+  const want = need('environment')!;
+  const w = new Float32Array(n * n);
+  // (The targets' bounds: a source whose reach misses them all is passed over.)
+  const b = { x0: n, y0: n, x1: -1, y1: -1 };
+  for (let i = 0; i < w.length; i++) {
+    const v = want(i);
+    if (!(v > 0)) continue;
+    w[i] = v;
+    const x = i % n;
+    const y = (i - x) / n;
+    b.x0 = Math.min(b.x0, x);
+    b.x1 = Math.max(b.x1, x);
+    b.y0 = Math.min(b.y0, y);
+    b.y1 = Math.max(b.y1, y);
+  }
+  const kinds = new Map<string, { label: string; sum: number; count: number; top: number; lot: { x: number; y: number; w: number; h: number } }>();
+  // (Each building's and structure's own part, by its occupant code: its card says it.)
+  const own = new Map<number, number>();
+  const add = (k: string, label: string, v: number, lot: { x: number; y: number; w: number; h: number }, code = 0) => {
+    if (!(v > 0)) return;
+    if (code) own.set(code, v);
+    const e = kinds.get(k);
+    if (!e) kinds.set(k, { label, sum: v, count: 1, top: v, lot: { x: lot.x, y: lot.y, w: lot.w, h: lot.h } });
+    else {
+      e.sum += v;
+      e.count++;
+      if (v > e.top) [e.top, e.lot] = [v, { x: lot.x, y: lot.y, w: lot.w, h: lot.h }];
+    }
+  };
+  if (b.x1 >= 0) {
+    const h = s.height;
+    // Factories (dirty industry, manufacturing, high tech apart: what an ordinance or zoning changes differs) and farms,
+    // by their stage, as the engine has them.
+    const dev = city.cfg.development.airPollution;
+    for (const bd of s.buildings.values()) {
+      const p = bd.type ? dev[bd.type] : undefined;
+      if (p) add(bd.type!, TYPE_NAME[bd.type!], lotReach(n, w, bd, p.perStage * bd.stage * Math.sqrt(bd.occupancy), p.radius, h, b), bd, bd.id);
+    }
+    // Plants and incinerators by kind, and anything else that fouls the air (an airport, a landmark).
+    for (const st of s.structures.values()) {
+      const def = STRUCTURES[st.kind];
+      const burns = def.plant ?? def.incinerator;
+      const v = (burns ? lotReach(n, w, st, burns.air[0], burns.air[1], h, b) : 0) + (def.pollution && def.pollution[0] > 0 ? lotReach(n, w, st, def.pollution[0], def.pollution[1], h, b) : 0);
+      add(`st:${st.kind}`, STRUCTURE_NAME[st.kind], v, st, -st.id);
+    }
+    // Cars and trucks (trains a quarter): the engine's cone of 2.5 tiles about each road tile.
+    const tp = city.cfg.development.trafficPollution;
+    const [cars, trucks, trains] = [f.traffic, f.highTraffic, f.railTraffic];
+    for (let y = Math.max(0, b.y0 - 2); y <= Math.min(n - 1, b.y1 + 2); y++) {
+      for (let x = Math.max(0, b.x0 - 2); x <= Math.min(n - 1, b.x1 + 2); x++) {
+        const i = y * n + x;
+        const t = cars[i]! + trucks[i]! + trains[i]! * 0.25;
+        if (!(t > 0)) continue;
+        let v = 0;
+        for (let k = 0; k < CAR_CONE.length; k += 3) {
+          const nx = x + CAR_CONE[k]!;
+          const ny = y + CAR_CONE[k + 1]!;
+          if (nx >= 0 && ny >= 0 && nx < n && ny < n) v += w[ny * n + nx]! * t * tp * CAR_CONE[k + 2]!;
+        }
+        add('traffic', '교통', v, { x, y, w: 1, h: 1 });
+      }
+    }
+    // Toxic spills not yet cleaned up.
+    const sp = city.cfg.disasters.spill;
+    for (const spill of s.spills) {
+      const x = spill.i % n;
+      const y = (spill.i - x) / n;
+      add('spill', '유독 물질 유출', coneReach(n, w, x + 0.5, y + 0.5, sp.air, sp.radius), { x, y, w: 1, h: 1 });
+    }
+  }
+  const total = [...kinds.values()].reduce((a, k) => a + k.sum, 0);
+  const list: AirSource[] = [];
+  if (total > 0) {
+    const ranked = [...kinds.entries()].sort((p, q) => q[1].sum - p[1].sum);
+    // (The few that matter, the rest as one: a fifth kind at 2% said nothing.)
+    const main = ranked.filter(([, k], i) => i < 4 && k.sum / total >= 0.03);
+    for (const [k, e] of main) list.push({ key: k, label: e.label, share: e.sum / total, count: e.count, at: [e.lot.x + ((e.lot.w - 1) >> 1), e.lot.y + ((e.lot.h - 1) >> 1)], lot: e.lot });
+    const rest = 1 - list.reduce((a, x) => a + x.share, 0);
+    if (rest >= 0.01) list.push({ key: 'rest', label: '그 밖', share: rest, count: ranked.length - main.length, at: null, lot: null });
+  }
+  airMemo = { key, list, own, total };
+  return list;
+}
+let airMemo: { key: string; list: AirSource[]; own: Map<number, number>; total: number } | null = null;
+
+/** A building's (its id) or structure's (minus its id) share of the air over the smoggy homes: 0 for none. */
+export function airShareOf(code: number): number {
+  airSources();
+  return airMemo && airMemo.total > 0 ? (airMemo.own.get(code) ?? 0) / airMemo.total : 0;
+}
+
+/** (dx, dy, weight) of the engine's cone of 2.5 tiles about a road tile's traffic. */
+const CAR_CONE: number[] = [];
+for (let dy = -2; dy <= 2; dy++) {
+  for (let dx = -2; dx <= 2; dx++) {
+    const d = Math.hypot(dx, dy);
+    if (d < 2.5) CAR_CONE.push(dx, dy, 1 - d / 2.5);
+  }
+}
+/** A ridge this many metres above both ends stops air pollution altogether (the engine's). */
+const HILL_BLOCKS_AT = 30;
+
+/**
+ * How much of a lot's pollution reaches the weighed tiles — the engine's spread from a lot: full over it, fading from
+ * its edges to nothing at `radius` tiles, held back by a ridge in between. Only the tiles within `b` are summed.
+ */
+function lotReach(n: number, w: Float32Array, lot: { x: number; y: number; w: number; h: number }, strength: number, radius: number, height: Uint8Array, b: { x0: number; y0: number; x1: number; y1: number }): number {
+  if (!(strength > 0)) return 0;
+  const reach = radius + 1;
+  const fy0 = Math.max(0, lot.y - radius);
+  const fy1 = Math.min(n - 1, lot.y + lot.h - 1 + radius);
+  const fx0 = Math.max(0, lot.x - radius);
+  const fx1 = Math.min(n - 1, lot.x + lot.w - 1 + radius);
+  const [y0, y1, x0, x1] = [Math.max(fy0, b.y0), Math.min(fy1, b.y1), Math.max(fx0, b.x0), Math.min(fx1, b.x1)];
+  if (x0 > x1 || y0 > y1) return 0;
+  const cx = lot.x + (lot.w - 1) / 2;
+  const cy = lot.y + (lot.h - 1) / 2;
+  const hs = height[Math.round(cy) * n + Math.round(cx)]!;
+  // (As the engine: a ridge is looked for only when something in the whole reach stands above the source.)
+  let hills = false;
+  for (let y = fy0; y <= fy1 && !hills; y++) for (let x = fx0; x <= fx1; x++) if (height[y * n + x]! > hs) { hills = true; break; }
+  let sum = 0;
+  for (let y = y0; y <= y1; y++) {
+    const dy = y < lot.y ? lot.y - y : y >= lot.y + lot.h ? y - (lot.y + lot.h - 1) : 0;
+    for (let x = x0; x <= x1; x++) {
+      const wt = w[y * n + x]!;
+      if (!wt) continue;
+      const dx = x < lot.x ? lot.x - x : x >= lot.x + lot.w ? x - (lot.x + lot.w - 1) : 0;
+      const d = Math.sqrt(dx * dx + dy * dy);
+      if (d >= reach) continue;
+      let v = strength * (1 - d / reach);
+      if (hills && d > 1) {
+        const ends = Math.max(hs, height[y * n + x]!);
+        let ridge = 0;
+        const steps = Math.ceil(Math.max(Math.abs(x - cx), Math.abs(y - cy)));
+        for (let k = 1; k < steps; k++) {
+          const hk = height[Math.round(cy + ((y - cy) * k) / steps) * n + Math.round(cx + ((x - cx) * k) / steps)]!;
+          if (hk - ends > ridge) ridge = hk - ends;
+        }
+        if (ridge > 0) v *= Math.max(0, 1 - ridge / HILL_BLOCKS_AT);
+      }
+      sum += wt * v;
+    }
+  }
+  return sum;
+}
+
+/** How much of a cone about a point (the engine's spill spread) reaches the weighed tiles. */
+function coneReach(n: number, w: Float32Array, cx: number, cy: number, strength: number, radius: number): number {
+  if (!(strength > 0) || radius <= 0) return 0;
+  let sum = 0;
+  for (let y = Math.max(0, Math.floor(cy - radius)); y <= Math.min(n - 1, Math.ceil(cy + radius)); y++) {
+    for (let x = Math.max(0, Math.floor(cx - radius)); x <= Math.min(n - 1, Math.ceil(cx + radius)); x++) {
+      const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+      if (d < radius) sum += w[y * n + x]! * strength * (1 - d / radius);
+    }
+  }
+  return sum;
 }
 
 /** The plant or pump a site is looked for: gas (clean enough, mid-sized) if open, else the cheapest. */

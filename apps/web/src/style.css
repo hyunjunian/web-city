@@ -2557,6 +2557,18 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .mg-usage-bar i { display: block; height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.3s var(--ease); }
 .mg-usage.warn .mg-usage-bar i { background: var(--warn); }
 .mg-usage.bad .mg-usage-bar i { background: var(--danger); }
+/* Where the air over the smoggy homes comes from: one bar in the sources' colours, their names under it. */
+.mg-causes { margin: 2px 0 10px; }
+.mg-causes-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 6px; font-size: 12px; color: var(--muted); }
+.mg-causes-title small { color: var(--faint); font-size: 11px; }
+.mg-causes-bar { display: flex; gap: 2px; height: 8px; overflow: hidden; border-radius: 4px; background: var(--surface-3); }
+.mg-causes-bar i { display: block; flex: 0 1 0; height: 100%; min-width: 3px; }
+.mg-causes-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.mg-cause { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 12px; font-weight: 500; color: var(--text); }
+span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
+.mg-cause > i { flex: none; width: 8px; height: 8px; border-radius: 50%; }
+.mg-cause b { font-weight: 650; font-variant-numeric: tabular-nums; }
+.mg-causes-tip { margin: 6px 0 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
 .mg-usage-text { flex: none; white-space: nowrap; }
 .mg-usage-text b { color: var(--text); font-weight: 650; font-variant-numeric: tabular-nums; }
 .mg-usage.warn .mg-usage-text b { color: var(--warn-ink); }

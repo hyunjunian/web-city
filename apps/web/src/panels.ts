@@ -15,7 +15,7 @@ import { renderNeighbours } from './region';
 import { TYPE_COLOR } from './render';
 import { GROWTH_LABEL } from './views';
 import { checkLeft, checkText, renderAges, renderPolls, renderRewards, rewardShare } from './reports';
-import { centerOn, changeKey, city, cityGeneration, graphs, overlay, redraw, speed } from './state';
+import { centerOn, changeKey, city, cityGeneration, graphs, overlay, redraw, renderer, speed } from './state';
 import { categoryOf, chosen, openTray, pickStructure, refreshStructureLists, selectTool, structureStat, TOOLS } from './tools';
 import { renderUdi, watchMissions } from './udi';
 import { journal, type Notice } from './journal';
@@ -70,6 +70,12 @@ document.addEventListener('click', (e) => {
   if (b.dataset.at) {
     const [x, y] = b.dataset.at.split(',').map(Number);
     centerOn(x!, y!);
+  }
+  // (A building or a stretch of road it means, outlined where the map lands: the air's sources.)
+  if (b.dataset.flash) {
+    const [x, y, w, h] = b.dataset.flash.split(',').map(Number);
+    renderer.effect('flash', x!, y!, w, h);
+    redraw();
   }
 });
 

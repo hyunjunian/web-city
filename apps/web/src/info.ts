@@ -2,7 +2,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceId, ORDINANCES, serviceRadius, type Structure, type StructureKind, STRUCTURES, type TripMeans } from '@web-city/engine';
 import { icon } from './icons';
-import { budgetMends, facilityLine, hasRoadNow, jamRun, widenTo, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
+import { airShareOf, budgetMends, facilityLine, hasRoadNow, jamRun, widenTo, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
 import { ko } from './messages';
 import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -356,7 +356,7 @@ ${paths}${voice}
         <tr><td>평균 나이</td><td>${b.age.toFixed(0)}세</td></tr>
         <tr${row('education')}><td>교육 지수</td><td>${b.eq.toFixed(0)}</td></tr>
         <tr${row('health')}><td>건강 지수</td><td>${b.hq.toFixed(0)}</td></tr>` : ''}
-      ${stRows}
+      ${stRows}${smokeRow(b ? b.id : q.structure ? -q.structure.id : 0, row('environment'))}
     </table>` : ''}
     ${q.structure && def!.category !== 'park' && def!.category !== 'garbage' && def!.category !== 'water' && def!.category !== 'landmark' && !(def!.category === 'safety' && def!.police?.radius === 0) && !def!.station ? fundingSlider(q.structure) : q.structure ? `<p class="muted">예산은 재정의 부서 예산 "${def!.category === 'garbage' ? '위생' : def!.category === 'water' ? '수도' : def!.station ? '대중교통' : def!.category === 'landmark' ? '랜드마크' : def!.category === 'safety' ? '교도소' : '공원 미화'}"${def!.category === 'garbage' ? '으로' : '로'} 정합니다.</p>` : ''}
     ${growth}
@@ -668,6 +668,13 @@ export function aloneReached(st: Structure, gone: ReadonlySet<number> = new Set(
   }
   return { n, what: homes ? '집' : '건물' };
 }
+/** A factory's, farm's or plant's part in the air over the smoggy homes, where it has one worth saying. */
+const smokeRow = (code: number, row: string): string => {
+  const share = code ? airShareOf(code) : 0;
+  if (share < 0.005) return '';
+  return `<tr${row}><td title="대기 오염이 40을 넘는 주거 구역에 이곳의 연기가 보태는 몫">공기 나쁜 주거지 오염</td><td class="${share >= 0.2 ? 'neg' : ''}">${share >= 0.995 ? '모두' : `${share < 0.01 ? '1% 미만' : `${Math.round(share * 100)}%`}`}가 이곳에서</td></tr>`;
+};
+
 const aloneRow = (st: Structure) => {
   const a = aloneReached(st);
   return a ? `<tr><td title="다른 곳이 닿지 않아 여기만 맡는 ${a.what}: 헐거나 예산을 줄이면 범위 밖이 됩니다">혼자 맡는 ${a.what}</td><td>${fmt(a.n)}채</td></tr>` : '';

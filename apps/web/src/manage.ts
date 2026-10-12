@@ -21,7 +21,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type AirSource, airSources, smokeClear, type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -1732,6 +1732,46 @@ function usageBar(id: GoalId): string {
   return `<div class="mg-usage ${tone}" role="img" aria-label="${of}의 ${pct}%${tail}"><span class="mg-usage-bar"><i style="width:${Math.min(100, pct)}%"></i></span><span class="mg-usage-text">${of}의 <b>${pct}%</b>${tail}</span></div>`;
 }
 
+/** Each kind of source's colour in the bar: the map's own where it has one (industry orange, paler the cleaner). */
+const CAUSE_TONE: Record<string, string> = { ID: 'var(--zone-i)', IM: '#e6a565', IHT: '#efcc9f', IA: '#b8963a', traffic: '#7d8796', spill: '#c0479a', rest: 'var(--faint)' };
+const causeTone = (key: string): string => {
+  if (CAUSE_TONE[key]) return CAUSE_TONE[key];
+  const def = key.startsWith('st:') ? STRUCTURES[key.slice(3) as StructureKind] : undefined;
+  return def?.plant ? '#c2554a' : def?.incinerator ? '#8e6cc0' : '#9a9aa2';
+};
+
+/**
+ * The environment screen: where the air over the smoggy homes comes from, as one bar, each part's name a way to the
+ * worst one of its kind on the map (a factory, a plant, the busiest road by the homes).
+ */
+function airCauses(id: GoalId): string {
+  if (id !== 'environment') return '';
+  const list = airSources();
+  if (!list.length) return '';
+  const pct = (v: number) => (v >= 0.995 ? '100%' : v < 0.01 ? '1% 미만' : `${Math.round(v * 100)}%`);
+  const unit = (x: AirSource) => (x.key === 'traffic' ? `길 ${fmt(x.count)}칸` : x.key.startsWith('st:') ? `${fmt(x.count)}곳` : `건물 ${fmt(x.count)}채`);
+  // (Each part grows by its share, the gaps between taken out first: widths in % ran past the end.)
+  const bar = list.map((x) => `<i style="flex-grow:${x.share.toFixed(3)};background:${causeTone(x.key)}"></i>`).join('');
+  const items = list.map((x) => {
+    const dot = `<i style="background:${causeTone(x.key)}"></i>`;
+    if (!x.at || !x.lot) return `<span class="mg-cause">${dot}${escapeHtml(x.label)} <b>${pct(x.share)}</b></span>`;
+    const worst = x.key === 'traffic' ? '오염을 가장 많이 보태는 길' : x.count > 1 ? '가장 많이 보태는 곳' : '그곳';
+    return `<button type="button" class="advice-view mg-cause" data-at="${x.at.join(',')}" data-flash="${[x.lot.x, x.lot.y, x.lot.w, x.lot.h].join(',')}" title="${escapeHtml(`${x.label} ${unit(x)} · 지도에서 ${worst} 보기`)}">${dot}${escapeHtml(x.label)} <b>${pct(x.share)}</b></button>`;
+  }).join('');
+  const said = list.map((x) => `${x.label} ${pct(x.share)}`).join(', ');
+  // What takes the biggest away, in the engine's distances: beyond its smoke's reach (a factory's), or past where a
+  // plant's falls under 40.
+  const top = list[0]!;
+  const kind = top.key.startsWith('st:') ? (top.key.slice(3) as StructureKind) : null;
+  const reach = (DEV_TYPES as readonly string[]).includes(top.key) ? city.cfg.development.airPollution[top.key as DevType]?.radius : undefined;
+  const tip = top.share < 0.3 ? ''
+    : reach !== undefined ? `${top.key === 'IA' ? '농장의 먼지' : `${top.label} 공장의 연기`}가 가장 큽니다 · 주거 구역을 ${fmt(reach + 1)}칸 넘게 떼어 두면 닿지 않습니다`
+    : kind && (STRUCTURES[kind].plant || STRUCTURES[kind].incinerator) ? `${top.label}의 연기가 가장 큽니다 · 주거지에서 ${fmt(smokeClear(kind))}칸 넘게 떨어진 곳으로 옮기면 그 연기로는 공기가 나빠지지 않습니다`
+    : top.key === 'traffic' ? '길 위의 차가 가장 큽니다 · 대중교통을 놓거나 막히는 길을 넓히면 줄어듭니다'
+    : top.key === 'spill' ? '쏟아진 유독 물질이 가장 큽니다 · 소방서가 닿으면 치워집니다' : '';
+  return `<div class="mg-causes"><p class="mg-causes-title">공기 나쁜 주거지의 오염원<small>눌러서 지도에서 보기</small></p><span class="mg-causes-bar" role="img" aria-label="${escapeHtml(said)}">${bar}</span><div class="mg-causes-list">${items}</div>${tip ? `<p class="mg-causes-tip">${escapeHtml(glue(tip))}</p>` : ''}</div>`;
+}
+
 /**
  * One advisor's word under 진단, with its 보기 and fix buttons. The word 추천 조치 already leads with
  * is not said twice: its first sentence stands at the top of the screen, so only the rest is read here.
@@ -1788,6 +1828,7 @@ function goalHtml(id: GoalId): string {
       return `<div class="mg-m ${tone ?? ''}"${title ? ` title="${escapeHtml(title.trim())}"` : ''}><span>${label}</span><b>${value}</b>${delta}</div>`;
     }).join('')}</div>
     ${usageBar(id)}
+    ${airCauses(id)}
     <div class="mg-views" role="group" aria-label="지도 보기">${icon('layers')}${g.views.map(([v, label]) => `<button type="button" class="vchip" data-mg-view="${v}" aria-pressed="${view === v}">${label}</button>`).join('')}</div>
     ${advice.length ? `<section class="mg-sec"><h3>${icon('info')}진단</h3>${advice.map((a) => diagnosis(a, lead)).join('')}</section>` : ''}
     ${id === 'finance' ? financeActions() : ''}
