@@ -3,8 +3,9 @@
 // a Worker (e.g. into KV/D1/R2) and Node.
 
 import { City, MAX_SIZE, type CityOptions } from './city';
+import { copyData } from './copy';
 import { computeMayor } from './sim/mayor';
-import { DAYS_PER_MONTH, linkAll, type Building, type CityState, type Structure } from './sim/state';
+import { DAYS_PER_MONTH, ELEVATED, linkAll, Net, Terrain, ZONES, type Building, type CityState, type Structure } from './sim/state';
 import { defaultNeighbours } from './sim/region';
 import { drain } from './sim/steps';
 import { STRUCTURES } from './data/structures';
@@ -138,15 +139,15 @@ function toTable<T extends object>(items: readonly T[]): { columns: string[]; ro
     columns.push(k);
   }
   columns.sort(); // canonical: the same table whatever order the objects' keys were set in
-  return { columns, rows: items.map((it) => columns.map((k) => (it as Record<string, unknown>)[k])) };
+  return { columns, rows: items.map((it) => columns.map((k) => copyData((it as Record<string, unknown>)[k]))) };
 }
 
 function fromTable<T>(t: { columns: string[]; rows: unknown[][] } | undefined): T[] {
   if (!t) return [];
   return t.rows.map((row) => {
-    const o: Record<string, unknown> = {};
+    const o: Record<string, unknown> = Object.create(null);
     t.columns.forEach((k, j) => {
-      if (row[j] !== undefined) o[k] = row[j];
+      if (row[j] !== undefined) o[k] = copyData(row[j]);
     });
     return o as T;
   });
@@ -154,7 +155,7 @@ function fromTable<T>(t: { columns: string[]; rows: unknown[][] } | undefined): 
 
 /** Deep copy of plain JSON-like data (structuredClone is not in every runtime's lib types). */
 function structuredCloneLite<T>(v: T): T {
-  return JSON.parse(JSON.stringify(v)) as T;
+  return copyData(v);
 }
 
 /** [value, count, value, count, …] */
@@ -172,16 +173,34 @@ export function rleEncode(a: ArrayLike<number>, map?: (v: number) => number): nu
   return out;
 }
 
+/** A byte layer whose codes have meaning to the simulation, rather than arbitrary bytes. */
+function decodeCodes(runs: number[] | undefined, length: number, max: number, optional = false): Uint8Array {
+  if (runs === undefined) {
+    if (!optional) throw new Error('corrupt save: missing map layer');
+    return new Uint8Array(length);
+  }
+  const out = rleDecode(runs, length);
+  for (let k = 0; k < runs.length; k += 2) if (runs[k]! > max) throw new Error('corrupt save: unknown tile code');
+  return out;
+}
+
 export function rleDecode(runs: readonly number[], length: number): Uint8Array;
 export function rleDecode<T extends { fill(v: number, a: number, b: number): unknown }>(
   runs: readonly number[], length: number, out: T): T;
 export function rleDecode(runs: readonly number[], length: number, out: Uint8Array | Float32Array = new Uint8Array(length)) {
   let p = 0;
   if (!Array.isArray(runs)) throw new Error('corrupt save: missing map layer');
+  const bytes = out instanceof Uint8Array;
   for (let k = 0; k < runs.length; k += 2) {
     const len = runs[k + 1]!;
-    if (!Number.isInteger(len) || len < 0 || p + len > length) throw new Error(`corrupt save: bad run of ${len} tiles`);
-    out.fill(runs[k]!, p, p + len);
+    const value = runs[k]!;
+    if (!Number.isInteger(len) || len <= 0 || p + len > length) throw new Error(`corrupt save: bad run of ${len} tiles`);
+    // Typed arrays silently wrap byte values and turn oversized floats into Infinity.
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0
+      || (bytes ? !Number.isInteger(value) || value > 255 : !Number.isFinite(Math.fround(value)))) {
+      throw new Error('corrupt save: bad tile value');
+    }
+    out.fill(value, p, p + len);
     p += len;
   }
   if (p !== length) throw new Error(`corrupt save: expected ${length} tiles, got ${p}`);
@@ -295,7 +314,7 @@ export function* saveCitySteps(city: City): Generator<void, SavedCity> {
     nextDealId: s.nextDealId,
     wind: { ...s.wind },
     region: s.region ? { ...s.region } : undefined,
-    units: s.units.map((u) => ({ ...u })),
+    units: copyData(s.units),
     mobs: s.mobs.map((m) => ({ ...m })),
     arsonists: s.arsonists.map((a) => ({ ...a })),
     railTraffic: r.railTraffic!,
@@ -308,7 +327,7 @@ export function* saveCitySteps(city: City): Generator<void, SavedCity> {
     ordinances: [...s.ordinances],
     ordinanceDays: { ...s.ordinanceDays },
     loans: s.loans.map((l) => ({ ...l })),
-    history: s.history.map((h) => ({ ...h })),
+    history: copyData(s.history),
     mayorRating: s.mayorRating,
     taxMonthStart: [...s.taxMonthStart],
     taxMood: s.taxMood.map((m) => ({ ...m })),
@@ -322,7 +341,7 @@ export function* saveCitySteps(city: City): Generator<void, SavedCity> {
     fires: s.fires.map((fi) => ({ ...fi })),
     treeFires: s.treeFires.map((t) => ({ ...t })),
     events: s.events.map((e) => ({ ...e })),
-    safety: { ...s.safety },
+    safety: copyData(s.safety),
     carryCrimes: s.carryCrimes,
     fireTally: { ...s.fireTally },
     blackoutRotation: s.blackoutRotation,
@@ -334,7 +353,7 @@ export function* saveCitySteps(city: City): Generator<void, SavedCity> {
     taxRates: { ...s.taxRates },
     taxLog: s.taxLog.map((e) => [...e] as [number, (typeof e)[1], number]),
     freightTrips: s.freightTrips,
-    lastBudget: s.lastBudget,
+    lastBudget: copyData(s.lastBudget),
     impeached: s.impeached,
   };
 }
@@ -366,17 +385,29 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     throw new Error('corrupt save: bad building table');
   }
   const N = saved.size * saved.size;
-  const terrain = rleDecode(saved.terrain, N);
+  const terrain = decodeCodes(saved.terrain, N, Terrain.Water);
   const occupant = new Int32Array(N);
   const buildings = new Map<number, Building>();
   const structures = new Map<number, Structure>();
+  const ids = new Set<number>();
+  let nextId = 1;
+  const claim = (r: { id: number; x: number; y: number; w: number; h: number }, sign: 1 | -1) => {
+    if (!Number.isInteger(r.id) || r.id <= 0 || r.id > 0x7fffffff || ids.has(r.id)) throw new Error('corrupt save: bad or duplicate id');
+    ids.add(r.id);
+    nextId = Math.max(nextId, r.id + 1);
+    for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+      const i = y * saved.size + x;
+      if (occupant[i] !== 0) throw new Error('corrupt save: overlapping lots');
+      occupant[i] = sign * r.id;
+    }
+  };
   for (const b of saved.buildings ?? fromTable<SavedBuilding>(saved.buildingTable)) {
     // Version 1 saves predate power and households: fill in defaults.
     const base = 20 + 20 * (b.type === 'R$$' ? 1 : b.type === 'R$$$' ? 2 : 0);
     if (!fits(b, b.w, b.h)) throw new Error(`corrupt save: building ${b.id} is off the map`);
     if (!whole(b.id) || !DEV_TYPES.includes(b.origType) || (b.type !== null && !DEV_TYPES.includes(b.type))) throw new Error(`corrupt save: building ${b.id} has no known type`);
-    buildings.set(b.id, { noPowerMonths: 0, powered: true, age: 30, eq: base, hq: base, noWaterMonths: 0, watered: false, commute: -1, noJobMonths: 0, ...b, historical: b.historical === true });
-    for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) occupant[y * saved.size + x] = b.id;
+    claim(b, 1);
+    buildings.set(b.id, { noPowerMonths: 0, powered: true, age: 30, eq: base, hq: base, noWaterMonths: 0, watered: false, commute: -1, noJobMonths: 0, ...copyData(b), historical: b.historical === true });
   }
   for (const old of saved.structures) {
     // Version 1 parks were square with a `size`.
@@ -387,11 +418,10 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     };
     if (!fits(full, full.w, full.h)) throw new Error(`corrupt save: structure ${full.id} is off the map`);
     if (!whole(full.id) || !Object.hasOwn(STRUCTURES, full.kind)) throw new Error(`corrupt save: structure ${full.id} has no known kind`);
+    claim(full, -1);
     structures.set(full.id, full);
-    for (let y = full.y; y < full.y + full.h; y++) {
-      for (let x = full.x; x < full.x + full.w; x++) occupant[y * saved.size + x] = -full.id;
-    }
   }
+  for (const sim of saved.mySims ?? []) nextId = Math.max(nextId, sim.id + 1);
   const state: CityState = {
     version: 1,
     name: saved.name,
@@ -402,18 +432,18 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     day: saved.day,
     funds: saved.funds,
     terrain,
-    net: rleDecode(saved.net, N),
-    zone: rleDecode(saved.zone, N),
-    power: saved.power ? rleDecode(saved.power, N) : new Uint8Array(N),
-    pipe: saved.pipe ? rleDecode(saved.pipe, N) : new Uint8Array(N),
-    subway: saved.subway ? rleDecode(saved.subway, N) : new Uint8Array(N),
-    oneway: saved.oneway ? rleDecode(saved.oneway, N) : new Uint8Array(N),
+    net: decodeCodes(saved.net, N, Net.OneWay),
+    zone: decodeCodes(saved.zone, N, ZONES.length - 1),
+    power: decodeCodes(saved.power, N, 1, true),
+    pipe: decodeCodes(saved.pipe, N, 1, true),
+    subway: decodeCodes(saved.subway, N, 1, true),
+    oneway: decodeCodes(saved.oneway, N, 4, true),
     radiation: saved.radiation ? rleDecode(saved.radiation, N) : new Uint8Array(N),
     trees: saved.trees ? rleDecode(saved.trees, N) : new Uint8Array(N),
     height: saved.height ? rleDecode(saved.height, N) : flatHeights(terrain, N),
     potholes: saved.potholes ? rleDecode(saved.potholes, N) : new Uint8Array(N),
-    elevated: saved.elevated ? rleDecode(saved.elevated, N) : new Uint8Array(N),
-    tolls: saved.tolls ? rleDecode(saved.tolls, N) : new Uint8Array(N),
+    elevated: decodeCodes(saved.elevated, N, ELEVATED.highway, true),
+    tolls: decodeCodes(saved.tolls, N, 1, true),
     links: saved.links ? rleDecode(saved.links, N) : new Uint8Array(N),
     interchange: saved.interchange ? rleDecode(saved.interchange, N) : new Uint8Array(N),
     tunnel: saved.tunnel ? rleDecode(saved.tunnel, N) : new Uint8Array(N),
@@ -436,7 +466,7 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     nextDealId: saved.nextDealId ?? 1,
     wind: saved.wind ? { ...saved.wind } : { dir: 0, strength: 0.3 },
     region: saved.region ? { ...saved.region } : undefined,
-    units: (saved.units ?? []).map((u) => ({ ...u })),
+    units: copyData(saved.units ?? []),
     mobs: (saved.mobs ?? []).map((m) => ({ ...m })),
     arsonists: (saved.arsonists ?? []).map((a) => ({ ...a })),
     rubble: saved.rubble ? rleDecode(saved.rubble, N) : new Uint8Array(N),
@@ -447,7 +477,7 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     ordinanceDays: saved.ordinanceDays ? { ...saved.ordinanceDays }
       : Object.fromEntries((saved.ordinances ?? []).map((o) => [o, saved.day % DAYS_PER_MONTH])),
     loans: (saved.loans ?? []).map((l) => ({ ...l })),
-    history: (saved.history ?? []).map((h) => ({ ...h })),
+    history: copyData(saved.history ?? []),
     mayorRating: saved.mayorRating ?? 0,
     taxMonthStart: saved.taxMonthStart
       ? [...saved.taxMonthStart]
@@ -467,7 +497,7 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     fires: (saved.fires ?? []).map((fi) => ({ ...fi })),
     treeFires: (saved.treeFires ?? []).map((t) => ({ ...t })),
     events: (saved.events ?? []).map((e) => ({ ...e })),
-    safety: { crimes: 0, arrests: 0, prevented: 0, paroled: 0, fires: 0, burned: 0, ...saved.safety },
+    safety: { crimes: 0, arrests: 0, prevented: 0, paroled: 0, fires: 0, burned: 0, ...copyData(saved.safety) },
     carryCrimes: saved.carryCrimes ?? 0,
     fireTally: { fires: 0, burned: 0, ...saved.fireTally },
     blackoutRotation: saved.blackoutRotation ?? 0,
@@ -477,11 +507,11 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     structures,
     // Ids are handed out from here: never one already taken (a missing or stale count gave NaN ids, or
     // a new facility that replaced an old one under its id).
-    nextId: Math.max(whole(saved.nextId) ? saved.nextId : 0, 1 + Math.max(0, ...buildings.keys(), ...structures.keys(), ...(saved.mySims ?? []).map((m) => m.id))),
+    nextId: Math.max(whole(saved.nextId) ? saved.nextId : 0, nextId),
     taxRates: { ...saved.taxRates },
     taxLog: (saved.taxLog ?? []).map((e) => [...e] as [number, (typeof e)[1], number]),
     freightTrips: saved.freightTrips,
-    lastBudget: saved.lastBudget,
+    lastBudget: copyData(saved.lastBudget),
     impeached: saved.impeached,
   };
   // Saves from before roads kept their links: every road joins its neighbours, as it did then.

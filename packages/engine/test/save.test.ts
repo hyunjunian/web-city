@@ -65,6 +65,51 @@ describe('setters', () => {
 });
 
 describe('save/load', () => {
+  it('saved and loaded budget reports are independent of the live city', () => {
+    const city = new City({ size: 32, water: false });
+    city.step(30);
+    const saved = saveCity(city);
+    const copy = loadCity(saved);
+    const originalTax = city.state.lastBudget!.taxByType['R$'];
+    copy.state.lastBudget!.taxByType['R$'] = 1234;
+    expect(saved.lastBudget!.taxByType['R$']).toBe(originalTax);
+    expect(city.state.lastBudget!.taxByType['R$']).toBe(originalTax);
+    saved.lastBudget!.taxByType['R$'] = 5678;
+    expect(city.state.lastBudget!.taxByType['R$']).toBe(originalTax);
+    expect(copy.state.lastBudget!.taxByType['R$']).toBe(1234);
+  });
+
+  it('does not share saved commute jobs, dispatch routes or traffic history', () => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    city.buildNetwork(0, 10, 31, 10, 'road');
+    city.zone(1, 5, 15, 9, 'R-low');
+    city.placeStructure('gasPlant', 1, 12);
+    city.step(60);
+    const home = [...city.state.buildings.values()].find((b) => b.type?.startsWith('R'))!;
+    expect(home).toBeDefined();
+    home.jobs = [77, 88];
+    city.state.history[0]!.trips = { car: 12 };
+    city.state.safety.byType = { robbery: 1 };
+    city.state.safety.spots = [[123, 'robbery']];
+    city.state.units.push({ id: 900, kind: 'fire', air: false, station: 1, x: 2, y: 10, travel: 1, onSite: 3, competence: 1, path: [322, 323] });
+    const saved = saveCity(city);
+    const copy = loadCity(saved);
+    copy.state.buildings.get(home.id)!.jobs![0] = 99;
+    copy.state.units[0]!.path![0] = 400;
+    copy.state.history[0]!.trips!.car = 99;
+    copy.state.safety.byType!.robbery = 99;
+    copy.state.safety.spots![0]![0] = 400;
+    expect(home.jobs).toEqual([77, 88]);
+    expect(city.state.units[0]!.path).toEqual([322, 323]);
+    expect(saved.units![0]!.path).toEqual([322, 323]);
+    expect(city.state.history[0]!.trips).toEqual({ car: 12 });
+    expect(saved.history![0]!.trips).toEqual({ car: 12 });
+    expect(city.state.safety.byType).toEqual({ robbery: 1 });
+    expect(saved.safety!.spots).toEqual([[123, 'robbery']]);
+    expect(loadCity(saved).state.buildings.get(home.id)!.jobs).toEqual([77, 88]);
+  });
+
   it('a save with an impossible size or footprint is refused, not run with', () => {
     const save = saveCity(new City({ size: 32, seed: 1, water: false }));
     expect(() => loadCity({ ...save, size: 1e6 })).toThrow(/corrupt/);
@@ -85,6 +130,41 @@ describe('save/load', () => {
   it('run-length encoding round-trips', () => {
     const a = new Uint8Array([0, 0, 0, 1, 1, 2, 0, 0]);
     expect([...rleDecode(rleEncode(a), a.length)]).toEqual([...a]);
+  });
+
+  it('rejects map values that would wrap, truncate or become non-finite', () => {
+    for (const value of [null, undefined, '1', NaN, Infinity, -1, 256, 1.5]) {
+      expect(() => rleDecode([value, 4] as number[], 4)).toThrow(/corrupt save/);
+    }
+    for (const value of [NaN, Infinity, -1, 1e100]) {
+      expect(() => rleDecode([value, 4], 4, new Float32Array(4))).toThrow(/corrupt save/);
+    }
+    expect([...rleDecode([1.25, 2, 0, 2], 4, new Float32Array(4))]).toEqual([1.25, 1.25, 0, 0]);
+    expect(() => rleDecode([0, 0, 1, 4], 4)).toThrow(/corrupt save/);
+  });
+
+  it('refuses unknown network and zone codes before running a corrupt city', () => {
+    const saved = saveCity(new City({ size: 16, water: false }));
+    for (const [key, value] of [['terrain', 2], ['net', 9], ['zone', 11], ['elevated', 4], ['oneway', 5], ['pipe', 2]] as const) {
+      expect(() => loadCity({ ...saved, [key]: [value, 256] })).toThrow(/corrupt save/);
+    }
+    for (const key of ['terrain', 'net', 'zone'] as const) {
+      expect(() => loadCity({ ...saved, [key]: undefined } as unknown as typeof saved)).toThrow(/corrupt save/);
+    }
+  });
+
+  it('rejects duplicate, empty and overflowing ids and overlapping lots', () => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 100_000;
+    city.placeStructure('smallPoliceStation', 3, 3);
+    const saved = saveCity(city);
+    for (const id of [0, 2 ** 31, Number.MAX_SAFE_INTEGER]) {
+      const bad = { ...saved, structures: saved.structures.map((st) => ({ ...st, id })) };
+      expect(() => loadCity(bad)).toThrow(/corrupt save/);
+    }
+    const facility = saved.structures[0]!;
+    expect(() => loadCity({ ...saved, structures: [facility, { ...facility, x: 15 }] })).toThrow(/corrupt save/);
+    expect(() => loadCity({ ...saved, structures: [facility, { ...facility, id: facility.id + 1, x: facility.x + 1 }] })).toThrow(/corrupt save/);
   });
 
   it('rejects malformed saves up front, and never reuses an id', () => {

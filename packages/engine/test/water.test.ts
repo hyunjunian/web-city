@@ -28,6 +28,25 @@ const all = (c: City) => [...c.state.buildings.values()];
 const pumps = (c: City) => [...c.state.structures.values()].filter((s) => s.kind === 'waterPump');
 
 describe('water', () => {
+  it('honours a configured service radius larger than a byte', () => {
+    const city = new City({ size: 264, water: false, config: { services: { waterRadius: 260 } } });
+    city.placeStructure('windPlant', 0, 0);
+    city.placeStructure('waterTower', 2, 0);
+    expect(city.query(262, 0)!.watered).toBe(true);
+    expect(city.query(263, 0)!.watered).toBe(false);
+  });
+
+  it('an unconnected pipe does not take water away from an overlapping supplied network', () => {
+    const city = new City({ size: 32, water: false });
+    city.placeStructure('windPlant', 2, 10);
+    city.placeStructure('waterTower', 5, 10);
+    city.buildPipe(6, 10, 10, 10);
+    expect(city.query(15, 10)!.watered).toBe(true);
+    city.buildPipe(15, 10, 15, 10);
+    expect(city.query(15, 10)!.watered).toBe(true);
+    expect(city.query(20, 10)!.watered).toBe(false);
+  });
+
   it('without water, buildings stay at or below their well-water stage cap', () => {
     const city = town();
     city.step(360 * 2);
@@ -115,7 +134,8 @@ describe('water', () => {
   }, 60_000);
 
   it('a piped network with no working source counts as short once the city has water', () => {
-    const city = town(48, { safety: { fires: false } });
+    // Plenty of supply: this test isolates a missing source from capacity shortages in overlapping service areas.
+    const city = town(48, { safety: { fires: false }, structures: { waterTower: { pump: { output: 100_000 } } } });
     city.buildPipe(1, 25, 46, 25); // under the industry: pumps none
     city.step(120);
     expect(city.stats().water.shortages).toBe(0); // no water anywhere yet: that's 'no water', not a shortage

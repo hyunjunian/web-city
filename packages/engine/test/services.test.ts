@@ -21,7 +21,43 @@ function town(opts: { size?: number; config?: CityOptions['config'] } = {}): Cit
 
 const structures = (c: City, kind: string) => [...c.state.structures.values()].filter((s) => s.kind === kind);
 
+describe('service funding refreshes', () => {
+  it('updates service capacity and coverage while keeping the unchanged route plan', () => {
+    const city = town();
+    powerUp(city);
+    expect(city.placeStructure('medicalClinic', 20, 8).ok).toBe(true);
+    const clinic = structures(city, 'medicalClinic')[0]!;
+    const capacity = clinic.capacity;
+    const plan = city.fields.travel;
+    const commute = [...city.fields.commute];
+    city.setFunding(clinic.id, 50);
+    city.query(20, 8);
+    expect(clinic.capacity).toBeLessThan(capacity);
+    expect([...city.fields.commute]).toEqual(commute);
+    expect(city.fields.travel).toBe(plan);
+    const health = [...city.fields.healthQuality];
+    city.setVehicleFunding(clinic.id, 200);
+    city.query(20, 8);
+    expect(city.fields.healthQuality.some((v, i) => v !== health[i])).toBe(true);
+    expect(city.fields.travel).toBe(plan);
+    city.setDepartmentFunding('transit', 80);
+    city.query(20, 8);
+    expect(city.fields.travel).not.toBe(plan);
+  });
+});
+
 describe('power', () => {
+  it('a mayor query outside the map cannot wrap onto a home on another row', () => {
+    const city = town();
+    powerUp(city);
+    city.step(60);
+    const home = [...city.state.buildings.values()].find((b) => b.type?.startsWith('R'))!;
+    expect(home).toBeDefined();
+    expect(city.mayorAt(home.x, home.y)).not.toBeNull();
+    expect(city.mayorAt(home.x + city.size, home.y - 1)).toBeNull();
+    expect(city.mayorAt(home.x - city.size, home.y + 1)).toBeNull();
+  });
+
   it('says whether a site would join a grid', () => {
     const city = town();
     expect(city.powerReach('gasPlant', 1, 35)).toBe('none'); // 6 tiles from the industrial zone (rows 21–29)

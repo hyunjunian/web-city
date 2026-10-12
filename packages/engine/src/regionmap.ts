@@ -5,7 +5,8 @@
 // developed neighbour made from their last saved state (no city there:
 // SimNation). Pure data, so it runs in Workers too.
 
-import { City, type CityOptions } from './city';
+import { City, MAX_SIZE, type CityOptions } from './city';
+import { copyData } from './copy';
 import { loadCity, saveCity, type SavedCity } from './save';
 import type { DealResource, Neighbour } from './sim/state';
 import { mergeSnapshots, type CitySnapshot } from './sim/region';
@@ -55,7 +56,7 @@ export class Region {
   readonly citySize: number;
   private cities: RegionCity[] = [];
   /** City index per cell (−1: empty). */
-  private owner: Int16Array;
+  private owner: Int32Array;
   /**
    * Grayscale topography for the whole region: each city founded
    * takes its part. Not saved; founded cities keep their land in their saves.
@@ -68,22 +69,29 @@ export class Region {
     this.width = opts.width ?? 3;
     this.height = opts.height ?? 3;
     this.citySize = opts.citySize ?? 64;
-    this.owner = new Int16Array(this.width * this.height).fill(-1);
-    for (const c of cities) this.claim(c);
+    // Bound the cell grid before allocation; a region may contain up to a million cells.
+    if (![this.width, this.height].every((n) => Number.isInteger(n) && n >= 1 && n <= MAX_SIZE)) throw new RangeError('bad region dimensions');
+    if (!Number.isInteger(this.citySize) || this.citySize < 8 || this.citySize > MAX_SIZE) throw new RangeError('bad region city size');
+    this.owner = new Int32Array(this.width * this.height).fill(-1);
+    for (const c of cities) this.claim(copyData(c));
   }
 
   private key(x: number, y: number): number {
-    if (x < 0 || y < 0 || x >= this.width || y >= this.height) throw new Error('square out of the region');
+    if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= this.width || y >= this.height) throw new Error('square out of the region');
     return y * this.width + x;
   }
 
   private claim(c: RegionCity): void {
+    if (!this.fits(c.x, c.y, c.span) || c.save.size !== this.citySize * c.span) throw new Error('corrupt region: bad city footprint or size');
+    for (let y = c.y; y < c.y + c.span; y++) for (let x = c.x; x < c.x + c.span; x++) {
+      if (this.owner[this.key(x, y)]! >= 0) throw new Error('corrupt region: overlapping cities');
+    }
     const k = this.cities.push(c) - 1;
     for (let y = c.y; y < c.y + c.span; y++) for (let x = c.x; x < c.x + c.span; x++) this.owner[this.key(x, y)] = k;
   }
 
   private cityAt(x: number, y: number): RegionCity | null {
-    if (x < 0 || y < 0 || x >= this.width || y >= this.height) return null;
+    if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || y < 0 || x >= this.width || y >= this.height) return null;
     const k = this.owner[y * this.width + x]!;
     return k >= 0 ? this.cities[k]! : null;
   }
@@ -95,7 +103,8 @@ export class Region {
 
   /** Snapshot of the city covering a cell (null if unfounded). */
   snapshotAt(x: number, y: number): CitySnapshot | null {
-    return this.cityAt(x, y)?.snapshot ?? null;
+    const snapshot = this.cityAt(x, y)?.snapshot;
+    return snapshot ? copyData(snapshot) : null;
   }
 
   /** The city covering a cell: its top-left cell and span (null if unfounded). */
@@ -106,11 +115,16 @@ export class Region {
 
   /** Can a city of this span be founded with its top-left corner on (x, y)? */
   canFound(x: number, y: number, span: CitySpan = 1): boolean {
-    if (x < 0 || y < 0 || x + span > this.width || y + span > this.height) return false;
+    if (!this.fits(x, y, span)) return false;
     for (let yy = y; yy < y + span; yy++) {
       for (let xx = x; xx < x + span; xx++) if (this.has(xx, yy) || this.founding.has(this.key(xx, yy))) return false;
     }
     return true;
+  }
+
+  private fits(x: number, y: number, span: number): boolean {
+    return Number.isInteger(x) && Number.isInteger(y) && (span === 1 || span === 2 || span === 4)
+      && x >= 0 && y >= 0 && x + span <= this.width && y + span <= this.height && this.citySize * span <= MAX_SIZE;
   }
 
   /** Cells of cities founded but not yet closed into the region (one city per cell meanwhile). */
@@ -177,7 +191,9 @@ export class Region {
    */
   close(x: number, y: number, city: City): void {
     const existing = this.cityAt(x, y);
-    const span = (existing?.span ?? Math.max(1, Math.round(city.size / this.citySize))) as CitySpan;
+    const span = (existing?.span ?? city.size / this.citySize) as CitySpan;
+    if (city.size !== this.citySize * span) throw new Error('city size does not match the region footprint');
+    if (!this.fits(existing?.x ?? x, existing?.y ?? y, span)) throw new Error('bad region city footprint or size');
     const entry: RegionCity = {
       x: existing?.x ?? x, y: existing?.y ?? y, span, save: saveCity(city), snapshot: city.snapshot(), closes: (existing?.closes ?? 0) + 1,
     };
@@ -341,7 +357,7 @@ export class Region {
   save(): SavedRegion {
     return {
       format: 'web-city-region', version: 2, name: this.name, width: this.width, height: this.height, citySize: this.citySize,
-      cities: this.cities.map((c) => ({ ...c, snapshot: { ...c.snapshot } })),
+      cities: copyData(this.cities),
     };
   }
 

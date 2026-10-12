@@ -447,6 +447,7 @@ export class City {
    * and commercial lots are at most 2 deep, industry and farms reach 7 tiles.
    */
   zone(x0: number, y0: number, x1: number, y1: number, kind: ZoneKind, opts: { autoStreets?: boolean } = {}): ToolResult {
+    this.settle();
     const s = this.state;
     const plan = this.planZone(x0, y0, x1, y1, kind, opts);
     if (plan.message) return { ok: false, cost: 0, message: plan.message };
@@ -487,6 +488,7 @@ export class City {
   private planZone(x0: number, y0: number, x1: number, y1: number, kind: ZoneKind, opts: { autoStreets?: boolean }): {
     code: number; tiles: number[]; streets: Set<number>; cost: number; message?: string;
   } {
+    this.settle();
     const s = this.state;
     const code = zoneCode(kind);
     const none = { code, tiles: [], streets: new Set<number>(), cost: 0 };
@@ -642,6 +644,7 @@ export class City {
    * onramps.
    */
   buildNetwork(x0: number, y0: number, x1: number, y1: number, kind: NetworkKind, opts: { lowBridge?: boolean } = {}): ToolResult {
+    this.settle();
     const s = this.state;
     const plan = this.planNetwork(x0, y0, x1, y1, kind, opts);
     if (plan.message !== undefined || !('tiles' in plan)) return { ok: false, cost: 0, message: plan.message };
@@ -703,6 +706,7 @@ export class City {
   }
 
   private planNetwork(x0: number, y0: number, x1: number, y1: number, kind: NetworkKind, opts: { lowBridge?: boolean }): NetworkPlan {
+    this.settle();
     const s = this.state;
     if (!own(NET_CODE, kind)) return { message: `unknown network ${kind}` };
     const code = NET_CODE[kind];
@@ -881,6 +885,7 @@ export class City {
 
   /** Puts a Cloverleaf on a ground highway tile so highways crossing there connect (§3,000, Rush Hour). */
   placeCloverleaf(x: number, y: number): ToolResult {
+    this.settle();
     const s = this.state;
     if (!inBounds(s, x, y)) return { ok: false, cost: 0, message: 'out of bounds' };
     const i = idx(s, x, y);
@@ -897,6 +902,7 @@ export class City {
 
   /** Renames the city (trimmed, up to 40 characters; an empty name is refused). */
   rename(name: string): ToolResult {
+    this.settle();
     const clean = text(name).trim().slice(0, 40);
     if (!clean) return { ok: false, cost: 0, message: 'name is empty' };
     this.state.name = clean;
@@ -911,6 +917,7 @@ export class City {
    * renames the city. Codes for the view (zots, the clock) are refused here.
    */
   cheat(code: string): ToolResult & { cheat?: string } {
+    this.settle();
     const s = this.state;
     const raw = text(code).trim();
     const lower = raw.toLowerCase().replace(/[’']/g, "'");
@@ -942,6 +949,7 @@ export class City {
 
   /** Renames the building or structure on a tile (any building, from its Query box); an empty name clears it. */
   renameBuilding(x: number, y: number, name: string): ToolResult {
+    this.settle();
     const s = this.state;
     if (!inBounds(s, x, y)) return { ok: false, cost: 0, message: 'out of bounds' };
     const occ = s.occupant[idx(s, x, y)]!;
@@ -959,6 +967,7 @@ export class City {
    * or be bulldozed.
    */
   markHistorical(x: number, y: number, on = true): ToolResult {
+    this.settle();
     const s = this.state;
     if (!inBounds(s, x, y)) return { ok: false, cost: 0, message: 'out of bounds' };
     const occ = s.occupant[idx(s, x, y)]!;
@@ -970,6 +979,7 @@ export class City {
 
   /** Clears a rectangle: buildings, civic structures, networks, elevated track, power lines, rubble and trees (not pipes or subway). Burning lots can't be bulldozed. */
   private planBulldoze(x0: number, y0: number, x1: number, y1: number) {
+    this.settle();
     const s = this.state;
     const ec = this.cfg.economy;
     let cost = 0;
@@ -1034,6 +1044,7 @@ export class City {
   }
 
   bulldoze(x0: number, y0: number, x1: number, y1: number): ToolResult {
+    this.settle();
     const s = this.state;
     const { removeB, removeS, roads, elevated, lines, rubble, cost, message } = this.planBulldoze(x0, y0, x1, y1);
     if (message) return { ok: false, cost: 0, message };
@@ -1081,6 +1092,7 @@ export class City {
    * roads and homes between). `preview` only prices it.
    */
   clearRubble(preview = false): ToolResult & { tiles: number } {
+    this.settle();
     const s = this.state;
     let tiles = 0;
     for (let i = 0; i < s.rubble.length; i++) if (s.rubble[i]) tiles++;
@@ -1137,6 +1149,7 @@ export class City {
   }
 
   private placementProblem(kind: StructureKind, x: number, y: number): string | null {
+    this.settle();
     const s = this.state;
     if (!own(this.cfg.structures, kind)) return `unknown structure ${kind}`;
     const def = this.cfg.structures[kind];
@@ -1163,6 +1176,7 @@ export class City {
   }
 
   placeStructure(kind: StructureKind, x: number, y: number): ToolResult {
+    this.settle();
     const s = this.state;
     const problem = this.placementProblem(kind, x, y);
     if (problem) return { ok: false, cost: 0, message: problem };
@@ -1192,6 +1206,7 @@ export class City {
 
   /** Power lines along an L-shaped path; they may cross roads and water. */
   buildPowerLine(x0: number, y0: number, x1: number, y1: number): ToolResult {
+    this.settle();
     const s = this.state;
     const plan = this.planPowerLine(x0, y0, x1, y1);
     if (plan.message) return { ok: false, cost: 0, message: plan.message };
@@ -1202,6 +1217,7 @@ export class City {
   }
 
   private planPowerLine(x0: number, y0: number, x1: number, y1: number): LinePlan {
+    this.settle();
     const s = this.state;
     const tiles: number[] = [];
     for (const [x, y] of linePath(x0, y0, x1, y1)) {
@@ -1217,6 +1233,7 @@ export class City {
 
   /** Underground water pipes along an L-shaped path; they run under anything on land and stop at the water's edge. */
   buildPipe(x0: number, y0: number, x1: number, y1: number): ToolResult {
+    this.settle();
     const s = this.state;
     const plan = this.planPipe(x0, y0, x1, y1);
     if (plan.message) return { ok: false, cost: 0, message: plan.message };
@@ -1227,6 +1244,7 @@ export class City {
   }
 
   private planPipe(x0: number, y0: number, x1: number, y1: number): LinePlan {
+    this.settle();
     const s = this.state;
     const tiles: number[] = [];
     let onLand = false;
@@ -1246,6 +1264,7 @@ export class City {
 
   /** Removes pipes in a rectangle (the surface bulldozer leaves them alone). */
   bulldozePipes(x0: number, y0: number, x1: number, y1: number): ToolResult {
+    this.settle();
     const s = this.state;
     const tiles: number[] = [];
     for (const [x, y] of this.rect(x0, y0, x1, y1)) if (s.pipe[idx(s, x, y)]) tiles.push(idx(s, x, y));
@@ -1259,6 +1278,7 @@ export class City {
 
   /** Subway track along an L-shaped path; it runs under anything, water included. */
   buildSubway(x0: number, y0: number, x1: number, y1: number): ToolResult {
+    this.settle();
     const s = this.state;
     const plan = this.planSubway(x0, y0, x1, y1);
     if (plan.message) return { ok: false, cost: 0, message: plan.message };
@@ -1269,6 +1289,7 @@ export class City {
   }
 
   private planSubway(x0: number, y0: number, x1: number, y1: number): LinePlan {
+    this.settle();
     const s = this.state;
     const tiles: number[] = [];
     for (const [x, y] of linePath(x0, y0, x1, y1)) {
@@ -1284,6 +1305,7 @@ export class City {
    * over roads, rail, water and open land, but not over buildings or zones.
    */
   buildElevated(x0: number, y0: number, x1: number, y1: number, kind: 'elrail' | 'monorail' | 'highway'): ToolResult {
+    this.settle();
     const s = this.state;
     const plan = this.planElevated(x0, y0, x1, y1, kind);
     if (plan.message) return { ok: false, cost: 0, message: plan.message };
@@ -1297,6 +1319,7 @@ export class City {
   }
 
   private planElevated(x0: number, y0: number, x1: number, y1: number, kind: 'elrail' | 'monorail' | 'highway'): LinePlan {
+    this.settle();
     const s = this.state;
     if (!LINE_KINDS.includes(kind)) return { tiles: [], cost: 0, message: `unknown line ${kind}` };
     const code = kind === 'elrail' ? ELEVATED.rail : kind === 'monorail' ? ELEVATED.monorail : ELEVATED.highway;
@@ -1391,6 +1414,7 @@ export class City {
 
   /** Puts a toll booth on a road, avenue or highway tile (Rush Hour). */
   placeToll(x: number, y: number): ToolResult {
+    this.settle();
     const s = this.state;
     if (!inBounds(s, x, y)) return { ok: false, cost: 0, message: 'out of bounds' };
     const i = idx(s, x, y);
@@ -1421,6 +1445,7 @@ export class City {
 
   /** Removes subway track in a rectangle (the surface bulldozer leaves it alone). */
   bulldozeSubway(x0: number, y0: number, x1: number, y1: number): ToolResult {
+    this.settle();
     const s = this.state;
     const tiles: number[] = [];
     for (const [x, y] of this.rect(x0, y0, x1, y1)) if (s.subway[idx(s, x, y)]) tiles.push(idx(s, x, y));
@@ -1439,6 +1464,7 @@ export class City {
    * elevated rail, it lets trains run between the two.
    */
   placeSubwayTransition(x: number, y: number): ToolResult {
+    this.settle();
     const s = this.state;
     if (!inBounds(s, x, y)) return { ok: false, cost: 0, message: 'out of bounds' };
     const i = idx(s, x, y);
@@ -1460,6 +1486,7 @@ export class City {
    * percent (0–120); city beautification and landmarks 0–100 (can't overfund).
    */
   setDepartmentFunding(dept: 'roads' | 'transit' | 'power' | 'water' | 'parks' | 'sanitation' | 'landmarks' | 'corrections', percent: number): void {
+    this.settle();
     if (!Number.isFinite(percent) || !Object.hasOwn(this.state.departments, dept)) return;
     this.state.departments[dept] = Math.max(0, Math.min(dept === 'parks' || dept === 'landmarks' ? 100 : 120, Math.round(percent)));
     this.networkDirty = true;
@@ -1467,24 +1494,26 @@ export class City {
 
   /** Sets a civic building's funding level in percent (plants 0–120, services 0–150). */
   setFunding(structureId: number, percent: number): boolean {
+    this.settle();
     const st = this.state.structures.get(structureId);
     if (!st || !Number.isFinite(percent)) return false;
     const def = this.cfg.structures[st.kind];
     if (def.category === 'landmark' || isJail(def)) return false; // funded together (setDepartmentFunding('landmarks' / 'corrections'))
     const max = def.plant || def.police || def.fire || def.incinerator || def.recycling || def.airport || def.seaport ? 120 : def.health || def.school ? 150 : 100;
     st.funding = Math.max(0, Math.min(max, Math.round(percent)));
-    this.networkDirty = true;
+    this.effectsDirty = true;
     return true;
   }
 
   /** Local bus/ambulance funding of a school or hospital, 0–200% (scales its radius). */
   setVehicleFunding(structureId: number, percent: number): boolean {
+    this.settle();
     const st = this.state.structures.get(structureId);
     if (!st || !Number.isFinite(percent)) return false;
     const svc = this.cfg.structures[st.kind].health ?? this.cfg.structures[st.kind].school;
     if (!svc?.vehicles) return false;
     st.vehicleFunding = Math.max(0, Math.min(200, Math.round(percent)));
-    this.networkDirty = true;
+    this.effectsDirty = true;
     return true;
   }
 
@@ -1547,11 +1576,13 @@ export class City {
   loanPayment(amount: number): number {
     const l = this.cfg.economy.loans;
     const r = l.rate / 12;
-    return Math.floor((amount * r) / (1 - (1 + r) ** -l.months));
+    if (r === 0) return Math.floor(amount / l.months);
+    return Math.floor((amount * r) / -Math.expm1(-l.months * Math.log1p(r)));
   }
 
   /** Borrows money (within the loan limits). */
   takeLoan(amount: number): ToolResult {
+    this.settle();
     const s = this.state;
     const l = this.cfg.economy.loans;
     if (s.impeached) return { ok: false, cost: 0, message: 'the mayor has been impeached' };
@@ -1570,12 +1601,13 @@ export class City {
     if (!Number.isFinite(loan?.amount) || !Number.isFinite(loan?.monthsLeft)) return 0;
     const l = this.cfg.economy.loans;
     const r = l.rate / 12;
-    const p = loan.amount * r / (1 - (1 + r) ** -l.months);
-    return Math.round((p * (1 - (1 + r) ** -loan.monthsLeft)) / r);
+    if (r === 0) return Math.round(loan.amount * loan.monthsLeft / l.months);
+    return Math.round(loan.amount * Math.expm1(-loan.monthsLeft * Math.log1p(r)) / Math.expm1(-l.months * Math.log1p(r)));
   }
 
   /** Pays a loan off early (our own addition; the balance is the remaining principal). */
   repayLoan(index: number): ToolResult {
+    this.settle();
     const s = this.state;
     if (!Number.isInteger(index) || index < 0 || index >= s.loans.length) return { ok: false, cost: 0, message: 'no such loan' };
     const loan = s.loans[index]!;
@@ -1600,6 +1632,7 @@ export class City {
 
   /** Enacts an ordinance if its prerequisite is met; its monthly cost or income is billed by the days it is in effect. */
   enactOrdinance(id: OrdinanceId): ToolResult {
+    this.settle();
     const s = this.state;
     if (!own(ORDINANCES, id)) return { ok: false, cost: 0, message: `unknown ordinance ${id}` };
     if (s.ordinances.includes(id)) return { ok: false, cost: 0, message: 'already in effect' };
@@ -1620,6 +1653,7 @@ export class City {
 
   /** Repeals an ordinance (repealing Legalized Gambling removes the Casino). */
   repealOrdinance(id: OrdinanceId): ToolResult {
+    this.settle();
     const s = this.state;
     if (!s.ordinances.includes(id)) return { ok: false, cost: 0, message: 'not in effect' };
     s.ordinances = s.ordinances.filter((o) => o !== id);
@@ -1639,6 +1673,7 @@ export class City {
    * road within eight tiles; planes and helicopters (Rush Hour) fly anywhere.
    */
   dispatch(kind: DispatchKind, x: number, y: number): ToolResult {
+    this.settle();
     const s = this.state;
     if (!DISPATCH_KINDS.includes(kind)) return { ok: false, cost: 0, message: `unknown unit ${kind}` };
     if (!inBounds(s, x, y)) return { ok: false, cost: 0, message: 'out of bounds' };
@@ -1655,6 +1690,7 @@ export class City {
 
   /** Mayor's Limo: throws §50 at the crowd for a short local Mayor Rating boost (needs the Mayor's House). */
   throwMoney(x: number, y: number): ToolResult {
+    this.settle();
     const s = this.state;
     const t = this.cfg.mayor.throwMoney;
     if (![...s.structures.values()].some((st) => st.kind === 'mayorsHouse')) return { ok: false, cost: 0, message: "needs the Mayor's House" };
@@ -1674,6 +1710,8 @@ export class City {
   /** Mayor Rating factors for the residential building at (x, y), if any. */
   mayorAt(x: number, y: number): MayorFactors | null {
     const s = this.state;
+    if (!inBounds(s, x, y)) return null;
+    this.refreshIfDirty();
     const occ = s.occupant[idx(s, x, y)]!;
     const b = occ > 0 ? s.buildings.get(occ) : undefined;
     if (!b?.type || b.type[0] !== 'R') return null;
@@ -1752,6 +1790,7 @@ export class City {
 
   /** Sets the tax rate (0–20%) for one of the twelve developer types (Rush Hour). */
   setTaxRate(type: DevType, rate: number): void {
+    this.settle();
     const s = this.state;
     if (!Number.isFinite(rate) || !Object.hasOwn(s.taxRates, type)) return;
     const r = Math.max(0, Math.min(20, Math.round(rate * 10) / 10));
@@ -1783,6 +1822,7 @@ export class City {
    * facility placed (building a town from a script, say). Returns `fn`'s result.
    */
   batch<T>(fn: () => T): T {
+    this.settle();
     this.batching++;
     try {
       return fn();
@@ -1809,7 +1849,7 @@ export class City {
   /** Recomputes fields if a tool changed the map since the last refresh. */
   refreshIfDirty(): void {
     this.settle();
-    if (this.networkDirty || this.effectsDirty) this.refresh();
+    if (this.networkDirty || this.effectsDirty) this.refresh({ travel: this.networkDirty });
   }
 
   /** Everything about one tile: terrain, zone, networks, the building or structure on it, fields (pollution, crime, coverage, land value …), trip times and desirability by developer type with each factor. */
@@ -1890,7 +1930,8 @@ export class City {
   /**
    * Begins `days` days to be run a piece at a time with `resume` (a viewer
    * runs a month's end across frames instead of freezing for it). Outcomes
-   * are exactly those of `step`.
+   * are exactly those of `step`. Public edits and tool previews finish pending days first;
+   * call `settle` before reading the state directly.
    */
   beginSteps(days = 1): void {
     this.settle();
@@ -2354,6 +2395,7 @@ export class City {
 
   /** Moves a new My Sim into the home at (x, y); its wealth is the home's. */
   addMySim(name: string, x: number, y: number): ToolResult & { sim?: MySim } {
+    this.settle();
     const s = this.state;
     if (s.mySims.length >= this.cfg.mySims.max) return { ok: false, cost: 0, message: `at most ${this.cfg.mySims.max} My Sims` };
     const home = this.homeAt(x, y);
@@ -2369,6 +2411,7 @@ export class City {
 
   /** Change My Sim's House: only to a home of the Sim's own wealth. */
   moveMySim(id: number, x: number, y: number): ToolResult {
+    this.settle();
     const sim = this.state.mySims.find((m) => m.id === id);
     if (!sim) return { ok: false, cost: 0, message: 'no such My Sim' };
     const home = this.homeAt(x, y);
@@ -2382,6 +2425,7 @@ export class City {
 
   /** Change My Sim's Job: a workplace with jobs for the Sim's wealth level. */
   setMySimJob(id: number, x: number, y: number): ToolResult {
+    this.settle();
     const s = this.state;
     const sim = s.mySims.find((m) => m.id === id);
     if (!sim) return { ok: false, cost: 0, message: 'no such My Sim' };
@@ -2400,6 +2444,7 @@ export class City {
 
   /** Evicts a My Sim. */
   removeMySim(id: number): boolean {
+    this.settle();
     const before = this.state.mySims.length;
     this.state.mySims = this.state.mySims.filter((m) => m.id !== id);
     return this.state.mySims.length < before;
@@ -2604,6 +2649,7 @@ export class City {
 
   /** Starts a mission: where the vehicle starts, where it must get to, and the time allowed. */
   startMission(id: MissionId): ActiveMission | ToolResult {
+    this.settle();
     if (!Object.hasOwn(MISSIONS, id)) return { ok: false, cost: 0, message: `unknown mission ${id}` };
     const plan = planMission(this.state, this.cfg, id);
     if (typeof plan === 'string') return { ok: false, cost: 0, message: plan };
@@ -2628,6 +2674,7 @@ export class City {
    * demolishes the building or structure on the tile, leaving rubble.
    */
   vehicleAction(vehicle: VehicleId, action: 'spray' | 'shoot', x: number, y: number): ToolResult & { hits: number } {
+    this.settle();
     const s = this.state;
     const no = (message: string) => ({ ok: false, cost: 0, message, hits: 0 });
     if (!inBounds(s, x, y)) return no('out of bounds');
@@ -2669,6 +2716,7 @@ export class City {
    * any rewards it unlocks. Only a mission started with startMission, once.
    */
   finishMission(id: MissionId, success: boolean, x: number, y: number): { cash: number; mr: number; unlocked: StructureKind[] } {
+    this.settle();
     const udi = this.state.udi;
     if (udi.active !== id || !inBounds(this.state, x, y)) return { cash: 0, mr: 0, unlocked: [] };
     // A Fire! mission succeeds only once its fire is out, with the building still standing (not burnt down).
@@ -2689,6 +2737,7 @@ export class City {
 
   /** Surrenders the mission under way: no result either way (giving up spares the failure penalty). */
   abortMission(): boolean {
+    this.settle();
     const udi = this.state.udi;
     if (!udi.active) return false;
     delete udi.active;
@@ -2902,6 +2951,7 @@ export class City {
    * once (use disaster()).
    */
   unleash(kind: DisasterKind, x: number, y: number, intensity = 0.5): LiveDisaster | ToolResult {
+    this.settle();
     if (!LIVE_KINDS.includes(kind)) return { ok: false, cost: 0, message: 'only tornadoes and robots move; use disaster()' };
     if (!inBounds(this.state, x, y)) return { ok: false, cost: 0, message: 'out of bounds' };
     const ctx = this.damageContext(kind, x, y);
@@ -2912,6 +2962,7 @@ export class City {
 
   /** Pulls a moving disaster towards (x, y) until released (click and hold, or drag). */
   steerDisaster(id: number, x: number, y: number): boolean {
+    this.settle();
     const d = this.state.liveDisasters.find((l) => l.id === id);
     if (!d || !inBounds(this.state, x, y)) return false;
     if (!d.steer || d.steer[0] !== x || d.steer[1] !== y) d.held = 0;
@@ -2921,6 +2972,7 @@ export class City {
 
   /** Lets a moving disaster roam on its own again. */
   releaseDisaster(id: number): boolean {
+    this.settle();
     const d = this.state.liveDisasters.find((l) => l.id === id);
     if (!d) return false;
     d.steer = null;
@@ -2929,6 +2981,7 @@ export class City {
 
   /** Moves every moving disaster `steps` steps; those that end file their damage report. Returns the ones still going. */
   advanceDisasters(steps = 1): LiveDisaster[] {
+    this.settle();
     const s = this.state;
     if (!s.liveDisasters.length) return [];
     s.liveDisasters = s.liveDisasters.filter((d) => {
@@ -2957,6 +3010,7 @@ export class City {
 
   /** Strikes a God Mode disaster at (x, y) at once (intensity 0–1) and returns its damage report; see unleash() to play moving ones out over time. */
   disaster(kind: DisasterKind, x: number, y: number, intensity = 0.5): DamageReport {
+    this.settle();
     if (!inBounds(this.state, x, y)) throw new Error('disaster out of bounds');
     const ctx = this.damageContext(kind, x, y);
     runDisaster(ctx, kind, x, y, Number.isFinite(intensity) ? Math.max(0, Math.min(1, intensity)) : 0.5);
@@ -2968,6 +3022,7 @@ export class City {
 
   /** Sets the city beyond an edge (0 W, 1 E, 2 N, 3 S): SimNation, established, or developed at a size (0–100 times the template). */
   setNeighbour(edge: 0 | 1 | 2 | 3, kind: NeighbourKind, scale = 1, name?: string): void {
+    this.settle();
     const s = this.state;
     if (!isEdge(edge) || !NEIGHBOUR_KINDS.includes(kind) || !Number.isFinite(scale)) return;
     scale = Math.max(0, Math.min(100, scale));
@@ -2979,6 +3034,7 @@ export class City {
 
   /** Uses a real city's snapshot as the neighbour beyond an edge (regional play). */
   setNeighbourCity(edge: 0 | 1 | 2 | 3, snap: CitySnapshot | null, shared?: Neighbour['shared']): void {
+    this.settle();
     const s = this.state;
     if (!isEdge(edge)) return;
     if (!snap) {
@@ -3045,6 +3101,7 @@ export class City {
    * when it opens the city.
    */
   receiveGrowth(growth: Partial<Record<DevType, number>>): void {
+    this.settle();
     for (const t of DEV_TYPES) {
       const g = growth[t] ?? 0;
       if (g > 0) this.state.growthTarget[t] = Math.round((this.state.growthTarget[t] ?? this.census.population[t]) + g);
@@ -3115,6 +3172,7 @@ export class City {
 
   /** Strikes a Neighbor Deal (amount defaults to the maximum). It runs until cancelled or until a side can't keep it (grace, then probation). */
   makeDeal(edge: 0 | 1 | 2 | 3, resource: DealResource, direction: 'buy' | 'sell', amount?: number): ToolResult {
+    this.settle();
     const s = this.state;
     if (!isEdge(edge) || !DEAL_RESOURCES.includes(resource) || (direction !== 'buy' && direction !== 'sell')) {
       return { ok: false, cost: 0, message: 'no such deal' };
@@ -3134,6 +3192,7 @@ export class City {
 
   /** Cancels a Neighbor Deal (no penalty). */
   cancelDeal(id: number): boolean {
+    this.settle();
     const s = this.state;
     const before = s.neighbourDeals.length;
     s.neighbourDeals = s.neighbourDeals.filter((d) => d.id !== id);
@@ -3177,6 +3236,7 @@ export class City {
    * change (no buildings, zones, networks or pipes).
    */
   terraform(x0: number, y0: number, x1: number, y1: number, to: 'water' | 'land' | 'raise' | 'lower'): ToolResult {
+    this.settle();
     const s = this.state;
     if (to === 'raise' || to === 'lower') return this.reshape(x0, y0, x1, y1, to === 'raise' ? 1 : -1);
     const want = to === 'water' ? Terrain.Water : Terrain.Land;
@@ -3224,6 +3284,7 @@ export class City {
 
   /** The tiles a terraform drag changes and its cost (free until the city is founded). */
   private planTerraform(x0: number, y0: number, x1: number, y1: number, to: 'water' | 'land' | 'raise' | 'lower'): { tiles: number[]; cost: number } {
+    this.settle();
     const s = this.state;
     const tiles: number[] = [];
     if (to === 'raise' || to === 'lower') {
@@ -3250,6 +3311,7 @@ export class City {
 
   /** Open land in a rectangle that takes a sapling. */
   private planTrees(x0: number, y0: number, x1: number, y1: number): number[] {
+    this.settle();
     const s = this.state;
     const tiles: number[] = [];
     for (const [x, y] of this.rect(x0, y0, x1, y1)) {
@@ -3267,6 +3329,7 @@ export class City {
    * the neighbourhood a small lift.
    */
   plantTrees(x0: number, y0: number, x1: number, y1: number): ToolResult {
+    this.settle();
     const s = this.state;
     const fl = this.cfg.flora;
     const tiles = this.planTrees(x0, y0, x1, y1);
@@ -3296,6 +3359,7 @@ export class City {
 
   /** Flattens volcano cones and slopes (and other scars) in a rectangle. */
   levelLandform(x0: number, y0: number, x1: number, y1: number): ToolResult {
+    this.settle();
     const s = this.state;
     const tiles: number[] = [];
     let cost = 0;
@@ -3512,6 +3576,7 @@ export class City {
 
   /** Starts a fire on whatever stands at (x, y) (testing / disasters). */
   igniteAt(x: number, y: number): boolean {
+    this.settle();
     const occ = this.state.occupant[idx(this.state, x, y)]!;
     if (!occ) return false;
     return ignite(this.fireContext(), occ);

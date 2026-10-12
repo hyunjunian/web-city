@@ -669,7 +669,7 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   // Coverage: Chebyshev distance ≤ radius from any network tile.
   const cover = f.waterNet;
   cover.fill(-1);
-  const dist = new Uint8Array(N).fill(255);
+  const dist = new Uint16Array(N).fill(0xffff);
   const queue: number[] = [];
   yield;
   for (let i = 0; i < N; i++) {
@@ -727,7 +727,49 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
       imported[g]! += d.amount;
     } else demand[g]! += d.amount;
   }
+  // An idle pipe network must not hide coverage from a supplied one nearby.
+  // Keep cover's pipe identities for queries; consumers prefer the supplied coverage.
+  let suppliedCover = cover;
+  if (supply.some((v) => v > 0) && supply.some((v) => v <= 0)) {
+    suppliedCover = new Int32Array(N).fill(-1);
+    dist.fill(0xffff);
+    queue.length = 0;
+    for (let i = 0; i < N; i++) {
+      if ((i & 0x7fff) === 0x7fff) yield;
+      if (net[i]! >= 0 && supply[net[i]!]! > 0) {
+        suppliedCover[i] = net[i]!;
+        dist[i] = 0;
+        queue.push(i);
+      }
+    }
+    yield;
+    for (let h = 0; h < queue.length; h++) {
+      if ((h & 0x1fff) === 0x1fff) yield;
+      const i = queue[h]!;
+      const d = dist[i]!;
+      if (d >= sv.waterRadius) continue;
+      const x = i % n;
+      const y = (i - x) / n;
+      for (let k = 0; k < 8; k++) {
+        const nx = x + DX8[k]!;
+        const ny = y + DY8[k]!;
+        if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
+        const j = ny * n + nx;
+        if (dist[j]! > d + 1) {
+          dist[j] = d + 1;
+          suppliedCover[j] = suppliedCover[i]!;
+          queue.push(j);
+        }
+      }
+    }
+  }
   const netOf = (r: { x: number; y: number; w: number; h: number }) => {
+    for (let y = r.y; y < r.y + r.h; y++) {
+      for (let x = r.x; x < r.x + r.w; x++) {
+        const g = suppliedCover[y * n + x]!;
+        if (g >= 0 && supply[g]! > 0) return g;
+      }
+    }
     for (let y = r.y; y < r.y + r.h; y++) {
       for (let x = r.x; x < r.x + r.w; x++) if (cover[y * n + x]! >= 0) return cover[y * n + x]!;
     }
@@ -827,7 +869,7 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
 
   f.watered.fill(0);
   yield;
-  for (let i = 0; i < N; i++) if (cover[i]! >= 0 && supply[cover[i]!]! > 0) f.watered[i] = 1;
+  for (let i = 0; i < N; i++) if (suppliedCover[i]! >= 0 && supply[suppliedCover[i]!]! > 0) f.watered[i] = 1;
 
   // Supply counts only networks that serve something: a pump on its own pipe
   // stub waters nobody (once anything is connected at all).

@@ -287,9 +287,14 @@ export const DEFAULT_CONFIG = {
   structures: STRUCTURES,
 };
 
-export type SimConfig = typeof DEFAULT_CONFIG;
+// Constants may use literal types; a tunable numeric or boolean setting accepts other values too.
+// Numeric enums (such as wealth 0 | 1 | 2) retain their allowed choices.
+type IsUnion<T, Whole = T> = T extends Whole ? ([Whole] extends [T] ? false : true) : never;
+type Tunable<T> = [T] extends [number] ? ([IsUnion<T>] extends [false] ? number : T)
+  : T extends boolean ? boolean : T extends object ? { [K in keyof T]: Tunable<T[K]> } : T;
+export type SimConfig = Tunable<typeof DEFAULT_CONFIG>;
 
-type DeepPartial<T> = { [K in keyof T]?: T[K] extends object ? DeepPartial<T[K]> : T[K] };
+type DeepPartial<T> = T extends object ? { [K in keyof T]?: DeepPartial<T[K]> } : T;
 export type ConfigOverrides = DeepPartial<SimConfig>;
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {

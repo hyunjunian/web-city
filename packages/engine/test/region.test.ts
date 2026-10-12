@@ -365,6 +365,56 @@ describe('regional demand pool', () => {
 });
 
 describe('region of cities', () => {
+  it('refuses fractional cells, unsupported spans and impossible region sizes', () => {
+    for (const width of [0, -1, 1.5, NaN, Infinity, 1e9]) {
+      expect(() => new Region({ width })).toThrow(/region/);
+    }
+    for (const citySize of [0, 4, 8.5, NaN, 2048]) {
+      expect(() => new Region({ citySize })).toThrow(/city size/);
+    }
+    const region = new Region({ width: 4, height: 4, citySize: 16 });
+    for (const coordinate of [NaN, Infinity, 0.5, -1]) {
+      expect(region.canFound(coordinate, 0)).toBe(false);
+      expect(region.has(coordinate, 0)).toBe(false);
+      expect(() => region.found(coordinate, 0)).toThrow();
+    }
+    for (const span of [0, -1, 1.5, 3, NaN]) {
+      expect(region.canFound(0, 0, span as 1)).toBe(false);
+    }
+  });
+
+  it('rejects overlapping saved cities and a replacement city of the wrong size', () => {
+    const region = new Region({ width: 4, height: 4, citySize: 16 });
+    const city = region.found(0, 0, { water: false }, 2);
+    region.close(0, 0, city);
+    const saved = region.save();
+    const original = saved.cities![0]!;
+    expect(() => Region.load({ ...saved, cities: [original, { ...original, x: 1 }] })).toThrow(/overlap/);
+    expect(() => region.close(1, 1, new City({ size: 16, water: false }))).toThrow(/size/);
+    expect(region.open(1, 1).size).toBe(32);
+    expect(region.stats().cities).toBe(1);
+  });
+
+  it('region saves and restored regions own their city data and neighbour snapshots', () => {
+    const region = new Region({ width: 2, height: 1, citySize: 32 });
+    const city = region.found(0, 0, { water: false });
+    region.close(0, 0, city);
+    const saved = region.save();
+    const copy = Region.load(saved);
+    saved.cities![0]!.save.funds = 123;
+    saved.cities![0]!.snapshot.population['R$'] = 456;
+    expect(region.open(0, 0).state.funds).toBe(city.state.funds);
+    expect(copy.open(0, 0).state.funds).toBe(city.state.funds);
+    expect(region.snapshotAt(0, 0)!.population['R$']).toBe(0);
+    expect(copy.snapshotAt(0, 0)!.population['R$']).toBe(0);
+    const snapshot = region.snapshotAt(0, 0)!;
+    snapshot.population['R$'] = 999;
+    expect(region.snapshotAt(0, 0)!.population['R$']).toBe(0);
+    const copiedSave = copy.save();
+    copiedSave.cities![0]!.save.taxRates['R$'] = 20;
+    expect(copy.open(0, 0).state.taxRates['R$']).toBe(city.state.taxRates['R$']);
+  });
+
   it('a city sees its played neighbours as developed cities, empty squares as SimNation', async () => {
     const { Region } = await import('../src');
     const region = new Region({ width: 2, height: 1, citySize: 32 });

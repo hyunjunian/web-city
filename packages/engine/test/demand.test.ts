@@ -143,6 +143,19 @@ describe('difficulty', () => {
 });
 
 describe('loans', () => {
+  it.each([0, 1e-12])('supports an overridden interest rate of %s without corrupting funds', (rate) => {
+    const city = new City({ size: 16, water: false, config: { economy: { loans: { rate } } } });
+    expect(city.loanPayment(50_000)).toBe(416);
+    expect(city.takeLoan(50_000).ok).toBe(true);
+    expect(city.loanBalance(city.state.loans[0]!)).toBe(50_000);
+    city.step(30);
+    expect(city.state.lastBudget!.loanPayments).toBe(416);
+    expect(Number.isFinite(city.state.funds)).toBe(true);
+    expect(city.loanBalance(city.state.loans[0]!)).toBe(49_583);
+    expect(city.repayLoan(0).ok).toBe(true);
+    expect(city.state.loans).toHaveLength(0);
+  });
+
   it('match the payment table and limits', () => {
     const city = new City({ size: 16 });
     expect(city.loanPayment(5_000)).toBe(61);

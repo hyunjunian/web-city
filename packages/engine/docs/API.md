@@ -217,7 +217,7 @@ Advances the simulation by `days` days.
 
 ### `beginSteps(days = 1): void`
 
-Begins `days` days to be run a piece at a time with `resume` (a viewer runs a month's end across frames instead of freezing for it). Outcomes are exactly those of `step`.
+Begins `days` days to be run a piece at a time with `resume` (a viewer runs a month's end across frames instead of freezing for it). Outcomes are exactly those of `step`. Public edits and tool previews finish pending days first; call `settle` before reading the state directly.
 
 ### `resume(): boolean`
 
