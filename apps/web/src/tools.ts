@@ -424,6 +424,8 @@ export function buildTools(): void {
   };
   $('#tool-alts').addEventListener('scroll', edgeAlts, { passive: true });
   new ResizeObserver(edgeAlts).observe($('#tool-alts')); // (shown again after the tray, or a narrower window)
+  $('#tray-recent').addEventListener('scroll', () => edgeFade($('#tray-recent')), { passive: true });
+  new ResizeObserver(() => edgeFade($('#tray-recent'))).observe($('#tray-recent'));
   $('#tool-alts').addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
     if (!b) return;
@@ -913,11 +915,11 @@ function refreshToolAlts(): void {
 }
 
 /** A row cut off at an edge fades there (a narrow screen scrolls the rest into view). */
-function edgeAlts(): void {
-  const row = $('#tool-alts');
+function edgeFade(row: HTMLElement): void {
   row.classList.toggle('more-right', row.scrollLeft + row.clientWidth < row.scrollWidth - 2);
   row.classList.toggle('more-left', row.scrollLeft > 2);
 }
+const edgeAlts = () => edgeFade($('#tool-alts'));
 
 /** Tools that look or act on the running city (time keeps going for them); the rest build or clear. */
 const WATCHING = new Set(['query', 'route', 'mic', 'dispatch', 'disaster', 'throw']);
@@ -1102,14 +1104,17 @@ function renderRecent(): void {
   const chips = (list: Found[]) => list.map((f) => `<button type="button" data-find="${attr(f.key)}" class="${f.key === currentKey() ? 'active' : ''}" title="${attr(`${f.name} · ${f.where}${f.sub ? ` · ${f.sub}` : ''}`)}">${f.glyph}${f.name}</button>`).join('');
   // (Not the tool in hand, nor those already on the open card: a row of 최근 [도로] above 도로 said nothing.)
   const items = recent.map((k) => all.get(k)).filter((f): f is Found => !!f && !f.locked && f.key !== currentKey() && categoryOf(f.key.split(':')[0]!) !== openCat);
-  // While a goal's screen is open, its tools lead (whatever category the tray shows).
+  // While a goal's screen is open, its tools lead (whatever category the tray shows) — but not those on the open
+  // card already: with 교통's screen open, the 교통 card began with a row of the very tiles under it.
   const goal = goalTools();
   const mine = goal ? goal.keys.flatMap((k) => (k.includes(':') ? [k] : [...all.keys()].filter((x) => x === k || x.startsWith(`${k}:`))))
-    .map((k) => all.get(k)).filter((f): f is Found => !!f && !f.locked) : [];
+    .map((k) => all.get(k)).filter((f): f is Found => !!f && !f.locked && categoryOf(f.key.split(':')[0]!) !== openCat) : [];
   const row = $('#tray-recent');
   row.hidden = items.length + mine.length === 0;
-  row.innerHTML = (mine.length ? `<span class="recent-label goal-label">${goal!.name}</span>${chips(mine)}${items.length ? '<i class="recent-sep"></i>' : ''}` : '')
+  row.innerHTML = (mine.length ? `<span class="recent-label goal-label">${goal!.name} 화면</span>${chips(mine)}${items.length ? '<i class="recent-sep"></i>' : ''}` : '')
     + (items.length ? `<span class="recent-label">최근</span>${chips(items)}` : '');
+  row.scrollLeft = 0;
+  edgeFade(row);
 }
 
 let found: Found[] = [];

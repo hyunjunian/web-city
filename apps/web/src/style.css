@@ -1864,9 +1864,9 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @media (hover: hover) { .chip-held:hover { background: var(--accent); color: #fff !important; } }
 #tool-chip-label { background: transparent; color: inherit; min-height: 0; font-weight: 400; border: 0; }
 /* Siblings cut off by a narrow bar fade at that edge (a swipe brings them in). */
-#tool-alts.more-right { mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
-#tool-alts.more-left { mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); }
-#tool-alts.more-left.more-right { mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+#tool-alts.more-right, #tray-recent.more-right { mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+#tool-alts.more-left, #tray-recent.more-left { mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); }
+#tool-alts.more-left.more-right, #tray-recent.more-left.more-right { mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
 /* A category holding a 추천 (a short service's answer): a small dot by its icon. */
 .dock-btn.suggest, .tray-cat.suggest { position: relative; }
 .dock-btn.suggest::after, .tray-cat.suggest::after {
