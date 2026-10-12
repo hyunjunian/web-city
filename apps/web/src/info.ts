@@ -14,7 +14,7 @@ import { $, escapeHtml, flash, fmt, glue, hours, josa, pct, touchFirst } from '.
 import { refreshTaxes } from './controls';
 import { toolGlyph, TOOLS } from './tools';
 import { choice, remember } from './undo';
-import { overlayReading } from './views';
+import { coverageRadius, overlayReading } from './views';
 import { type GoalId, goalOfStructure, GOALS, goalsOfOrdinance } from './goals';
 import { active } from './manage';
 
@@ -630,6 +630,37 @@ function goalLink(kind: Structure['kind'] | undefined, zone: string, way = false
   return `<button type="button" class="info-goal" data-goal="${id}" title="${GOALS[id].name}의 관리 화면: 같은 종류의 시설 모두, 지도 보기, 예산과 조례">${icon(GOALS[id].icon)}${GOALS[id].name} 관리${icon('chevronRight')}</button>`;
 }
 
+/**
+ * How many buildings this station alone reaches (homes, for a hospital or school): their middle in its radius and in
+ * no other station's of its service, as the views count reach — what clearing it or cutting its budget leaves out.
+ * Null for one that serves no area, or where a city-wide one of its service reaches all.
+ */
+function aloneReached(st: Structure): { n: number; what: string } | null {
+  // (Schools by their level: a high school takes none of a primary school's pupils.)
+  const service = (k: StructureKind) => { const d = STRUCTURES[k]; return d.police?.radius ? 'police' : d.fire?.radius ? 'fire' : d.health ? 'health' : d.school ? `school:${d.school.curve}` : null; };
+  const mine = service(st.kind);
+  const r = coverageRadius(st.kind, st);
+  if (!mine || !r) return null;
+  const others = [...city.state.structures.values()].filter((o) => o.id !== st.id && service(o.kind) === mine);
+  // (One reaching the whole city — a research lab, a university — leaves none to this one alone.)
+  if (others.some((o) => !coverageRadius(o.kind, o))) return null;
+  const rings = others.map((o) => [o.x + o.w / 2, o.y + o.h / 2, coverageRadius(o.kind, o)] as const);
+  const homes = mine === 'health' || mine.startsWith('school');
+  const [cx, cy] = [st.x + st.w / 2, st.y + st.h / 2];
+  let n = 0;
+  for (const b of city.state.buildings.values()) {
+    if (!b.type || (homes && b.type[0] !== 'R')) continue;
+    const [mx, my] = [b.x + (b.w >> 1) + 0.5, b.y + (b.h >> 1) + 0.5];
+    if ((mx - cx) ** 2 + (my - cy) ** 2 > r * r || rings.some(([ox, oy, or]) => (mx - ox) ** 2 + (my - oy) ** 2 <= or * or)) continue;
+    n++;
+  }
+  return { n, what: homes ? '집' : '건물' };
+}
+const aloneRow = (st: Structure) => {
+  const a = aloneReached(st);
+  return a ? `<tr><td title="다른 곳이 닿지 않아 여기만 맡는 ${a.what}: 헐거나 예산을 줄이면 범위 밖이 됩니다">혼자 맡는 ${a.what}</td><td>${fmt(a.n)}채</td></tr>` : '';
+};
+
 export function structureRows(st: Structure, withLoad = true): string {
   const def = STRUCTURES[st.kind];
   let rows = '';
@@ -644,10 +675,10 @@ export function structureRows(st: Structure, withLoad = true): string {
     rows += `
       ${withLoad ? `<tr><td>수감자</td><td>${fmt(st.load)} / ${fmt(st.capacity)}</td></tr>` : ''}
       ${def.police.radius ? `<tr><td>효과</td><td>${pct(st.effectiveness)}${st.strike ? ' <span class="neg">· 파업 중</span>' : ''}</td></tr>
-      <tr><td>보호 반경</td><td>${Math.round(def.police.radius)}칸</td></tr>` : ''}`;
+      <tr><td>보호 반경</td><td>${Math.round(def.police.radius)}칸</td></tr>` : ''}${aloneRow(st)}`;
   } else if (def.fire) {
     rows += `<tr><td>효과</td><td>${pct(st.effectiveness)}${st.strike ? ' <span class="neg">· 파업 중</span>' : ''}</td></tr>
-      ${def.fire.radius ? `<tr><td>보호 반경</td><td>${Math.round(def.fire.radius)}칸</td></tr>` : ''}`;
+      ${def.fire.radius ? `<tr><td>보호 반경</td><td>${Math.round(def.fire.radius)}칸</td></tr>` : ''}${aloneRow(st)}`;
   } else if (def.pump) {
     rows += `
       ${withLoad ? `<tr><td>급수량</td><td>${fmt(st.load)} / ${fmt(st.capacity)} m³</td></tr>` : ''}
@@ -665,7 +696,7 @@ export function structureRows(st: Structure, withLoad = true): string {
       ${withLoad ? `<tr><td>${def.health ? '환자' : '학생'}</td><td>${fmt(st.load)} / ${fmt(st.capacity)}</td></tr>` : ''}
       <tr><td>등급</td><td><span class="grade" role="img" aria-label="5등급 중 ${n}" title="정원을 넘으면 등급이 떨어집니다">${'<i class="on"></i>'.repeat(n)}${'<i></i>'.repeat(5 - n)}</span></td></tr>
       <tr><td>반경</td><td>${Math.round(serviceRadius(city.cfg, def, st))}칸</td></tr>
-      <tr><td>효과</td><td>${pct(st.effectiveness)}${st.strike ? ' <span class="neg">· 파업 중</span>' : ''}</td></tr>`;
+      <tr><td>효과</td><td>${pct(st.effectiveness)}${st.strike ? ' <span class="neg">· 파업 중</span>' : ''}</td></tr>${aloneRow(st)}`;
   } else if (def.station) {
     rows += `<tr><td>지난달 승차</td><td class="${st.load > def.station.capacity ? 'neg' : ''}">${fmt(st.load)} / ${fmt(def.station.capacity)}</td></tr>`;
     if (st.load < 1 && def.station.mode !== 'freight') rows += `<tr><td colspan="2" class="muted">${noRiders(st)}</td></tr>`;
