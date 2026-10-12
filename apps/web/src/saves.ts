@@ -6,6 +6,7 @@ import { thumbnail } from './minimap';
 import { leaveRegion } from './region';
 import { city, saveSlotId, setCity, setSaveSlotId } from './state';
 import { SAVE_KEY } from './storage';
+import { choicesMade } from './undo';
 import { $, ask, escapeHtml, flash, fmt, josa } from './util';
 
 const INDEX_KEY = 'web-city:saves';
@@ -72,9 +73,12 @@ function ago(ms: number, now = Date.now()): string {
   return stamp(ms);
 }
 
-/** The open city as it was when last saved to a slot or opened from one: nothing since is progress to lose. */
-let savedMark: { city: typeof city; revision: number; day: number } | null = null;
-const markSaved = () => (savedMark = { city, revision: city.revision, day: city.state.day });
+/**
+ * The open city as it was when last saved to a slot or opened from one: nothing since is progress to lose.
+ * (Map edits move the revision; a tax, a loan, a name or a My Sim is a choice, which moves no revision.)
+ */
+let savedMark: { city: typeof city; revision: number; day: number; choices: number } | null = null;
+const markSaved = () => (savedMark = { city, revision: city.revision, day: city.state.day, choices: choicesMade });
 
 /**
  * Whether leaving the open city loses anything: something built (time alone on a bare map loses nothing),
@@ -84,7 +88,7 @@ const markSaved = () => (savedMark = { city, revision: city.revision, day: city.
 export function unsavedProgress(): boolean {
   const s = city.state;
   const built = s.structures.size > 0 || s.buildings.size > 0 || s.zone.some((z) => z !== 0) || s.net.some((v) => v !== 0);
-  return built && !(savedMark?.city === city && savedMark.revision === city.revision && savedMark.day === s.day);
+  return built && !(savedMark?.city === city && savedMark.revision === city.revision && savedMark.day === s.day && savedMark.choices === choicesMade);
 }
 
 export function saveSlot(): void {

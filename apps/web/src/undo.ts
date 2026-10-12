@@ -26,6 +26,9 @@ interface Entry {
  */
 let barrier: { label: string; owner: City } | null = null;
 
+/** How many choices have been made (taxes, loans, names, My Sims…): they change the city without a map edit (see unsavedProgress). */
+export let choicesMade = 0;
+
 /**
  * Makes a player's choice and, if it took (a setter, true, ok, or a result without ok), ends the
  * undo history. A refused or empty choice leaves the history alone.
@@ -33,6 +36,7 @@ let barrier: { label: string; owner: City } | null = null;
 export function choice<T>(label: string, make: () => T): T {
   const owner = city;
   const res = make();
+  choicesMade++;
   // Taxes and funding levels don't end it: undo carries them over (see `open`).
   if (SETTINGS.has(label)) return res;
   const took = res === undefined || res === true || (typeof res === 'object' && res !== null && (!('ok' in res) || (res as { ok: boolean }).ok));
