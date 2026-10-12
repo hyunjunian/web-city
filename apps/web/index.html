@@ -74,6 +74,12 @@
              and the menu. The view's card (its list, legend and count) hangs under it. -->
         <div id="mapbar" class="floating" role="group" aria-label="지도 보기·시간·메뉴">
           <div class="mb-group mb-view" id="mb-view"></div>
+          <!-- (Its card right after the view's button, so the keyboard reaches the list from it; it is positioned, not in the row.) -->
+          <div id="map-layer" class="floating">
+            <button type="button" class="layer-title" id="layer-title" aria-expanded="false" title="범례 펼치기·접기"><span data-icon="info"></span><span id="layer-name">지도 보기</span><span class="legend-toggle" aria-hidden="true"><span data-icon="chevronDown"></span></span></button>
+            <button type="button" class="icon-btn layer-off" id="layer-off" title="지도 보기 끄기 (O)" aria-label="지도 보기 끄기"><span data-icon="close"></span></button>
+            <div id="overlay"></div>
+          </div>
           <span class="mb-sep" aria-hidden="true"></span>
           <div class="mb-group mb-time">
             <span id="sb-date" class="sb-date"></span>
@@ -111,11 +117,6 @@
                 <p id="autosave-note" class="menu-note"></p>
               </div>
             </details>
-          </div>
-          <div id="map-layer" class="floating">
-            <button type="button" class="layer-title" id="layer-title" aria-expanded="false" title="범례 펼치기·접기"><span data-icon="info"></span><span id="layer-name">지도 보기</span><span class="legend-toggle" aria-hidden="true"><span data-icon="chevronDown"></span></span></button>
-            <button type="button" class="icon-btn layer-off" id="layer-off" title="지도 보기 끄기 (O)" aria-label="지도 보기 끄기"><span data-icon="close"></span></button>
-            <div id="overlay"></div>
           </div>
         </div>
 

@@ -14,7 +14,7 @@ import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESO
 import { whyNoDeals } from './region';
 import { journal } from './journal';
 import { abandonHint, capBest, capHint, jobHint, pushNotice, rciMini, updatePanels } from './panels';
-import { builtArea, cam, centerOn, changeKey, city, cityLineage, flightCount, glideTo, graphs, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
+import { builtArea, cam, centerOn, changeKey, city, cityLineage, flightCount, glideTo, graphs, mapBand, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, panTipAt, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
@@ -1088,11 +1088,13 @@ function cityAbovePane(): void {
   if (!active) return;
   const v = renderer.canvas.getBoundingClientRect();
   const pane = $('#pane').getBoundingClientRect();
-  // Beside the pane (landscape: it stands at the left) or between the view's card at the top and the pane.
+  // Beside the pane (landscape: it stands at the left) or between the top bar (or the view's card under it, when
+  // shown) and the pane.
+  const card = $('#map-layer').getBoundingClientRect();
   const side = pane.top < v.top + v.height * 0.2 && pane.right < v.right - 200;
   const box = side
     ? { left: Math.max(v.left, pane.right + 6), right: v.right - 60, top: v.top + 6, bottom: v.bottom - 6 }
-    : { left: v.left, right: v.right, top: Math.max(v.top, $('#map-layer').getBoundingClientRect().bottom + 6), bottom: Math.min(v.bottom, pane.top - 6) };
+    : { left: v.left, right: v.right, top: Math.max(v.top + mapBand().top + 6, card.height ? card.bottom + 6 : 0), bottom: Math.min(v.bottom, pane.top - 6) };
   const w = box.right - box.left;
   const h = box.bottom - box.top;
   if (w < 100 || h < 100) return;

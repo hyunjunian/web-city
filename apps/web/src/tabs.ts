@@ -67,7 +67,14 @@ export function closeSheet(): boolean {
   const was = sheetTab;
   sheetTab = null;
   $('#sheet').hidden = true;
-  if (hadFocus) document.querySelector<HTMLElement>(`[data-sheet-btn="${was}"]`)?.focus();
+  // Back to the button that opened it, if it is in sight (주민 may be in the menu on a narrow bar, 지역 in a closed
+  // or busy pane): else the menu's.
+  if (hadFocus) {
+    // (checkVisibility also rules out the menu's lines while it is shut.)
+    const seen = (b: HTMLElement) => (b.checkVisibility ? b.checkVisibility({ checkVisibilityCSS: true }) : !!b.offsetParent && getComputedStyle(b).visibility !== 'hidden');
+    const shown = [...document.querySelectorAll<HTMLElement>(`[data-sheet-btn="${was}"]`)].find(seen);
+    (shown ?? document.querySelector<HTMLElement>('#mapbar .dropdown > summary'))?.focus();
+  }
   $('#view').classList.remove('sheet-open');
   markOpen();
   return true;
