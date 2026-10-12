@@ -1507,9 +1507,13 @@ export function zoneSite(zone: 'R-low' | 'C-low' | 'I-medium' | 'A', near?: read
   const [ax, ay] = near ?? centroid(cls === 'C' || !([...city.state.buildings.values()].some(has(cls))) ? (homes ? has('R') : has(cls)) : has(cls));
   // (Homes and shops clear of a landfill too: it spoils them out to 32 tiles.)
   const avoid = cls === 'I' ? (z: number) => z >= 1 && z <= 3 : cls === 'R' ? (z: number) => z === 7 || z === 8 || z === 10 : (z: number) => z === 10;
+  // (Homes and industry apart past where dirty industry's smoke reaches, where there is room: 6 tiles let a block of
+  // factories foul the homes beside it from the day it grew. Else the 6.)
+  const smoke = (city.cfg.development.airPollution.ID?.radius ?? 5) + 1;
+  const reach = cls === 'I' || cls === 'R' ? [Math.max(6, smoke), 6] : [6];
   let at: { x0: number; y0: number; x1: number; y1: number; side: number } | null = null;
   for (const side of [8, 6]) {
-    const sq = squareSite(side, ax, ay, avoid, [6], zone !== 'I-medium');
+    const sq = squareSite(side, ax, ay, avoid, reach, zone !== 'I-medium');
     if (sq) { at = { ...sq, side }; break; }
   }
   zoneMemo = { key, at };
