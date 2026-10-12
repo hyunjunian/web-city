@@ -385,7 +385,9 @@ function budgetStep(id: GoalId, a: ReturnType<typeof adviceFor>[number]): GuideS
     return level < 100 ? { ...base, what: `${name} 예산 100%로`, fixAct: `dept:${fix}`, sub: `부서 예산 · 지금 ${level}%` } : null;
   }
   const f = a.at ? city.query(a.at[0], a.at[1])?.structure : undefined;
-  return f && f.funding < 100 ? { ...base, what: `${STRUCTURE_NAME[f.kind]} 예산 100%로`, fixAct: `fac:${f.id}`, sub: `시설 예산 · 지금 ${f.funding}%` } : null;
+  // (A school or hospital over its places strikes for that too: then one more beside it is the fix, not the budget.)
+  const crowded = !!f && !!(STRUCTURES[f.kind].health || STRUCTURES[f.kind].school) && f.load > f.capacity;
+  return f && f.funding < 100 && !crowded ? { ...base, what: `${STRUCTURE_NAME[f.kind]} 예산 100%로`, fixAct: `fac:${f.id}`, sub: `시설 예산 · 지금 ${f.funding}%` } : null;
 }
 
 function nextHtml(tones: Tone[]): Step {
