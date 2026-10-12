@@ -4,7 +4,7 @@ import { DEV_TYPES, type DevType, GROWTH_CODES, NETWORK_KINDS } from '@web-city/
 import { icon, type IconName } from './icons';
 import { nextStep, openGoal } from './manage';
 import { fillRange } from './widgets';
-import { TYPE_NAME } from './names';
+import { TYPE_NAME, TYPE_SHORT } from './names';
 import { updatePanels } from './panels';
 import { type Overlay, type VolumeNetwork } from './render';
 import { ABANDONED_COLOR, buildingRisk, GROWTH_COLOR, GROWTH_LABEL, growthNow, RISK_COLOR, volumeAt } from './views';
@@ -557,7 +557,8 @@ export function buildTaxes(): void {
   detail.open = taxDetail;
   detail.ontoggle = () => (taxDetail = detail.open);
   detail.innerHTML = '<summary>소득·유형별 세율</summary>';
-  for (const t of DEV_TYPES) detail.append(row(`${t}<small class="muted">${TYPE_NAME[t]}</small>`, TYPE_NAME[t], () => city.state.taxRates[t], (v) => choice('세율', () => city.setTaxRate(t, v)), undefined, () => city.demand.taxEffect[t]));
+  // (In words, as the demand bars name them: the codes R$, Cs$$ led each row with the words small under them.)
+  for (const t of DEV_TYPES) detail.append(row(TYPE_SHORT[t], TYPE_NAME[t], () => city.state.taxRates[t], (v) => choice('세율', () => city.setTaxRate(t, v)), undefined, () => city.demand.taxEffect[t]));
   el.append(detail);
   const note = document.createElement('p');
   note.className = 'legend';
