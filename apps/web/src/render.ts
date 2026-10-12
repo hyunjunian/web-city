@@ -412,7 +412,7 @@ export class Renderer {
    * A goal's screen marks its facilities on the map (amber or red where one
    * is in trouble) and the spots it points to (a problem, a place to build).
    */
-  marks: { x: number; y: number; w: number; h: number; tone: '' | 'warn' | 'bad' | 'spot'; label?: string; hot?: boolean }[] = [];
+  marks: { x: number; y: number; w: number; h: number; tone: '' | 'warn' | 'bad' | 'spot' | 'area'; label?: string; hot?: boolean }[] = [];
   /** A line the guide offers to lay (tile by tile), drawn dashed between its two targets before it is laid. */
   guidePath: [number, number][] | null = null;
   /** A road in hand on a town not yet joined to its neighbours: the map's edge is where it should reach. */
@@ -1978,6 +1978,18 @@ export class Renderer {
             ctx.fillText(m.label, cx, cy - r - 5 * u);
             ctx.textAlign = 'start';
           }
+          continue;
+        }
+        if (m.tone === 'area') {
+          // An area the guide would lay (a landfill, a zone block): dashed blue over a pale casing, as its path is.
+          ctx.setLineDash([]);
+          ctx.lineWidth = 5 * u;
+          ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+          ctx.strokeRect(m.x, m.y, m.w, m.h);
+          ctx.setLineDash([7 * u, 5 * u]);
+          ctx.lineWidth = 2.5 * u;
+          ctx.strokeStyle = '#2f6fe0';
+          ctx.strokeRect(m.x, m.y, m.w, m.h);
           continue;
         }
         ctx.strokeStyle = m.tone === 'bad' ? '#ff4d4f' : m.tone === 'warn' ? '#f5a524' : 'rgba(255,255,255,0.95)';
