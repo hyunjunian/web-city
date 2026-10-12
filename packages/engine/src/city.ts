@@ -429,6 +429,9 @@ export class City {
       const r = this.state.taxRates;
       this.state.taxMonthStart = [r['R$'], r['R$$'], r['R$$$']];
     }
+    // Forecasts use the most recently collected fares even before the next simulated month.
+    const fares = this.state.lastBudget?.fares;
+    this.fares = typeof fares === 'number' && Number.isFinite(fares) ? fares : 0;
     this.rng = new Rng(this.state.rngState);
     this.fields = createFields(this.state.size);
     this.desirability = createDesirability(this.state.size);

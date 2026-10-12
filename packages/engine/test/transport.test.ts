@@ -438,6 +438,15 @@ describe('Rush Hour transit', () => {
     const cars = city.fields.traffic[tile(city, 30, 30)]!;
     expect(cars).toBeGreaterThan(0);
     expect(city.state.lastBudget!.fares).toBeCloseTo(cars * 0.2, 0);
+    const saved = saveCity(city);
+    const copy = loadCity(JSON.parse(JSON.stringify(saved)), { config: CALM });
+    expect(copy.previewBudget().fares).toBe(city.previewBudget().fares);
+    expect(copy.volume).toEqual(city.volume);
+    const legacy = loadCity({ ...saved, volume: undefined }, { config: CALM });
+    expect(legacy.volume).toEqual(city.state.history.at(-1)!.trips);
+    saved.volume!.car = 123;
+    expect(city.volume.car).not.toBe(123);
+    expect(copy.volume.car).not.toBe(123);
   }, 60_000);
 
   it('toll booths need straight road around them, slow two tiles each side, and go on elevated highways', () => {

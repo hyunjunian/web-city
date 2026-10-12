@@ -10,6 +10,7 @@ import { defaultNeighbours } from './sim/region';
 import { drain } from './sim/steps';
 import { STRUCTURES } from './data/structures';
 import { DEV_TYPES } from './types';
+import { VOLUME_KINDS } from './sim/transport';
 
 export interface SavedCity {
   format: 'web-city';
@@ -45,6 +46,8 @@ export interface SavedCity {
   eveningTraffic?: number[];
   /** Average trip time to jobs in town (what neighbours remember of commuting here); -1 for none yet. */
   localCommute?: number;
+  /** Last month's trips by means of travel, at their original precision. */
+  volume?: City['volume'];
   departments?: Partial<CityState['departments']>;
   landform?: number[];
   lineWear?: number[];
@@ -295,6 +298,7 @@ export function* saveCitySteps(city: City): Generator<void, SavedCity> {
     ferryTraffic: r.ferryTraffic!,
     eveningTraffic: r.eveningTraffic!,
     localCommute: city.fields.localCommute,
+    volume: { ...city.volume },
     departments: { ...s.departments },
     landform: r.landform!,
     lineWear: r.lineWear!,
@@ -535,6 +539,12 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     city.refresh();
   }
   if (saved.localCommute !== undefined) city.fields.localCommute = saved.localCommute;
+  // Older saves kept only the rounded graph point, which still gives their last traffic totals.
+  const volume = saved.volume ?? state.history.at(-1)?.trips ?? {};
+  city.volume = Object.fromEntries(VOLUME_KINDS.flatMap((kind) => {
+    const value = volume[kind];
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? [[kind, value]] : [];
+  }));
   // The Mayor Rating map is drawn monthly; draw it now (the citywide rating is saved).
   computeMayor(city.state, city.fields, city.cfg);
   return city;
