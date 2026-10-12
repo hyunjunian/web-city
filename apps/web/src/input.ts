@@ -17,7 +17,7 @@ import { drive } from './udi';
 import { closeTopLayer, toggleSheet } from './tabs';
 import { chosen, closeTray, dockArmed, openFind, previousTool, stepAlt, refreshToolChip, selectTool, STATION_HINT, tool, TOOL_KEYS, toolName, toolUsed, refreshEdgeHint } from './tools';
 import { remember } from './undo';
-import { $, ask, escapeHtml, keyForControl, onHintRestore, flash, flashing, fmt, josa, touchFirst, flashYields, endFlash } from './util';
+import { $, ask, askText, escapeHtml, keyForControl, onHintRestore, flash, flashing, fmt, josa, touchFirst, flashYields, endFlash } from './util';
 
 /** What each cheat did, for the toast. */
 const CHEAT_DONE: Record<string, string> = {
@@ -1162,8 +1162,8 @@ export function setupInput(): void {
   $('#zoom-fit').onclick = fitGlide;
 
   /** Asks for a cheat code and says what it did. */
-  const cheatConsole = () => {
-    const code = window.prompt('치트 코드');
+  const cheatConsole = async () => {
+    const code = await askText('치트 적용', '치트 코드');
     if (!code) return;
     const drop = remember('치트'); // undoable like any edit
     const res = city.cheat(code);

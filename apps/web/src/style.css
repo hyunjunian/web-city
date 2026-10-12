@@ -1610,6 +1610,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 #ask-dialog { max-width: min(420px, calc(100vw - 32px)); }
 #ask-dialog .ask-title { margin: 0 0 8px; font-size: 20px; }
 #ask-dialog .ask-text { margin: 0; font-size: 15px; line-height: 1.55; }
+#text-dialog { width: min(400px, calc(100vw - 32px)); }
+#text-dialog .ask-title { margin: 0 0 4px; font-size: 20px; }
 .advice-more { display: block; margin: 10px 0 0; font-size: 13px; }
 /* A sheet's title takes focus when it opens (for screen readers), not to be ringed. */
 [tabindex='-1']:focus { outline: none; }

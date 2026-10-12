@@ -131,6 +131,38 @@ export function ask(text: string, action: string): Promise<boolean> {
   return new Promise((resolve) => d.addEventListener('close', () => resolve(d.returnValue === 'ok'), { once: true }));
 }
 
+let textDialog: HTMLDialogElement | null = null;
+
+/**
+ * Asks for a line of text in the app's own dialog (the browser's prompt stood apart from the app):
+ * the text, or null when cancelled. Enter takes it (the form's first button is 취소).
+ */
+export function askText(action: string, label: string, value = ''): Promise<string | null> {
+  if (!textDialog) {
+    textDialog = document.createElement('dialog');
+    textDialog.id = 'text-dialog';
+    textDialog.setAttribute('aria-labelledby', 'text-title');
+    textDialog.innerHTML = '<form method="dialog"><h2 class="ask-title" id="text-title"></h2><label><span class="text-label"></span><input name="text" autocomplete="off" /></label><menu><button value="cancel">취소</button><button value="ok" class="primary"></button></menu></form>';
+    document.body.append(textDialog);
+  }
+  const d = textDialog;
+  d.querySelector('.ask-title')!.textContent = action;
+  d.querySelector('.text-label')!.textContent = label;
+  d.querySelector('button[value="ok"]')!.textContent = action;
+  const input = d.querySelector<HTMLInputElement>('input')!;
+  input.value = value;
+  input.onkeydown = (e) => {
+    if (e.key !== 'Enter' || e.isComposing) return; // (not the Enter that ends a Hangul syllable)
+    e.preventDefault();
+    d.close('ok');
+  };
+  d.returnValue = '';
+  d.showModal();
+  input.focus();
+  input.select();
+  return new Promise((resolve) => d.addEventListener('close', () => resolve(d.returnValue === 'ok' ? input.value : null), { once: true }));
+}
+
 // A file picker drawn as a button (a label round a hidden input) opens with Enter or Space too.
 // (Only in a page: the tests load this module without one.)
 if (typeof document !== 'undefined') document.addEventListener('keydown', (e) => {

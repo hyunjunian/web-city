@@ -10,7 +10,7 @@ import { leaveRegion, region, regionPos, storeRegion } from './region';
 import { cam, city, overlay, redraw, renderer, setCity } from './state';
 import { saveSlot, showSaves, unsavedProgress } from './saves';
 import { lastAutosave } from './storage';
-import { $, ask, flash, josa, touchFirst } from './util';
+import { $, ask, askText, flash, josa, touchFirst } from './util';
 import { choice } from './undo';
 
 export function setupMenu(): void {
@@ -54,8 +54,8 @@ export function setupMenu(): void {
     showPause();
     flash(autoPause ? "어느 항목이 '조치 필요'로 바뀌면 시간을 멈춥니다" : '문제가 생겨도 시간은 그대로 흐릅니다 (알림만)');
   };
-  const rename = () => {
-    const name = prompt('도시 이름', city.state.name);
+  const rename = async () => {
+    const name = await askText('이름 바꾸기', '도시 이름', city.state.name);
     if (name === null) return;
     const res = choice('도시 이름', () => city.rename(name));
     if (!res.ok) flash(ko(res.message ?? ''), 'bad');
