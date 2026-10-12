@@ -288,6 +288,9 @@ function guideHtml(id: GoalId): string {
     <p class="lead-risk">${RISK[id]}</p><p class="g-label">추천 조치</p>${action}${wait}</section>`;
 }
 
+/** The sites (x,y) of the build button under the pointer or focused: their marks light up on the map. */
+let hotSites: string[] = [];
+
 /** The guide's own site (one the map's mark isn't), marked on the map as the 과녁 is: where 추천 자리에 짓기 will build. */
 let guideSite: { id: GoalId; sites: { at: [number, number]; label: string }[] } | null = null;
 /** Where the screen's mark is built on (the mark, or the nearest fit for the facility recommended; null: none now), for its line's 여기에 짓기. */
@@ -1173,6 +1176,8 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   const crowdedOut = !!spot && !!own?.sites.some((o) => Math.max(Math.abs(o.at[0] - spot.x), Math.abs(o.at[1] - spot.y)) <= 4);
   if (spot && !(spot.crowded && own) && !crowdedOut) marks.push({ x: spot.x, y: spot.y, w: 1, h: 1, tone: 'spot', label });
   for (const o of own?.sites ?? []) marks.push({ x: o.at[0], y: o.at[1], w: 1, h: 1, tone: 'spot', label: o.label });
+  // (Lit while the button that builds there is under the pointer or focused.)
+  for (const m of marks) if (m.tone === 'spot' && hotSites.includes(`${m.x},${m.y}`)) m.hot = true;
   const sig = JSON.stringify(marks);
   if (sig === marksSig) return;
   marksSig = sig;
@@ -1558,6 +1563,15 @@ export function setupGoals(): void {
     openGoal(b.dataset.goal as GoalId);
   });
   const el = $('#manage');
+  // A build button under the pointer (or focused) lights its target on the map: where it will build, before it does.
+  const light = (e: Event) => {
+    const b = (e.target as HTMLElement).closest?.<HTMLElement>('[data-spot-build]');
+    const next = e.type === 'pointerover' || e.type === 'focusin' ? b?.dataset.spotBuild?.split(';') ?? [] : [];
+    if (next.join(';') === hotSites.join(';') || !active) return;
+    hotSites = next;
+    refreshMarks(active, facilities(GOALS[active]));
+  };
+  for (const type of ['pointerover', 'pointerout', 'focusin', 'focusout']) el.addEventListener(type, light);
   // A press anywhere in the pane holds its redraws until let go (a row rebuilt between
   // the press and the release lost the click while time ran).
   $('#pane').addEventListener('pointerdown', () => (holding = true));

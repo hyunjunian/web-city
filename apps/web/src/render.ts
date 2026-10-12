@@ -412,7 +412,7 @@ export class Renderer {
    * A goal's screen marks its facilities on the map (amber or red where one
    * is in trouble) and the spots it points to (a problem, a place to build).
    */
-  marks: { x: number; y: number; w: number; h: number; tone: '' | 'warn' | 'bad' | 'spot'; label?: string }[] = [];
+  marks: { x: number; y: number; w: number; h: number; tone: '' | 'warn' | 'bad' | 'spot'; label?: string; hot?: boolean }[] = [];
   /** A road in hand on a town not yet joined to its neighbours: the map's edge is where it should reach. */
   edgeHint = false;
   /** Where the keyboard's build cursor is (set by the arrows; a mouse moving takes it away). */
@@ -1925,6 +1925,13 @@ export class Renderer {
           const cy = m.y + m.h / 2;
           const r = Math.max(2.2, 18 * u);
           ctx.setLineDash([]);
+          if (m.hot) {
+            // The button that builds here is under the pointer: the target lights up.
+            ctx.fillStyle = 'rgba(47,111,224,0.45)';
+            ctx.beginPath();
+            ctx.arc(cx, cy, r * 1.3, 0, Math.PI * 2);
+            ctx.fill();
+          }
           ctx.lineWidth = 3.5 * u;
           ctx.strokeStyle = 'rgba(255,255,255,0.9)';
           for (const k of [1, 0.45]) {
