@@ -1116,7 +1116,9 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   // The guide's own site too, so 추천 자리에 짓기 shows where before it builds (beside a full hospital it takes
   // the place of the mark it was found near).
   const own = guideSite?.id === id ? guideSite : null;
-  if (spot && !(spot.crowded && own)) marks.push({ x: spot.x, y: spot.y, w: 1, h: 1, tone: 'spot', label });
+  // (Nor where a site of the guide's is within 4 tiles of it: the two labels ran into each other.)
+  const crowdedOut = !!spot && !!own?.sites.some((o) => Math.max(Math.abs(o.at[0] - spot.x), Math.abs(o.at[1] - spot.y)) <= 4);
+  if (spot && !(spot.crowded && own) && !crowdedOut) marks.push({ x: spot.x, y: spot.y, w: 1, h: 1, tone: 'spot', label });
   for (const o of own?.sites ?? []) marks.push({ x: o.at[0], y: o.at[1], w: 1, h: 1, tone: 'spot', label: o.label });
   const sig = JSON.stringify(marks);
   if (sig === marksSig) return;
