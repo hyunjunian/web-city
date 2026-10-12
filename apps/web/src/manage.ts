@@ -1611,7 +1611,7 @@ function placeToolMark(): void {
     const path = way?.path;
     const [a, b] = path ? [path[0]!, path.at(-1)!] : [];
     const marks: typeof renderer.marks = a && b && path ? [
-      { x: a[0], y: a[1], w: 1, h: 1, tone: 'spot', label: `추천 · 이웃 도시까지 ${fmt(path.length)}칸${way.short ? ' · 자금 부족' : ''}` },
+      { x: a[0], y: a[1], w: 1, h: 1, tone: 'spot', label: `추천 · 이웃 도시까지 ${fmt(path.length)}칸 · §${fmt(way.cost)}${way.short ? ' · 자금 부족' : ''}` },
       { x: b[0], y: b[1], w: 1, h: 1, tone: 'spot', label: '' },
     ] : [];
     showToolMarks(marks, marks.length && path ? path : null);

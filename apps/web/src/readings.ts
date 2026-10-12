@@ -603,16 +603,16 @@ function smoggyHomes(): number {
  * tile with a street inside is no link to the engine). Its tiles from the town's end to the edge, and whether the money
  * is short; or null.
  */
-export function edgeRoad(kind: 'road' | 'avenue' = 'road'): { path: [number, number][]; short: boolean } | null {
+export function edgeRoad(kind: 'road' | 'avenue' = 'road'): { path: [number, number][]; short: boolean; cost: number } | null {
   const key = `${kind}|${changeKey()}|${Math.floor(city.state.funds / 100)}`;
   if (edgeMemo?.key === key) return edgeMemo.at;
   const at = findEdgeRoad(kind);
   edgeMemo = { key, at };
   return at;
 }
-let edgeMemo: { key: string; at: { path: [number, number][]; short: boolean } | null } | null = null;
+let edgeMemo: { key: string; at: { path: [number, number][]; short: boolean; cost: number } | null } | null = null;
 
-function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; short: boolean } | null {
+function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; short: boolean; cost: number } | null {
   if (city.fields.connections.length) return null;
   const n = city.size;
   const net = city.state.net;
@@ -671,7 +671,7 @@ function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; shor
     path.push([x, y]);
     if (x === to[0] && y === to[1]) break;
   }
-  return { path, short: best.short };
+  return { path, short: best.short, cost: best.cost };
 }
 
 /** A kind of source of the air over the smoggy homes: its share of it, how many there are, and the worst one (to go to). */
