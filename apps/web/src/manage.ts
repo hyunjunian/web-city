@@ -1093,7 +1093,7 @@ function cityAbovePane(): void {
   const card = $('#map-layer').getBoundingClientRect();
   const side = pane.top < v.top + v.height * 0.2 && pane.right < v.right - 200;
   const box = side
-    ? { left: Math.max(v.left, pane.right + 6), right: v.right - 60, top: v.top + 6, bottom: v.bottom - 6 }
+    ? { left: Math.max(v.left, pane.right + 6), right: v.right - 60, top: Math.max(v.top + 6, card.height && card.right > pane.right + 6 ? card.bottom + 6 : 0), bottom: v.bottom - 6 } // (under the view's card beside the pane: it hid the sites' labels)
     : { left: v.left, right: v.right, top: Math.max(v.top + mapBand().top + 6, card.height ? card.bottom + 6 : 0), bottom: Math.min(v.bottom, pane.top - 6) };
   const w = box.right - box.left;
   const h = box.bottom - box.top;
