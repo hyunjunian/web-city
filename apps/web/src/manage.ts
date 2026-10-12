@@ -5,12 +5,12 @@
 // all on the same panel; the map, tool and info card follow from it.
 
 import { placeAt } from './input';
-import { DEV_TYPES, Net, ORDINANCES, STRUCTURES, type HistoryPoint, type OrdinanceId, type Structure, type StructureKind } from '@web-city/engine';
+import { DEV_TYPES, type DevType, Net, ORDINANCES, STRUCTURES, type HistoryPoint, type OrdinanceId, type Structure, type StructureKind } from '@web-city/engine';
 import { icon } from './icons';
-import { chooseSpeed, runningSpeed, showOverlay, toggleFocus } from './controls';
+import { chooseSpeed, refreshTaxes, runningSpeed, showOverlay, toggleFocus } from './controls';
 import { redrawInfo, refreshInfo, showInfo } from './info';
 import { ko } from './messages';
-import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME } from './names';
+import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME } from './names';
 import { whyNoDeals } from './region';
 import { journal } from './journal';
 import { abandonHint, capBest, capHint, jobHint, pushNotice, rciMini, updatePanels } from './panels';
@@ -1147,7 +1147,13 @@ function adviceTool(code: string): [string, string] | undefined {
 }
 
 
-function fixButton(a: { code: string; level: string; at?: readonly [number, number] }): string {
+function fixButton(a: { code: string; level: string; at?: readonly [number, number]; type?: DevType }): string {
+  // Taxes eating a type's demand: that type's tax down to neutral, in one press (it said 세율을 조금 내려 보세요
+  // and left the slider to be found).
+  if (a.code === 'taxHigh' && a.type && city.state.taxRates[a.type] > city.demand.neutralTax) {
+    const to = city.demand.neutralTax;
+    return ` <button type="button" class="advice-view" data-tax-to="${a.type}" title="${TYPE_NAME[a.type]} 세율을 중립 세율로 내리기 (수요를 깎지 않는 세율 · 세입은 줄어듭니다)">${icon('wallet')}${TYPE_NAME[a.type]} 세율 ${to.toFixed(1)}%로</button>`;
+  }
   // Rubble: one press clears it all; money trouble: the budget sheet (taxes, departments, loans).
   if (a.code === 'rubble') return ` <button type="button" class="advice-view" data-clear-rubble title="도시의 잔해만 모두 치웁니다">${icon('eraser')}잔해 모두 치우기 §${fmt(city.clearRubble(true).cost)}</button>`;
   if (a.level !== 'good' && (a.code === 'deficit' || a.code === 'broke')) return ` <button type="button" class="advice-view" data-sheet="budget" title="세율·부서 예산·대출">재정 열기</button>`
@@ -1681,6 +1687,18 @@ export function setupGoals(): void {
       centerOn(f.x + f.w / 2, f.y + f.h / 2, 10);
       showInfo(f.x, f.y);
       redraw();
+      return;
+    }
+    const tax = t.closest<HTMLElement>('[data-tax-to]');
+    if (tax) {
+      const type = tax.dataset.taxTo as DevType;
+      const to = city.demand.neutralTax;
+      choice('세율', () => city.setTaxRate(type, to));
+      noteAction(`세율: ${TYPE_NAME[type]} ${to.toFixed(1)}%`);
+      flash(`${TYPE_NAME[type]} 세율을 ${to.toFixed(1)}%로 내렸습니다 · 수요가 다시 늘어납니다`, 'info');
+      refreshTaxes();
+      updatePanels();
+      renderGoal(true);
       return;
     }
     const site = t.closest<HTMLElement>('[data-spot-build]');
