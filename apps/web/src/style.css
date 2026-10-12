@@ -776,6 +776,8 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 .steps li.next .step { background: var(--accent-soft); font-weight: 600; }
 .steps li.next .step-dot { box-shadow: inset 0 0 0 2px var(--accent); }
 .steps li.next .step-go { color: var(--accent-hi); }
+/* A step's one-press shortcut, under its words (the first road: laid along the dashed route). */
+.steps .step-lay { display: block; margin: 2px 0 6px 36px; font-size: 12.5px; }
 .step-foot { display: flex; align-items: center; gap: 10px; }
 .step-foot .step-progress { flex: 1; min-width: 40px; }
 .step-foot .link { margin-left: 6px; }

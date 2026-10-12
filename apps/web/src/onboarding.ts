@@ -11,8 +11,9 @@ import { $, ask, fmt, touchFirst } from './util';
 import { STRUCTURE_NAME } from './names';
 import { dropToasts, toast } from './toast';
 import { type GoalId } from './goals';
-import { unpoweredZones, smokeClear } from './readings';
-import { openGoal } from './manage';
+import { edgeRoad, unpoweredZones, smokeClear } from './readings';
+import { layPath, openGoal } from './manage';
+import { updatePanels } from './panels';
 import { showOverlay } from './controls';
 import { unsavedProgress } from './saves';
 
@@ -108,7 +109,9 @@ export function renderOnboarding(): void {
   if (el.nextElementSibling !== status) status.before(el);
   if (el.hidden) return;
   const fresh = !city.established();
-  const sig = steps.map(([ok, text, tool]) => `${+ok}${tool ?? ''}${text}`).join('|') + (region ? 'r' : '') + (fresh ? 'f' : '');
+  // (The road to the neighbours, laid in one press from the first step: its route and price.)
+  const way = steps[0] && !steps[0][0] ? edgeRoad('road') : null;
+  const sig = steps.map(([ok, text, tool]) => `${+ok}${tool ?? ''}${text}`).join('|') + (region ? 'r' : '') + (fresh ? 'f' : '') + (way ? `w${way.path[0]}${way.cost}${+way.short}` : '');
   if (el.dataset.sig === sig) return;
   // Phones: the checklist sits in the city pane, so its dock button gets a dot until opened.
   if (!el.dataset.sig && !$('#app').classList.contains('pane-open')) document.querySelector('.dock-city')?.classList.add('unread');
@@ -120,9 +123,12 @@ export function renderOnboarding(): void {
   // pane. It went out with the first road, and nothing said what came next.)
   const row = ([ok, text, tool]: (typeof steps)[number], i = -1) => {
     const body = `<span class="step-dot">${ok ? icon('check') : ''}</span><span class="step-text">${text}</span>`;
+    // (The first road: drawn along the dashed route the tool shows, or laid at once.)
+    const lay = !ok && tool === 'road' && way && !way.short
+      ? `<button type="button" class="link step-lay" title="지도 가장자리까지 가장 싼 곧은 길을 바로 놓기 (도로를 들면 지도에 점선으로 보이는 그 길 · Ctrl+Z로 되돌리기)">추천 길 바로 놓기 · ${fmt(way.path.length)}칸 §${fmt(way.cost)}</button>` : '';
     return `<li class="${ok ? 'done' : i === 0 && st.population === 0 ? 'next' : ''}">${!ok && tool
       ? `<button type="button" class="step" data-step-tool="${tool}" title="${tool.startsWith('goal:') ? '관리 화면 열기 (지도 보기·지을 곳·추천 시설)' : tool.startsWith('view:') ? '지도 보기 켜기' : '이 도구 고르기'}">${body}${icon('chevronRight', 'step-go')}</button>`
-      : `<div class="step">${body}</div>`}</li>`;
+      : `<div class="step">${body}</div>`}${lay}</li>`;
   };
   // In a region the sample would replace this square's city: no offer there.
   $('#onboarding-steps').innerHTML = `${st.population === 0 && !region ? `<div class="sample"><button id="onboarding-sample" title="길·구역·공공시설을 갖춘 도시를 9개월 키워 지금의 빈 도시 대신 엽니다">${icon('play')}예시 도시 둘러보기</button></div>` : ''}
@@ -133,6 +139,13 @@ export function renderOnboarding(): void {
     <p class="legend step-foot"><span class="step-progress" role="img" aria-label="${done}/${steps.length} 완료"><i style="width:${((done / steps.length) * 100).toFixed(1)}%"></i></span><span>${done}/${steps.length} 완료</span><button id="onboarding-hide" class="link">그만 보기</button></p>`;
   // A step's text picks the tool that does it.
   $('#onboarding-steps').querySelectorAll<HTMLButtonElement>('[data-step-tool]').forEach((b) => (b.onclick = () => takeStep(b.dataset.stepTool!)));
+  const layBtn = document.querySelector<HTMLButtonElement>('#onboarding-steps .step-lay');
+  if (layBtn) layBtn.onclick = () => {
+    const now = edgeRoad('road');
+    if (!now || !layPath('road', now.path, null)) return;
+    closePane(); // phones: the road laid, seen
+    updatePanels();
+  };
   const sample = document.querySelector<HTMLButtonElement>('#onboarding-sample');
   if (sample) sample.onclick = async () => {
     // Something built is lost without a save (as the menu's way to the sample asks).
