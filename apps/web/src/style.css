@@ -511,7 +511,8 @@ kbd {
 @keyframes goal-out { from { opacity: 0; transform: translateX(-14px); } }
 #pane.managing > :not(#manage):not(.pane-grip):not(.pane-close) { display: none; }
 .mg-head { display: flex; align-items: center; gap: 8px; position: sticky; top: -18px; z-index: 1; margin: -18px -16px 0; padding: 14px 16px 10px; background: var(--pane); }
-.mg-head h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 17px; font-weight: 700; }
+.mg-head h2 { display: inline-flex; align-items: center; gap: 8px; min-width: 0; margin: 0; font-size: 17px; font-weight: 700; }
+.mg-head h2 > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* (재정·/정책 broke over two lines in a 288px pane) */
 .mg-head h2 .i { width: 20px; height: 20px; color: var(--accent-hi); }
 .mg-head .chip { margin-left: auto; }
 /* The clock beside the goal's name: a quiet pill while time runs, amber when paused (the city waits). */
@@ -520,6 +521,7 @@ kbd {
 .mg-time.on .i { color: var(--accent-hi); }
 .mg-time:not(.on) { background: var(--warn-soft); color: var(--text); }
 .mg-time + .chip { margin-left: 0; }
+@media (min-width: 861px) and (max-width: 1180px) { .mg-time > span { display: none; } .mg-time { padding: 0 7px; } } /* (its icon says it; the title keeps the room) */
 .mg-back { flex: none; }
 .mg-switch { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; margin-top: -4px; } /* every goal in sight (a scrolling row hid the last ones) */
 .mg-switch button { position: relative; flex: none; display: grid; place-items: center; width: 100%; height: 30px; border-radius: 8px; background: transparent; color: var(--muted); }
@@ -755,7 +757,12 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 /* A step's one-press shortcut, under its words (the first road: laid along the dashed route). */
 .steps .step-lay { display: block; margin: 2px 0 6px 36px; font-size: 12.5px; }
 /* (Under a finger, a taller target that keeps the line where it was.) */
-@media (pointer: coarse) and (hover: none) { .steps .step-lay { padding: 8px 12px 8px 0; margin: -6px 0 0 36px; } }
+/* (A finger's margin around the link reached up into the step's own row: a tap meant to pick the step's tool laid
+   the road and spent the money. The link is its own 40px-high target instead, clear of the row above.) */
+@media (pointer: coarse) and (hover: none) {
+  .steps .step-lay { min-height: 40px; padding: 10px 12px 10px 0; margin: 0 0 0 36px; }
+  .steps .step-lay::after { display: none; }
+}
 .step-foot { display: flex; align-items: center; gap: 10px; }
 .step-foot .step-progress { flex: 1; min-width: 40px; }
 .step-foot .link { margin-left: 6px; }
@@ -1408,6 +1415,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
     transition: transform 0.26s var(--ease), visibility 0s 0.26s;
   }
   #app.pane-open #pane { transform: none; visibility: visible; transition: transform 0.26s var(--ease); }
+  #pane { mask-image: none; } /* (over the map, its fade let the map show through the pane's foot) */
   #app.focus #pane { display: flex; }
   .pane-grip { display: block; position: absolute; top: 9px; left: 50%; width: 40px; height: 5px; margin-left: -20px; border-radius: 3px; background: var(--surface-3); }
   /* The × keeps to the pane's top right while it scrolls (it scrolled away with a long list, and with it the way
@@ -2424,6 +2432,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #mapbar.fit3 #map-layer .legend-toggle { display: inline-flex; margin-left: 0; color: var(--muted); transition: transform 0.2s var(--ease); }
 #mapbar.fit3 #map-layer.open .legend-toggle { transform: rotate(180deg); }
 #mapbar.fit3 #map-layer:not(.off):not(.picking) .layer-off { display: inline-flex; order: 0; flex: none; width: 36px; height: 36px; }
+#view:has(#manage-chip:not([hidden])) #mapbar.fit3 #map-layer .layer-off { display: none; } /* (a goal's chip has the × then: two alike that did different things) */
 #mapbar.fit3 #overlay { order: 1; flex: 1 0 100%; min-width: 0; }
 #mapbar.fit3 #map-layer:not(.off):not(.picking) #overlay { gap: 6px; }
 #mapbar.fit3 #map-layer:not(.open) :is(#overlay-legend, #overlay-scale) { display: none !important; }
@@ -2530,7 +2539,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #sb-wind, #mapbar #btn-focus-menu { display: none !important; }
   #mapbar .dropdown-menu { max-height: calc(100dvh - 80px); }
   /* The view's card beside the build bar, clear of 전체 보기; its list as wide as the top bar. */
-  #view #mapbar #map-layer { left: calc(var(--dock-w) + 2px); right: 54px; width: auto; max-width: none; top: calc(100% + 6px); }
+  #view #mapbar #map-layer { left: calc(var(--dock-w) + 7px); right: 54px; width: auto; max-width: none; top: calc(100% + 6px); } /* (8px from the build bar, in line with a goal's chip: the bar's 1px border counts) */
   #view #mapbar #map-layer.picking { left: 0; right: 0; width: auto; padding: 10px; }
 
   /* The build bar: 도시, 철거 and 짓기 down the left under the top bar (put away while the city pane is up: it
@@ -2610,6 +2619,10 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #tray, #info-card, #sheet, #pane { top: calc(62px + env(safe-area-inset-top)); }
   /* The city pane open on the left: the view's card beside it (and gone if a card is open on the right too). */
   #app.pane-open #view #mapbar #map-layer:not(.picking) { left: calc(min(380px, 50vw) - 2px); } /* (50% would be the bar's) */
+  /* Little height: the pane's head and figures tighter, so 도시 상태 starts in sight. */
+  #pane:not(.managing) { gap: 10px; }
+  .hero-value { font-size: 36px; }
+
   #app.pane-open #view.info-open #mapbar #map-layer:not(.picking) { display: none; }
 }
 /* Narrower phones: the speeds a little narrower; at 320px the buttons too (undo, redo and the menu with the date whole). */
@@ -2621,4 +2634,13 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #mapbar.fit1 .gear-compact button { min-width: 22px; }
   #mapbar .icon-btn, #mapbar .dropdown > summary { width: 34px; }
   #mapbar.fit3 #mb-view #view-pick { width: 36px; }
+}
+
+/* ---- touch: a finger's size for what the map's chrome took down to a mouse's (later rules had won over the touch
+   block above: the tool's siblings at 28px, its × at 34) */
+@media (pointer: coarse) and (hover: none) {
+  #view #tool-chip #tool-alts button { min-height: 40px; }
+  #view #tool-chip #tool-chip-close { width: 40px; height: 40px; }
+  #view #goal-strip button { min-height: 40px; }
+  #pane .g-act-btns :is(.primary, button) { min-height: 40px; }
 }

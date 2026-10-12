@@ -1812,7 +1812,8 @@ function placeToolMark(): void {
 function timeButton(): string {
   const on = speed > 0;
   const name = ['', '느리게', '보통', '빠르게'][speed] ?? '';
-  return `<button type="button" class="mg-time${on ? ' on' : ''}" aria-pressed="${!on}" title="${on ? `시간이 ${name} 흐르는 중 · 눌러서 멈추고 살펴보기 (Space)` : '멈춤 · 눌러서 이어 가기 (Space)'}">${icon(on ? (speed >= 3 ? 'play3' : speed === 2 ? 'play2' : 'play') : 'pause')}<span>${on ? '진행 중' : '멈춤'}</span></button>`;
+  // (Named for what a press does, as a button is: "멈춤" read as how things stood, and pressing it went on.)
+  return `<button type="button" class="mg-time${on ? ' on' : ''}" title="${on ? `시간이 ${name} 흐르는 중 · 눌러서 멈추고 살펴보기 (Space)` : '시간이 멈춰 있음 · 눌러서 이어 가기 (Space)'}">${icon(on ? 'pause' : 'play')}<span>${on ? '멈추기' : '이어 가기'}</span></button>`;
 }
 
 /**
@@ -1943,7 +1944,7 @@ function goalHtml(id: GoalId): string {
   const allDept = list.length > 0 && list.every((f) => deptFunded(f.kind));
   return `<header class="mg-head">
       <button type="button" class="icon-btn mg-back" title="도시로 돌아가기 (Esc)" aria-label="도시로 돌아가기">${icon('back')}</button>
-      <h2 title="${g.aim}">${icon(g.icon)}${g.name}</h2>${timeButton()}${!s.tone && !readStats().population && !city.state.buildings.size
+      <h2 title="${g.aim}">${icon(g.icon)}<span>${g.name}</span></h2>${timeButton()}${!s.tone && !readStats().population && !city.state.buildings.size
       ? '<span class="chip" title="아직 사는 사람이 없습니다: 판단은 도시가 생긴 뒤에">시작 전</span>' // (an empty map isn't "good")
       : `<span class="chip ${s.tone || 'good'}">${s.tone === 'bad' ? '조치 필요' : s.tone === 'warn' ? '주의' : '양호'}</span>`}
     </header>

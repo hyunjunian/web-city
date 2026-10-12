@@ -425,6 +425,10 @@ export function buildOverlay(): void {
       legend.title = legend.textContent;
       legend.textContent = '';
     }
+    // The coverage views paint a faint red where people live or work and none reaches: said under the scale (it was
+    // only in the tooltip, beside a count of homes that may all be in reach while workplaces are not).
+    const unreached = ({ police: '경찰이', fire: '소방이', health: '병원이', school: '학교가' } as Record<string, string>)[kind.value];
+    if (unreached) legend.innerHTML = `<span class="swatch-item"><i style="background:rgba(230,60,60,0.3)"></i>${unreached} 닿지 않는 구역·건물</span>`;
     redraw();
     refreshViewSummary();
     fitMapbar(); // (a longer name may want the room)
