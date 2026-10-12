@@ -218,6 +218,7 @@ function guideSaid(id: GoalId): { said: string; worst?: ReturnType<typeof advice
  */
 function guideHtml(id: GoalId): string {
   guideSite = null;
+  markSite = null;
   const s = goalStatus(id);
   if (!s.tone || incidents().some((x) => x.goal === id)) return '';
   const st = goalStep(id);
@@ -266,6 +267,7 @@ function guideHtml(id: GoalId): string {
     // What the press does: an ordinance or a finance lever takes effect at once (해 보기 sounded like a tool to try).
     const go = st.kind === 'ord' ? '시행하기' : st.fin === 'loan' ? '빌리기' : st.fin ? '적용하기' : '해 보기';
     if (own) guideSite = { id, sites: own.at.map((at, k) => ({ at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}${own.labels[k] ? ` (${own.labels[k]})` : ''}` })) };
+    if (mark) markSite = { id, at: site ? [spot.x, spot.y] : own?.at[0] ?? null };
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b>${st.sub ? `<small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small>` : ''}</p>
       ${why ? `<p class="${st.fx ? `g-act-fx${/−|모자람/.test(st.fx) ? ' neg' : ''}` : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}
       <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>${go}</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
@@ -280,6 +282,8 @@ function guideHtml(id: GoalId): string {
 
 /** The guide's own site (one the map's mark isn't), marked on the map as the 과녁 is: where 추천 자리에 짓기 will build. */
 let guideSite: { id: GoalId; sites: { at: [number, number]; label: string }[] } | null = null;
+/** Where the screen's mark is built on (the mark, or the nearest fit for the facility recommended; null: none now), for its line's 여기에 짓기. */
+let markSite: { id: GoalId; at: [number, number] | null } | null = null;
 
 /**
  * A goal's recommendation: what it is, why, the act behind 해 보기; `build` the facility it puts up
@@ -1147,8 +1151,9 @@ function spotLine(id: GoalId): string {
     <button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button></p>`;
   }
   const site = id === 'power' || id === 'water';
-  // (A site for the facility the screen recommends: built there in one press.)
-  const build = SERVICE_SITE.has(id) || site ? `<button type="button" class="advice-view spot-build" data-spot-build="${spot.x},${spot.y}" title="추천 시설을 이 자리에 짓기">${icon('plus')}여기에 짓기</button>` : '';
+  // (A site for the facility the screen recommends: built there in one press — where the guide found it fits.)
+  const fit = markSite?.id === id ? markSite.at : [spot.x, spot.y];
+  const build = (SERVICE_SITE.has(id) || site) && fit ? `<button type="button" class="advice-view spot-build" data-spot-build="${fit.join(',')}" title="추천 시설을 이 자리에 짓기">${icon('plus')}여기에 짓기</button>` : '';
   return `<p class="mg-spot">${icon('target')}<span>${site
     ? `<b>${SPOT_WORD[id]}</b>: ${id === 'power' ? '전기 없는 구역' : '물이 없는 건물'} ${fmt(spot.tiles)}칸 가까이, 도로 옆${id === 'power' ? ' · 주거에서 떨어진' : ''} 빈 땅 (지도의 과녁)`
     : `<b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${fmt(spot.tiles)}칸 (지도의 과녁)`}</span>
