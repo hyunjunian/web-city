@@ -1527,7 +1527,8 @@ const SERVICE_SITE = new Set<GoalId>(['police', 'fire', 'health', 'education']);
  * A facility picked from the build cards, no screen open: the map marks the site the guide would build it on — a
  * station where it fills the biggest gap in its service (the view that comes on with it shows every gap; the mark
  * says which to fill, on ground it fits), a plant beside the plants on the grid, a pump touching the pipes with
- * power, an incinerator or recycling centre clear of the homes — and its arrow at the screen's edge leads there.
+ * power, an incinerator or recycling centre clear of the homes, bus stops by the homes and by the work — and its
+ * arrow at the screen's edge leads there.
  */
 export function markToolSite(): void {
   // (A moment later: a site search can take a big map tens of milliseconds, and the pick shows first.)
@@ -1570,6 +1571,15 @@ function placeToolMark(): void {
     : d.pump ? siteOnPipes(kind) ?? nearSpot('water')
     : d.incinerator || d.recycling ? siteAwayFromHomes(kind) : null;
   const marks: typeof renderer.marks = at && kind ? [{ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]}` }] : [];
+  // A bus stop: the pair the traffic screen builds, one where the most live and one where the most work (a stop alone
+  // carries no one) — a side already with a stop within 8 tiles left out, so the next goes to the other side.
+  if (kind && d?.station?.mode === 'bus') {
+    const stops = [...city.state.structures.values()].filter((st) => STRUCTURES[st.kind].station?.mode === 'bus');
+    (stopPair(kind) ?? []).forEach(([x, y], k) => {
+      if (stops.some((st) => Math.max(Math.abs(st.x - x), Math.abs(st.y - y)) <= 8)) return;
+      marks.push({ x, y, w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]} (${k ? '일터 쪽' : '집 쪽'})` });
+    });
+  }
   if (JSON.stringify(marks) === JSON.stringify(renderer.marks)) return;
   renderer.marks = marks;
   redraw();
