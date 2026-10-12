@@ -14,7 +14,7 @@ import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESO
 import { whyNoDeals } from './region';
 import { journal } from './journal';
 import { abandonHint, capBest, capHint, jobHint, pushNotice, rciMini, updatePanels } from './panels';
-import { builtArea, cam, centerOn, changeKey, city, cityLineage, flightCount, glideTo, graphs, redraw, renderer, setHover, speed, stopFlight } from './state';
+import { builtArea, cam, centerOn, changeKey, city, cityLineage, flightCount, glideTo, graphs, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
@@ -1013,7 +1013,10 @@ let shrunk: { flight: number; scale: number } | null = null;
 export function paneClosed(): void {
   const was = shrunk;
   shrunk = null;
-  if (!was || was.flight !== flightCount() || Math.abs(cam.scale - was.scale) > 1e-6) return;
+  // (Framed beside the pane when it opened, and not moved since: the town framed again on the whole screen.)
+  const framed = takeBandFraming();
+  const still = !!framed && framed.x === cam.x && framed.y === cam.y && framed.scale === cam.scale;
+  if (!still && (!was || was.flight !== flightCount() || Math.abs(cam.scale - was.scale) > 1e-6)) return;
   const v = renderer.canvas.getBoundingClientRect();
   const { cx, cy, span } = builtArea();
   glideTo(cx, cy, Math.max(2, Math.min(v.width, v.height) / span), 300);

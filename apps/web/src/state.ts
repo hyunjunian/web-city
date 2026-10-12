@@ -91,6 +91,18 @@ export function fitCamera(whole = false): void {
   cam.scale = Math.max(whole ? 1 : 2, Math.min(w, h) / span); // (zooming out stops at 1)
   cam.x = cx - (b.left + w / 2) / cam.scale;
   cam.y = cy - (b.top + h / 2) / cam.scale;
+  bandFraming = b.bottom < r.height - 1 || b.left > 1 ? { x: cam.x, y: cam.y, scale: cam.scale } : null;
+}
+
+/**
+ * The framing fitCamera made beside a phone's open pane (null: on the whole map): the pane closing frames the town
+ * again on the whole screen while the view is still that one (a first visit's town stayed in the top half).
+ */
+let bandFraming: { x: number; y: number; scale: number } | null = null;
+export function takeBandFraming(): { x: number; y: number; scale: number } | null {
+  const f = bandFraming;
+  bandFraming = null;
+  return f;
 }
 
 /**
