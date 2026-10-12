@@ -581,6 +581,20 @@ export function drainRegionalGrowth(s: CityState, cfg: SimConfig, census: { popu
   }
 }
 
+/** Shares a whole count by weight, assigning leftover Sims to the largest fractional shares. */
+export function apportionGrowth(amount: number, weights: readonly number[]): number[] {
+  if (!weights.length) return [];
+  const count = Math.round(amount);
+  if (!Number.isFinite(count) || count <= 0) return weights.map(() => 0);
+  const total = weights.reduce((a, b) => a + b, 0);
+  const quotas = weights.map(w => total > 0 ? count * (w / total) : count / weights.length);
+  const shares = quotas.map(Math.floor);
+  const left = count - shares.reduce((a, b) => a + b, 0);
+  const order = quotas.map((_, j) => j).sort((a, b) => (quotas[b]! - shares[b]!) - (quotas[a]! - shares[a]!) || a - b);
+  for (let j = 0; j < left && j < order.length; j++) shares[order[j]!]!++;
+  return shares;
+}
+
 /**
  * Exporting demand: at the month's end, demand the city didn't
  * satisfy is tossed to inactive linked neighbours, which take it up with
@@ -599,8 +613,9 @@ export function exportDemand(s: CityState, cfg: SimConfig, raw: PerType): PerTyp
     const total = room.reduce((a, b) => a + b, 0);
     if (total <= 0) continue;
     const take = Math.min(want, total);
+    const parts = apportionGrowth(take, room);
     takers.forEach((nb, k) => {
-      const part = Math.round((take * room[k]!) / total);
+      const part = parts[k]!;
       if (part <= 0) return;
       nb.absorbed ??= perType(() => 0);
       nb.absorbed[t] += part;

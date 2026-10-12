@@ -9,7 +9,7 @@ import { City, MAX_SIZE, type CityOptions } from './city';
 import { copyData } from './copy';
 import { loadCity, saveCity, type SavedCity } from './save';
 import type { DealResource, Neighbour } from './sim/state';
-import { mergeSnapshots, type CitySnapshot } from './sim/region';
+import { apportionGrowth, mergeSnapshots, type CitySnapshot } from './sim/region';
 import type { Heightmap } from './sim/terrain';
 import { DEV_TYPES, perType, type DevType, type PerType } from './types';
 
@@ -250,9 +250,9 @@ export class Region {
         const more = taken[t] - had;
         if (more <= 0) continue;
         const weights = others.map((o) => o.snapshot.population[t]);
-        const total = weights.reduce((a, b) => a + b, 0);
+        const parts = apportionGrowth(more, weights);
         others.forEach((_, j) => {
-          pending[j]![t] += Math.round(total > 0 ? (more * weights[j]!) / total : more / others.length);
+          pending[j]![t] += parts[j]!;
         });
       }
       others.forEach((o, j) => {

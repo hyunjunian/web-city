@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { evaluateDeal } from '../src/sim/region';
 import { City, loadCity, Region, saveCity } from '../src';
-import { drainRegionalGrowth, linkedNeighbours, edgeConnections, neighbourCommute, reliefConnections, type CitySnapshot } from '../src/sim/region';
+import { drainRegionalGrowth, exportDemand, linkedNeighbours, edgeConnections, neighbourCommute, reliefConnections, type CitySnapshot } from '../src/sim/region';
 import { perType } from '../src/types';
 
 const CALM = { safety: { fires: false }, mayor: { riots: false } } as const;
@@ -304,6 +304,18 @@ describe('regional demand pool', () => {
     expect(nb.absorbed!['R$']).toBeLessThanOrEqual(2000);
   }, 30_000);
 
+  it.each([[100, 100, 1, 1, 0], [100, 100, 3, 2, 1], [100, 300, 2, 1, 1], [100, 300, 8, 2, 6]])('exports one total of whole Sims across populations %s and %s (amount %s)', (west, east, amount, westShare, eastShare) => {
+    const city = linked();
+    city.setNeighbourCity(0, snap({ population: { ...perType(() => 0), 'R$': west } }));
+    city.setNeighbourCity(1, snap({ population: { ...perType(() => 0), 'R$': east } }));
+    const raw = { ...perType(() => 0), 'R$': amount / city.cfg.region.growth.exportShare };
+    const sent = exportDemand(city.state, city.cfg, raw);
+    expect(sent['R$']).toBe(amount);
+    expect(city.state.neighbours.reduce((sum, nb) => sum + (nb.absorbed?.['R$'] ?? 0), 0)).toBe(amount);
+    expect(city.state.neighbours[0]!.absorbed?.['R$'] ?? 0).toBe(westShare);
+    expect(city.state.neighbours[1]!.absorbed?.['R$'] ?? 0).toBe(eastShare);
+  });
+
   it('growth taken up there counts as built here, and wants what goes with it', () => {
     const city = linked();
     city.setNeighbourCity(0, snap());
@@ -384,6 +396,33 @@ describe('regional demand pool', () => {
 });
 
 describe('region of cities', () => {
+  it.each([[100, 100, 1], [100, 100, 3], [100, 300, 2], [0, 0, 1]])('preserves pending growth shared by populations %s and %s (amount %s)', (north, south, amount) => {
+    let region = new Region({ width: 3, height: 2, citySize: 16 });
+    for (const [x, y, span] of [[0, 0, 2], [2, 0, 1], [2, 1, 1]] as const) {
+      region.close(x, y, region.found(x, y, { water: false, config: CALM }, span));
+    }
+    const saved = region.save();
+    for (const [j, population, pending] of [[1, north, 4], [2, south, 6]] as const) {
+      saved.cities![j]!.snapshot.population['R$'] = population;
+      saved.cities![j]!.pending = { ...perType(() => 0), 'R$': pending };
+    }
+    region = Region.load(saved);
+    const city = region.open(0, 0, { config: CALM });
+    expect(city.state.neighbours[1]!.absorbed!['R$']).toBe(10);
+    city.state.neighbours[1]!.absorbed!['R$'] += amount;
+    region.close(0, 0, city);
+    const pending = () => region.save().cities!.slice(1).map(c => c.pending!['R$']);
+    const split = pending();
+    expect(split.reduce((sum, n) => sum + n, 0)).toBe(10 + amount);
+    expect(split.every(Number.isInteger)).toBe(true);
+    expect(split[0]).toBeGreaterThanOrEqual(4);
+    expect(split[1]).toBeGreaterThanOrEqual(6);
+    region.close(0, 0, city);
+    expect(pending()).toEqual(split);
+    const loaded = Region.load(JSON.parse(JSON.stringify(region.save())));
+    expect(loaded.save()).toEqual(region.save());
+  });
+
   it('refuses fractional cells, unsupported spans and impossible region sizes', () => {
     for (const width of [0, -1, 1.5, NaN, Infinity, 1e9]) {
       expect(() => new Region({ width })).toThrow(/region/);
