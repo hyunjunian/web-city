@@ -777,17 +777,20 @@ export function placeAt(x: number, y: number): void {
 }
 
 /**
- * A facility in hand: a press (or the pointer) inside a suggested site's ring lands on the site. The ring is a
- * finger wide while its tile may be a few pixels: a press just beside the middle built a station off the road, or
- * was told a building stood there. (Within the ring's on-screen size only: zoomed in, that is the tile itself.)
+ * A facility in hand: a press (or the pointer) inside the ring of a site suggested for it lands on the site. The
+ * ring is a finger wide while its tile may be a few pixels: a press just beside the middle built a station off the
+ * road, or was told a building stood there. (Within the ring's on-screen size only: zoomed in, that is the tile
+ * itself. Not a ring that marks trouble, nor a site for another facility: a park put by the homes short of air
+ * jumped onto the homes.)
  */
 function snapToSpot(px: number, py: number, t: [number, number]): [number, number] {
-  if (tool.kind !== 'structure') return t;
+  const held = tool.kind === 'structure' ? chosen[tool.id] : undefined;
+  if (!held) return t;
   const reach = touchFirst() ? 24 : 18;
   let best: [number, number] | null = null;
   let near = reach;
   for (const m of renderer.marks) {
-    if (m.tone !== 'spot') continue;
+    if (m.tone !== 'spot' || m.site !== held) continue;
     const d = Math.hypot(px - (m.x + m.w / 2 - cam.x) * cam.scale, py - (m.y + m.h / 2 - cam.y) * cam.scale);
     if (d <= near) {
       near = d;

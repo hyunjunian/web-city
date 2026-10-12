@@ -1,6 +1,6 @@
 // Canvas 2D top-down renderer for a City.
 
-import { DEFAULT_CONFIG, DEV_TYPES, GROWTH_CODES, isLocalNet, isRail, Net, NETWORK_KINDS, STRUCTURES, Terrain, ZONES, type City, type DevType, type Rect, type RouteTrip, type TripMeans, type ZoneKind } from '@web-city/engine';
+import { DEFAULT_CONFIG, DEV_TYPES, GROWTH_CODES, isLocalNet, isRail, Net, NETWORK_KINDS, STRUCTURES, Terrain, ZONES, type City, type DevType, type Rect, type RouteTrip, type StructureKind, type TripMeans, type ZoneKind } from '@web-city/engine';
 import { ABANDONED_COLOR, buildingRisk, coverageRadius, GROWTH_COLOR, growthNow, RISK_COLOR, volumeAt } from './views';
 
 /** Networks the volume view can show, one at a time (a button per network). */
@@ -413,9 +413,10 @@ export class Renderer {
   effects: { kind: 'flash' | 'dust' | 'cost' | 'ping'; x: number; y: number; w: number; h: number; t0: number; text?: string }[] = [];
   /**
    * A goal's screen marks its facilities on the map (amber or red where one
-   * is in trouble) and the spots it points to (a problem, a place to build).
+   * is in trouble) and the spots it points to (a problem, a place to build). A spot that is a site for a
+   * facility names it (`site`): a press in its ring with that facility in hand lands on it.
    */
-  marks: { x: number; y: number; w: number; h: number; tone: '' | 'warn' | 'bad' | 'spot' | 'area'; label?: string; hot?: boolean }[] = [];
+  marks: { x: number; y: number; w: number; h: number; tone: '' | 'warn' | 'bad' | 'spot' | 'area'; label?: string; hot?: boolean; site?: StructureKind }[] = [];
   /** A line the guide offers to lay (tile by tile), drawn dashed between its two targets before it is laid. */
   guidePath: [number, number][] | null = null;
   /** Edge markers drawn for targets out of view: where (CSS pixels on the canvas) and the tile they point to. */

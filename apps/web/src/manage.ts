@@ -314,7 +314,7 @@ function guideHtml(id: GoalId): string {
       : SERVICE_SITE.has(id) ? `지도의 과녁에 바로 짓기: ${SPOT_WORD[id]}${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 가까이` : `지도의 과녁(${SPOT_WORD[id] ?? ''})에 바로 짓기`;
     // What the press does: an ordinance or a finance lever takes effect at once (해 보기 sounded like a tool to try).
     const go = st.kind === 'ord' ? '시행하기' : st.fin === 'loan' ? '빌리기' : st.fin || st.kind === 'budget' ? '적용하기' : '해 보기';
-    if (own) guideSite = { id, sites: own.at.map((at, k) => ({ at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}${own.labels[k] ? ` (${own.labels[k]})` : ''}` })) };
+    if (own) guideSite = { id, build: st.build!, sites: own.at.map((at, k) => ({ at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}${own.labels[k] ? ` (${own.labels[k]})` : ''}` })) };
     // A landfill handed out as a zone tool: where, and how big, zoned in one press (해 보기 left a spot "by a road,
     // far from homes" to be found, and a size to be guessed).
     // (Not again the month one was laid: the figures that ask for it change at the month's end, and a second press
@@ -418,7 +418,7 @@ let hotSites: string[] = [];
 /** The month a landfill or a zone block was laid from the guide, by kind (its site waits for the next month's figures). */
 const placedMonth = new Map<string, number>();
 /** The guide's own site (one the map's mark isn't), marked on the map as the 과녁 is: where 추천 자리에 짓기 will build. */
-let guideSite: { id: GoalId; sites: { at: [number, number]; label: string }[]; path?: [number, number][]; lay?: Lay; rect?: [number, number, number, number] } | null = null;
+let guideSite: { id: GoalId; sites: { at: [number, number]; label: string }[]; build?: StructureKind; path?: [number, number][]; lay?: Lay; rect?: [number, number, number, number] } | null = null;
 /** Where the screen's mark is built on (the mark, or the nearest fit for the facility recommended; null: none now), for its line's 여기에 짓기. */
 let markSite: { id: GoalId; at: [number, number] | null; kind?: StructureKind; name?: string } | null = null;
 
@@ -1569,8 +1569,10 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   // (Nor where a site of the guide's is within 4 tiles of it: the two labels ran into each other.)
   // (Nor a plant's site while the guide lays a line instead: the power is there, it only has to reach.)
   const crowdedOut = !!at && (own?.lay === 'powerline' || own?.lay === 'pipe' || !!own?.sites.some((o) => Math.max(Math.abs(o.at[0] - at[0]), Math.abs(o.at[1] - at[1])) <= 4));
-  if (spot && at && !(spot.crowded && own) && !crowdedOut) marks.push({ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label });
-  for (const o of own?.sites ?? []) marks.push({ x: o.at[0], y: o.at[1], w: 1, h: 1, tone: 'spot', label: o.label });
+  // (A site for the facility its 여기에 짓기 builds, where the mark stands on it; else the place of the trouble.)
+  const site = spotBuild?.id === id && at && spotBuild.at[0] === at[0] && spotBuild.at[1] === at[1] ? spotBuild.kind : undefined;
+  if (spot && at && !(spot.crowded && own) && !crowdedOut) marks.push({ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label, site });
+  for (const o of own?.sites ?? []) marks.push({ x: o.at[0], y: o.at[1], w: 1, h: 1, tone: 'spot', label: o.label, site: own!.build });
   // (An area to zone: its outline too, dashed, so its size shows before it is laid.)
   if (own?.rect) marks.push({ x: own.rect[0], y: own.rect[1], w: own.rect[2], h: own.rect[3], tone: 'area' });
   // (Lit while the button that builds there is under the pointer or focused.)
@@ -1586,10 +1588,13 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
 
 /** Where the spot line's 여기에 짓기 builds, when that is off the spot itself (its mark moves there: see refreshMarks). */
 let spotFit: { id: GoalId; at: [number, number] } | null = null;
+/** What the spot line's 여기에 짓기 builds and where (its mark there is a site for that facility). */
+let spotBuild: { id: GoalId; at: [number, number]; kind: StructureKind } | null = null;
 
 /** The suggested spot as a line on the panel, with a way to go there. */
 function spotLine(id: GoalId): string {
   spotFit = null;
+  spotBuild = null;
   const spot = incidents().some((x) => x.goal === id) ? null : suggestSpot(id);
   // (Not a plant's site while the guide lays a line: the power is there, it only has to reach.)
   if (!spot || (guideSite?.id === id && (guideSite.lay === 'powerline' || guideSite.lay === 'pipe'))) return '';
@@ -1632,6 +1637,7 @@ function spotLine(id: GoalId): string {
   // the guide's own site already stands on it.)
   if ((SERVICE_SITE.has(id) || site) && fit && kind && (fit[0] !== spot.x || fit[1] !== spot.y)
     && !(guideSite?.id === id && guideSite.sites.some((o) => o.at[0] === fit[0] && o.at[1] === fit[1]))) spotFit = { id, at: fit };
+  if ((SERVICE_SITE.has(id) || site) && fit && kind) spotBuild = { id, at: fit, kind };
   const build = (SERVICE_SITE.has(id) || site) && fit && kind
     ? `<button type="button" class="advice-view spot-build" data-spot-build="${fit.join(',')}" data-build-kind="${kind}" title="${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 이 자리에 짓기">${icon('plus')}여기에 짓기</button>` : '';
   return `<p class="mg-spot">${icon('target')}<span>${site
@@ -1786,7 +1792,7 @@ function placeToolMark(): void {
     : d.category === 'reward' || d.category === 'landmark' || d.category === 'deal'
       ? (d.res[0] < 0 ? siteAwayFromHomes(kind) : d.res[0] > 0 || ((d.mayor?.[0] ?? 0) > 0 && (d.mayor?.[1] ?? 0) < city.size) ? siteNearHomes(kind) : null)
     : null;
-  const marks: typeof renderer.marks = at && kind ? [{ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]}` }] : [];
+  const marks: typeof renderer.marks = at && kind ? [{ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]}`, site: kind }] : [];
   // A bus stop: the pair the traffic screen builds, one where the most live and one where the most work (a stop alone
   // carries no one) — a side already with a stop within 8 tiles left out, so the next goes to the other side.
   if (kind && d?.station?.mode === 'bus') {
@@ -1800,7 +1806,7 @@ function placeToolMark(): void {
     });
     pair?.forEach((p, k) => {
       if (near(p, pair[1 - k]!)) return;
-      marks.push({ x: p[0], y: p[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]} (${k ? '일터 쪽' : '집 쪽'})` });
+      marks.push({ x: p[0], y: p[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]} (${k ? '일터 쪽' : '집 쪽'})`, site: kind });
     });
   }
   showToolMarks(marks);
