@@ -36,7 +36,10 @@ export function loadOf(list: Structure[]): [number, number] {
 export function adviceFor(id: GoalId) {
   const rank = { bad: 0, neutral: 1, good: 2 } as const;
   adviceMemo ??= currentAdvice();
-  return adviceMemo.filter((a) => goalOfAdvice(a) === id).sort((a, b) => rank[a.level] - rank[b.level]);
+  // (Of the bad, buildings about to be lost first: a cap on growth waits, and the guide offered a park while
+  // buildings went empty.)
+  const lose = (a: { code: string }) => (a.code === 'atRisk' ? 0 : 1);
+  return adviceMemo.filter((a) => goalOfAdvice(a) === id).sort((a, b) => rank[a.level] - rank[b.level] || lose(a) - lose(b));
 }
 
 type Status = { tone: Tone; value: string; note: string; bar?: number };
@@ -674,8 +677,8 @@ export function lineToDark(): [number, number][] | null {
   return powerPath(`line|${siteKey()}`, (j) => !!s.zone[j] && s.zone[j] !== 10 && !f.powered[j]);
 }
 
-/** The shortest power line from the grid to a facility without power (a pump that stopped for it), as lineToDark. */
-export function lineToStructure(st: Structure): [number, number][] | null {
+/** The shortest power line from the grid to a facility or building without power (a pump that stopped for it), as lineToDark. */
+export function lineToStructure(st: { id: number; x: number; y: number; w: number; h: number }): [number, number][] | null {
   const n = city.size;
   return powerPath(`line|${st.id}|${siteKey()}`, (j) => { const x = j % n; const y = (j - x) / n; return x >= st.x && x < st.x + st.w && y >= st.y && y < st.y + st.h; });
 }
@@ -724,12 +727,13 @@ let lineMemo: { key: string; path: [number, number][] | null } | null = null;
  * (no building, zone or other network on the way: nothing torn up or rezoned, no bridge), up to 40 tiles; null if none.
  * (What its 도로에 닿지 않음 wants: garbage trucks, and a station's crews, leave by a road beside it.)
  */
-export function roadToFacility(f: Structure): [number, number][] | null {
-  const key = `road|${f.id}|${siteKey()}`;
+export function roadToFacility(f: { id: number; x: number; y: number; w: number; h: number }, of: 'f' | 'b' = 'f'): [number, number][] | null {
+  const key = `road|${of}${f.id}|${siteKey()}`;
   if (roadMemo?.key === key) return roadMemo.path;
   const s = city.state;
   const n = city.size;
-  const open = (i: number) => !s.occupant[i] && !s.zone[i] && !s.net[i] && s.terrain[i] !== Terrain.Water && s.landform[i] !== 2; // (2: a volcano's cone)
+  // (A building's lot sits in its zone: its road may cross the zone's empty tiles, as a road drawn there would.)
+  const open = (i: number) => !s.occupant[i] && (of === 'b' || !s.zone[i]) && !s.net[i] && s.terrain[i] !== Terrain.Water && s.landform[i] !== 2; // (2: a volcano's cone)
   const road = (i: number) => isLocalNet(s.net[i]!) && !s.tunnel[i];
   const from = new Int32Array(n * n).fill(-2); // -2 unseen, -1 beside the facility, else the tile it was reached from
   const depth = new Uint8Array(n * n);
@@ -849,8 +853,8 @@ export const LAY_WORD: Record<Lay, string> = { powerline: '송전선', road: '�
 
 /**
  * What laying a path costs now, or null if it can't be laid as it is: a line's tiles a line or zone already covers
- * are free (the tool skips them), as a pipe's already piped; a road goes only over open land (a zone or a network
- * there since: found again).
+ * are free (the tool skips them), as a pipe's already piped; a road goes over no building or network (one there
+ * since: found again).
  */
 export function layCost(lay: Lay, line: readonly [number, number][]): number | null {
   const s = city.state;
@@ -859,7 +863,7 @@ export function layCost(lay: Lay, line: readonly [number, number][]): number | n
   if (lay === 'pipe') return line.some(([x, y]) => s.terrain[y * n + x] === Terrain.Water) ? null : line.filter(([x, y]) => !s.pipe[y * n + x]).length * city.cfg.services.pipeCost.build;
   if (line.some(([x, y]) => s.occupant[y * n + x] !== 0)) return null;
   if (lay === 'powerline') return line.filter(([x, y]) => !s.power[y * n + x] && !s.zone[y * n + x]).length * city.cfg.services.powerLineCost.build;
-  if (line.some(([x, y]) => s.zone[y * n + x] || s.net[y * n + x])) return null;
+  if (line.some(([x, y]) => s.net[y * n + x])) return null;
   let cost = 0;
   for (const [x0, y0, x1, y1] of straightRuns(line)) {
     const p = city.previewNetwork(x0, y0, x1, y1, 'road');

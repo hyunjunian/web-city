@@ -188,6 +188,7 @@ const RISK_OF: Record<string, string> = {
   plantOld: '수명이 다한 발전소는 폭발해 둘레를 태웁니다',
   plantUnprotected: '불이 나면 발전소가 폭발해 둘레까지 부숩니다',
   facilityNoRoad: '쓰레기가 쌓이고, 경찰서·소방서·병원·학교라면 불이나 범죄에 출동하지 못합니다',
+  atRisk: '두면 그 건물들이 비어 인구와 세입이 줄고, 빈 건물은 범죄를 부릅니다',
 };
 
 const RISK: Record<GoalId, string> = {
@@ -359,6 +360,9 @@ function goalStep(id: GoalId): GuideStep {
     || (a.code === 'noPower' && [...city.state.structures.values()].some((x) => !!STRUCTURES[x.kind].plant)));
   const laid = cut ? lineStep() : null;
   if (laid) return laid;
+  // Buildings about to be abandoned: what the first one lacks, mended in one press (power, water or road).
+  const rescue = worst?.code === 'atRisk' ? rescueStep(worst) : null;
+  if (rescue) return rescue;
   // Every pump on a network stopped: why, mended in one press where it can be (a line from the grid, the water budget).
   const pumps = worst?.code === 'pumpsOff' ? pumpStep(worst) : null;
   if (pumps) return pumps;
@@ -434,6 +438,32 @@ const LAY_ICON = { powerline: 'cable', road: 'road', pipe: 'droplet' } as const;
 function pipeStep(why?: string): GuideStep | null {
   const line = pipeToDry();
   return line ? layStep('pipe', line, why || '물이 남는 수도망과 물이 끊긴 건물이 이어지지 않았습니다: 가장 짧은 길로 수도관을 이으면 됩니다') : null;
+}
+
+/**
+ * Buildings half-way to abandonment (the advice names one): the countdown furthest along on it, if it is its
+ * power, water or road, laid in one press (조언의 보기로 찾아 다시 이어 주세요 left the finding and the fixing); its
+ * jobs are the growth screen's zones.
+ */
+function rescueStep(a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
+  const b = a.at ? city.query(a.at[0], a.at[1])?.building : undefined;
+  if (!b?.type) return null;
+  const c = city.cfg;
+  const [lack, share] = ([['power', b.noPowerMonths / c.services.noPowerMonths], ['water', b.noWaterMonths / c.services.noWaterMonths],
+    ['road', b.noRoadMonths / c.development.noRoadMonths]] as const).reduce((x, y) => (y[1] > x[1] ? y : x));
+  if (share < 0.5) return null;
+  const months = lack === 'power' ? [b.noPowerMonths, c.services.noPowerMonths] : lack === 'water' ? [b.noWaterMonths, c.services.noWaterMonths] : [b.noRoadMonths, c.development.noRoadMonths];
+  const left = `${months[1]! - months[0]!}개월 뒤 버려집니다`;
+  if (lack === 'power') {
+    const line = lineToStructure(b);
+    return line ? layStep('powerline', line, `전기가 끊긴 건물이 ${left}: 전력망에서 송전선을 이으면 됩니다`) : null;
+  }
+  if (lack === 'water') {
+    const line = pipeToDry();
+    return line ? layStep('pipe', line, `물이 끊긴 건물이 ${left}: 물이 남는 수도망에서 수도관을 이으면 됩니다`) : null;
+  }
+  const road = roadToFacility(b, 'b');
+  return road ? layStep('road', road, `도로가 끊긴 건물이 ${left}: 가장 가까운 도로까지 이으면 됩니다`) : null;
 }
 
 /**
