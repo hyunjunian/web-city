@@ -14,6 +14,7 @@ import { closeInfo, closePane, closeSheet, showTab } from './tabs';
 import { cancelMySimAction } from './mysims';
 import { $, endFlash, flash, fmt, touchFirst } from './util';
 import { GOAL_ORDER, GOALS, type GoalId } from './goals';
+import { capped } from './readings';
 
 export type Category = 'power' | 'water' | 'garbage' | 'safety' | 'health' | 'education' | 'park' | 'transport' | 'reward' | 'deal' | 'landmark';
 
@@ -677,11 +678,13 @@ function refreshZoneDemand(): void {
     const types = DEV_TYPES.filter((t) => t[0] === k);
     const top = types.reduce((a, b) => (dem.demand[b] > dem.demand[a] ? b : a));
     const v = dem.demand[top];
-    const capped = types.some((t) => t !== 'IA' && dem.raw[t] > 0 && Number.isFinite(dem.cap[t]) && dem.capPopulation[t] >= 0.95 * dem.cap[t]);
+    // (Held at its cap as the pane says it, with people waiting to come.)
+    const held = types.some((t) => t !== 'IA' && capped(t) && dem.raw[t] > 0);
     // Farms share the industry group: say so when it's them that are wanted.
     // (A trickle beside a cap is the cap: "수요 +1" read as wanted when the class was held at its limit.)
-    const html = v >= 10 ? `${top === 'IA' ? '농업 ' : ''}수요 +${fmt(v)}` : capped ? `${icon('lock')}수요 상한` : v >= 1 ? '수요 적음' : '수요 없음';
-    const tone = v >= 100 ? 'up' : v < 10 && capped ? 'cap' : ''; // a trickle of demand isn't news
+    // (No lock: that is a facility not yet unlocked; zoning more of a capped class still works.)
+    const html = v >= 10 ? `${top === 'IA' ? '농업 ' : ''}수요 +${fmt(v)}` : held ? '수요 상한' : v >= 1 ? '수요 적음' : '수요 없음';
+    const tone = v >= 100 ? 'up' : v < 10 && held ? 'cap' : ''; // a trickle of demand isn't news
     const el = sec.querySelector<HTMLElement>('.zone-demand')!;
     if (el.innerHTML !== html) el.innerHTML = html;
     el.className = `zone-demand ${tone}`;
@@ -695,9 +698,9 @@ function zoneDemandChip(zone: ZoneKind): string {
   const types = DEV_TYPES.filter((t) => (cls === 'IA' ? t === 'IA' : cls === 'I' ? t[0] === 'I' && t !== 'IA' : t[0] === cls));
   const dem = city.demand;
   const top = Math.max(...types.map((t) => dem.demand[t]));
-  const capped = types.some((t) => t !== 'IA' && dem.raw[t] > 0 && Number.isFinite(dem.cap[t]) && dem.capPopulation[t] >= 0.95 * dem.cap[t]);
+  const held = types.some((t) => t !== 'IA' && capped(t) && dem.raw[t] > 0);
   return top >= 10 ? `<span class="zone-demand${top >= 100 ? ' up' : ''}">수요 +${fmt(Math.round(top))}</span>`
-    : `<span class="zone-demand${capped ? ' cap' : ''}">${capped ? '수요 상한' : top >= 1 ? '수요 적음' : '수요 없음'}</span>`;
+    : `<span class="zone-demand${held ? ' cap' : ''}">${held ? '수요 상한' : top >= 1 ? '수요 적음' : '수요 없음'}</span>`;
 }
 
 /** Fills the facility cards: ones that can be built first, then built-once rewards, then locked ones with their condition. */
