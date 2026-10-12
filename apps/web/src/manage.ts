@@ -114,7 +114,7 @@ function qualityGrid(counts: string, top: string, figs: PaneFigs): string {
   // 시장 평점: no goal of its own, a row all the same (below 0 it is a problem); pressed, the polls.
   const rTone: Tone = figs.rating < 0 ? 'bad' : figs.rating < 20 ? 'warn' : '';
   const rating = `<button type="button" class="s-row ${rTone || 'ok'}${rTone ? ' has-note' : ''}" data-open-polls title="시장 평점 (주거 구역 블록별 평균, −100~100) · 눌러서 주제별 여론 보기" aria-label="시장 평점: ${figs.rating}">
-      <span class="s-ic">${icon('users')}</span><span class="s-main"><span class="s-name">시장 평점</span>${rTone ? `<small class="s-note">${figs.rating < 0 ? '주민 대다수가 불만 · 계속되면 탄핵될 수 있음' : '주민 만족이 낮음 · 여론을 살펴보세요'}</small>` : ''}</span><b class="s-val">${figs.ratingTrend}${figs.rating}</b>${icon('chevronRight', 's-go')}</button>`;
+      <span class="s-ic">${icon('approval')}</span><span class="s-main"><span class="s-name">시장 평점</span>${rTone ? `<small class="s-note">${figs.rating < 0 ? '주민 대다수가 불만 · 계속되면 탄핵될 수 있음' : '주민 만족이 낮음 · 여론을 살펴보세요'}</small>` : ''}</span><b class="s-val">${figs.ratingTrend}${figs.rating}</b>${icon('chevronRight', 's-go')}</button>`;
   let off = rows.filter(({ s }) => s.tone).map((r) => ({ key: r.id as string, html: row(r) }));
   let sound = rows.filter(({ s }) => !s.tone).map((r) => ({ key: r.id as string, html: row(r) }));
   (rTone ? off : sound).splice(rTone ? off.length : 1, 0, { key: 'rating', html: rating }); // (a sound rating second, after 재정)

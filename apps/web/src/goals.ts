@@ -105,7 +105,7 @@ export const GOALS: Record<GoalId, Goal> = {
   },
   // Not a problem to fix but a direction to take: the wealthy come for high land value, clean air, schools and landmarks.
   wealth: {
-    name: '부유층·고급화', icon: 'award', aim: '쾌적도를 올려(공원·랜드마크, 맑은 공기, 좋은 학교; 물가와 높은 땅은 땅값도) 부유층 주거와 고급 상업·오피스를 끌어옵니다.',
+    name: '부유층·고급화', icon: 'gem', aim: '쾌적도를 올려(공원·랜드마크, 맑은 공기, 좋은 학교; 물가와 높은 땅은 땅값도) 부유층 주거와 고급 상업·오피스를 끌어옵니다.',
     views: [['desirability', '쾌적도'], ['landValue', '땅값'], ['air', '대기 오염'], ['school', '학교 범위']],
     tools: ['park', 'landmark', 'reward', 'education', 'R-high', 'C-high'], ordinances: ['cleanAir', 'proReading', 'tourismPromotion'],
     depts: [['parks', '공원 미화'], ['landmarks', '랜드마크']],

@@ -8,7 +8,7 @@ import {
   HandCoins, LayoutDashboard, Handshake, HeartPulse, Info, Landmark, Layers, LayoutGrid, Lock, Map as MapIcon, Maximize2, Megaphone, Mic, Minimize2,
   Minus, Moon, MoonStar, Mountain, MoveRight, Plus, Recycle, Route, Scissors, Search, Shield, Shovel, Siren, SquareDashed, Sun, Ticket,
   Tornado, Tractor, TrainFront, TrainFrontTunnel, TrainTrack, Trash2, TreePine, Trees, TriangleAlert, Trophy, Undo2, Redo2, Users,
-  Wallet, Waves, Wind, X, Zap, type IconNode,
+  Wallet, Waves, Wind, X, Zap, Gem, ThumbsUp, type IconNode,
 } from 'lucide';
 
 const line = (d: string): IconNode[number] => ['path', { d }];
@@ -35,7 +35,7 @@ const ICONS = {
   rail: TrainTrack, subway: TrainFrontTunnel, train: TrainFront, monorail: CableCar, transition: ArrowUpDown, scissors: Scissors, ticket: Ticket, bus: Bus,
   pipe: PIPE, zones: LayoutGrid, zap: Zap, cable: Cable, factory: Factory, droplet: Droplet, trash: Trash2, recycle: Recycle,
   shield: Shield, flame: Flame, siren: Siren, health: HeartPulse, school: GraduationCap, trees: Trees, tree: TreePine,
-  civic: Landmark, award: Award, trophy: Trophy, coins: HandCoins, handshake: Handshake, landmark: Building2,
+  civic: Landmark, award: Award, trophy: Trophy, gem: Gem, approval: ThumbsUp, coins: HandCoins, handshake: Handshake, landmark: Building2,
   terrain: Mountain, tornado: Tornado, tractor: Tractor, waves: Waves, shovel: Shovel, raise: ArrowUpFromLine, lower: ArrowDownToLine,
   wallet: Wallet, chart: ChartLine, users: Users, globe: Globe, map: MapIcon, info: Info, gauge: Gauge, layers: Layers,
   undo: Undo2, redo: Redo2, help: CircleHelp, maximize: Maximize2, minimize: Minimize2, moon: Moon, moonStar: MoonStar, sun: Sun, more: Ellipsis, car: Car, plane: Plane, ship: Ship, briefcase: Briefcase, trendDown: TrendingDown, save: Save, folder: FolderOpen, download: Download, upload: Upload, camera: Camera, sheet: FileSpreadsheet, pencil: Pencil, theme: SunMoon, dice: Dices, filePlus: FilePlus, pause: PAUSE, play: PLAY, play2: PLAY2, play3: PLAY3, flameKindling: FlameKindling, lightning: CloudLightning, sparkles: Sparkles, quake: Activity, volcano: MountainSnow, bot: Bot, bug: Bug, ufo: Orbit, hammer: Hammer, apps: LayoutDashboard,
