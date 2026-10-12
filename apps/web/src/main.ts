@@ -251,7 +251,7 @@ onCityChange((undo) => {
 });
 setupRangeFill();
 setupTouchTitles((text) => flash(text, 'info'));
-onCoveredFlash((msg) => toast(msg, 'bad'));
+onCoveredFlash((msg) => toast(msg, 'bad', undefined, undefined, false, undefined, undefined, false)); // (a refusal: nothing for 도시 to mark unread)
 setupSwipeDown($('#pane'), closePane);
 setupSwipeDown($('#info-card'), closeInfo);
 setupSwipeDown($('#tray'), closeTray);

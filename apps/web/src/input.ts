@@ -274,7 +274,7 @@ export function updatePreview(): void {
     const def = STRUCTURES[kind];
     const [sx, sy] = footprintAt(kind, at);
     const check = city.canPlaceStructure(kind, sx, sy);
-    const reach = coverageRadius(kind);
+    const reach = reachAt(kind, sx, sy);
     // A plant feeds what lies within reach of its lot (zones and lines carry it on): outline that reach.
     const gap = city.cfg.services.powerGap + 1;
     // A spot it can take but with a catch (no road beside it, no pipe, no power) shows amber.
@@ -711,6 +711,13 @@ const SNAP = [[0, -1], [0, 1], [-1, 0], [1, 0], [-1, -1], [1, -1], [-1, 1], [1, 
  * Why a facility on a free site at (x, y) wouldn't work yet (' · ⚠ …' each),
  * or ''. Worked out before it is placed: once it stands, the site is taken.
  */
+/** How far a facility placed at (x, y) would reach: a fire station no road touches less far (its crews go on foot). */
+function reachAt(kind: StructureKind, x: number, y: number): number {
+  const def = STRUCTURES[kind];
+  const r = coverageRadius(kind);
+  return r && def.fire?.needsRoad && !city.roadBeside(x, y, def.w, def.h) ? r * city.cfg.safety.fireNoRoad : r;
+}
+
 function siteWarnings(kind: StructureKind, x: number, y: number): string {
   const def = STRUCTURES[kind];
   // A plant must reach something to feed; pumps and the like need a powered grid.
@@ -874,7 +881,7 @@ export function applyTool(): void {
       // (A station: what it now reaches that went without, counted before it stands — the result, said with it.)
       const def = STRUCTURES[kind];
       const goal = placeable ? goalOfStructure(kind) : null;
-      const reach = coverageRadius(kind);
+      const reach = reachAt(kind, sx, sy);
       const gained = reach && (goal === 'police' || goal === 'fire' || goal === 'health' || goal === 'education') ? newlyReached(goal, sx + def.w / 2, sy + def.h / 2, reach) : 0;
       res = city.placeStructure(kind, sx, sy);
       // Say it stands (the hint over it would now read "has a building"), and what it still needs.
@@ -1137,7 +1144,8 @@ export function setupInput(): void {
       // (Not the tool's footprint and price under it: pressed, it goes there, it doesn't build.)
       setPreview(null);
       $('#cursor-tag').hidden = true;
-      $('#hint').textContent = `눌러서 그곳으로 가기${edge.label ? `: ${edge.label}` : ''}`;
+      // (Not over a message still showing: a refusal went, and its red stayed on these words.)
+      if (!flashing()) $('#hint').textContent = `눌러서 그곳으로 가기${edge.label ? `: ${edge.label}` : ''}`;
     } else if (edgeCursor !== null) {
       canvas.style.cursor = edgeCursor;
       edgeCursor = null;

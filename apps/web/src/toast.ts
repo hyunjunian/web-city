@@ -30,7 +30,7 @@ export function dropGoalToasts(goal: string): void {
 }
 
 /** `at`: a tile the notice is about; clicking the notice then shows it. `goal`: the screen it opens, to put it away when that opens. */
-export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'good', at?: [number, number], open?: () => void, sticky = false, label?: string, goal?: string): void {
+export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'good', at?: [number, number], open?: () => void, sticky = false, label?: string, goal?: string, unread = true): void {
   const box = document.querySelector('#toasts');
   if (!box) return;
   // The same words about the same place already showing: not again (picking two checklist steps stacked two of
@@ -135,7 +135,9 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
     close();
   };
   box.append(el);
-  while (box.children.length > max()) box.firstElementChild!.remove();
+  // (Not one the clock stopped for: on a phone, where one fits, a refusal pushed out the alarm being read.)
+  const spare = () => [...box.children].find((c) => c !== el && !c.classList.contains('sticky'));
+  while (box.children.length > max() && spare()) spare()!.remove();
   // It stays while the pointer rests on it (being read), and goes a little after it leaves.
   // (Sticky — the clock stopped for it: it waits for time to go on, or to be pressed.)
   // (The time left runs out as a line along its foot.)
@@ -171,5 +173,5 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
     if (e.pointerType === 'mouse' && !sticky) wait(2500);
   };
   // Small screens: a dot on the dock's 도시 button until the city pane is opened.
-  if (!document.querySelector('#app')?.classList.contains('pane-open')) document.querySelector('.dock-city')?.classList.add('unread');
+  if (unread && !document.querySelector('#app')?.classList.contains('pane-open')) document.querySelector('.dock-city')?.classList.add('unread');
 }

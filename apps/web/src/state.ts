@@ -78,6 +78,9 @@ export function mapBand(): Band {
 }
 
 export function fitCamera(whole = false): void {
+  // (A glide under way doesn't carry on over the new framing: closing the phone's pane started one toward the town
+  // being left, and the sample city opened framed where it had been.)
+  flights++;
   const r = renderer.canvas.getBoundingClientRect();
   // The built-up part with a margin, or the whole map while there is none (or when asked: 전체 보기).
   const { cx, cy, span } = builtArea(whole);

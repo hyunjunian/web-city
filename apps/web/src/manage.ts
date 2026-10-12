@@ -285,7 +285,9 @@ function guideHtml(id: GoalId): string {
     const overKind = over?.at ? city.query(over.at[0], over.at[1])?.structure?.kind : undefined;
     const relieves = !!st.build && (!overKind || !STRUCTURES[overKind].school || STRUCTURES[overKind].school!.curve === STRUCTURES[st.build].school?.curve);
     const own = site || !st.build ? null
-      : mark ? one(siteNear(st.build, spot.x, spot.y, 6) ?? plantSite(st.build, spot.x, spot.y), `지도의 과녁(${SPOT_WORD[id] ?? ''}) 가까이, 길가 빈 땅에 바로 짓기`)
+      : mark ? ((near) => near ? one(near, `지도의 과녁(${SPOT_WORD[id] ?? ''}) 가까이, 길가 빈 땅에 바로 짓기`)
+        // (None by the mark, a plant's smoke keeping it off: the nearest ground clear of homes, which may be far — not "가까이".)
+        : one(plantSite(st.build!, spot.x, spot.y), `구역 밖${smokyPlant(st.build!) ? ', 연기가 주거지에 닿지 않는' : ''} 가장 가까운 길가 빈 땅에 바로 짓기`))(siteNear(st.build, spot.x, spot.y, 6))
       : arealess ? one(siteAwayFromHomes(st.build), '주거지에서 떨어진 길가 빈 땅에 바로 짓기')
       : spot?.crowded && st.kind === 'best' ? (relieves ? one(siteNear(st.build, spot.x, spot.y), `넘치는 ${what} 가까이, 길가 빈 땅에 바로 짓기`) : null)
       : st.anywhere ? one(siteNearHomes(st.build), '주거지에서 가장 가까운 길가 빈 땅에 바로 짓기')
@@ -1508,6 +1510,8 @@ function spotLine(id: GoalId): string {
   const settled = markSite?.id === id ? markSite : null;
   const kind = settled?.kind ?? spotKind(id);
   const fit = settled ? settled.at : kind ? siteNear(kind, spot.x, spot.y, 0) ?? siteNear(kind, spot.x, spot.y, 6) ?? plantSite(kind, spot.x, spot.y) : null;
+  // (A plant's site well off the mark, its smoke kept from the homes: not said to be by the dark zones.)
+  const far = !!fit && Math.max(Math.abs(fit[0] - spot.x), Math.abs(fit[1] - spot.y)) > 8;
   // (Built off the mark, up to 6 tiles away, the press put it where nothing showed: the mark goes there, unless
   // the guide's own site already stands on it.)
   if ((SERVICE_SITE.has(id) || site) && fit && kind && (fit[0] !== spot.x || fit[1] !== spot.y)
@@ -1515,7 +1519,7 @@ function spotLine(id: GoalId): string {
   const build = (SERVICE_SITE.has(id) || site) && fit && kind
     ? `<button type="button" class="advice-view spot-build" data-spot-build="${fit.join(',')}" data-build-kind="${kind}" title="${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 이 자리에 짓기">${icon('plus')}여기에 짓기</button>` : '';
   return `<p class="mg-spot">${icon('target')}<span>${site
-    ? `<b>${SPOT_WORD[id]}</b>: ${id === 'power' ? '전기 없는 구역' : '물이 없는 건물'} ${fmt(spot.tiles)}칸 가까이, 도로 옆${id === 'power' && kind && smokyPlant(kind) ? ' · 주거에서 떨어진' : ''} 빈 땅 (지도의 과녁)`
+    ? `<b>${SPOT_WORD[id]}</b>: ${id === 'power' ? '전기 없는 구역' : '물이 없는 건물'} ${fmt(spot.tiles)}칸${far ? '에서 연기가 주거에 닿지 않을 만큼 떨어진' : ' 가까이,'} 도로 옆${!far && id === 'power' && kind && smokyPlant(kind) ? ' · 주거에서 떨어진' : ''} 빈 땅 (지도의 과녁)`
     : `<b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${fmt(spot.tiles)}칸 (지도의 과녁)`}</span>
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button>${build}</span></p>`;
 }

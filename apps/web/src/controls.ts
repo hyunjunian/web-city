@@ -8,7 +8,7 @@ import { TYPE_NAME, TYPE_SHORT } from './names';
 import { updatePanels } from './panels';
 import { type Overlay, type VolumeNetwork } from './render';
 import { ABANDONED_COLOR, buildingRisk, GROWTH_COLOR, GROWTH_LABEL, growthNow, RISK_COLOR, volumeAt } from './views';
-import { centerOn, city, cityGeneration, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
+import { centerOn, changeKey, city, cityGeneration, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
 import { refreshToolChip, selectTool, SPEEDS, TOOL_KEYS, toolName, TOOLS } from './tools';
 import { drive } from './udi';
 import { closeInfo, closePane, revealMap } from './tabs';
@@ -651,11 +651,22 @@ let sumNext = 0;
 const SCANNED = new Set(['crime', 'air', 'waterPollution', 'garbage', 'commute', 'wear']);
 let scanMemo: { key: string; out: [string, '' | 'bad' | 'good', number[]] } | null = null;
 
-/** What a view finds wrong now, in words ('' when nothing is): the build cards' service headings say it too. */
+/**
+ * What a view finds wrong now, in words ('' when nothing is): the build cards' service headings say it too. Kept per
+ * view for the week or until the city changes (the headings are redone with every panel update, and shared the
+ * legend's one kept count, so both scanned the map each time), and not worked out while a day is part-way.
+ */
 export function viewProblem(v: string): string {
-  const [text, tone] = viewSummary(v);
-  return tone === 'bad' ? text : '';
+  const key = changeKey();
+  const had = problemMemo.get(v);
+  if (had && (had.key === key || city.stepping)) return had.text;
+  if (city.stepping) return '';
+  const [text, tone] = viewSummaryNow(v);
+  const out = tone === 'bad' ? text : '';
+  problemMemo.set(v, { key, text: out });
+  return out;
 }
+const problemMemo = new Map<string, { key: string; text: string }>();
 
 function viewSummary(v: string): [string, '' | 'bad' | 'good', number[]] {
   if (!SCANNED.has(v)) return viewSummaryNow(v);
