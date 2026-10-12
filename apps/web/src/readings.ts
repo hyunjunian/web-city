@@ -652,13 +652,28 @@ export function roadLinked(): boolean {
   if (linkMemo?.key === key) return linkMemo.on;
   const s = city.state;
   const f = city.fields;
+  const n = city.size;
+  const roadKind = (c: number) => c === Net.Road || c === Net.Avenue || c === Net.RailCrossing;
   let on = false;
   let local: Set<number> | null = null;
   for (const i of f.connections) {
     const code = s.net[i]!;
     if (code === Net.Road || code === Net.Avenue) {
-      on = true;
-      break;
+      // (As the engine counts a link: two along the edge, or one going on inward — a lone edge tile with a street
+      // inside joins nothing.)
+      const x = i % n;
+      const y = (i - x) / n;
+      const side = x === 0 || x === n - 1;
+      const inward = x === 0 ? i + 1 : x === n - 1 ? i - 1 : y === 0 ? i + n : i - n;
+      const ix = inward % n;
+      const iy = (inward - ix) / n;
+      const inside = ix > 0 && iy > 0 && ix < n - 1 && iy < n - 1 && roadKind(s.net[inward]!);
+      const along = (side ? [y > 0 ? i - n : -1, y < n - 1 ? i + n : -1] : [x > 1 ? i - 1 : -1, x < n - 2 ? i + 1 : -1]).some((j) => j >= 0 && roadKind(s.net[j]!));
+      if (inside || along) {
+        on = true;
+        break;
+      }
+      continue;
     }
     if (code !== Net.Highway) continue;
     // (The networks a local road is part of, found once: a ramp puts the highway in one of them.)
