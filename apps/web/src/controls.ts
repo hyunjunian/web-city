@@ -1,6 +1,6 @@
 // Top-bar controls: speed, night view, help, overlay picker and tax sliders.
 
-import { DEV_TYPES, type DevType, GROWTH_CODES, NETWORK_KINDS } from '@web-city/engine';
+import { DEV_TYPES, type DevType, GROWTH_CODES, NETWORK_KINDS, STRUCTURES } from '@web-city/engine';
 import { icon, type IconName } from './icons';
 import { nextStep, openGoal } from './manage';
 import { fillRange } from './widgets';
@@ -378,7 +378,8 @@ export function buildOverlay(): void {
     const box = $('#overlay-scale');
     box.hidden = !scale || flat; // (an even map: the note, not a scale nothing on it reaches)
     if (scale) {
-      (box.querySelector('.scale-bar') as HTMLElement).style.background = scale[0];
+      // (Over the map's ground, as the map paints it: over the dark legend, a translucent 적음 end read as black.)
+      (box.querySelector('.scale-bar') as HTMLElement).style.backgroundImage = scale[0];
       const [lo, hi] = box.querySelectorAll('.ends span');
       lo!.textContent = scale[1];
       hi!.textContent = scale[2];
@@ -664,6 +665,38 @@ function viewSummary(v: string): [string, '' | 'bad' | 'good', number[]] {
     case 'fire': return lacking(blds.filter((b) => !(f.fireCover[mid(b)]! > 0)), '소방이 닿지 않는 건물', '모든 건물이 소방 범위 안입니다');
     case 'health': return lacking(homes.filter((b) => !(f.hospitalCover[mid(b)]! > 0)), '병원이 닿지 않는 집', '모든 집이 병원 범위 안입니다');
     case 'school': return lacking(homes.filter((b) => !(f.schoolQuality[mid(b)]! > 0)), '학교가 닿지 않는 집', '모든 집이 학교 범위 안입니다');
+    // (The worst first for 찾아가기, one spot a neighbourhood: a jam of red tiles was a press per tile.)
+    case 'crime': {
+      const hot = worstSpots(n, (i) => s.crime[i]!, 2);
+      return hot.count ? [`범죄가 잦은 곳 ${fmt(hot.count)}칸`, 'bad', hot.spots] : ['범죄가 잦은 곳이 없습니다', 'good', []];
+    }
+    case 'air': {
+      const hot = worstSpots(n, (i) => (s.zone[i]! >= 1 && s.zone[i]! <= 3 ? f.air[i]! : 0), 40);
+      return hot.count ? [`공기 나쁜 주거지 ${fmt(hot.count)}칸 (대기 오염 40 넘음)`, 'bad', hot.spots] : ['주거지 공기는 괜찮습니다', 'good', []];
+    }
+    case 'waterPollution': {
+      // (Homes where it hurts: past 100, residents count it against their health and the mayor. Pumps stop only past
+      // the engine's far higher limit, said apart.)
+      const hot = worstSpots(n, (i) => (s.zone[i]! >= 1 && s.zone[i]! <= 3 ? f.waterPollution[i]! : 0), 100);
+      const limit = city.cfg.services.pumpPollutionLimit;
+      const fouled = [...s.structures.values()].filter((st) => STRUCTURES[st.kind].pump && f.waterPollution[st.y * n + st.x]! > limit).length;
+      const pumps = fouled ? ` · 오염으로 멈춘 펌프 ${fmt(fouled)}곳` : '';
+      return hot.count || fouled ? [`수질 오염이 심한 주거지 ${fmt(hot.count)}칸 (100 넘음)${pumps}`, 'bad', hot.spots] : ['주거지 수질은 괜찮습니다', 'good', []];
+    }
+    case 'garbage': {
+      let tons = 0;
+      const hot = worstSpots(n, (i) => (s.zone[i] === 10 ? 0 : (tons += s.garbage[i]! > 0.1 ? s.garbage[i]! : 0, s.garbage[i]!)), 0.1);
+      return hot.count ? [`쓰레기가 쌓인 곳 ${fmt(hot.count)}칸 · 모두 ${fmt(tons)} t`, 'bad', hot.spots] : ['쌓인 쓰레기가 없습니다', 'good', []];
+    }
+    case 'commute': {
+      const limit = city.cfg.transport.tripLimit;
+      const far = blds.filter((b) => (b.type![0] === 'R' || b.type![0] === 'I') && (b.commute < 0 || b.commute > limit));
+      return lacking(far, '2.5시간 안에 일터·목적지가 없는 건물', '모든 집과 공장이 2.5시간 안에 닿습니다');
+    }
+    case 'wear': {
+      const hot = worstSpots(n, (i) => Math.max(s.power[i] ? s.lineWear[i]! : 0, s.pipe[i] ? s.pipeWear[i]! : 0), 50);
+      return hot.count ? [`낡은 송전선·수도관 ${fmt(hot.count)}칸 (불꽃·파열 위험)`, 'bad', hot.spots] : ['낡은 송전선·수도관이 없습니다', 'good', []];
+    }
     case 'traffic': {
       const jams: number[] = [];
       for (let i = 0; i < n * n; i++) {
@@ -717,6 +750,27 @@ function viewSummary(v: string): [string, '' | 'bad' | 'good', number[]] {
   }
 }
 let growthSum: { key: string; held: number[]; byColor: Map<string, number>; top: string[] } = { key: '', held: [], byColor: new Map(), top: [] };
+
+/**
+ * Tiles where `value` reaches `at`: how many, and up to 24 places to go to, the worst first, each at least 6 tiles
+ * from the ones before (one a neighbourhood).
+ */
+function worstSpots(n: number, value: (i: number) => number, at: number): { count: number; spots: number[] } {
+  const over: [number, number][] = [];
+  for (let i = 0; i < n * n; i++) {
+    const v = value(i);
+    if (v >= at) over.push([i, v]);
+  }
+  over.sort((a, b) => b[1] - a[1]);
+  const spots: number[] = [];
+  for (const [i] of over) {
+    if (spots.length >= 24) break;
+    const [x, y] = [i % n, Math.floor(i / n)];
+    if (spots.some((j) => Math.max(Math.abs((j % n) - x), Math.abs(Math.floor(j / n) - y)) < 6)) continue;
+    spots.push(i);
+  }
+  return { count: over.length, spots };
+}
 
 /** A categorical legend against the map: each swatch with how many tiles show it, faint where none do. */
 function markLegend(byColor: Map<string, number>): void {
