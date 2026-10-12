@@ -11,7 +11,8 @@ import { ABANDON_NAME, DISASTER_NAME, NETWORK_NAME, STRUCTURE_NAME, TYPE_NAME, Z
 import { updatePanels } from './panels';
 import { type Preview, zoneTint } from './render';
 import { coverageRadius, GROWTH_LABEL, growthNow, overlayReading } from './views';
-import { facilityLine } from './readings';
+import { facilityLine, newlyReached } from './readings';
+import { goalOfStructure } from './goals';
 import { cam, centerOn, city, drag, fitCamera, glideTo, hover, overlay, redraw, renderer, selected, setDrag, setHover, speed, stopFlight } from './state';
 import { drive, SPECIAL } from './udi';
 import { closeTopLayer, toggleSheet } from './tabs';
@@ -301,12 +302,18 @@ export function updatePreview(): void {
       : def.income ? `월 §${fmt(def.income)} 수입 · 시장 평점 ${def.mayor?.[0] ?? 0}${def.radiation ? ' · 방사능' : ''}`
       : def.category === 'landmark' || def.category === 'reward' ? `시장 평점 ${(def.mayor?.[0] ?? 0) >= 0 ? '+' : ''}${def.mayor?.[0] ?? 0}${def.mayor ? ` (${def.mayor[1] >= city.size ? '도시 전체' : `${def.mayor[1]}칸`})` : ''} · 상업 ${def.com[0]}${def.bulldoze ? ` · 철거 §${fmt(def.bulldoze)}` : ''}`
       : `주거 상한 완화 +${fmt(def.relief[0])}`;
+    // (A station: how many of what its service misses it would reach from here, the figure to move it about by.)
+    const goal = reach && check.ok ? goalOfStructure(kind) : null;
+    const gained = goal && (goal === 'police' || goal === 'fire' || goal === 'health' || goal === 'education')
+      ? newlyReached(goal, sx + def.w / 2, sy + def.h / 2, reach) : -1;
+    const reached = gained < 0 ? '' : `새로 닿는 ${goal === 'health' || goal === 'education' ? '집' : '건물'} ${gained ? `${fmt(gained)}채` : '없음'}`;
+    const extraNow = reached ? `${extra} · ${reached}` : extra;
     // Warnings and refusals first: the hint shows three lines, and the ⚠ were last to be cut.
     // (Name and price are on the tool chip and by the pointer: the bar says what they don't.)
     // (Beside the pointer each catch on a line of its own, without its remedy — the built message gives that — then what it does.)
     const short = warnings.split(' · ⚠ ').map((w) => w.replace(/^ · ⚠ /, '').replace(/\s*\(.*\)$/, '').trim()).filter(Boolean).map((w) => `⚠ ${w}`);
     const text = check.ok
-      ? besidePointer ? [...short, extra].join('\n') : `${warnings ? `${warnings.replace(/^ · /, '')} · ` : ''}${extra}`
+      ? besidePointer ? [...short, extra, reached].filter(Boolean).join('\n') : `${warnings ? `${warnings.replace(/^ · /, '')} · ` : ''}${extraNow}`
       : besidePointer ? ko(check.message ?? '') : `놓을 수 없음: ${ko(check.message ?? '')}`; // (the chip's bold line says it can't)
     tag = check.ok ? { text: `${caught && !besidePointer ? '⚠ ' : ''}§${fmt(def.cost)}${def.cost > city.state.funds ? ' · 자금 부족' : ''}`, tone: def.cost > city.state.funds ? 'bad' : caught ? 'warn' : '' } : { text: '놓을 수 없음', tone: 'bad' };
     if (proposal && !hover) {
@@ -315,7 +322,7 @@ export function updatePreview(): void {
       const esc = (v: string) => v.replace(/&/g, '&amp;').replace(/</g, '&lt;');
       const catches = warnings.split(' · ⚠ ').map((w) => w.trim()).filter(Boolean);
       $('#confirm-text').innerHTML = `<b>${esc(STRUCTURE_NAME[kind])}</b> ${def.w}×${def.h} · 건설 §${fmt(def.cost)} · 유지 월 §${fmt(def.upkeep)}`
-        + (check.ok ? `<span class="confirm-stat">${esc(extra)}</span>` : `<span class="confirm-no">놓을 수 없음: ${esc(ko(check.message ?? ''))}</span><span class="confirm-stat">지도에서 다른 자리를 눌러 옮겨 보세요</span>`)
+        + (check.ok ? `<span class="confirm-stat">${esc(extraNow)}</span>` : `<span class="confirm-no">놓을 수 없음: ${esc(ko(check.message ?? ''))}</span><span class="confirm-stat">지도에서 다른 자리를 눌러 옮겨 보세요</span>`)
         + (catches.length ? `<span class="confirm-warns">${catches.map((w) => `<span>⚠ ${esc(w)}</span>`).join('')}</span>` : '');
       $<HTMLButtonElement>('#confirm-build').disabled = !check.ok;
       $('#confirm-build').textContent = check.ok ? `짓기 §${fmt(def.cost)}` : '짓기';

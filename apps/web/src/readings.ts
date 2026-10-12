@@ -521,6 +521,27 @@ function need(id: GoalId): ((i: number) => number) | null {
   }
 }
 
+/**
+ * How many buildings a station of `goal` would newly reach from its ring (centre, radius): those within it that its
+ * service misses now, as the goal's mark counts them (homes only, for a hospital or school). For the pointer, as a
+ * station is moved about: where it does the most.
+ */
+export function newlyReached(goal: GoalId, cx: number, cy: number, r: number): number {
+  const want = need(goal);
+  if (!want || r <= 0) return 0;
+  const s = city.state;
+  const n = city.size;
+  const seen = new Set<number>();
+  for (let y = Math.max(0, Math.floor(cy - r)); y <= Math.min(n - 1, Math.ceil(cy + r)); y++) {
+    for (let x = Math.max(0, Math.floor(cx - r)); x <= Math.min(n - 1, Math.ceil(cx + r)); x++) {
+      if ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 > r * r) continue;
+      const occ = s.occupant[y * n + x]!;
+      if (occ && want(y * n + x) > 0) seen.add(occ);
+    }
+  }
+  return seen.size;
+}
+
 export const SPOT_WORD: Partial<Record<GoalId, string>> = {
   police: '경찰이 닿지 않는 곳', fire: '소방이 닿지 않는 곳', health: '병원이 닿지 않는 주거지', education: '학교가 닿지 않는 주거지',
   power: '발전소 자리', water: '양수 시설 자리', traffic: '막히는 길', environment: '공기가 나쁜 주거지', garbage: '쓰레기가 쌓인 곳', wealth: '부유층이 살 만한 길가 빈 땅',
