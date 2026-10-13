@@ -132,6 +132,22 @@ export function drawMinimap(force = false): void {
     ctx.strokeStyle = '#1d6fd1';
     ctx.strokeRect(x0 + dpr, y0 + dpr, Math.max(2, x1 - x0 - 2 * dpr), Math.max(2, y1 - y0 - 2 * dpr));
   }
+  // What can't wait — a building alight (red), a riot (orange) — a dot each, from anywhere on the map.
+  const st = city.state;
+  const dot = (x: number, y: number, fill: string): void => {
+    ctx.beginPath();
+    ctx.arc(x * k, y * k, 3 * dpr, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.lineWidth = dpr;
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)'; // (reads on orange industry too)
+    ctx.stroke();
+  };
+  for (const f of st.fires) {
+    const r = f.target > 0 ? st.buildings.get(f.target) : st.structures.get(-f.target);
+    if (r) dot(r.x + r.w / 2, r.y + r.h / 2, '#ff4d2e');
+  }
+  for (const mob of st.mobs) dot(mob.x + 0.5, mob.y + 0.5, '#ff9a1f');
   // An open goal's marks: its troubled facilities as dots, the suggested spot as a ring (found from anywhere).
   for (const m of renderer.marks) {
     if (m.tone === '' || m.tone === 'area') continue; // (an area's outline: its target ring stands for it)

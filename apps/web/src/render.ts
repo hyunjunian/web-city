@@ -1405,6 +1405,21 @@ export class Renderer {
         ctx.ellipse(fx, fy + k * 0.2, k * 0.25, k * 0.5 * flick, 0, 0, Math.PI * 2);
         ctx.fill();
       }
+      // From any zoom, a red ring round what burns, beating slowly (still, asked for less motion): zoomed out its
+      // flames were two dots of a few pixels, and the fire station's red badge beside them looked more like a fire.
+      const u = this.dpr / sc;
+      const beat = (lessMotion ??= matchMedia('(prefers-reduced-motion: reduce)')).matches ? 1 : 0.8 + 0.2 * Math.sin(t * 0.8 + fire.target);
+      ctx.beginPath();
+      ctx.arc(r.x + r.w / 2, r.y + r.h / 2, Math.max(Math.max(r.w, r.h) / 2 + 0.4, 11 * u), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,60,40,0.18)';
+      ctx.fill();
+      // A dark edge under the red, so it still reads on orange industry and yellow farms.
+      ctx.lineWidth = 5 * u;
+      ctx.strokeStyle = 'rgba(30,8,4,0.5)';
+      ctx.stroke();
+      ctx.lineWidth = 2.5 * u;
+      ctx.strokeStyle = `rgba(255,60,40,${beat.toFixed(3)})`;
+      ctx.stroke();
     }
 
     // Burning woods: a small flame per tile.
