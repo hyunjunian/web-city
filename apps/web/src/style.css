@@ -347,9 +347,9 @@ kbd {
   overflow-y: auto;
   background: var(--pane);
   border-right: 1px solid var(--line);
-  /* Fades out at the foot instead of cutting a line in half. */
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent);
 }
+/* Fades out at the foot instead of cutting a line in half (while there is more below: tabs.ts). */
+#pane.more-below { mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); }
 .pane-grip, .pane-close { display: none; }
 #pane.fresh #onboarding { order: -1; }
 /* Before anyone lives here the figures all read 0: the checklist says what to do instead. */
@@ -1429,7 +1429,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
     transition: transform 0.26s var(--ease), visibility 0s 0.26s;
   }
   #app.pane-open #pane { transform: none; visibility: visible; transition: transform 0.26s var(--ease); }
-  #pane { mask-image: none; } /* (over the map, its fade let the map show through the pane's foot) */
+  #pane, #pane.more-below { mask-image: none; } /* (over the map, its fade let the map show through the pane's foot) */
   #app.focus #pane { display: flex; }
   .pane-grip { display: block; position: absolute; top: 9px; left: 50%; width: 40px; height: 5px; margin-left: -20px; border-radius: 3px; background: var(--surface-3); }
   /* The × keeps to the pane's top right while it scrolls (it scrolled away with a long list, and with it the way

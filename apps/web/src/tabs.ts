@@ -165,6 +165,16 @@ export function toggleSheet(tab: SheetTab): void {
 }
 
 export function setupTabs(): void {
+  // The pane's foot fades only while there is more below it (always faded, the last line of a short or
+  // scrolled-to-the-end pane read as cut off).
+  const pane = $('#pane');
+  const below = () => pane.classList.toggle('more-below', pane.scrollHeight - pane.scrollTop - pane.clientHeight > 2);
+  pane.addEventListener('scroll', below, { passive: true });
+  if (typeof ResizeObserver === 'function') {
+    const watch = new ResizeObserver(below);
+    watch.observe(pane);
+    for (const part of pane.children) watch.observe(part);
+  }
   // Phones: the build menu's 도시 opens the pane on its overview; again, it goes. (Wide, it shows only with the map
   // alone: pressed, the pane comes back.)
   const city = document.querySelector<HTMLButtonElement>('#dock [data-app="city"]');
