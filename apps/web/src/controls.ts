@@ -917,7 +917,7 @@ function markLegend(byColor: Map<string, number>): void {
       rest.className = 'link legend-rest';
       rest.onclick = () => {
         legend.classList.toggle('show-rest');
-        markLegend(byColor);
+        markLegend(growthSum.byColor); // (the counts as they are now, not as when the button was made)
       };
       legend.append(rest);
     }
