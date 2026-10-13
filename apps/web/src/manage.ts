@@ -369,14 +369,16 @@ export function buildAtSite(kind: StructureKind, x: number, y: number): boolean 
       ? '그사이 그 자리에 건물이 들어서 추천 자리를 새로 찾았습니다' : ko(r.message ?? ''), 'bad');
     return false;
   }
-  centerOn(x, y, Math.max(6, 24 / Math.max(d.w, d.h)));
   if (!pickStructure(kind)) return false;
+  // (Phones: the pane goes first, so what the build says is read once, in the hint bar it no longer covers — it was
+  // toasted over the pane and then said again below — and the flight to the site comes after any reframing it starts.)
+  if (phone()) closePane();
+  centerOn(x, y, Math.max(6, 24 / Math.max(d.w, d.h)));
   // (Handed out as the guide's are: placed, it goes down and time runs on.)
   handed = tool.id;
   handedPick = toolPicks;
   handedBy = active;
   placeAt(x, y);
-  if (phone()) closePane();
   updatePanels();
   return true;
 }

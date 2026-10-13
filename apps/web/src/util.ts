@@ -75,7 +75,9 @@ export function flash(msg: string, tone: 'info' | 'bad' = 'info'): void {
   if (tone === 'bad' && coveredSay) {
     const r = hint.getBoundingClientRect();
     const over = r.width ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null;
-    if (over?.closest('#pane, #info-card, #sheet, #tray, dialog')) coveredSay(msg);
+    const cover = over?.closest('#pane, #info-card, #sheet, #tray, dialog');
+    // (Not a pane on its way out: the hint is in sight a moment later, and the same words came twice.)
+    if (cover && !(cover.id === 'pane' && !document.getElementById('app')?.classList.contains('pane-open'))) coveredSay(msg);
   }
   hint.dataset.tone = tone;
   // Read out too (the hint bar itself changes with every hover, so it isn't a live region).
