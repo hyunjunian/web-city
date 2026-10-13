@@ -1928,6 +1928,9 @@ function airCauses(id: GoalId): string {
 function diagnosis(a: ReturnType<typeof adviceFor>[number], lead: ReturnType<typeof guideSaid>): string {
   let text = a.code === 'waterShort' && waterApart() ? APART : ADVICE_TEXT[a.code]?.(a.value ?? 0, a.type) ?? a.code;
   const echo = a === lead.worst && !!lead.said && text.startsWith(lead.said);
+  // (The trouble the top card leads with and mends in one press itself — a tax to neutral, a budget to 100% — is
+  // not offered again here: the same advice and the same button twice on one screen.)
+  if (echo && (a.code === 'taxHigh' || BUDGET_FIX[a.code]) && fixButton(a)) return '';
   if (echo) text = text.slice(lead.said.length).trim();
   const more = a.code === 'unemployment' ? jobHint() : a.code === 'abandoned' ? abandonHint() : a.code === 'capRes' ? capHint() : '';
   const acts = a.at || fixButton(a) ? `<span class="advice-acts">${a.at ? `<button type="button" class="advice-view" data-at="${a.at.join(',')}" title="지도에서 그곳 보기">보기</button>` : ''}${fixButton(a)}</span>` : '';
@@ -1979,7 +1982,7 @@ function goalHtml(id: GoalId): string {
     ${usageBar(id)}
     ${airCauses(id)}
     <div class="mg-views" role="group" aria-label="지도 보기">${icon('layers')}${g.views.map(([v, label]) => `<button type="button" class="vchip" data-mg-view="${v}" aria-pressed="${view === v}">${label}</button>`).join('')}</div>
-    ${advice.length ? `<section class="mg-sec"><h3>${icon('info')}진단</h3>${advice.map((a) => diagnosis(a, lead)).join('')}</section>` : ''}
+    ${((said) => (said ? `<section class="mg-sec"><h3>${icon('info')}진단</h3>${said}</section>` : ''))(advice.map((a) => diagnosis(a, lead)).join(''))}
     ${id === 'finance' ? financeActions() : ''}
     ${spotLine(id)}
     ${id === 'growth' && $('#demand').innerHTML.trim() ? `<section class="mg-sec mg-rci"><h3>${icon('zones')}구역별 수요 <span class="sec-note">막대가 위로 길수록 수요가 큼</span></h3>${$('#demand').innerHTML.replace('id="demand-detail"', 'class="demand-detail-mg"')}</section>` : ''}
