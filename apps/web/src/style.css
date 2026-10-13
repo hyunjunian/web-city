@@ -1969,11 +1969,11 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #view:has(#hint:not(:empty)) #toasts { bottom: 62px; } /* above the hint's line */
   #view.info-open #toasts { left: auto; right: calc(var(--info-w) + 28px); width: min(360px, calc(100% - var(--info-w) - 56px)); }
   /* Stacked, the older ones fold to a line (three alerts stood 200px tall over the town); pointed at or focused, one
-     opens again. */
-  #toasts .toast:not(:last-child):not(:hover):not(:focus-within) { padding-block: 7px; }
-  #toasts .toast:not(:last-child):not(:hover):not(:focus-within) .toast-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-  #toasts .toast:not(:last-child):not(:hover):not(:focus-within) .toast-text b { display: inline; margin-right: 6px; }
-  #toasts .toast:not(:last-child):not(:hover):not(:focus-within) .toast-badge { width: 24px; height: 24px; border-radius: 8px; }
+     opens again. Not one the clock stopped for: its 살펴보기 and 계속 stay whole. */
+  #toasts .toast:not(:last-child):not(.sticky):not(:hover):not(:focus-within) { padding-block: 7px; }
+  #toasts .toast:not(:last-child):not(.sticky):not(:hover):not(:focus-within) .toast-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #toasts .toast:not(:last-child):not(.sticky):not(:hover):not(:focus-within) .toast-text b { display: inline; margin-right: 6px; }
+  #toasts .toast:not(:last-child):not(.sticky):not(:hover):not(:focus-within) .toast-badge { width: 24px; height: 24px; border-radius: 8px; }
 }
 .toast {
   position: relative; overflow: hidden; gap: 11px; padding: 11px 12px 12px 14px; border-radius: 14px;
