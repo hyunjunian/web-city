@@ -700,9 +700,12 @@ export function refreshViewSummary(): void {
   const v = overlay.kind === 'volume' ? '' : overlay.kind;
   const [text, tone, spots] = viewSummary(v);
   sumSpots = spots;
-  const key = `${v}|${text}|${tone}`;
+  // (What it counts — the gaps, or a fire or riot now — goes with the view: either changing starts 찾아가기 at the first.)
+  const led = (v === 'fire' || v === 'police' || v === 'crime') && incidents().some((x) => x.goal === (v === 'fire' ? 'fire' : 'police'));
+  const what = `${v}:${led ? 'now' : 'gaps'}`;
+  const key = `${what}|${text}|${tone}`;
   if (key === sumSeen) return;
-  if (!sumSeen.startsWith(`${v}|`)) sumNext = 0; // (a count moving as the days go doesn't send 찾아가기 back to the first)
+  if (!sumSeen.startsWith(`${what}|`)) sumNext = 0; // (a count moving as the days go doesn't send 찾아가기 back to the first)
   sumSeen = key;
   box.hidden = !text;
   box.className = `overlay-sum${tone ? ` ${tone}` : ''}`;
@@ -758,7 +761,8 @@ function viewSummaryNow(v: string, live = true): [string, '' | 'bad' | 'good', n
   const n = s.size;
   // While a fire burns or a riot runs, the reach view leads with it, and 찾아가기 goes there: with the trucks out it
   // went to buildings beyond reach. (Not on a build card's heading, which is about reach.)
-  const now = live && (v === 'fire' || v === 'police') ? incidents().filter((x) => x.goal === v) : [];
+  // (The crime view too: the police screen opens on it, and during a riot its 찾아가기 went to the hot spots.)
+  const now = live && (v === 'fire' || v === 'police' || v === 'crime') ? incidents().filter((x) => x.goal === (v === 'fire' ? 'fire' : 'police')) : [];
   if (now.length) {
     const what = now.map((x) => x.goal === 'fire' ? `불난 곳 ${fmt(x.places.length)}곳` : x.riot ? `폭동 ${fmt(x.places.length)}곳` : `방화범 ${fmt(x.places.length)}명`).join(' · ');
     return [what, 'bad', now.flatMap((x) => x.places.map(([px, py]) => py * n + px))];
