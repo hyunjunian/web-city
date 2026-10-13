@@ -1662,8 +1662,12 @@ export function siteAwayFromHomes(kind: StructureKind): [number, number] | null 
 }
 let awayMemo: { key: string; at: [number, number] | null } | null = null;
 
-/** The landfill tiles at the month's garbage tally (a new tally, a new record), to tell a landfill laid since from a full one. */
-let talliedLandfill: { key: string; tiles: Set<number> } | null = null;
+/**
+ * The landfill tiles at each month's garbage tally (a new tally, a new record), to tell a landfill laid since from a
+ * full one. (The last few months: an undo across a month's end brings back a month whose landfills were noted then,
+ * where noting them again would count one laid that month as tallied.)
+ */
+const talliedLandfill = new Map<string, Set<number>>();
 let freshMemo: { key: string; fresh: { tiles: number; joined: boolean } | null } | null = null;
 
 /**
@@ -1675,17 +1679,19 @@ export function freshLandfill(): { tiles: number; joined: boolean } | null {
   const s = city.state;
   // (By the city and the tally's month, not the record itself: undo brings back a copy of the same tally.)
   const tally = `${cityLineage}|${s.history.at(-1)?.month ?? -1}`;
-  if (talliedLandfill?.key !== tally) {
-    const tiles = new Set<number>();
-    for (let i = 0; i < s.zone.length; i++) if (s.zone[i] === 10) tiles.add(i);
-    talliedLandfill = { key: tally, tiles };
+  let counted = talliedLandfill.get(tally);
+  if (!counted) {
+    counted = new Set<number>();
+    for (let i = 0; i < s.zone.length; i++) if (s.zone[i] === 10) counted.add(i);
+    talliedLandfill.set(tally, counted);
+    if (talliedLandfill.size > 3) talliedLandfill.delete(talliedLandfill.keys().next().value!);
     freshMemo = null;
   }
   const key = `${tally}|${city.revision}|${cityGeneration}`;
   if (freshMemo?.key === key) return freshMemo.fresh;
   const n = city.size;
   const laid: number[] = [];
-  for (let i = 0; i < s.zone.length; i++) if (s.zone[i] === 10 && !talliedLandfill.tiles.has(i)) laid.push(i);
+  for (let i = 0; i < s.zone.length; i++) if (s.zone[i] === 10 && !counted.has(i)) laid.push(i);
   // Joined as the trucks find it: anywhere along the landfill it is part of (a strip laid onto a full one away from its
   // road read "새 매립지 옆에 도로가 없습니다", and took 1,176 t at the tally).
   const seen = new Set(laid);
