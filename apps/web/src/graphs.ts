@@ -185,6 +185,15 @@ export class Graphs {
     }
     this.lastLength = all.length;
     const history = this.range ? all.slice(-this.range) : all;
+    // A span no shorter than the record shows the same as 전체: not offered until there is more (10년 beside 전체 drew
+    // the same lines for a city of 35 months), and 전체 lit while it is so.
+    const span = this.range && all.length > this.range ? this.range : 0;
+    for (const b of this.el.querySelectorAll<HTMLButtonElement>('[data-range]')) {
+      const m = Number(b.dataset.range);
+      b.disabled = m > 0 && all.length <= m;
+      b.title = b.disabled ? `기록이 ${all.length}개월이라 전체와 같습니다` : '';
+      b.classList.toggle('active', m === span);
+    }
     // The months every graph below spans (they share one time axis).
     this.el.querySelector('.graph-span')!.textContent = history.length >= 2
       ? `${date(history[0]!.month)} – ${date(history.at(-1)!.month)} (${history.length}개월)`

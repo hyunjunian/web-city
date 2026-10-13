@@ -1399,7 +1399,10 @@ function dealActions(id: GoalId): string {
 function budgetActions(g: Goal, list: Structure[]): string {
 
   const d = city.state.departments;
-  const rows = g.depts.map(([k, name]) => `<label class="funding dept">${name} <input data-mg-dept="${k}" type="range" min="0" max="${k === 'parks' || k === 'landmarks' ? 100 : 120}" step="5" value="${d[k]}" data-mark="100"${deptEmpty(k) ? ' disabled' : ''}><span>${deptEmpty(k) ? '없음' : `${d[k]}%`}</span></label>`);
+  // A department with nothing to fund yet (no jail): said so, with the way to build one, not a slider that can't move.
+  const empty = (k: string, name: string) => `<div class="funding dept">${name} <em class="dept-none">아직 없음</em>${k === 'corrections' && city.isUnlocked('cityJail')
+    ? `<button type="button" class="link" data-act="police" data-kind="cityJail" title="${STRUCTURE_NAME.cityJail} 짓기">짓기</button>` : '<span></span>'}</div>`;
+  const rows = g.depts.map(([k, name]) => deptEmpty(k) ? empty(k, name) : `<label class="funding dept">${name} <input data-mg-dept="${k}" type="range" min="0" max="${k === 'parks' || k === 'landmarks' ? 100 : 120}" step="5" value="${d[k]}" data-mark="100"><span>${d[k]}%</span></label>`);
   // (Water, garbage and transit buildings go by their department's budget above; only the rest have their own.)
   list = list.filter((f) => !deptFunded(f.kind));
   if (list.length) {
