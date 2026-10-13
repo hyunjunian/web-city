@@ -1460,6 +1460,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .pane-close {
     display: inline-flex; position: sticky; top: -16px; order: -3; align-self: flex-end; flex: none; z-index: 3;
     margin: -16px -6px -38px 0; background: var(--surface-2); color: var(--text);
+    box-shadow: var(--shadow-sm); /* (floating over what scrolls under it: a row's › went under a flat × unseen) */
   }
   #pane.managing .pane-close { top: -4px; }
   /* A watch row's note is what to do: two lines rather than cut off. */

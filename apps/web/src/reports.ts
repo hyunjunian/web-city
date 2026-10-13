@@ -86,7 +86,8 @@ export function checkLeft(c: UnlockCheck): string {
   const v = (x: number) => (pct ? `${Math.round(x * 100)}%p` : fmt(Math.round(x)));
   // (What is left, rounded up: half a point to go read "시장 평점 0 더".)
   const left = Math.max(0, c.need - c.have);
-  return c.below ? `${what} ${v(c.need)} 아래로` : `${what} ${pct ? `${Math.max(1, Math.ceil(left * 100 - 1e-9))}%p` : fmt(Math.max(1, Math.ceil(left - 1e-9)))} 더`;
+  // (The amount kept with its name and its 더: a big city's pane broke "주거 인구 / 3,764 더".)
+  return c.below ? `${what}\u00a0${v(c.need)}\u00a0아래로` : `${what}\u00a0${pct ? `${Math.max(1, Math.ceil(left * 100 - 1e-9))}%p` : fmt(Math.max(1, Math.ceil(left - 1e-9)))}\u00a0더`;
 }
 
 export function renderRewards(): void {

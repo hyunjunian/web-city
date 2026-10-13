@@ -151,9 +151,9 @@ Repeals an ordinance (repealing Legalized Gambling removes the Casino).
 
 Sends the closest free fire or police unit to (x, y). Fire trucks need a road within eight tiles; planes and helicopters (Rush Hour) fly anywhere.
 
-### `freeUnits(kind: DispatchKind): number`
+### `freeUnits(kind: DispatchKind, fit = false): number`
 
-How many fire or police units are free to send right now.
+How many fire or police units are free to send right now; `fit`: only the crews automatic dispatch would send (an underfunded one fumbles).
 
 ### `throwMoney(x: number, y: number): ToolResult`
 

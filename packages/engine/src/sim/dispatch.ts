@@ -103,12 +103,16 @@ function fleet(s: CityState, cfg: SimConfig, kind: DispatchKind, st: Structure):
 /**
  * Sends the closest free unit to (x, y). Returns the unit, or why none can go.
  */
-/** Units of a kind free to send now, across every station (ground and air). */
-export function freeUnits(s: CityState, cfg: SimConfig, kind: DispatchKind): number {
+/**
+ * Units of a kind free to send now, across every station (ground and air); with `minCompetence`, only crews at
+ * least that competent (air units always are).
+ */
+export function freeUnits(s: CityState, cfg: SimConfig, kind: DispatchKind, minCompetence = 0): number {
   let n = 0;
   for (const st of s.structures.values()) {
     const f = fleet(s, cfg, kind, st);
-    n += Math.max(0, f.ground) + Math.max(0, f.air);
+    if (f.ground > 0 && (minCompetence <= 0 || crewCompetence(cfg, kind, st) >= minCompetence)) n += f.ground;
+    n += Math.max(0, f.air);
   }
   return n;
 }
@@ -189,7 +193,7 @@ export function stepUnits(s: CityState): void {
 }
 
 /** Least competence of a crew sent automatically to a fire or spill (an unfunded one does nothing there). */
-const FIT_CREW = 0.5;
+export const FIT_CREW = 0.5;
 
 /** Fire crews' summed competence covering (x, y): covered from a fit crew's worth (FIT_CREW). */
 function fireCover(s: CityState, cfg: SimConfig, x: number, y: number, groundOnly: boolean): number {

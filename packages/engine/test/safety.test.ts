@@ -407,5 +407,16 @@ describe('automatic dispatch', () => {
     expect(sent.length).toBeGreaterThan(0);
     expect(sent.every((u) => u.station !== near.id && u.competence >= 0.5)).toBe(true);
   }, 60_000);
+
+  it('counts the crews it would send apart from those too underfunded to', () => {
+    const a = sampleCity({ seed: 1, days: 0 });
+    const all = a.freeUnits('fire');
+    const fit = a.freeUnits('fire', true);
+    expect(fit).toBe(all);
+    const near = [...a.state.structures.values()].find((st) => st.id === 2)!;
+    a.setFunding(near.id, 0);
+    expect(a.freeUnits('fire')).toBe(all);
+    expect(a.freeUnits('fire', true)).toBeLessThan(all);
+  }, 60_000);
 });
 

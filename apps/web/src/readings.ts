@@ -2167,7 +2167,8 @@ export function incidents(): Incident[] {
   const pps = city.cfg.safety.protectionPerStage;
   const reach = city.cfg.safety.dispatch.fire.radius;
   const crewAt = (x: number, y: number) => s.units.some((u) => u.kind === 'fire' && Math.hypot(u.x - x, u.y - y) <= reach);
-  const free = city.freeUnits('fire') > 0;
+  // (Crews automatic dispatch sends: an unfunded station's fumble, and none goes.)
+  const free = city.freeUnits('fire', true) > 0;
   let unfought = false;
   let pending = false;
   let alone: [number, number] | undefined; // the first fire nobody is putting out

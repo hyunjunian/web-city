@@ -26,7 +26,7 @@ import { drain } from './sim/steps';
 import { checkUnlocks, missileMisfires, unlockChecks, updateRadiation, type UnlockCheck, type UnlockContext } from './sim/rewards';
 import { updatePotholes } from './sim/roads';
 import { collectBudget, collectBudgetSteps, structureUpkeep } from './sim/budget';
-import { autoDispatchSteps, dispatchUnit, freeUnits, neutraliseSpills, stepUnits, type DispatchKind } from './sim/dispatch';
+import { autoDispatchSteps, dispatchUnit, FIT_CREW, freeUnits, neutraliseSpills, stepUnits, type DispatchKind } from './sim/dispatch';
 import {
   dealMonthly, dealTotals, defaultNeighbours, drainRegionalGrowth, edgeConnections, evaluateDeal, exportDemand, makeNeighbour, regionalDemand, reliefConnections,
   edgeReach, hasDealConnection, neighbourFromSnapshot, repriceDeals, type CitySnapshot, type DealOffer, type Utility,
@@ -1688,9 +1688,9 @@ export class City {
     return { ok: true, cost: 0 };
   }
 
-  /** How many fire or police units are free to send right now. */
-  freeUnits(kind: DispatchKind): number {
-    return DISPATCH_KINDS.includes(kind) ? freeUnits(this.state, this.cfg, kind) : 0;
+  /** How many fire or police units are free to send right now; `fit`: only the crews automatic dispatch would send (an underfunded one fumbles). */
+  freeUnits(kind: DispatchKind, fit = false): number {
+    return DISPATCH_KINDS.includes(kind) ? freeUnits(this.state, this.cfg, kind, fit ? FIT_CREW : 0) : 0;
   }
 
   /** Mayor's Limo: throws §50 at the crowd for a short local Mayor Rating boost (needs the Mayor's House). */
