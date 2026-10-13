@@ -11,7 +11,7 @@ import { $, ask, flash, fmt, touchFirst } from './util';
 import { STRUCTURE_NAME } from './names';
 import { dropToasts, toast } from './toast';
 import { GOALS, type GoalId } from './goals';
-import { cheapestOf, edgeRoad, fillSpan, landfillSite, layCost, lineToDark, plantSite, powerToSpare, roadLinked, siteNear, suggestSpot, unpoweredZones, smokeClear, zoneSite } from './readings';
+import { cheapestOf, edgeRoad, fillSpan, landfillSite, layCost, lineToDark, plantSite, powerToSpare, roadLinked, siteNear, siteOnPipes, suggestSpot, unpoweredZones, smokeClear, zoneSite } from './readings';
 import { bestBuild, buildAtSite, layPath, layZone, openGoal } from './manage';
 import { updatePanels } from './panels';
 import { showOverlay } from './controls';
@@ -152,6 +152,9 @@ export function renderOnboarding(): void {
   // (And the fire station the fire screen would put up, where its mark is: by a plant out of reach first.)
   // (Not beside one already built off the road: the fire screen lays it its road instead.)
   const station = steps[4] && !steps[4][0] && !kinds.some((d) => d.fire) ? fireSite() : null;
+  // (And the pump or tower the water screen would put up, by the buildings going without: the one service step
+  // that only opened its screen.)
+  const tower = steps[8] && !steps[8][0] && !pumps.length ? waterSite() : null;
   // (And the landfill the garbage screen would lay: sized to the rubbish, by a road, clear of homes and shops.)
   // (Once there are homes or shops to keep it from: before them it went where the first homes would.)
   const fill0 = steps[7] && !steps[7][0] && !zoned((z) => z === 10) && zoned((z) => z >= 1 && z <= 6) ? landfillSite() : null;
@@ -159,7 +162,7 @@ export function renderOnboarding(): void {
   const sig = steps.map(([ok, text, tool]) => `${+ok}${tool ?? ''}${text}`).join('|') + (region ? 'r' : '') + (fresh ? 'f' : '') + (way ? `w${way.path[0]}${way.cost}${+way.short}` : '')
     + [...blocks].map(([k, b]) => `${k}${b.x0},${b.y0},${b.side}${b.cost}`).join('') + (wire ? `p${wire.path[0]}${wire.path.length}${wire.cost}` : '')
     + (plant ? `g${plant.kind}${plant.at.join(',')}` : '')
-    + (station ? `s${station.kind}${station.at.join(',')}` : '') + (fill ? `l${fill.x0},${fill.y0},${fill.side}${fillSpan(fill.months)}` : '');
+    + (station ? `s${station.kind}${station.at.join(',')}` : '') + (tower ? `t${tower.kind}${tower.at.join(',')}` : '') + (fill ? `l${fill.x0},${fill.y0},${fill.side}${fillSpan(fill.months)}` : '');
   if (el.dataset.sig === sig) return;
   // Phones: the checklist sits in the city pane, so its dock button gets a dot until opened.
   if (!el.dataset.sig && !paneShown()) document.querySelector('.dock-city')?.classList.add('unread');
@@ -180,6 +183,7 @@ export function renderOnboarding(): void {
       : !ok && tool === 'goal:power' && plant ? `<button type="button" class="link step-lay" data-lay="plant" title="전력 화면이 권하는 발전소를 전기 없는 구역 가까이 도로 옆(연기가 주거에 닿지 않는 곳)에 바로 짓기 · 월 §${fmt(STRUCTURES[plant.kind].upkeep)} · Ctrl+Z로 되돌리기">추천 자리에 ${STRUCTURE_NAME[plant.kind]} 바로 짓기 · §${fmt(STRUCTURES[plant.kind].cost)}</button>`
       : !ok && tool === 'goal:power' && wire ? `<button type="button" class="link step-lay" data-lay="powerline" title="전력망에서 전기 없는 가장 가까운 구역까지 가장 짧은 송전선을 바로 잇기 (송전선을 들면 지도에 보이는 그 길 · Ctrl+Z로 되돌리기)">송전선 ${fmt(wire.path.length)}칸 바로 잇기 · §${fmt(wire.cost)}</button>`
       : !ok && tool === 'goal:garbage' && fill ? `<button type="button" class="link step-lay" data-lay="landfill" title="${fillSpan(fill.months) ? `${fillSpan(fill.months)}의 쓰레기를 묻을 크기로, ` : ''}도로에 닿고 주거·상업에서 떨어진 빈 땅에 바로 놓기 · 월 §${fmt(fill.side * fill.side * city.cfg.garbage.landfill.upkeep)} · Ctrl+Z로 되돌리기">추천 자리에 매립지 ${fill.side}×${fill.side} 바로 놓기 · §${fmt(fill.cost)}</button>`
+      : !ok && tool === 'goal:water' && tower ? `<button type="button" class="link step-lay" data-lay="water" title="수도 화면의 과녁 자리(물 없는 건물이 모인 곳 가까이 도로 옆)에 바로 짓기 · 월 §${fmt(STRUCTURES[tower.kind].upkeep)} · Ctrl+Z로 되돌리기">추천 자리에 ${STRUCTURE_NAME[tower.kind]} 바로 짓기 · §${fmt(STRUCTURES[tower.kind].cost)}</button>`
       : !ok && tool === 'goal:fire' && station ? `<button type="button" class="link step-lay" data-lay="fire" title="소방 화면의 과녁 자리(소방이 닿지 않는 발전소·건물 가까이 도로 옆)에 바로 짓기 · Ctrl+Z로 되돌리기">추천 자리에 ${STRUCTURE_NAME[station.kind]} 바로 짓기 · §${fmt(STRUCTURES[station.kind].cost)}</button>` : '';
     return `<li class="${ok ? 'done' : i === 0 && st.population === 0 ? 'next' : ''}">${!ok && tool
       ? `<button type="button" class="step" data-step-tool="${tool}" title="${tool.startsWith('goal:') ? '관리 화면 열기 (지도 보기·지을 곳·추천 시설)' : tool.startsWith('view:') ? '지도 보기 켜기' : '이 도구 고르기'}">${body}${icon('chevronRight', 'step-go')}</button>`
@@ -215,6 +219,12 @@ export function renderOnboarding(): void {
       const k = cheapestOf(GOALS.fire);
       if (k && STRUCTURES[k].cost > city.state.funds) return flash(`§${fmt(Math.ceil(STRUCTURES[k].cost - city.state.funds))} 모자랍니다`, 'bad');
       const now = fireSite();
+      if (!now) return gone();
+      buildAtSite(now.kind, now.at[0], now.at[1]);
+      return;
+    }
+    if (kind === 'water') {
+      const now = waterSite();
       if (!now) return gone();
       buildAtSite(now.kind, now.at[0], now.at[1]);
       return;
@@ -269,6 +279,15 @@ function plantStepSite(any = false): { kind: StructureKind; at: [number, number]
   if (!kind || !STRUCTURES[kind].plant || !city.isUnlocked(kind) || city.placementsLeft(kind) <= 0 || (!any && STRUCTURES[kind].cost > city.state.funds)) return null;
   const spot = suggestSpot('power');
   const at = spot ? siteNear(kind, spot.x, spot.y, 0) ?? siteNear(kind, spot.x, spot.y, 6) ?? plantSite(kind, spot.x, spot.y) : plantSite(kind);
+  return at ? { kind, at } : null;
+}
+
+/** The pump or tower the water screen recommends and where its 추천 자리에 짓기 would put it (by the buildings going without), with the money for it. */
+function waterSite(): { kind: StructureKind; at: [number, number] } | null {
+  const kind = bestBuild('water');
+  if (!kind || !STRUCTURES[kind].pump || !city.isUnlocked(kind) || city.placementsLeft(kind) <= 0 || STRUCTURES[kind].cost > city.state.funds) return null;
+  const spot = suggestSpot('water');
+  const at = (spot ? siteNear(kind, spot.x, spot.y, 0) ?? siteNear(kind, spot.x, spot.y, 6) : null) ?? siteOnPipes(kind);
   return at ? { kind, at } : null;
 }
 
