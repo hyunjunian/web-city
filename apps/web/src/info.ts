@@ -239,7 +239,7 @@ export function showInfo(x: number, y: number): void {
   const bare = !b && !q.structure && !where && q.terrain !== 'water';
   const ground = !bare ? null : q.rubble ? ['잔해', '치우면 다시 지을 수 있습니다 · 철거 도구로 치웁니다']
     : q.landform === 'cone' ? ['화산 원뿔', `평탄화 전에는 지을 수 없습니다 · 지형 › 화산 지형 정리 칸당 §${fmt(city.cfg.disasters.levelCost)}`]
-    : q.landform === 'slope' ? ['용암 비탈', `저밀도 구역만 지을 수 있습니다 · 지형 › 화산 지형 정리 칸당 §${fmt(city.cfg.disasters.levelCost)}`]
+    : q.landform === 'slope' ? ['용암 비탈', `구역은 저밀도만 칠할 수 있습니다 (시설·도로는 그대로) · 지형 › 화산 지형 정리 칸당 §${fmt(city.cfg.disasters.levelCost)}`]
     : q.landform === 'crater' ? ['운석 구덩이', ''] : q.landform === 'fault' ? ['단층', '']
     : !q.zone || q.zone === 'none' ? (city.state.trees[y * city.size + x] ? ['숲', '나무는 대기 오염을 줄이고 주변 쾌적도를 올립니다 · 길이나 건물이 들어서면 베어집니다'] : null) : null;
   const title = q.name
@@ -349,7 +349,8 @@ export function showInfo(x: number, y: number): void {
   // (Each complaint with its figure, as the residents judge it: health and schooling by the home's indexes against the
   // 100 they want, crime and dirt by their part of the mayor's rating.)
   const mood = heard ? city.mayorAt(b!.x, b!.y) : null;
-  const sign = (v: number) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1);
+  // (Two places under a tenth: "평점 −0.0" beside a complaint read as no part at all.)
+  const sign = (v: number) => (Math.abs(v) < 0.005 ? '0' : (v > 0 ? '+' : '−') + Math.abs(v).toFixed(Math.abs(v) < 0.1 ? 2 : 1));
   const voice = heard?.thoughts.length ? `<p class="info-voice" title="이 집 주민이 사는 곳을 어떻게 생각하는지">${icon('mic')}<span>주민 생각</span>${thoughtChips(heard.thoughts, { x, y, why: {
     health: `지수 ${Math.round(b!.hq)}/${city.cfg.mySims.hqHigh}`, education: `지수 ${Math.round(b!.eq)}/${city.cfg.mySims.eqHigh}`,
     ...(mood ? { crime: `평점 ${sign(mood.crime)}`, pollution: `평점 ${sign(mood.air + mood.water)}` } : {}),

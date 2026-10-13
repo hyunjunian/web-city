@@ -1,7 +1,7 @@
 // Reading the city for the goals: each goal's state, figures and forecasts, where its
 // trouble gathers on the map, and what would help (no DOM here: the screen is manage.ts).
 
-import { type Building, DEV_TYPES, isLocalNet, linePath, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind, ZONES, type ZoneKind, zoneInfo } from '@web-city/engine';
+import { type Building, DEV_TYPES, ELEVATED, isLocalNet, linePath, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind, ZONES, type ZoneKind, zoneInfo } from '@web-city/engine';
 import { noRiders } from './info';
 import { ADVICE_TEXT, POLL_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME } from './names';
 import { capLeads, crimeKinds, currentAdvice, garbageFill } from './panels';
@@ -480,14 +480,16 @@ export function facilityLine(f: Structure): [string, Tone] {
 /**
  * Riders who got off at a passenger stop last month: commuters board by their homes and get off by their work, so the
  * pair's stop by work counted no one ("승차 0", flagged as a stop that carries nobody, while the pair's riders all came
- * to it). Every station's at once, kept for the week.
+ * to it). Every station's at once, kept for the week (and new with each month's figures). Not redone part-way through
+ * a day: reading the routes finishes the day there and then, a stall each time a card was drawn — the figure before
+ * it stands till the day is done.
  */
 export function alighted(f: Structure): number {
-  const key = changeKey();
-  if (offMemo?.key !== key) offMemo = { key, by: city.alightings() };
-  return offMemo.by.get(f.id) ?? 0;
+  const key = `${changeKey()}|${Math.floor(city.state.day / 30)}`;
+  if (offMemo?.key !== key && !(city.stepping && offMemo?.gen === cityGeneration)) offMemo = { key, gen: cityGeneration, by: city.alightings() };
+  return offMemo!.by.get(f.id) ?? 0;
 }
-let offMemo: { key: string; by: Map<number, number> } | null = null;
+let offMemo: { key: string; gen: number; by: Map<number, number> } | null = null;
 
 /** Kinds funded through their department as one (the engine ignores their own budget): stations, parks, garbage, water. */
 /** How long a landfill lasts, in words: months, years, or past any horizon (a landfill all but unused). */
@@ -678,60 +680,83 @@ export const capped = (t: (typeof DEV_TYPES)[number]) => {
 /**
  * The two subway stations nearest each other that no track joins, and the track between them as the subway tool draws
  * it from one to the other, with its price; null with fewer than two, or all joined. (Placed at their pair of sites,
- * the two stations stood with no word of the track they need.) Kept for the week.
+ * the two stations stood with no word of the track they need.) Joined counts the elevated rail too, where a
+ * transition (or a tile with both) takes the trains from one to the other, as the engine's trains go: a line run up
+ * onto elevated rail and down again was marked as two to join. Kept for the week; short of money by today's funds.
  */
 export function subwayGap(): { path: [number, number][]; cost: number; short: boolean } | null {
   const key = changeKey();
-  if (gapMemo?.key === key) return gapMemo.gap;
+  if (gapMemo?.key !== key) gapMemo = { key, ...findSubwayGap() };
+  const gap = gapMemo.gap;
+  // (A week's income or a loan since: "자금 부족" stayed on a track the treasury could now pay for.)
+  return gap && { ...gap, short: gap.cost > city.state.funds };
+}
+let gapMemo: { key: string; gap: { path: [number, number][]; cost: number } | null; alone: ReadonlySet<number> } | null = null;
+
+/** Whether a subway station shares no track with another (it carries no one until one does). */
+export function subwayAlone(id: number): boolean {
+  subwayGap();
+  return gapMemo!.alone.has(id);
+}
+
+function findSubwayGap(): { gap: { path: [number, number][]; cost: number } | null; alone: ReadonlySet<number> } {
   const s = city.state;
   const n = city.size;
   const stations = [...s.structures.values()].filter((st) => st.kind === 'subwayStation');
-  let gap: { path: [number, number][]; cost: number; short: boolean } | null = null;
-  if (stations.length >= 2) {
-    // Track pieces, by flood over the subway's tiles.
-    const part = new Int32Array(n * n).fill(-1);
-    let parts = 0;
-    for (let i = 0; i < n * n; i++) {
-      if (!s.subway[i] || part[i]! >= 0) continue;
-      const todo = [i];
-      part[i] = parts;
-      while (todo.length) {
-        const j = todo.pop()!;
-        const [x, y] = [j % n, Math.floor(j / n)];
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-          const [u, v] = [x + dx, y + dy];
-          const k = v * n + u;
-          if (u < 0 || v < 0 || u >= n || v >= n || !s.subway[k] || part[k]! >= 0) continue;
-          part[k] = parts;
-          todo.push(k);
-        }
+  const alone = new Set<number>();
+  if (stations.length < 2) return { gap: null, alone };
+  // Track pieces, by flood over the subway's tiles and the elevated rail's: the two meet only through a transition or
+  // a tile carrying both (the engine's rule for its trains).
+  const level = (i: number) => (s.subway[i] ? 1 : 0) | (s.elevated[i] === ELEVATED.rail ? 2 : 0);
+  const joins = new Set(s.transitions);
+  const meet = (a: number, b: number) => {
+    const [la, lb] = [level(a), level(b)];
+    return la === lb || la === 3 || lb === 3 || joins.has(a) || joins.has(b);
+  };
+  const part = new Int32Array(n * n).fill(-1);
+  let parts = 0;
+  for (let i = 0; i < n * n; i++) {
+    if (!level(i) || part[i]! >= 0) continue;
+    const todo = [i];
+    part[i] = parts;
+    while (todo.length) {
+      const j = todo.pop()!;
+      const [x, y] = [j % n, Math.floor(j / n)];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const [u, v] = [x + dx, y + dy];
+        const k = v * n + u;
+        if (u < 0 || v < 0 || u >= n || v >= n || !level(k) || part[k]! >= 0 || !meet(j, k)) continue;
+        part[k] = parts;
+        todo.push(k);
       }
-      parts++;
     }
-    // The pieces each station stands on or beside.
-    const on = stations.map((st) => {
-      const set = new Set<number>();
-      for (let y = st.y - 1; y <= st.y + st.h; y++) for (let x = st.x - 1; x <= st.x + st.w; x++) {
-        if (x >= 0 && y >= 0 && x < n && y < n && part[y * n + x]! >= 0) set.add(part[y * n + x]!);
-      }
-      return set;
-    });
-    let best = Infinity;
-    for (let a = 0; a < stations.length; a++) for (let b = a + 1; b < stations.length; b++) {
-      if ([...on[a]!].some((p) => on[b]!.has(p))) continue;
-      const [p, q] = [stations[a]!, stations[b]!];
-      const d = Math.abs(p.x - q.x) + Math.abs(p.y - q.y);
-      if (d >= best) continue;
-      const plan = city.previewLine('subway', p.x, p.y, q.x, q.y);
-      if (!plan.ok && plan.message !== 'not enough funds') continue;
-      best = d;
-      gap = { path: linePath(p.x, p.y, q.x, q.y), cost: plan.cost, short: !plan.ok };
-    }
+    parts++;
   }
-  gapMemo = { key, gap };
-  return gap;
+  // The pieces each station stands on or beside, by their subway track (a station boards from that).
+  const on = stations.map((st) => {
+    const set = new Set<number>();
+    for (let y = st.y - 1; y <= st.y + st.h; y++) for (let x = st.x - 1; x <= st.x + st.w; x++) {
+      if (x >= 0 && y >= 0 && x < n && y < n && s.subway[y * n + x] && part[y * n + x]! >= 0) set.add(part[y * n + x]!);
+    }
+    return set;
+  });
+  stations.forEach((st, a) => {
+    if (!stations.some((_, b) => b !== a && [...on[a]!].some((p) => on[b]!.has(p)))) alone.add(st.id);
+  });
+  let gap: { path: [number, number][]; cost: number } | null = null;
+  let best = Infinity;
+  for (let a = 0; a < stations.length; a++) for (let b = a + 1; b < stations.length; b++) {
+    if ([...on[a]!].some((p) => on[b]!.has(p))) continue;
+    const [p, q] = [stations[a]!, stations[b]!];
+    const d = Math.abs(p.x - q.x) + Math.abs(p.y - q.y);
+    if (d >= best) continue;
+    const plan = city.previewLine('subway', p.x, p.y, q.x, q.y);
+    if (!plan.ok && plan.message !== 'not enough funds') continue;
+    best = d;
+    gap = { path: linePath(p.x, p.y, q.x, q.y), cost: plan.cost };
+  }
+  return { gap, alone };
 }
-let gapMemo: { key: string; gap: { path: [number, number][]; cost: number; short: boolean } | null } | null = null;
 
 /**
  * A disaster on the move (a tornado, meteors, a robot, a monster, a UFO) that the alarms wait for, for its first 30
@@ -783,7 +808,7 @@ function smoggyHomes(): number {
  * is short; or null.
  */
 export function edgeRoad(kind: 'road' | 'avenue' = 'road'): { path: [number, number][]; short: boolean; cost: number } | null {
-  const key = `${kind}|${changeKey()}|${city.state.neighbours.map((nb) => nb.kind).join()}`;
+  const key = `${kind}|${changeKey()}|${borderKey()}`;
   if (edgeMemo?.key !== key) edgeMemo = { key, at: findEdgeRoad(kind) };
   // (Short of money said against the funds now: kept with the route, 자금 부족 stayed up a week after it was there.)
   const at = edgeMemo.at;
@@ -807,6 +832,24 @@ const sideOf = (i: number, n: number): number => {
   return x === 0 ? 0 : x === n - 1 ? 1 : y === 0 ? 2 : 3;
 };
 
+/** The neighbours as the links to them are read: their kinds and the stretches of border played cities share. */
+const borderKey = () => city.state.neighbours.map((nb) => `${nb.kind}${nb.shared?.map(([a, b]) => `:${a}-${b}`).join('') ?? ''}`).join();
+
+/**
+ * Whether an edge tile faces a city across it: on a side with one (when only some have), and on the stretch of that
+ * side a played city borders (a big city beside a small one shares part of its side: the engine joins them only
+ * there, and a road met the edge past it, was ticked, and joined nobody).
+ */
+const facesCity = (i: number, n: number, sides: number[] | null): boolean => {
+  const side = sideOf(i, n);
+  if (sides && !sides.includes(side)) return false;
+  const nb = city.state.neighbours.find((b) => b.edge === side && b.kind !== 'simnation');
+  if (!nb?.shared?.length) return true;
+  const x = i % n;
+  const p = side < 2 ? (i - x) / n : x;
+  return nb.shared.some(([a, b]) => p >= a && p < b);
+};
+
 /**
  * Is the town's own road network joined to a neighbour: a road or avenue at the map's edge, or a highway there that a
  * ramp joins to them? (Not a highway with no ramp, which joins none of the town's roads, nor rail: 이웃 도시로 가는 도로
@@ -814,7 +857,7 @@ const sideOf = (i: number, n: number): number => {
  * In a region, on a side with a city (a road to an empty side ticked it while the city beside went unjoined).
  */
 export function roadLinked(): boolean {
-  const key = `${cityGeneration}|${city.revision}|${city.state.neighbours.map((nb) => nb.kind).join()}`;
+  const key = `${cityGeneration}|${city.revision}|${borderKey()}`;
   if (linkMemo?.key === key) return linkMemo.on;
   const s = city.state;
   const f = city.fields;
@@ -824,7 +867,7 @@ export function roadLinked(): boolean {
   let on = false;
   let local: Set<number> | null = null;
   for (const i of f.connections) {
-    if (sides && !sides.includes(sideOf(i, n))) continue;
+    if (!facesCity(i, n, sides)) continue;
     const code = s.net[i]!;
     if (code === Net.Road || code === Net.Avenue) {
       // (As the engine counts a link: two along the edge, or one going on inward — a lone edge tile with a street
@@ -892,15 +935,17 @@ function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; cost
       if (minY[c]! >= 0) tries.push(run(c, minY[c]!, 2), run(c, maxY[c]!, 3));
     }
   } else {
-    // From the middle out to each edge, the middle row or column first, then a little either side of it.
+    // From the middle out to each edge, the middle row or column first, then either side of it (as far as the ends:
+    // a small city may border only a big one's far stretch).
     const mid = n >> 1;
-    for (let o = 0; o <= n >> 2; o += 2) {
-      for (const c of o ? [mid - o, mid + o] : [mid]) tries.push(run(mid, c, 0, o), run(mid, c, 1, o), run(c, mid, 2, o), run(c, mid, 3, o));
+    for (let o = 0; o <= n >> 1; o += 2) {
+      for (const c of o ? [mid - o, mid + o] : [mid]) if (c > 0 && c < n - 1) tries.push(run(mid, c, 0, o), run(mid, c, 1, o), run(c, mid, 2, o), run(c, mid, 3, o));
     }
   }
-  // (In a region, toward a side with a city: one toward an empty side was laid, ticked, and joined nobody.)
+  // (In a region, toward a city: one toward an empty side, or the empty part of a side, was laid, ticked, and joined
+  // nobody.)
   const sides = citySides();
-  if (sides) for (let k = tries.length - 1; k >= 0; k--) if (!sides.includes(tries[k]!.edge)) tries.splice(k, 1);
+  for (let k = tries.length - 1; k >= 0; k--) if (!facesCity(tries[k]!.to[1] * n + tries[k]!.to[0], n, sides)) tries.splice(k, 1);
   // The cheapest the tool takes, money short or not (it is said); the nearest few dozen asked, nearest first.
   tries.sort((a, b) => a.rank - b.rank);
   let best: { t: Try; cost: number } | null = null;

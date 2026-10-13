@@ -29,7 +29,7 @@ export type { OrdinanceId } from './data/ordinances';
 export type { MayorFactors, PollTopic } from './sim/mayor';
 export { POLL_TOPICS } from './sim/mayor';
 export type { StructureKind } from './data/structures';
-export { ZONES, Net, NETWORK_KINDS, INTERCHANGE, Terrain, zoneInfo, isRail, isLocalNet } from './sim/state';
+export { ZONES, Net, NETWORK_KINDS, INTERCHANGE, ELEVATED, Terrain, zoneInfo, isRail, isLocalNet } from './sim/state';
 export type {
   AbandonReason, Building, Structure, BudgetReport, MySim, ZoneKind, Rect, GarbageStats, SafetyStats, HistoryPoint,
 } from './sim/state';

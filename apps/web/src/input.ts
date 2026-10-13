@@ -11,7 +11,7 @@ import { ABANDON_NAME, DISASTER_NAME, NETWORK_NAME, STRUCTURE_NAME, TYPE_NAME, Z
 import { updatePanels } from './panels';
 import { type Preview, zoneTint } from './render';
 import { coverageRadius, GROWTH_LABEL, growthNow, overlayReading } from './views';
-import { facilityLine, newlyReached, plantsReached, roadLinked, smokeClear, subwayGap } from './readings';
+import { facilityLine, newlyReached, plantsReached, roadLinked, smokeClear, subwayAlone, subwayGap } from './readings';
 import { goalOfStructure } from './goals';
 import { cam, centerOn, city, drag, fitCamera, glideTo, hover, mapBand, overlay, redraw, renderer, selected, setDrag, setHover, speed, stopFlight } from './state';
 import { drive, SPECIAL } from './udi';
@@ -154,7 +154,7 @@ export function describeTile(x: number, y: number): string {
   }
   // (What lies on bare ground, as its card says: a wood, rubble, a disaster's scar — all read "빈 땅".)
   const lf = s.landform[i];
-  const ground = s.rubble[i] ? '잔해 · 철거 도구로 치움' : lf === 2 ? '화산 원뿔 · 평탄화 전에는 지을 수 없음' : lf === 3 ? '용암 비탈 · 저밀도 구역만'
+  const ground = s.rubble[i] ? '잔해 · 철거 도구로 치움' : lf === 2 ? '화산 원뿔 · 평탄화 전에는 지을 수 없음' : lf === 3 ? '용암 비탈 · 구역은 저밀도만'
     : lf === 1 ? '운석 구덩이' : lf === 4 ? '단층' : s.trees[i] ? '숲' : '빈 땅';
   return `${ground} · 고도 ${s.height[i]} m · ${x}, ${y}`;
 }
@@ -967,8 +967,10 @@ export function applyTool(): void {
       if (res.ok) {
         justBuilt = { x: sx, y: sy, w: def.w, h: def.h, kind };
         const reached = gained || plants ? ` · 새로 닿는 ${[plants ? `발전소 ${fmt(plants)}곳` : '', gained ? `${goal === 'health' || goal === 'education' ? '집' : '건물'} ${fmt(gained)}채` : ''].filter(Boolean).join(' · ')}` : '';
-        // (A subway station another stands apart from: the track they need, said — the tool shows where.)
-        const track = kind === 'subwayStation' && !warn && subwayGap() ? ' · 다른 역과 지하철 선로로 이어야 탑니다 (교통 › 지하철)' : '';
+        // (A subway station with no track to another: the track it needs, said — the tool shows where. Not one laid on a
+        // line already, while two stations elsewhere wait for theirs.)
+        const placed = city.query(sx, sy)?.structure;
+        const track = kind === 'subwayStation' && !warn && placed && subwayAlone(placed.id) && subwayGap() ? ' · 다른 역과 지하철 선로로 이어야 탑니다 (교통 › 지하철)' : '';
         built = [`${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 지었습니다 · −§${fmt(res.cost)}${reached}${warn}${track}${warn || track ? '' : touchFirst() ? ' · 위쪽 ↶로 되돌리기' : ' · Ctrl+Z로 되돌리기'}`, warn ? 'bad' : 'info'];
         flash(...built);
       }

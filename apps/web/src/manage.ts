@@ -1061,7 +1061,8 @@ export function watchGoals(): void {
     const line = `${p.label.replace(/ \([^)]*\)$/, '')} ${p.value} → ${m[1]}${alsoLine}`; // (its scale, "(0–200)", is for the tile)
     // Told on the goal's log too, under what was done.
     j.done.unshift({ goal: id, day, text: `└ 3개월 뒤: ${line}`, key: 'result' });
-    pushNotice({ text: `${GOALS[id].name} · ${p.text}${p.count > 1 ? ` 외 ${p.count - 1}건` : ''} → 3개월 뒤 ${line}`, warn: better === false, goal: id, until: day + 360 });
+    // (Toned as its toast is: a figure that held — "변화 없음" — came as a red warning in the news, the toast grey.)
+    pushNotice({ text: `${GOALS[id].name} · ${p.text}${p.count > 1 ? ` 외 ${p.count - 1}건` : ''} → 3개월 뒤 ${line}`, warn: !!d && better === false, info: !d, goal: id, until: day + 360 });
     toast(`${GOALS[id].name} · ${p.text}${p.count > 1 ? ` 외 ${p.count - 1}건` : ''} 3개월 뒤: ${line}`, !d ? 'info' : better === false ? 'bad' : 'good', undefined, () => openGoal(id), false, undefined, id);
   }
 }
@@ -1734,7 +1735,10 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   // being placed, where they marked nothing it could use.)
   const holding = tool.kind === 'structure' ? chosen[tool.id] : undefined;
   // (Nor a line or stretch of the guide's: a bus stop in hand on the traffic screen showed the stretch to widen.)
-  const own = guideSite?.id === id && !(holding && holding !== guideSite.build) ? guideSite : null;
+  // (Subway track in hand: the track two stations wait for, as with no screen open — the guide's stretch to widen
+  // stayed, which the track can't do.)
+  const track = tool.kind === 'subway' ? trackMarks() : null;
+  const own = !track && guideSite?.id === id && !(holding && holding !== guideSite.build) ? guideSite : null;
   // (On the site its 여기에 짓기 builds, where that is off the spot: what lights up is where it goes.)
   const at: [number, number] | null = spot ? (spotFit?.id === id ? spotFit.at : [spot.x, spot.y]) : null;
   // (Nor where a site of the guide's is within 4 tiles of it: the two labels ran into each other.)
@@ -1746,11 +1750,12 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   for (const o of own?.sites ?? []) marks.push({ x: o.at[0], y: o.at[1], w: 1, h: 1, tone: 'spot', label: o.label, site: own!.build });
   // (A stop or station in hand that the guide isn't building: its own pair, as it gets with no screen open.)
   if (holding && !own) marks.push(...pairMarks(holding));
+  if (track) marks.push(...track.marks);
   // (An area to zone: its outline too, dashed, so its size shows before it is laid.)
   if (own?.rect) marks.push({ x: own.rect[0], y: own.rect[1], w: own.rect[2], h: own.rect[3], tone: 'area' });
   // (Lit while the button that builds there is under the pointer or focused.)
   for (const m of marks) if (m.tone === 'spot' && hotSites.includes(`${m.x},${m.y}`)) m.hot = true;
-  const path = own?.path ?? null;
+  const path = track?.path ?? own?.path ?? null;
   const sig = JSON.stringify([marks, path]);
   if (sig === marksSig) return;
   marksSig = sig;
@@ -1900,13 +1905,8 @@ function placeToolMark(): void {
   // Subway track in hand while two stations stand with no track between them: that track, dashed end to end, to draw
   // along from one to the other.
   if (tool.kind === 'subway') {
-    const gap = subwayGap();
-    const [a, b] = gap ? [gap.path[0]!, gap.path.at(-1)!] : [null, null];
-    const marks: typeof renderer.marks = a && b && gap ? [
-      { x: a[0], y: a[1], w: 1, h: 1, tone: 'spot', label: '' },
-      { x: b[0], y: b[1], w: 1, h: 1, tone: 'spot', label: `추천 · 지하철 선로 ${fmt(gap.path.length)}칸 · §${fmt(gap.cost)}${gap.short ? ' · 자금 부족' : ''}` },
-    ] : [];
-    showToolMarks(marks, gap?.path ?? null);
+    const { marks, path } = trackMarks();
+    showToolMarks(marks, path);
     return;
   }
   // A road or avenue in hand while nothing joins the town to its neighbours (no settlers nor trade come without): the
@@ -1986,6 +1986,20 @@ function placeToolMark(): void {
   const marks: typeof renderer.marks = at && kind ? [{ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]}`, site: kind }] : [];
   if (kind) marks.push(...pairMarks(kind));
   showToolMarks(marks);
+}
+
+/** The subway track two stations wait for, its ends marked (labelled at the far one), and its path. */
+function trackMarks(): { marks: typeof renderer.marks; path: [number, number][] | null } {
+  const gap = subwayGap();
+  if (!gap) return { marks: [], path: null };
+  const [a, b] = [gap.path[0]!, gap.path.at(-1)!];
+  return {
+    marks: [
+      { x: a[0], y: a[1], w: 1, h: 1, tone: 'spot', label: '' },
+      { x: b[0], y: b[1], w: 1, h: 1, tone: 'spot', label: `추천 · 지하철 선로 ${fmt(gap.path.length)}칸 · §${fmt(gap.cost)}${gap.short ? ' · 자금 부족' : ''}` },
+    ],
+    path: gap.path,
+  };
 }
 
 /**
