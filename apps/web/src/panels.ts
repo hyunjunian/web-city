@@ -219,16 +219,20 @@ function nextReward(): string {
  * and how close the next stage is (a bar that fills toward it).
  */
 /**
- * The bar standing still, said (a state, not advice): a year of under 1% growth, and the homes' cap when people wait
- * at it — two years of "도시까지 570명 → 531명 96%" said nothing of why.
+ * The bar standing still, said (a state, not advice): a year of under 1% growth either way, or of a loss past it, and
+ * the homes' cap when people wait at it — two years of "도시까지 570명 → 531명 96%" said nothing of why. (A city that
+ * lost a quarter of its people was said to stand still.)
  */
 function stalled(): string {
   const h = city.state.history;
   const now = h.at(-1);
   const then = h.at(-13);
-  if (!now || !then || then.population < 500 || now.population - then.population >= Math.max(10, then.population * 0.01)) return '';
+  if (!now || !then || then.population < 500) return '';
+  const d = now.population - then.population;
+  const step = Math.max(10, then.population * 0.01);
+  if (d >= step) return '';
   const capped = capWaiting() >= 100;
-  return `<small class="score-stall" title="지난 1년 인구 ${now.population >= then.population ? '+' : '−'}${fmt(Math.abs(now.population - then.population))}명${capped ? ` · 주거 상한에서 약 ${fmt(Math.round(capWaiting()))}명 대기` : ''}"> · 1년째 제자리${capped ? ' · 주거 상한' : ''}</small>`;
+  return `<small class="score-stall" title="지난 1년 인구 ${d >= 0 ? '+' : '−'}${fmt(Math.abs(d))}명${capped ? ` · 주거 상한에서 약 ${fmt(Math.round(capWaiting()))}명 대기` : ''}"> · ${d <= -step ? `1년 새 −${fmt(-d)}명` : '1년째 제자리'}${capped ? ' · 주거 상한' : ''}</small>`;
 }
 
 function scoreboard(population: number, trend: string): string {
