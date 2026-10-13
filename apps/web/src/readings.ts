@@ -783,7 +783,7 @@ function smoggyHomes(): number {
  * is short; or null.
  */
 export function edgeRoad(kind: 'road' | 'avenue' = 'road'): { path: [number, number][]; short: boolean; cost: number } | null {
-  const key = `${kind}|${changeKey()}`;
+  const key = `${kind}|${changeKey()}|${city.state.neighbours.map((nb) => nb.kind).join()}`;
   if (edgeMemo?.key !== key) edgeMemo = { key, at: findEdgeRoad(kind) };
   // (Short of money said against the funds now: kept with the route, 자금 부족 stayed up a week after it was there.)
   const at = edgeMemo.at;
@@ -792,20 +792,39 @@ export function edgeRoad(kind: 'road' | 'avenue' = 'road'): { path: [number, num
 let edgeMemo: { key: string; at: { path: [number, number][]; cost: number } | null } | null = null;
 
 /**
+ * The map's sides with a city beyond them (in a region, the sides where one was founded), or null when every side or
+ * none has one: a road to a side with no city brings no commuters, demand or deals from those that do.
+ */
+export function citySides(): number[] | null {
+  const sides = city.state.neighbours.filter((nb) => nb.kind !== 'simnation').map((nb) => nb.edge);
+  return sides.length && sides.length < city.state.neighbours.length ? sides : null;
+}
+
+/** The side of the map an edge tile is on (0 west, 1 east, 2 north, 3 south), as the neighbours number them. */
+const sideOf = (i: number, n: number): number => {
+  const x = i % n;
+  const y = (i - x) / n;
+  return x === 0 ? 0 : x === n - 1 ? 1 : y === 0 ? 2 : 3;
+};
+
+/**
  * Is the town's own road network joined to a neighbour: a road or avenue at the map's edge, or a highway there that a
  * ramp joins to them? (Not a highway with no ramp, which joins none of the town's roads, nor rail: 이웃 도시로 가는 도로
  * was ticked by either, and the route to the edge went for good. A street or a one-way at the edge links nothing.)
+ * In a region, on a side with a city (a road to an empty side ticked it while the city beside went unjoined).
  */
 export function roadLinked(): boolean {
-  const key = `${cityGeneration}|${city.revision}`;
+  const key = `${cityGeneration}|${city.revision}|${city.state.neighbours.map((nb) => nb.kind).join()}`;
   if (linkMemo?.key === key) return linkMemo.on;
   const s = city.state;
   const f = city.fields;
   const n = city.size;
   const roadKind = (c: number) => c === Net.Road || c === Net.Avenue || c === Net.RailCrossing;
+  const sides = citySides();
   let on = false;
   let local: Set<number> | null = null;
   for (const i of f.connections) {
+    if (sides && !sides.includes(sideOf(i, n))) continue;
     const code = s.net[i]!;
     if (code === Net.Road || code === Net.Avenue) {
       // (As the engine counts a link: two along the edge, or one going on inward — a lone edge tile with a street
@@ -845,14 +864,14 @@ function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; cost
   const n = city.size;
   const net = city.state.net;
   // (rank: how far it runs from the town's roads — or, on a new map, how far off the middle row or column it lies.)
-  type Try = { from: [number, number]; to: [number, number]; rank: number };
+  type Try = { from: [number, number]; to: [number, number]; rank: number; edge: number };
   const tries: Try[] = [];
   // (A run that would start on the edge itself starts a tile in: the inward tile becomes road too.)
   const run = (x: number, y: number, edge: 0 | 1 | 2 | 3, rank?: number): Try => {
     const to: [number, number] = edge === 0 ? [0, y] : edge === 1 ? [n - 1, y] : edge === 2 ? [x, 0] : [x, n - 1];
     const d = Math.abs(to[0] - x) + Math.abs(to[1] - y);
     const from: [number, number] = d > 0 ? [x, y] : edge === 0 ? [1, y] : edge === 1 ? [n - 2, y] : edge === 2 ? [x, 1] : [x, n - 2];
-    return { from, to, rank: rank ?? Math.max(1, d) };
+    return { from, to, rank: rank ?? Math.max(1, d), edge };
   };
   // The town's outermost road tile in each row and column, toward each of the four edges.
   const minX = new Int32Array(n).fill(-1), maxX = new Int32Array(n).fill(-1), minY = new Int32Array(n).fill(-1), maxY = new Int32Array(n).fill(-1);
@@ -879,6 +898,9 @@ function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; cost
       for (const c of o ? [mid - o, mid + o] : [mid]) tries.push(run(mid, c, 0, o), run(mid, c, 1, o), run(c, mid, 2, o), run(c, mid, 3, o));
     }
   }
+  // (In a region, toward a side with a city: one toward an empty side was laid, ticked, and joined nobody.)
+  const sides = citySides();
+  if (sides) for (let k = tries.length - 1; k >= 0; k--) if (!sides.includes(tries[k]!.edge)) tries.splice(k, 1);
   // The cheapest the tool takes, money short or not (it is said); the nearest few dozen asked, nearest first.
   tries.sort((a, b) => a.rank - b.rank);
   let best: { t: Try; cost: number } | null = null;

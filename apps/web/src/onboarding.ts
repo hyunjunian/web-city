@@ -8,10 +8,10 @@ import { changeKey, city, cityLineage } from './state';
 import { markSuggested, panTipAt, selectTool } from './tools';
 import { closePane, paneShown, showTab, type Tab } from './tabs';
 import { $, ask, flash, fmt, touchFirst } from './util';
-import { STRUCTURE_NAME } from './names';
+import { EDGE_NAME, STRUCTURE_NAME } from './names';
 import { dropToasts, toast } from './toast';
 import { GOALS, type GoalId } from './goals';
-import { cheapestOf, edgeRoad, fillSpan, landfillSite, layCost, lineToDark, plantSite, powerToSpare, roadLinked, siteNear, siteOnPipes, suggestSpot, unpoweredZones, smokeClear, zoneSite } from './readings';
+import { cheapestOf, citySides, edgeRoad, fillSpan, landfillSite, layCost, lineToDark, plantSite, powerToSpare, roadLinked, siteNear, siteOnPipes, suggestSpot, unpoweredZones, smokeClear, zoneSite } from './readings';
 import { bestBuild, buildAtSite, layPath, layZone, openGoal } from './manage';
 import { updatePanels } from './panels';
 import { showOverlay } from './controls';
@@ -83,7 +83,10 @@ export function renderOnboarding(): void {
   const patient = deficit > 0 && s.funds / deficit / 12 >= 5;
   // [done, text, the tool that does it, (put after the rest: it waits on growth)]
   const steps: [boolean, string, string | null, boolean?][] = [
-    [roadLinked(), '이웃 도시로 가는 도로 (지도 가장자리까지)', 'road'],
+    // (In a region, the side with the city named: a road to an empty side joined nobody.)
+    [roadLinked(), ((sides) => !sides ? '이웃 도시로 가는 도로 (지도 가장자리까지)'
+      : sides.length === 1 ? `${EDGE_NAME[sides[0]!]} 이웃 도시(${s.neighbours[sides[0]!]!.name})로 가는 도로 (그쪽 가장자리까지)`
+      : `이웃 도시로 가는 도로 (${sides.map((e) => EDGE_NAME[e]).join('·')} 가장자리까지)`)(citySides()), 'road'],
     [zonedByRoad(homeZone), `주거 구역 (도로 옆에)${offRoadZone(homeZone)}`, 'R-low'],
     // The tool for whichever kind of job is wanted (an industrial zone with only farm demand stays empty).
     // (Which of the two the button picks, said: the step read as either.)
