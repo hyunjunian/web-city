@@ -152,7 +152,11 @@ export function describeTile(x: number, y: number): string {
     const why = code ? `${GROWTH_CODES[code - 1] === 'waiting' ? '' : '⚠ '}${GROWTH_LABEL[GROWTH_CODES[code - 1]!]}` : ''; // (held back: the chip is edged amber)
     return `${zone} · 빈 구역${why ? ` · ${why}` : ''}`;
   }
-  return `빈 땅 · 고도 ${s.height[i]} m · ${x}, ${y}`;
+  // (What lies on bare ground, as its card says: a wood, rubble, a disaster's scar — all read "빈 땅".)
+  const lf = s.landform[i];
+  const ground = s.rubble[i] ? '잔해 · 철거 도구로 치움' : lf === 2 ? '화산 원뿔 · 평탄화 전에는 지을 수 없음' : lf === 3 ? '용암 비탈 · 저밀도 구역만'
+    : lf === 1 ? '운석 구덩이' : lf === 4 ? '단층' : s.trees[i] ? '숲' : '빈 땅';
+  return `${ground} · 고도 ${s.height[i]} m · ${x}, ${y}`;
 }
 
 /** How much a zone's class is wanted now (its strongest type's demand; farms for 농업). */

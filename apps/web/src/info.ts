@@ -234,8 +234,16 @@ export function showInfo(x: number, y: number): void {
   // The data view's value here (on a touch screen the hover hint that shows it never appears).
   const reading = overlay.kind !== 'none' ? overlayReading(city, overlay, x, y) : '';
   // Header: what is here, at a glance.
+  // Bare ground says what lies on it: rubble, a disaster's scar, a wood (all read "빈 땅", and a volcano's cone, which
+  // nothing can be built on until it is levelled, said nothing of it).
+  const bare = !b && !q.structure && !where && q.terrain !== 'water';
+  const ground = !bare ? null : q.rubble ? ['잔해', '치우면 다시 지을 수 있습니다 · 철거 도구로 치움 (개발·수요 화면에서 모두 치우기)']
+    : q.landform === 'cone' ? ['화산 원뿔', `평탄화 전에는 지을 수 없습니다 · 지형 › 화산 지형 정리 칸당 §${fmt(city.cfg.disasters.levelCost)}`]
+    : q.landform === 'slope' ? ['용암 비탈', `저밀도 구역만 지을 수 있습니다 · 지형 › 화산 지형 정리 칸당 §${fmt(city.cfg.disasters.levelCost)}`]
+    : q.landform === 'crater' ? ['운석 구덩이', ''] : q.landform === 'fault' ? ['단층', '']
+    : !q.zone || q.zone === 'none' ? (city.state.trees[y * city.size + x] ? ['숲', '나무는 대기 오염을 줄이고 주변 쾌적도를 올립니다 · 길이나 건물이 들어서면 베어집니다'] : null) : null;
   const title = q.name
-    ?? (b ? (b.type ? TYPE_NAME[b.type] : '버려진 건물') : q.structure ? STRUCTURE_NAME[q.structure.kind] : where || (ZONE_NAME[q.zone] || '빈 땅'));
+    ?? (b ? (b.type ? TYPE_NAME[b.type] : '버려진 건물') : q.structure ? STRUCTURE_NAME[q.structure.kind] : where || (q.zone !== 'none' && ZONE_NAME[q.zone]) || ground?.[0] || '빈 땅');
   const swatch = b?.type ? TYPE_COLOR[b.type] : b ? '#5b5550' : q.structure ? structureColor(q.structure.kind) : q.network ? '#55565a' : q.terrain === 'water' ? '#5d8fc7'
     : q.zone !== 'none' ? zoneTint(q.zone) : '#cfd8b8';
   // What has no building colour of its own says what it is with a glyph (a bare grey square looked like a placeholder).
@@ -249,7 +257,7 @@ export function showInfo(x: number, y: number): void {
       // (What it is for, as the tray says it: a park's card read "1×1 · 월 §5" and a reward's "2×3 · 월 §10".)
       def && (def.category === 'park' || def.category === 'reward' || def.category === 'landmark') && structureStat(q.structure.kind) ? ` · ${structureStat(q.structure.kind)}` : ''}`
     : q.zone === 'landfill' ? '쓰레기 매립 구역'
-    : ZONE_NAME[q.zone] ? (title === ZONE_NAME[q.zone] ? '빈 구역' : `${ZONE_NAME[q.zone]} 구역`) : '';
+    : ZONE_NAME[q.zone] ? `${title === ZONE_NAME[q.zone] ? '빈 구역' : `${ZONE_NAME[q.zone]} 구역`}${ground?.[0] ? ` · ${ground[0]}` : ''}` : ground?.[1] ?? '';
   // Roads and water: services and desirability don't apply, only the environment.
   const land = !!(b || q.structure) || (!q.network && q.terrain !== 'water');
   // A chip or glance item that belongs to a goal: pressed, its screen opens on this spot (as the table's rows do).
@@ -365,7 +373,7 @@ export function showInfo(x: number, y: number): void {
       ${load > 1 && !onRail ? `<p class="legend">막힙니다. 버스·지하철로 일터까지 이어 주면 차가 줄어듭니다.</p>${q.network === 'street' || q.network === 'road' ? `<div class="chips">${widenButton(x, y)}</div>` : ''}` : ''}` : '';
   // Road traffic is in the meter above when there is one; other modes always list here.
   const traffic = [
-    cap ? null : fmt(q.traffic), q.railTraffic && !onRail ? `열차 ${fmt(q.railTraffic)}` : null, q.subwayTraffic ? `지하철 ${fmt(q.subwayTraffic)}` : null,
+    cap || q.traffic < 1 ? null : fmt(q.traffic), q.railTraffic && !onRail ? `열차 ${fmt(q.railTraffic)}` : null, q.subwayTraffic ? `지하철 ${fmt(q.subwayTraffic)}` : null,
     q.monorailTraffic ? `모노레일 ${fmt(q.monorailTraffic)}` : null, q.ferryTraffic ? `페리 ${fmt(q.ferryTraffic)}` : null,
     q.highwayTraffic ? `고가 ${fmt(q.highwayTraffic)}` : null,
   ].filter(Boolean).join(' · ');
@@ -450,7 +458,7 @@ ${paths}${voice}
     <table>
       ${where && where !== title ? `<tr><td>지형</td><td>${where}</td></tr>` : ''}
       ${land ? `<tr${row('wealth')}><td title="물가에 가깝거나 평균보다 높은 땅일수록 올라갑니다">땅값 보너스 (물가·고지대)</td><td>${q.landValue.toFixed(0)}</td></tr>` : ''}
-      <tr><td>고도 · 경사</td><td>${q.height} m · ${q.slope} m</td></tr>
+      ${q.terrain === 'water' && !q.network ? '' : `<tr><td>고도 · 경사</td><td>${q.height} m · ${q.slope} m</td></tr>`}
       <tr${row('environment')}><td>오염</td><td>대기 ${q.airPollution.toFixed(0)} · 수질 ${q.waterPollution.toFixed(0)}</td></tr>
       ${traffic ? `<tr${row('traffic')}><td>교통량</td><td>${traffic}</td></tr>` : ''}
       ${q.powerLine || q.pipe || q.railDamaged ? `<tr><td title="50을 넘으면 송전선은 불꽃, 수도관은 파열 위험">노후도</td><td>${[
