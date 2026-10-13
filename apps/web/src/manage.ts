@@ -749,7 +749,9 @@ function nextHtml(tones: Tone[]): Step {
       <p class="lead-title">${icon(g.icon)}<span>${escapeHtml(inc.title)}</span><em>긴급</em></p>
       <p class="lead-risk">${inc.goal !== 'fire' ? (inc.riot ? '두면 번져 건물이 부서지고 평점이 떨어집니다' : '두면 노리는 건물에 불을 지릅니다') : inc.plant ? '두면 발전소가 폭발해 둘레를 태웁니다' : '두면 번져 건물을 잃습니다'}</p>
       <p class="lead-do">${free ? (inc.riot ? riotHint(free) : inc.goal === 'fire' ? '소방차를 보내 불을 끄세요' : '경찰을 보내 체포하세요') : `보낼 ${unitName(inc.goal)}가 없습니다 · ${inc.goal === 'fire' ? '소방서' : '경찰서'}부터`}</p>
-      <div class="next-acts"><button type="button" class="primary next-do" data-next="${inc.goal}" data-next-kind="incident" data-next-at="${inc.at.join(',')}">${free ? `출동 준비<small class="next-count">${free}대 가능</small>` : '화면 열기'}</button></div></div>` };
+      <div class="next-acts"><button type="button" class="primary next-do" data-next="${inc.goal}" data-next-kind="incident" data-next-at="${inc.at.join(',')}">${free ? `출동 준비<small class="next-count">${free}대 가능</small>` : '화면 열기'}</button>${free
+        // (Or one unit at once to where it is worst, without hunting for it on the map: a press a unit, as the map's.)
+        ? `<button type="button" class="link next-send" data-send="${inc.goal}" data-send-at="${inc.at.join(',')}" title="${inc.goal === 'fire' ? '가장 급한 불(발전소, 소방서 반경 밖 순)에 소방차 한 대를' : inc.riot ? '폭동에 경찰차 한 대를' : '가장 먼저 불을 지를 방화범에게 경찰차 한 대를'} 지금 보냅니다">바로 보내기</button>` : ''}</div></div>` };
   }
   // The most serious, not the first in the list: no power or water, money running out, a fire, before
   // traffic or wealth (rubbish on two roadless lots led the card while the jail let criminals go).
@@ -2276,7 +2278,7 @@ export function setupGoals(): void {
       return;
     }
     // A burning building's 소방차 보내기, a riot's 경찰차 보내기: the nearest free unit sent there, as the dispatch tool would.
-    const send = (e.target as HTMLElement).closest<HTMLElement>('#info [data-send]');
+    const send = (e.target as HTMLElement).closest<HTMLElement>('#info [data-send], #status [data-send]');
     if (send) {
       const unit = send.dataset.send === 'police' ? 'police' : 'fire';
       const [x, y] = send.dataset.sendAt!.split(',').map(Number) as [number, number];

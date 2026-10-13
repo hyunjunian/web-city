@@ -2103,12 +2103,16 @@ export function incidents(): Incident[] {
   const fireUrgent = fire.length >= 3 || onPlant || outside;
   // (Said as what it costs if left, as the rows say it: what to do is the card's above them.)
   const why = onPlant ? '발전소가 타는 중 · 폭발할 수 있음' : outside ? '소방서 반경 밖 · 번질 수 있음' : fireUrgent ? '번지는 중' : '소방서가 끄는 중';
-  if (fire.length) list.push({ goal: 'fire', title: `불이 났습니다: ${fmt(fire.length)}곳`, at: fire[0]!, places: fire, tool: 'send-fire', urgent: fireUrgent, why, plant: onPlant });
+  // Where it is worst, first (where 보기 and 바로 보내기 go): a plant alight, then a fire beyond reach.
+  const plantLot = s.fires.map((f) => (f.target < 0 ? s.structures.get(-f.target) : undefined)).find((st) => !!st && !!STRUCTURES[st.kind].plant);
+  const worst: [number, number] | undefined = plantLot ? [plantLot.x, plantLot.y] : fire.find(([x, y]) => (cover[y * s.size + x] ?? 0) <= 0);
+  if (fire.length) list.push({ goal: 'fire', title: `불이 났습니다: ${fmt(fire.length)}곳`, at: worst ?? fire[0]!, places: fire, tool: 'send-fire', urgent: fireUrgent, why, plant: onPlant });
   if (s.mobs.length) list.push({ goal: 'police', title: `폭동이 일어났습니다: ${fmt(s.mobs.length)}곳`, at: [s.mobs[0]!.x, s.mobs[0]!.y], places: s.mobs.map((m) => [m.x, m.y]), tool: 'send-police', urgent: true, riot: true });
   // Arsonists show up before they strike: police on the spot lock them up.
   if (s.arsonists.length) {
     const days = Math.min(...s.arsonists.map((a) => a.days));
-    list.push({ goal: 'police', title: `방화범이 보입니다: ${fmt(s.arsonists.length)}명 — ${fmt(days)}일 안에 경찰을 보내면 막습니다`, at: [s.arsonists[0]!.x, s.arsonists[0]!.y], places: s.arsonists.map((a) => [a.x, a.y]), tool: 'send-police', urgent: true });
+    const soonest = s.arsonists.find((a) => a.days === days)!;
+    list.push({ goal: 'police', title: `방화범이 보입니다: ${fmt(s.arsonists.length)}명 — ${fmt(days)}일 안에 경찰을 보내면 막습니다`, at: [soonest.x, soonest.y], places: s.arsonists.map((a) => [a.x, a.y]), tool: 'send-police', urgent: true });
   }
   incidentMemo = { key, list };
   return list;

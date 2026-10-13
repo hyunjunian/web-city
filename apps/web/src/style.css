@@ -461,6 +461,9 @@ kbd {
 .next-why { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; word-break: keep-all; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .next-acts { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
 .next-acts .primary { min-height: 34px; padding: 6px 14px; }
+/* An incident's two ways: the tool to place by hand, and one unit straight to where it is worst — each on one line. */
+.next-acts:has(.next-send) { flex-wrap: wrap; row-gap: 6px; }
+.next-acts .next-do, .next-acts .next-send { white-space: nowrap; }
 /* (How many can go, on the button that sends them: it was a clause of the bold line above.) */
 .next-do .next-count { margin-left: 8px; padding-left: 8px; border-left: 1px solid color-mix(in srgb, currentColor 35%, transparent); font-size: 12px; font-weight: 500; opacity: 0.9; }
 .watch-card { padding: 12px 8px 6px; }
