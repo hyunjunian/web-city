@@ -652,12 +652,18 @@ export class Renderer {
    * The water's colour per tile by how far it lies from the shore, shallow to deep (land pixels take the shallows'
    * colour, so the blend along a shore stays shallow), remade when the shore moves.
    */
-  private water: { city: City['state']; key: number; image: HTMLCanvasElement } | null = null;
+  private water: { city: City['state']; key: number; image: HTMLCanvasElement; frame: number } | null = null;
   private waterImage(s: City['state']): HTMLCanvasElement {
     const n = s.size;
+    // (The shore looked at once a frame: the ground is painted a few tiles at a time after an edit or a month's growth,
+    // and each piece by the water hashed the whole map again.)
+    if (this.water?.city === s && this.water.frame === this.frames) return this.water.image;
     let key = n;
     for (let i = 0; i < n * n; i++) key = (key * 31 + s.terrain[i]! + 1) | 0;
-    if (this.water?.city === s && this.water.key === key) return this.water.image;
+    if (this.water?.city === s && this.water.key === key) {
+      this.water.frame = this.frames;
+      return this.water.image;
+    }
     const image = this.water?.city === s ? this.water.image : document.createElement('canvas');
     image.width = n;
     image.height = n;
@@ -690,7 +696,7 @@ export class Renderer {
       data.data[4 * i + 3] = 255;
     }
     g.putImageData(data, 0, 0);
-    this.water = { city: s, key, image };
+    this.water = { city: s, key, image, frame: this.frames };
     return image;
   }
 
@@ -1354,7 +1360,10 @@ export class Renderer {
   }
 
 
+  /** Frames drawn (what is looked at once a frame keys by it). */
+  private frames = 0;
   draw(city: City, cam: Camera, overlay: Overlay, preview: Preview | null, selected: Rect | null): void {
+    this.frames++;
     const { ctx } = this;
     const s = city.state;
     const n = s.size;
