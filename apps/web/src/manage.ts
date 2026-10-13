@@ -14,7 +14,7 @@ import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESO
 import { whyNoDeals } from './region';
 import { journal } from './journal';
 import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, updatePanels } from './panels';
-import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
+import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, panTipAt, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
@@ -1882,6 +1882,8 @@ function riotHint(free: number): string {
   const need = city.cfg.mayor.riotMob.minUnits;
   return free < need ? `경찰차가 ${free}대뿐입니다 · ${need}대가 모여야 진압되니 경찰서를 더 지으세요` : `경찰차 ${need}대가 모여야 진압됩니다 · 지도에서 그곳을 세 번 누르세요`;
 }
+/** Which of several places a 보기 went to last (the next press goes on to the next). */
+let spotTurn = { key: '', k: 0 };
 /** The unit sent to an incident, in words. */
 const unitName = (goal: 'fire' | 'police') => (goal === 'fire' ? '소방차' : '경찰차');
 
@@ -1892,7 +1894,7 @@ function incidentBanner(id: GoalId): string {
   const free = city.freeUnits(inc.goal);
   return `<section class="mg-alert">${icon(inc.goal === 'fire' ? 'flame' : 'megaphone')}<span><b>${inc.title}</b>
     <small>${free ? `출동 가능 ${free}대 · ${inc.riot ? riotHint(free) : `출동을 누르고 지도에서 ${inc.goal === 'fire' ? '불난 곳' : '그곳'}을 누르세요`}` : `보낼 ${unitName(inc.goal)}가 없습니다: ${inc.goal === 'fire' ? '소방서' : '경찰서'}부터 지으세요`}</small></span>
-    <span class="advice-acts"><button type="button" class="advice-view" data-spot="${inc.at.join(',')}" title="지도에서 그곳 보기">보기</button>${free ? `<button type="button" class="advice-view act-now" data-act="${inc.tool}" title="출동 도구 들기">${icon(inc.goal === 'fire' ? 'flame' : 'shield')}출동</button>` : ''}</span></section>`;
+    <span class="advice-acts"><button type="button" class="advice-view" data-spot="${inc.at.join(',')}"${inc.places.length > 1 ? ` data-spots="${inc.places.map((p) => p.join(',')).join(';')}"` : ''} title="${inc.places.length > 1 ? `지도에서 그곳들을 차례로 보기 (${fmt(inc.places.length)}곳)` : '지도에서 그곳 보기'}">보기</button>${free ? `<button type="button" class="advice-view act-now" data-act="${inc.tool}" title="출동 도구 들기">${icon(inc.goal === 'fire' ? 'flame' : 'shield')}출동</button>` : ''}</span></section>`;
 }
 
 /** A facility's load against what it takes (power, water, rubbish, patients, pupils, prisoners, riders), as a thin bar under its line. */
@@ -2512,9 +2514,17 @@ export function setupGoals(): void {
     }
     const spot = t.closest<HTMLElement>('[data-spot]');
     if (spot) {
-      const [x, y] = spot.dataset.spot!.split(',').map(Number);
+      // (Several places — the fires burning — one after another at each press, as 찾아가기 goes: it went to the first.)
+      const all = spot.dataset.spots?.split(';') ?? [spot.dataset.spot!];
+      const k = all.length > 1 && spotTurn.key === spot.dataset.spots ? (spotTurn.k + 1) % all.length : 0;
+      spotTurn = { key: spot.dataset.spots ?? '', k };
+      const [x, y] = all[k]!.split(',').map(Number);
       if (phone()) closePane();
       centerOn(x!, y!, 6);
+      if (all.length > 1) {
+        pingAt(x!, y!);
+        spot.textContent = `보기 ${k + 1}/${all.length}`;
+      }
       redraw();
       return;
     }
