@@ -1729,7 +1729,8 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   // (Not while another kind of facility is in hand: the bus stops' rings stayed over the map as a subway station was
   // being placed, where they marked nothing it could use.)
   const holding = tool.kind === 'structure' ? chosen[tool.id] : undefined;
-  const own = guideSite?.id === id && !(holding && guideSite.build && holding !== guideSite.build) ? guideSite : null;
+  // (Nor a line or stretch of the guide's: a bus stop in hand on the traffic screen showed the stretch to widen.)
+  const own = guideSite?.id === id && !(holding && holding !== guideSite.build) ? guideSite : null;
   // (On the site its 여기에 짓기 builds, where that is off the spot: what lights up is where it goes.)
   const at: [number, number] | null = spot ? (spotFit?.id === id ? spotFit.at : [spot.x, spot.y]) : null;
   // (Nor where a site of the guide's is within 4 tiles of it: the two labels ran into each other.)
@@ -1739,6 +1740,8 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
   const site = spotBuild?.id === id && at && spotBuild.at[0] === at[0] && spotBuild.at[1] === at[1] ? spotBuild.kind : undefined;
   if (spot && at && !(spot.crowded && own) && !crowdedOut) marks.push({ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label, site });
   for (const o of own?.sites ?? []) marks.push({ x: o.at[0], y: o.at[1], w: 1, h: 1, tone: 'spot', label: o.label, site: own!.build });
+  // (A stop or station in hand that the guide isn't building: its own pair, as it gets with no screen open.)
+  if (holding && !own) marks.push(...pairMarks(holding));
   // (An area to zone: its outline too, dashed, so its size shows before it is laid.)
   if (own?.rect) marks.push({ x: own.rect[0], y: own.rect[1], w: own.rect[2], h: own.rect[3], tone: 'area' });
   // (Lit while the button that builds there is under the pointer or focused.)
@@ -1965,23 +1968,33 @@ function placeToolMark(): void {
       ? (d.res[0] < 0 ? siteAwayFromHomes(kind) : d.res[0] > 0 || ((d.mayor?.[0] ?? 0) > 0 && (d.mayor?.[1] ?? 0) < city.size) ? siteNearHomes(kind) : null)
     : null;
   const marks: typeof renderer.marks = at && kind ? [{ x: at[0], y: at[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]}`, site: kind }] : [];
-  // A bus stop: the pair the traffic screen builds, one where the most live and one where the most work (a stop alone
-  // carries no one) — a side already with a stop within 8 tiles left out, so the next goes to the other side.
-  if (kind && d?.station?.mode === 'bus') {
-    const stops = [...city.state.structures.values()].filter((st) => STRUCTURES[st.kind].station?.mode === 'bus');
-    const pair = stopPair(kind, 1);
-    // (A side is served by a stop within 8 tiles of it and nearer it than the other side: home and work 8 to 16 tiles
-    // apart, the new home stop also stood within 8 of the work side, and both went.)
-    const near = (p: readonly [number, number], q: readonly [number, number]) => stops.some((st) => {
-      const dp = Math.max(Math.abs(st.x - p[0]), Math.abs(st.y - p[1]));
-      return dp <= 8 && dp < Math.max(Math.abs(st.x - q[0]), Math.abs(st.y - q[1]));
-    });
-    pair?.forEach((p, k) => {
-      if (near(p, pair[1 - k]!)) return;
-      marks.push({ x: p[0], y: p[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]} (${k ? '일터 쪽' : '집 쪽'})`, site: kind });
-    });
-  }
+  if (kind) marks.push(...pairMarks(kind));
   showToolMarks(marks);
+}
+
+/**
+ * A bus stop in hand: the pair the traffic screen builds, one where the most live and one where the most work (a stop
+ * alone carries no one) — a side already with a stop within 8 tiles left out, so the next goes to the other side. A
+ * subway station likewise, the track between to be drawn (one in hand found no free tile under the cursor in a built
+ * town). None for another kind.
+ */
+function pairMarks(kind: StructureKind): typeof renderer.marks {
+  const mode = STRUCTURES[kind].station?.mode;
+  if (mode !== 'bus' && mode !== 'subway') return [];
+  const stops = [...city.state.structures.values()].filter((st) => STRUCTURES[st.kind].station?.mode === mode);
+  const pair = stopPair(kind, 1);
+  // (A side is served by a stop within 8 tiles of it and nearer it than the other side: home and work 8 to 16 tiles
+  // apart, the new home stop also stood within 8 of the work side, and both went.)
+  const near = (p: readonly [number, number], q: readonly [number, number]) => stops.some((st) => {
+    const dp = Math.max(Math.abs(st.x - p[0]), Math.abs(st.y - p[1]));
+    return dp <= 8 && dp < Math.max(Math.abs(st.x - q[0]), Math.abs(st.y - q[1]));
+  });
+  const out: typeof renderer.marks = [];
+  pair?.forEach((p, k) => {
+    if (near(p, pair[1 - k]!)) return;
+    out.push({ x: p[0], y: p[1], w: 1, h: 1, tone: 'spot', label: `추천 자리 · ${STRUCTURE_NAME[kind]} (${k ? '일터 쪽' : '집 쪽'})`, site: kind });
+  });
+  return out;
 }
 
 /**
