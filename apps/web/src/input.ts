@@ -284,6 +284,9 @@ export function updatePreview(): void {
       tiles: rectTiles([sx, sy], [sx + def.w - 1, sy + def.h - 1]), ok: check.ok, ...(caught ? { color: 'rgba(240,170,40,0.5)' } : {}),
       ...(reach ? { ring: { x: sx + def.w / 2, y: sy + def.h / 2, r: reach } } : {}),
       ...(def.plant ? { box: { x: sx - gap, y: sy - gap, w: def.w + 2 * gap, h: def.h + 2 * gap } } : {}),
+      // (A pump or tower off the pipes waters what stands within the pipes' reach of it: that reach, where the hint's
+      // "새로 물이 닿는 건물 N채" are.)
+      ...(def.pump && check.ok && !pipedAt(kind, sx, sy) ? ((r) => ({ box: { x: sx - r, y: sy - r, w: def.w + 2 * r, h: def.h + 2 * r } }))(city.cfg.services.waterRadius) : {}),
     };
     const extra = def.plant
       ? `발전량 ${fmt(def.plant.output)} MWh`
