@@ -14,7 +14,7 @@ import { renderOnboarding } from './onboarding';
 import { region, renderNeighbours } from './region';
 import { TYPE_COLOR } from './render';
 import { GROWTH_LABEL } from './views';
-import { checkLeft, checkText, renderAges, renderPolls, renderRewards, rewardShare } from './reports';
+import { checkLeft, checkText, renderAges, renderPolls, renderRewards, rewardRank, rewardShare } from './reports';
 import { blinkAt, centerOn, changeKey, city, cityGeneration, graphs, overlay, redraw, speed } from './state';
 import { categoryOf, chosen, openTray, pickStructure, refreshStructureLists, selectTool, structureStat, TOOLS } from './tools';
 import { renderUdi, watchMissions } from './udi';
@@ -187,7 +187,7 @@ function checkNewYear(year: number): void {
 
 /**
  * The reward nearest to being earned, under the city's headline figures: what it is,
- * how far along (each condition counted by how much of it is met), what is left.
+ * how far along (by the condition furthest from met), what is left.
  * A goal further off than the next month's problems, worked out once a month.
  */
 let rewardSeen: { key: string; html: string } | null = null;
@@ -196,8 +196,8 @@ function nextReward(): string {
   if (rewardSeen?.key === key) return rewardSeen.html;
   const best = city.rewardProgress()
     .filter((r) => r.checks.length && !r.checks.every((c) => c.met))
-    .map((r) => ({ ...r, share: rewardShare(r.checks) }))
-    .sort((a, b) => b.share - a.share)[0];
+    .map((r) => ({ ...r, share: rewardShare(r.checks), rank: rewardRank(r.checks) }))
+    .sort((a, b) => b.rank - a.rank)[0];
   // What is still missing, in a line (all of it in the tooltip).
   const left = best ? best.checks.filter((c) => !c.met).map(checkLeft) : [];
   const leftFull = best ? best.checks.filter((c) => !c.met).map(checkText) : [];

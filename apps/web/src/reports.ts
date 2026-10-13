@@ -61,11 +61,19 @@ export function checkText(c: UnlockCheck): string {
   return `${what} ${v(c.have)}${c.below ? ' (< ' : '/'}${v(c.need)}${c.below ? ')' : ''}`;
 }
 
-/** How far a reward's conditions are along (each met one whole, the rest by how near): the bar of 다음 보상 and of the list. */
+/**
+ * How far a reward's conditions are along, by the one furthest from met (each part by how near): the bar of 다음 보상
+ * and of the list. (By the average, a resort at 216 residents of the 20,000 it wants read 57%, beside a chapel 784
+ * residents away.)
+ */
 export function rewardShare(checks: readonly UnlockCheck[]): number {
-  const part = (c: UnlockCheck) => (c.met ? 1 : c.below || c.need <= 0 ? 0 : Math.max(0, Math.min(1, c.have / c.need)));
-  return checks.length ? checks.reduce((a, c) => a + part(c), 0) / checks.length : 0;
+  return checks.length ? Math.min(...checks.map(checkPart)) : 0;
 }
+
+const checkPart = (c: UnlockCheck) => (c.met ? 1 : c.below || c.need <= 0 ? 0 : Math.max(0, Math.min(1, c.have / c.need)));
+
+/** The order rewards are listed in: the nearest first, by {@link rewardShare}, and of those as near, the furthest along in all. */
+export const rewardRank = (checks: readonly UnlockCheck[]) => rewardShare(checks) + (checks.length ? checks.reduce((a, c) => a + checkPart(c), 0) / checks.length / 1000 : 0);
 
 /** What a condition still wants, as an amount to go: "총인구 3,816 더", "범죄 40 아래로". */
 export function checkLeft(c: UnlockCheck): string {
@@ -74,8 +82,11 @@ export function checkLeft(c: UnlockCheck): string {
   const what = field === 'typePopulation' && sub ? `${subName} ${sub[0] === 'R' ? '인구' : '일자리'}`
     : sub ? `${CHECK_NAME[field] ?? field} ${subName}` : CHECK_NAME[field] ?? field;
   if (field === 'wellFunded' || field === 'difficulty' || field === 'anyOf' || field === 'requires') return what;
-  const v = (x: number) => (field === 'waterShare' || field === 'busyStation' ? `${Math.round(x * 100)}%p` : fmt(Math.round(x)));
-  return c.below ? `${what} ${v(c.need)} 아래로` : `${what} ${v(Math.max(0, c.need - c.have))} 더`;
+  const pct = field === 'waterShare' || field === 'busyStation';
+  const v = (x: number) => (pct ? `${Math.round(x * 100)}%p` : fmt(Math.round(x)));
+  // (What is left, rounded up: half a point to go read "시장 평점 0 더".)
+  const left = Math.max(0, c.need - c.have);
+  return c.below ? `${what} ${v(c.need)} 아래로` : `${what} ${pct ? `${Math.max(1, Math.ceil(left * 100 - 1e-9))}%p` : fmt(Math.max(1, Math.ceil(left - 1e-9)))} 더`;
 }
 
 export function renderRewards(): void {
@@ -84,8 +95,8 @@ export function renderRewards(): void {
   rewardMonth = month;
   const rows = city.rewardProgress()
     .filter((r) => r.checks.length)
-    .map((r) => ({ ...r, share: rewardShare(r.checks) }))
-    .sort((a, b) => b.share - a.share)
+    .map((r) => ({ ...r, share: rewardShare(r.checks), rank: rewardRank(r.checks) }))
+    .sort((a, b) => b.rank - a.rank)
     .slice(0, 12);
   $('#rewards').innerHTML = rows.length ? rows.map((r) => {
     const missing = r.checks.filter((c) => !c.met);
