@@ -452,6 +452,16 @@ interface GuideStep {
 }
 
 
+/**
+ * The types whose tax is over neutral and eats their demand, as the finance advisor judges it (demand wanted, the cut
+ * past 30%, not held at a cap anyway).
+ */
+function taxesCutting(): DevType[] {
+  const d = city.demand;
+  return DEV_TYPES.filter((t) => city.state.taxRates[t] > d.neutralTax && d.raw[t]! > 0 && d.taxEffect[t]! <= -0.3
+    && !(Number.isFinite(d.cap[t]) && d.capPopulation[t]! >= 0.95 * d.cap[t]!));
+}
+
 /** A goal's own recommendation, read from what its screen would show (one source of truth). */
 /** The ordinances the troubled goals' guides put forward now (the policy list marks them 추천 and puts them first). */
 export function guideOrdinances(): Set<OrdinanceId> {
@@ -493,9 +503,15 @@ function goalStep(id: GoalId): GuideStep {
   const { worst } = guideSaid(id);
   const due = worst && BUDGET_FIX[worst.code] ? budgetStep(id, worst) : null;
   if (due) return due;
-  // Taxes eating a type's demand: that type's tax to neutral, applied at once.
+  // Taxes eating demand: every such type's tax to neutral, applied at once (one press a type took three presses, the
+  // screen turning 양호 between them with 주거 still at −71%).
   if (worst?.code === 'taxHigh' && worst.type && city.state.taxRates[worst.type] > city.demand.neutralTax) {
     const to = city.demand.neutralTax;
+    const cut = taxesCutting();
+    if (cut.length > 1) {
+      return { kind: 'budget', what: `세율 ${cut.length}가지 ${to.toFixed(1)}%로`, why: adviceText(worst), fixAct: 'tax:all', act: '', glyph: icon('wallet'),
+        sub: `${cut.map((t) => `${TYPE_NAME[t]} ${city.state.taxRates[t].toFixed(1)}%`).join(' · ')} · 세입은 줄어듭니다`, fx: '', site: false };
+    }
     return { kind: 'budget', what: `${TYPE_NAME[worst.type]} 세율 ${to.toFixed(1)}%로`, why: adviceText(worst), fixAct: `tax:${worst.type}`, act: '', glyph: icon('wallet'),
       sub: `세율 · 지금 ${city.state.taxRates[worst.type].toFixed(1)}% · 세입은 줄어듭니다`, fx: '', site: false };
   }
@@ -2189,6 +2205,15 @@ export function setupGoals(): void {
         flash(res.ok ? `잔해 ${fmt(res.tiles)}칸을 치웠습니다 · −§${fmt(res.cost)}` : ko(res.message ?? ''), res.ok ? 'info' : 'bad');
         city.refreshIfDirty();
         redraw();
+      } else if (what === 'tax' && key === 'all') {
+        const to = city.demand.neutralTax;
+        const cut = taxesCutting();
+        choice('세율', () => {
+          for (const t of cut) city.setTaxRate(t, to);
+        });
+        noteAction(`세율: ${cut.map((t) => TYPE_NAME[t]).join(' · ')} ${to.toFixed(1)}%`);
+        flash(`세율 ${cut.length}가지를 ${to.toFixed(1)}%로 내렸습니다 · 높았던 세율을 심들이 90일 동안 기억해, 수요는 그 뒤에 돌아옵니다`, 'info');
+        refreshTaxes();
       } else if (what === 'tax') {
         const to = city.demand.neutralTax;
         choice('세율', () => city.setTaxRate(key as DevType, to));

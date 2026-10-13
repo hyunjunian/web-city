@@ -527,7 +527,9 @@ export function buildTaxes(): void {
   const el = $('#taxes');
   el.innerHTML = '';
   rows.clear();
-  const row = (label: string, title: string, get: () => number, set: (v: number) => void, income?: () => number, effect?: () => number) => {
+  // (`types`: the types it sets — whether they differ, so its figure is an average, and whether all are cut to
+  // neutral already, so a dent left is the old rate remembered.)
+  const row = (label: string, title: string, get: () => number, set: (v: number) => void, income?: () => number, effect?: () => number, types: readonly DevType[] = []) => {
     const div = document.createElement('div');
     div.className = 'tax-row';
     // − and + step half a point (touch screens show them: a drag on a short slider jumped by points).
@@ -546,14 +548,20 @@ export function buildTaxes(): void {
       input.dataset.mark = city.demand.neutralTax.toFixed(1);
       input.title = `눈금: 중립 세율 ${city.demand.neutralTax.toFixed(1)}% (이보다 낮으면 수요가 늘고, 높으면 줄어듭니다)`;
       fillRange(input);
-      out.textContent = `${v.toFixed(1)}%`;
+      // (A class whose levels differ shows their average, said as one: "10.2%" read as a rate set somewhere.)
+      const mixed = types.length > 1 && types.some((t) => city.state.taxRates[t] !== city.state.taxRates[types[0]!]);
+      out.textContent = `${mixed ? '평균 ' : ''}${v.toFixed(1)}%`;
       // What the rate does to this type's demand (SC4's tax effect, +35% to −350%).
       const e = effect ? Math.round(effect() * 100) : 0;
+      // (Cut to neutral or below, a dent left is the old rate the sims remember for 90 days: on its way back, not a
+      // rate still too high — the screen read 양호 beside "−71%".)
+      const easing = e < 0 && types.length > 0 && types.every((t) => city.state.taxRates[t] <= city.demand.neutralTax);
       // Under the slider, the row's full width (in the label column it wrapped).
       // (Red only past −100%, where demand turns round: a usual rate's dent reads as plain fact.)
-      fx.className = `tax-effect ${e <= -100 ? 'neg' : e > 0 ? 'pos' : ''}`;
-      fx.title = '세율 때문에 수요가 그 크기의 몇 %만큼 늘거나 줄어드는지(−100%를 넘으면 수요가 마이너스로 돌아섬)';
-      fx.textContent = e ? `수요 영향 ${e > 0 ? '+' : '−'}${Math.abs(e)}%` : '';
+      fx.className = `tax-effect ${e <= -100 && !easing ? 'neg' : e > 0 ? 'pos' : ''}`;
+      fx.title = easing ? '내린 세율: 심들이 높았던 세율을 90일 동안 기억해, 그동안 수요 영향이 남았다가 사라집니다'
+        : '세율 때문에 수요가 그 크기의 몇 %만큼 늘거나 줄어드는지(−100%를 넘으면 수요가 마이너스로 돌아섬)';
+      fx.textContent = e ? `수요 영향 ${e > 0 ? '+' : '−'}${Math.abs(e)}%${easing ? ' · 되돌아오는 중' : ''}` : '';
     };
     // Last month's take, and roughly what one point more would add (same tax base); read on hover.
     if (income) div.onpointerenter = () => {
@@ -581,14 +589,14 @@ export function buildTaxes(): void {
       () => {
         const fx = types.map((t) => city.demand.taxEffect[t]);
         return Math.min(...fx) < 0 ? Math.min(...fx) : Math.max(...fx);
-      }));
+      }, types));
   }
   const detail = document.createElement('details');
   detail.open = taxDetail;
   detail.ontoggle = () => (taxDetail = detail.open);
   detail.innerHTML = '<summary>소득·유형별 세율</summary>';
   // (In words, as the demand bars name them: the codes R$, Cs$$ led each row with the words small under them.)
-  for (const t of DEV_TYPES) detail.append(row(TYPE_SHORT[t], TYPE_NAME[t], () => city.state.taxRates[t], (v) => choice('세율', () => city.setTaxRate(t, v)), undefined, () => city.demand.taxEffect[t]));
+  for (const t of DEV_TYPES) detail.append(row(TYPE_SHORT[t], TYPE_NAME[t], () => city.state.taxRates[t], (v) => choice('세율', () => city.setTaxRate(t, v)), undefined, () => city.demand.taxEffect[t], [t]));
   el.append(detail);
   const note = document.createElement('p');
   note.className = 'legend';
