@@ -884,7 +884,9 @@ function worstSpots(n: number, value: (i: number) => number, at: number): { coun
 
 /** A categorical legend against the map: each swatch with how many tiles show it, faint where none do. */
 function markLegend(byColor: Map<string, number>): void {
-  for (const item of document.querySelectorAll<HTMLElement>('#overlay-legend .swatch-item[data-color]')) {
+  const legend = $('#overlay-legend');
+  const items = [...legend.querySelectorAll<HTMLElement>('.swatch-item[data-color]')];
+  for (const item of items) {
     const k = byColor.get(item.dataset.color!) ?? 0;
     item.classList.toggle('absent', !k);
     let count = item.querySelector('small');
@@ -901,6 +903,26 @@ function markLegend(byColor: Map<string, number>): void {
       item.title = '';
     }
   }
+  // The colours on the map first, the most first; the rest folded under 나머지 N개 (thirteen small entries, most
+  // of them greyed to nothing, crowded the card). With none on the map at all, all are shown as the key.
+  const count = (el: HTMLElement) => byColor.get(el.dataset.color!) ?? 0;
+  const sorted = [...items].sort((a, b) => count(b) - count(a));
+  if (sorted.some((el, k) => el !== items[k])) legend.prepend(...sorted);
+  const absent = items.filter((el) => !count(el)).length;
+  let rest = legend.querySelector<HTMLButtonElement>('.legend-rest');
+  if (absent && absent < items.length) {
+    if (!rest) {
+      rest = document.createElement('button');
+      rest.type = 'button';
+      rest.className = 'link legend-rest';
+      rest.onclick = () => {
+        legend.classList.toggle('show-rest');
+        markLegend(byColor);
+      };
+      legend.append(rest);
+    }
+    rest.textContent = legend.classList.contains('show-rest') ? '접기' : `나머지 ${absent}개`;
+  } else rest?.remove();
 }
 
 /** The tiles the growth view paints a colour (a blocker's empty zone tiles; abandoned or failing buildings), for 찾아가기. */
