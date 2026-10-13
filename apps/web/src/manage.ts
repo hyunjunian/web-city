@@ -526,6 +526,11 @@ function goalStep(id: GoalId): GuideStep {
   // A landfill laid since the month's tally: nothing more to lay until it takes its first month (the list, reading
   // last month's figures, offered a second one beside it).
   if (worst?.code === 'landfillNew') return { kind: 'open', what: '', why: '', fixAct: '', act: '', glyph: '', sub: '', fx: '', site: false, wait: '쓰레기 수치는 매달 말에 다시 셉니다. 그때부터 새 매립지가 쓰레기를 받습니다' };
+  // (One no road reaches: the road to it, not one more landfill beside it.)
+  if (worst?.code === 'landfillNewNoRoad') {
+    const t = TOOLS.find((x) => x.id === 'road');
+    return { kind: 'fix', what: '도로', why: '새 매립지 옆까지 도시의 도로를 이으면 다음 달부터 쓰레기를 받습니다', fixAct: 'road', act: 'road', glyph: t ? toolGlyph(t) : '', sub: '', fx: '', site: false };
+  }
   // A station cut off from the roads that the card leads with (its crews can't leave): the road to it, laid at once.
   // (Only garbage piling at a plant waits behind what the list puts first: the line to the dark zones.)
   const road = worst?.code === 'facilityNoRoad' && worst.level === 'bad' ? roadStep(worst) : null;
