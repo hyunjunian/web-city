@@ -766,7 +766,7 @@ function nextHtml(tones: Tone[]): Step {
       <p class="lead-do">${free ? (inc.riot ? riotHint(free) : inc.goal === 'fire' ? '소방차를 보내 불을 끄세요' : '경찰을 보내 체포하세요') : `보낼 ${unitName(inc.goal)}가 없습니다 · ${inc.goal === 'fire' ? '소방서' : '경찰서'}부터`}</p>
       <div class="next-acts"><button type="button" class="primary next-do" data-next="${inc.goal}" data-next-kind="incident" data-next-at="${inc.at.join(',')}"${free ? ` aria-label="출동 준비, 출동 가능 ${free}대"` : ''}>${free ? `출동 준비<small class="next-count">${free}대 가능</small>` : '화면 열기'}</button>${free
         // (Or one unit at once to where it is worst, without hunting for it on the map: a press a unit, as the map's.)
-        ? `<button type="button" class="link next-send" data-send="${inc.goal}" data-send-at="${inc.at.join(',')}" title="${inc.goal === 'fire' ? '가장 급한 불(발전소, 소방서 반경 밖 순)에 소방차 한 대를' : inc.riot ? '폭동에 경찰차 한 대를' : '가장 먼저 불을 지를 방화범에게 경찰차 한 대를'} 지금 보냅니다">바로 보내기</button>` : ''}</div></div>` };
+        ? `<button type="button" class="link next-send" data-send="${inc.goal}" data-send-at="${inc.at.join(',')}" title="${inc.goal === 'fire' ? '가장 급한 불(발전소, 소방서 반경 밖, 끄러 가는 차가 없는 불 순)에 소방차 한 대를' : inc.riot ? '폭동에 경찰차 한 대를' : '가장 먼저 불을 지를 방화범에게 경찰차 한 대를'} 지금 보냅니다">바로 보내기</button>` : ''}</div></div>` };
   }
   // The most serious, not the first in the list: no power or water, money running out, a fire, before
   // traffic or wealth (rubbish on two roadless lots led the card while the jail let criminals go).
@@ -1364,8 +1364,9 @@ function buildActions(g: Goal): string {
     }
   }
   const g2 = st.garbage;
-  // (Not with a landfill laid since the month's tally, which these figures don't know yet.)
-  const landfillFirst = g === GOALS.garbage && g2.produced > 0 && !freshLandfill()?.joined && (g2.capacity <= 0 || (g2.landfillSpace >= 0 && g2.landfillSpace < Math.max(0, (g2.kept || g2.produced - g2.recycled) - g2.incinerated) * 6));
+  // (Not with a landfill laid since the month's tally, which these figures don't know yet: one no road reaches wants
+  // the road, which the screen leads with.)
+  const landfillFirst = g === GOALS.garbage && g2.produced > 0 && !freshLandfill() && (g2.capacity <= 0 || (g2.landfillSpace >= 0 && g2.landfillSpace < Math.max(0, (g2.kept || g2.produced - g2.recycled) - g2.incinerated) * 6));
   for (const id of order) {
     const t = TOOLS.find((x) => x.id === id);
     if (!t) continue;

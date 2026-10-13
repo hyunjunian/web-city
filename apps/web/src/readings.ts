@@ -155,7 +155,8 @@ function readStatus(id: GoalId): Status {
       if (!g.produced && !g.capacity) return pick('', '—', '아직 쓰레기 없음 · 주민이 들어오면 매립지가 필요');
       // (A landfill laid since the month's tally: waiting for it, not red and "못 치움" as if nothing were done.)
       const fresh = freshLandfill();
-      if (fresh?.joined && (g.uncollected > 1 || (months !== null && months < 6))) return now('warn', `${short(g.kept || g.produced - g.recycled)} t/월`, '새 매립지 · 다음 달부터 수거');
+      const room = (fresh?.joined ? fresh.tiles : 0) * city.cfg.garbage.landfill.tileCapacity;
+      if (room >= Math.max(1, (g.kept || g.produced - g.recycled) - g.incinerated) && (g.uncollected > 1 || (months !== null && months < 6))) return now('warn', `${short(g.kept || g.produced - g.recycled)} t/월`, '새 매립지 · 다음 달부터 수거');
       return pick(f.tone as Tone, `${short(g.kept || g.produced - g.recycled)} t/월`,
         g.uncollected > 1 ? `못 치움 ${fmt(g.uncollected)} t` : months !== null ? `매립지 ${landfillSpan(months)} 남음` : '매립·소각·재활용', f.ratio);
     }
@@ -1682,15 +1683,27 @@ export function freshLandfill(): { tiles: number; joined: boolean } | null {
   }
   const key = `${tally}|${city.revision}|${cityGeneration}`;
   if (freshMemo?.key === key) return freshMemo.fresh;
-  let tiles = 0;
-  let joined = false;
   const n = city.size;
-  for (let i = 0; i < s.zone.length; i++) {
-    if (s.zone[i] !== 10 || talliedLandfill.tiles.has(i)) continue;
-    tiles++;
-    joined ||= city.roadBeside(i % n, Math.floor(i / n), 1, 1);
+  const laid: number[] = [];
+  for (let i = 0; i < s.zone.length; i++) if (s.zone[i] === 10 && !talliedLandfill.tiles.has(i)) laid.push(i);
+  // Joined as the trucks find it: anywhere along the landfill it is part of (a strip laid onto a full one away from its
+  // road read "새 매립지 옆에 도로가 없습니다", and took 1,176 t at the tally).
+  const seen = new Set(laid);
+  const queue = [...laid];
+  let joined = false;
+  for (let h = 0; h < queue.length && !joined; h++) {
+    const i = queue[h]!;
+    const x = i % n;
+    const y = (i - x) / n;
+    if (city.roadBeside(x, y, 1, 1)) joined = true;
+    for (const j of [x > 0 ? i - 1 : -1, x < n - 1 ? i + 1 : -1, y > 0 ? i - n : -1, y < n - 1 ? i + n : -1]) {
+      if (j >= 0 && s.zone[j] === 10 && !seen.has(j)) {
+        seen.add(j);
+        queue.push(j);
+      }
+    }
   }
-  freshMemo = { key, fresh: tiles ? { tiles, joined } : null };
+  freshMemo = { key, fresh: laid.length ? { tiles: laid.length, joined } : null };
   return freshMemo.fresh;
 }
 
@@ -2151,23 +2164,29 @@ export function incidents(): Incident[] {
   const free = city.freeUnits('fire') > 0;
   let unfought = false;
   let pending = false;
+  let alone: [number, number] | undefined; // the first fire nobody is putting out
   for (const f of s.fires) {
     const r = f.target > 0 ? s.buildings.get(f.target) : s.structures.get(-f.target);
     if (!r) continue;
     let best = 0;
     for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) best = Math.max(best, cover[y * n + x] ?? 0);
     if (best >= pps * f.stage || crewAt(r.x + r.w / 2, r.y + r.h / 2)) continue;
-    if (f.days < 1 && free) pending = true;
-    else unfought = true;
+    // (A crew goes out to a fire in the step after its first day is counted: one reading 1 day is still to be met.)
+    if (f.days <= 1 && free) pending = true;
+    else {
+      unfought = true;
+      alone ??= [r.x, r.y];
+    }
   }
   unfought ||= s.treeFires.some((t) => (cover[t.i] ?? 0) < pps && !crewAt((t.i % n) + 0.5, Math.floor(t.i / n) + 0.5));
   const fireUrgent = fire.length >= 3 || onPlant || outside || unfought;
   // (Said as what it costs if left, as the rows say it: what to do is the card's above them.)
   const why = onPlant ? '발전소가 타는 중 · 폭발할 수 있음' : outside ? '소방서 반경 밖 · 번질 수 있음' : unfought ? '끄러 가는 소방차가 없음 · 번질 수 있음'
     : fireUrgent ? '번지는 중' : pending ? '소방서가 곧 출동' : '소방서가 끄는 중';
-  // Where it is worst, first (where 보기 and 바로 보내기 go): a plant alight, then a fire beyond reach.
+  // Where it is worst, first (where 보기 and 바로 보내기 go): a plant alight, then a fire beyond reach, then one nobody
+  // is putting out (the card said no truck was coming and sent the next one to the fire that had its crew).
   const plantLot = s.fires.map((f) => (f.target < 0 ? s.structures.get(-f.target) : undefined)).find((st) => !!st && !!STRUCTURES[st.kind].plant);
-  const worst: [number, number] | undefined = plantLot ? [plantLot.x, plantLot.y] : fire.find(([x, y]) => (cover[y * s.size + x] ?? 0) <= 0);
+  const worst: [number, number] | undefined = plantLot ? [plantLot.x, plantLot.y] : fire.find(([x, y]) => (cover[y * s.size + x] ?? 0) <= 0) ?? alone;
   if (fire.length) list.push({ goal: 'fire', title: `불이 났습니다: ${fmt(fire.length)}곳`, at: worst ?? fire[0]!, places: fire, tool: 'send-fire', urgent: fireUrgent, why, plant: onPlant });
   if (s.mobs.length) list.push({ goal: 'police', title: `폭동이 일어났습니다: ${fmt(s.mobs.length)}곳`, at: [s.mobs[0]!.x, s.mobs[0]!.y], places: s.mobs.map((m) => [m.x, m.y]), tool: 'send-police', urgent: true, riot: true });
   // Arsonists show up before they strike: police on the spot lock them up.

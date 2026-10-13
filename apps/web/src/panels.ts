@@ -662,6 +662,8 @@ export const currentAdvice = (): typeof adviceCache => {
     const d = city.demand;
     const out: typeof adviceCache = [];
     const room = (fresh?.tiles ?? 0) * city.cfg.garbage.landfill.tileCapacity;
+    // (Enough for a month of it: one new tile against 782 t a month is no answer to wait for.)
+    const month = Math.max(1, (g.kept || g.produced - g.recycled) - g.incinerated);
     for (const a of adviceCache) {
       // Garbage advice from before the month's tally that the tally has answered since (nothing left lying, room for
       // six months): gone until the advisors next look, which they do by the week (a new landfill read "가득 차" in red
@@ -669,7 +671,7 @@ export const currentAdvice = (): typeof adviceCache => {
       if ((a.code === 'garbagePiling' && g.uncollected - (g.stranded ?? 0) <= 1) || (a.code === 'landfillFull' && g.landfillSpace / Math.max(1, g.landfilled) >= 6)) continue;
       // A landfill laid since the month's tally, which still calls the old one full (or filling): said as the new one,
       // not "가득 차 · 더 지정하세요", which had a second landfill laid beside it. (One no road reaches: the road it needs.)
-      if (fresh && ((a.code === 'garbagePiling' && a.value === 1) || (a.code === 'landfillFull' && (g.landfillSpace + room) / Math.max(1, g.landfilled) >= 6))) {
+      if (fresh && ((a.code === 'garbagePiling' && a.value === 1 && room >= month) || (a.code === 'landfillFull' && (g.landfillSpace + room) / Math.max(1, g.landfilled) >= 6))) {
         out.push({ ...a, code: fresh.joined ? 'landfillNew' : 'landfillNewNoRoad', value: fresh.tiles, level: fresh.joined ? 'neutral' as const : 'bad' as const });
         continue;
       }

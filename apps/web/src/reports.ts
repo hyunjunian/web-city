@@ -109,7 +109,7 @@ export function renderRewards(): void {
       <div class="bar"><div class="fill" style="width:${(r.share * 100).toFixed(1)}%"></div></div>
       <span class="value">${Math.round(r.share * 100)}%</span></div>
       <p class="rw-need">${missing.length ? `열리려면 ${missing.map(checkLeft).join(' · ')}` : '이번 달에 열립니다'}</p></div>`;
-  }).join('') + '<p class="legend">아직 얻지 못한 보상 중 조건을 많이 채운 순서(매달 갱신).</p>'
+  }).join('') + '<p class="legend">아직 얻지 못한 보상 중 열리기에 가까운 순서: 가장 덜 찬 조건이 많이 찬 것부터(매달 갱신).</p>'
     : '<p class="muted">남은 보상이 없습니다.</p>';
 }
 

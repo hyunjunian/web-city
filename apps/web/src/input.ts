@@ -725,14 +725,14 @@ function reachAt(kind: StructureKind, x: number, y: number): number {
   return r && def.fire?.needsRoad && !city.roadBeside(x, y, def.w, def.h) ? r * city.cfg.safety.fireNoRoad : r;
 }
 
-/** Buildings without water that a pump or tower at (x, y) would water on its own, within the pipes' reach of it. */
-function wateredBy(kind: StructureKind, x: number, y: number): number {
+/** Buildings within the pipes' reach of a pump or tower at (x, y), which it waters on its own: those without water, and all. */
+function wateredBy(kind: StructureKind, x: number, y: number, all = false): number {
   const def = STRUCTURES[kind];
   if (!def.pump) return 0;
   const r = city.cfg.services.waterRadius;
   let n = 0;
   for (const b of city.state.buildings.values()) {
-    if (!b.type || b.watered) continue;
+    if (!b.type || (b.watered && !all)) continue;
     if (b.x <= x + def.w - 1 + r && b.x + b.w - 1 >= x - r && b.y <= y + def.h - 1 + r && b.y + b.h - 1 >= y - r) n++;
   }
   return n;
@@ -764,7 +764,7 @@ function siteWarnings(kind: StructureKind, x: number, y: number): string {
   const piped = !def.pump || pipedAt(kind, x, y);
   // (Alone it still waters what stands within the pipes' reach of it: a warning only with nothing there to water — a
   // tower beside 26 dry buildings was told in red it sent water nowhere, and watered 18 of them.)
-  const dry = piped || wateredBy(kind, x, y) > 0 ? '' : ' · ⚠ 주변에 물을 쓸 건물이 없음 (수도관을 이어야 멀리 보냄)';
+  const dry = piped || wateredBy(kind, x, y, true) > 0 ? '' : ' · ⚠ 주변에 물을 쓸 건물이 없음 (수도관을 이어야 멀리 보냄)';
   // A dirty plant (or an incinerator) beside homes: its smoke drives residents away (it is the commonest early mistake).
   // (Coal and oil as far as their smoke stays thick, as the guide sites them: within half its reach, a coal plant 10
   // tiles off was let by unwarned and its homes breathed 80.)
