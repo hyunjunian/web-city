@@ -8,7 +8,7 @@ import type { EduCurve } from '../data/structures';
 import { interp } from '../data/services';
 import { ordinanceEffects } from './mayor';
 import { edgeOf, neighbourWorkEdges } from './region';
-import { atGrade, idx, Net, tilesLinked, isAsphalt, isLocalNet, structureFunding, Terrain, zoneInfo, type Building, type CityState, type Rect } from './state';
+import { atGrade, idx, Net, tilesLinked, isAsphalt, isLocalNet, structureFunding, structureOnline, Terrain, zoneInfo, type Building, type CityState, type Rect } from './state';
 import { connectionTiles, type TravelFields } from './transport';
 import { utilityEmissionShare } from './energy';
 
@@ -881,7 +881,7 @@ export function* computeEffectFieldsSteps(s: CityState, f: Fields, cfg: SimConfi
   for (const st of s.structures.values()) {
     if ((++piece6 & 0x1ff) === 0) yield;
     const t = cfg.structures[st.kind].treatment;
-    if (!t || !st.powered) continue;
+    if (!t || !st.powered || !structureOnline(s, st)) continue;
     const startUp = Math.min(1, st.life / ((2 * 100) / (t.lifeYears * 12)));
     // (Water Department underfunding reduces its efficiency, as it does a pump's output.)
     const k = startUp * interp(cfg.services.waterOutputByAge, st.life) * Math.min(1, s.departments.water / 100);

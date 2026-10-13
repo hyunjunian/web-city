@@ -388,6 +388,13 @@ export interface Structure extends Rect {
   /** Schools and hospitals: local bus/ambulance funding in percent (absent = 100). */
   vehicleFunding?: number;
   powered: boolean;
+  /** Planned overhaul: output is suspended before this simulation day. Absent when online. */
+  offlineUntilDay?: number;
+}
+
+/** Whether a facility can produce today (construction machinery is offline during an overhaul). */
+export function structureOnline(s: Pick<CityState, 'day'>, st: Structure): boolean {
+  return st.offlineUntilDay === undefined || st.offlineUntilDay <= s.day;
 }
 
 export interface BudgetReport {

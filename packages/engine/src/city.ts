@@ -303,6 +303,7 @@ export class City {
     this.networkDirtyFlag = v;
   }
   private fares = 0;
+  private nextOverhaulDay = Infinity;
   private reports: DamageReport[] = [];
   private endedDeals: NeighbourDeal[] = [];
   private repricedDeals: { deal: NeighbourDeal; was: number }[] = [];
@@ -396,6 +397,7 @@ export class City {
         landfill: new Float32Array(size * size),
         garbageStats: {
           produced: 0, recycled: 0, incinerated: 0, landfilled: 0, uncollected: 0, piled: 0, capacity: 0, landfillSpace: 0,
+          kept: 0,
         },
         rubble: new Uint8Array(size * size),
         crime: new Float32Array(size * size),
@@ -1893,22 +1895,29 @@ export class City {
     return POWER_DISPATCHES.includes(strategy) ? energyReport(this.state, this.cfg, this.fields, this.power, strategy) : null;
   }
 
-  /** Overhauls an ageing utility on its existing site, retaining its id, name and connections. Restores machinery to 20% life used by default; `preview` only prices it. */
-  refurbishStructure(id: number, preview = false): ToolResult & { lifeBefore?: number; lifeAfter?: number } {
+  /** Overhauls an ageing utility on its existing site, retaining its id, name and connections. Restores machinery to 20% life used with seven days of suspended output by default; `preview` only prices it. */
+  refurbishStructure(id: number, preview = false): ToolResult & { lifeBefore?: number; lifeAfter?: number; offlineUntilDay?: number } {
     this.refreshIfDirty();
     const s = this.state;
     const st = s.structures.get(id);
     if (!st) return { ok: false, cost: 0, message: 'no such structure' };
     const outlook = assetOutlook(s, this.cfg, st);
     if (!outlook) return { ok: false, cost: 0, message: 'this structure has no ageing machinery' };
+    if (st.offlineUntilDay !== undefined) return { ok: false, cost: 0, message: 'this facility is already being overhauled' };
     if (!outlook.refurbishment.eligible) return { ok: false, cost: 0, message: 'the machinery does not need an overhaul yet' };
     if (s.fires.some((fire) => fire.target === -id)) return { ok: false, cost: 0, message: 'put out the fire before an overhaul' };
-    const { cost, lifeAfter } = outlook.refurbishment;
+    const { cost, lifeAfter, downtimeDays } = outlook.refurbishment;
     if (cost > s.funds) return { ok: false, cost, message: 'not enough funds' };
-    const result = { ok: true, cost, lifeBefore: st.life, lifeAfter };
+    const offlineUntilDay = s.day + downtimeDays;
+    if (!Number.isSafeInteger(offlineUntilDay)) return { ok: false, cost: 0, message: 'the city clock cannot schedule an overhaul' };
+    const result = { ok: true, cost, lifeBefore: st.life, lifeAfter, ...(downtimeDays > 0 ? { offlineUntilDay } : {}) };
     if (!preview) {
       s.funds -= cost;
       st.life = lifeAfter;
+      if (downtimeDays > 0) {
+        st.offlineUntilDay = offlineUntilDay;
+        this.nextOverhaulDay = Math.min(this.nextOverhaulDay, offlineUntilDay);
+      }
       this.effectsDirty = true;
       if (!this.batching) this.refreshIfDirty();
     }
@@ -2160,6 +2169,7 @@ export class City {
     if (this.censusStale) yield* this.updateDemandSteps();
     for (const o of s.ordinances) s.ordinanceDays[o] = (s.ordinanceDays[o] ?? 0) + 1;
     s.day++;
+    const overhaulsFinished = s.day >= this.nextOverhaulDay && this.finishOverhauls();
     if (s.day % DAYS_PER_MONTH === 0) {
       yield;
       yield* this.monthSteps();
@@ -2168,6 +2178,8 @@ export class City {
       // Plants aged, buildings left and loads moved after the month's
       // refresh: catch the fields up, so the figures a save made now reports
       // (power and water capacity, loads) are those a city loaded from it has.
+      yield* this.refreshSteps({ travel: false });
+    } else if (overhaulsFinished) {
       yield* this.refreshSteps({ travel: false });
     }
     s.rngState = this.rng.state;
@@ -2895,6 +2907,7 @@ export class City {
   /** `refresh` in steps: a pause between fields (see `steps`). */
   private *refreshSteps(opts: { travel?: boolean } = {}): Generator<void, void> {
     const s = this.state;
+    this.finishOverhauls();
     // Access, road components, land value and slope depend only on networks,
     // zones and terrain: every edit to those marks the network dirty.
     if (this.networkDirty || !this.networkFieldsReady) {
@@ -2923,6 +2936,22 @@ export class City {
     this.effectsDirty = false;
     yield;
     yield* this.updateDemandSteps();
+  }
+
+  /** Only completion days scan for deadlines during stepping; regular refreshes pick up loaded or edited schedules. */
+  private finishOverhauls(): boolean {
+    let finished = false;
+    let next = Infinity;
+    for (const st of this.state.structures.values()) {
+      if (st.offlineUntilDay === undefined) continue;
+      if (st.offlineUntilDay <= this.state.day) {
+        delete st.offlineUntilDay;
+        finished = true;
+      } else next = Math.min(next, st.offlineUntilDay);
+    }
+    this.nextOverhaulDay = next;
+    if (finished) this.effectsDirty = true;
+    return finished;
   }
 
   private updateDemand(): void {

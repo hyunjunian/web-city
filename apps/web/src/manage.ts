@@ -5,7 +5,7 @@
 // all on the same panel; the map, tool and info card follow from it.
 
 import { placeAt } from './input';
-import { DEV_TYPES, type DevType, Net, NETWORK_KINDS, ORDINANCES, STRUCTURES, type HistoryPoint, type OrdinanceId, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
+import { DEV_TYPES, type DevType, Net, NETWORK_KINDS, ORDINANCES, POWER_DISPATCHES, STRUCTURES, type HistoryPoint, type OrdinanceId, type PowerDispatch, type RepairDepartment, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
 import { icon } from './icons';
 import { chooseSpeed, refreshTaxes, runningSpeed, showOverlay, toggleFocus, viewEmpty } from './controls';
 import { redrawInfo, refreshInfo, riotNear, showInfo } from './info';
@@ -2155,6 +2155,49 @@ function diagnosis(a: ReturnType<typeof adviceFor>[number], lead: ReturnType<typ
 }
 
 /** The goal's panel. */
+const DISPATCH_NAME: Record<PowerDispatch, string> = { balanced: '가동률 균등', economical: '발전비 우선', clean: '저오염 우선' };
+const REPAIR_NAME: Record<RepairDepartment, string> = { roads: '도로', transit: '철로', power: '송전선', water: '수도관' };
+let operationsMemo: { key: string; goal: GoalId; html: string } | null = null;
+
+/** Operating decisions are read only for the open management screen and cached between city changes. */
+function operationsHtml(id: GoalId): string {
+  if (!['power', 'water', 'traffic', 'finance'].includes(id)) return '';
+  if (city.stepping) return operationsMemo?.goal === id ? operationsMemo.html : '';
+  const key = `${changeKey()}|${id}|${city.state.funds}|${city.state.powerDispatch}`;
+  if (operationsMemo?.key === key) return operationsMemo.html;
+  const infrastructure = city.infrastructureReport();
+  let html = '';
+  if (id === 'power' && infrastructure.power.some((network) => network.sources.length)) {
+    const reports = POWER_DISPATCHES.map((strategy) => city.energyReport(strategy)!);
+    html += `<section class="mg-sec"><h3>${icon('zap')}발전 운영</h3><div class="mg-views" role="group" aria-label="발전 운영 전략">${reports.map((report) =>
+      `<button type="button" class="vchip" data-power-dispatch="${report.strategy}" aria-pressed="${(city.state.powerDispatch ?? 'balanced') === report.strategy}" title="지금 전력 수요에서의 발전비 · 정비비는 별도">${DISPATCH_NAME[report.strategy]} · 발전비 월 §${fmt(report.generationCost)}</button>`).join('')}</div>
+      <p class="muted">부하를 맡은 발전소는 더 빨리 늙습니다. 저오염 운전은 오염을 줄이는 대신 발전비가 늘 수 있습니다.</p></section>`;
+  }
+  if (id === 'power' || id === 'water') {
+    const networks = infrastructure[id];
+    const fragile = networks.filter((network) => network.demand > 0 && network.contingencyShortfall > 0);
+    const worst = [...fragile].sort((a, b) => b.contingencyShortfall - a.contingencyShortfall)[0];
+    if (networks.length) html += `<section class="mg-sec"><h3>${icon('info')}공급 여유와 예비 시설</h3><p class="${fragile.length ? 'muted' : 'pos'}">${fragile.length ? `가장 큰 공급원 하나가 멈추면 부족해지는 망 ${fmt(fragile.length)}개` : '현재 수요에서 최대 공급원 하나가 멈춰도 용량이 충분합니다'}</p>${worst ?
+      `<p>가장 취약한 망: ${fmt(worst.contingencyShortfall)} ${id === 'power' ? 'MWh' : 'm³'} 부족 <button type="button" class="advice-view" data-at="${worst.x},${worst.y}">망 보기</button></p>` : ''}<small class="muted">현재 수요·이용 배정 기준입니다. 개보수 전 예비 시설이나 수입 거래를 확보하세요.</small></section>`;
+  }
+  const departments: RepairDepartment[] = id === 'power' ? ['power'] : id === 'water' ? ['water'] : id === 'traffic' ? ['roads', 'transit'] : [];
+  const damaged = departments.filter((dept) => infrastructure.repairs[dept].tiles > 0);
+  if (damaged.length) html += `<section class="mg-sec"><h3>${icon('road')}손상 구간 수리</h3><div class="mg-views">${damaged.map((dept) => {
+    const repair = infrastructure.repairs[dept];
+    return `<button type="button" class="vchip" data-repair-network="${dept}"${repair.cost > city.state.funds ? ' disabled' : ''}>${REPAIR_NAME[dept]} ${fmt(repair.tiles)}칸 · §${fmt(repair.cost)}</button>`;
+  }).join('')}</div><p class="muted">손상된 구간만 고칩니다. 부서 예산이 부족하면 다시 닳습니다.</p></section>`;
+  if (id === 'finance') {
+    const current = city.budgetForecast(12);
+    const stress = city.budgetForecast(12, { taxIncomeMultiplier: 0.8 });
+    const capital = infrastructure.capitalNeeded;
+    html += `<section class="mg-sec"><h3>${icon('wallet')}12개월 자금 전망</h3><p>최저 자금 <b class="${current.minimumFunds < 0 ? 'neg' : ''}">§${fmt(current.minimumFunds)}</b>${current.firstNegativeMonth !== null ? ` · ${current.firstNegativeMonth === 0 ? '지금' : `${current.firstNegativeMonth}개월 후`} 자금 부족` : ''}</p>
+      <p class="muted">세입이 20% 줄면 최저 §${fmt(stress.minimumFunds)} · 1년 안에 수명이 끝날 시설의 개보수 비용 §${fmt(capital)}</p>
+      <small class="muted">지금 세입·운영비·거래 가격을 유지한 전망입니다. 대출 만기는 반영하고 성장·노후화·재해는 제외합니다.</small></section>`;
+  }
+  operationsMemo = { key, goal: id, html };
+  return html;
+}
+
 function goalHtml(id: GoalId): string {
   const g = GOALS[id];
   const s = goalStatus(id);
@@ -2206,6 +2249,7 @@ function goalHtml(id: GoalId): string {
     ${buildActions(g)}
     ${dealActions(id)}
     ${budgetActions(g, list)}
+    ${operationsHtml(id)}
     ${id === 'finance' ? '' : ordinanceActions(g)}
     ${log(id)}
     ${list.length ? `<section class="mg-sec"><h3>${icon('landmark')}시설 ${list.length}곳${allDept ? '<small class="sec-note">부서 예산으로 운영</small>' : ''}</h3><div class="mg-facs">${shown.map((f) => {
@@ -2265,7 +2309,7 @@ export function renderGoal(force = false): void {
 }
 
 /** Attributes that pick out a control again after the panel is redrawn. */
-const KEYS = ['data-spot', 'data-spot-build', 'data-widen', 'data-line-path', 'data-landfill', 'data-zone', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-goal', 'data-mg-tab', 'data-at'];
+const KEYS = ['data-spot', 'data-spot-build', 'data-widen', 'data-line-path', 'data-landfill', 'data-zone', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-goal', 'data-mg-tab', 'data-at', 'data-power-dispatch', 'data-repair-network'];
 
 /** A selector for the focused control inside the goal panel, to give focus back after a redraw ('' if none). */
 function focusKey(el: Element | null): string {
@@ -2418,6 +2462,54 @@ export function setupGoals(): void {
   document.addEventListener('click', (e) => {
     // A striking facility's 예산 100%로 (the strike ends with the month).
     const fund = (e.target as HTMLElement).closest<HTMLElement>('#info [data-fund-full]');
+    const dispatch = (e.target as HTMLElement).closest<HTMLElement>('#manage [data-power-dispatch]');
+    if (dispatch) {
+      const strategy = dispatch.dataset.powerDispatch as PowerDispatch;
+      const result = choice('발전 운영', () => city.setPowerDispatch(strategy));
+      if (result.ok) {
+        noteAction(`발전 운영: ${DISPATCH_NAME[strategy]}`);
+        flash(`발전 운영을 ${DISPATCH_NAME[strategy]}으로 바꿨습니다`, 'info');
+      } else flash(ko(result.message ?? ''), 'bad');
+      updatePanels();
+      renderGoal(true);
+      redraw();
+      return;
+    }
+    const repair = (e.target as HTMLElement).closest<HTMLElement>('#manage [data-repair-network]');
+    if (repair) {
+      const department = repair.dataset.repairNetwork as RepairDepartment;
+      const drop = remember('망 수리');
+      const result = city.repairNetworks(department, 0, 0, city.size - 1, city.size - 1);
+      if (!result.ok) { drop(); flash(ko(result.message ?? '수리할 손상 구간이 없습니다'), 'bad'); }
+      else {
+        noteAction(`${REPAIR_NAME[department]} 수리 ${fmt(result.tiles)}칸 · −§${fmt(result.cost)}`);
+        flash(`${REPAIR_NAME[department]} ${fmt(result.tiles)}칸을 수리했습니다 · −§${fmt(result.cost)}`, 'info');
+      }
+      city.refreshIfDirty();
+      updatePanels();
+      renderGoal(true);
+      redrawInfo();
+      redraw();
+      return;
+    }
+    const overhaul = (e.target as HTMLElement).closest<HTMLElement>('#info [data-overhaul]');
+    if (overhaul) {
+      const id = Number(overhaul.dataset.overhaul);
+      const facility = city.state.structures.get(id);
+      const result = choice('시설 개보수', () => city.refurbishStructure(id));
+      if (!result.ok) flash(ko(result.message ?? ''), 'bad');
+      else {
+        const days = Math.max(0, (result.offlineUntilDay ?? city.state.day) - city.state.day);
+        const message = `${facility ? STRUCTURE_NAME[facility.kind] : '시설'} 개보수 · −§${fmt(result.cost)}${days ? ` · ${days}일 뒤 재가동` : ''}`;
+        noteAction(message);
+        flash(message, 'info');
+      }
+      updatePanels();
+      renderGoal(true);
+      redrawInfo();
+      redraw();
+      return;
+    }
     if (fund) {
       const f = city.state.structures.get(Number(fund.dataset.fundFull));
       if (!f) return;

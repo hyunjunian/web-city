@@ -8,10 +8,11 @@ import type { Rng } from '../rng';
 import { WEALTHS, type PerWealth } from '../types';
 import type { Fields } from './fields';
 import { ordinanceEffects } from './mayor';
-import { structureFunding, type Building, type CityState, type Structure } from './state';
+import { structureFunding, structureOnline, type Building, type CityState, type Structure } from './state';
 import { activeDeals, edgeTile } from './region';
 import { powerDispatchLoads } from './energy';
 import type { UtilityNetwork, UtilitySource } from './resilience';
+import { incineratorCapacity } from './garbage';
 
 export const EDU_CURVES = ['elementary', 'highSchool', 'college', 'university', 'library', 'mainLibrary', 'museum', 'artMuseum', 'privateSchool', 'opera'] as const;
 /** Higher education: the fuller school system on top of a basic school, library or museum. */
@@ -174,7 +175,8 @@ export function* computePowerSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   for (const st of s.structures.values()) {
     if ((++piece1 & 0x1ff) === 0) yield;
     const def = cfg.structures[st.kind];
-    st.capacity = def.plant ? plantCapacity(cfg, def, st, ord.gasPlantOutput) : st.capacity;
+    st.capacity = def.plant ? structureOnline(s, st) ? plantCapacity(cfg, def, st, ord.gasPlantOutput) : 0
+      : def.incinerator ? incineratorCapacity(s, cfg, st) : st.capacity;
     const g = gridOf(st);
     if (g < 0) continue;
     if (def.plant) {
@@ -184,7 +186,7 @@ export function* computePowerSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
     }
     // Waste to Energy: power in proportion to last month's garbage burned.
     if (def.incinerator) {
-      const power = st.load * def.incinerator.powerPerTon;
+      const power = structureOnline(s, st) ? st.load * def.incinerator.powerPerTon : 0;
       grids[g]!.supply += power;
       grids[g]!.wastePower += power;
     }
@@ -530,11 +532,7 @@ export function updateStrikes(s: CityState, cfg: SimConfig, rng: Rng): void {
   }
 }
 
-/**
- * Ages power plants and water pumps by funding and usage (the same tables
- * for both). Returns power plants that reached the end of their life; pumps
- * simply stop producing at 110%.
- */
+/** Nominal service life for equipment that ages; null for ordinary civic facilities. */
 export function utilityLifeYears(def: StructureDef): number | null {
   return def.plant?.lifeYears ?? def.pump?.lifeYears ?? def.incinerator?.lifeYears ?? def.recycling?.lifeYears ?? def.treatment?.lifeYears ?? null;
 }
@@ -545,11 +543,12 @@ export function utilityWear(s: CityState, cfg: SimConfig, st: Structure, plantWe
   const life = utilityLifeYears(def);
   if (!life) return 0;
   // Recycling centers and treatment plants have no throughput; treat them as fully used.
-  const usage = def.recycling || def.treatment ? 100 : Math.min(120, st.effectiveness * 100);
+  const usage = !structureOnline(s, st) ? 0 : def.recycling || def.treatment ? 100 : Math.min(120, st.effectiveness * 100);
   return (100 / (life * 12)) * interp(cfg.services.plantDecayByFunding, structureFunding(s, def, st))
     * interp(cfg.services.plantDecayByUsage, usage) * (def.plant ? plantWear : 1);
 }
 
+/** Monthly equipment wear; power plants expire at 100%, other utilities stop at 110%. */
 export function agePlants(s: CityState, cfg: SimConfig): Structure[] {
   const dead: Structure[] = [];
   const plantWear = ordinanceEffects(s).plantWear;
@@ -747,7 +746,7 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   let piece2 = 0;
   for (const st of pumps) {
     if ((++piece2 & 0x1ff) === 0) yield;
-    st.capacity = pumpCapacity(cfg, f, n, cfg.structures[st.kind], st, structureFunding(s, cfg.structures[st.kind], st));
+    st.capacity = structureOnline(s, st) ? pumpCapacity(cfg, f, n, cfg.structures[st.kind], st, structureFunding(s, cfg.structures[st.kind], st)) : 0;
     const g = net[st.y * n + st.x]!;
     pumpOn[g] ??= st;
     supply[g]! += st.capacity;

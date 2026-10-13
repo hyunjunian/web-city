@@ -300,6 +300,16 @@ export function showInfo(x: number, y: number): void {
   const riot = riotNear(x, y);
   const arson = city.state.arsonists.find((a) => Math.max(Math.abs(a.x - x), Math.abs(a.y - y)) <= 1);
   const chips = [
+    ...(() => {
+      if (!q.structure) return [];
+      const asset = city.assetOutlook(q.structure.id);
+      if (!asset) return [];
+      if (asset.offlineUntilDay !== null) return [`<span class="chip warn">개보수 중 · ${fmt(Math.max(0, asset.offlineUntilDay - city.state.day))}일 뒤 재가동</span>`];
+      if (!asset.refurbishment.eligible) return [];
+      const quote = city.refurbishStructure(q.structure.id, true);
+      const why = quote.message ? ko(quote.message) : `${asset.refurbishment.downtimeDays}일간 공급·처리를 멈춘 뒤 재가동합니다 · 수명 사용률 ${Math.round(asset.life)}% → ${Math.round(asset.refurbishment.lifeAfter)}%`;
+      return [`<button type="button" class="chip" data-overhaul="${q.structure.id}" title="${escapeHtml(why)}"${quote.ok ? '' : ' disabled'}>개보수 · ${asset.refurbishment.downtimeDays}일 중단 · §${fmt(quote.cost)}</button>`];
+    })(),
     b && !b.powered ? `<button type="button" class="chip bad"${go('power')} title="${city.cfg.services.noPowerMonths}개월이 되면 버려집니다 · 눌러서 전력 화면">${icon('zap')}전기 끊김 ${b.noPowerMonths}/${city.cfg.services.noPowerMonths}개월</button>` : '',
     b?.type && !b.watered && waterNeeded ? `<button type="button" class="chip bad"${go('water')} title="${city.cfg.services.noWaterMonths}개월이 되면 버려집니다 · 눌러서 수도 화면">${icon('droplet')}물 끊김 ${b.noWaterMonths}/${city.cfg.services.noWaterMonths}개월</button>` : '',
     b?.type && b.noRoadMonths ? `<span class="chip bad" title="도로가 다시 이어지지 않으면 버려집니다">${icon('road')}도로 끊김 ${b.noRoadMonths}/${city.cfg.development.noRoadMonths}개월</span>` : '',
@@ -849,7 +859,7 @@ export function structureRows(st: Structure, withLoad = true): string {
     rows += `
       ${withLoad ? `<tr><td title="전력망 수요 가운데 이 발전소가 맡은 몫 / 발전 능력">발전량 / 능력</td><td>${fmt(st.load)} / ${fmt(st.capacity)} MWh</td></tr>` : ''}
       ${withLoad ? `<tr><td>가동률</td><td>${pct(st.effectiveness)}</td></tr>` : ''}
-      <tr><td title="예산·가동률에 따라 빨라지거나 느려집니다">상태 (수명)</td><td class="${st.life >= 85 ? 'neg' : ''}">${Math.round(100 - st.life)}% · 약 ${lifeLeft(st.life, def.plant.lifeYears)} 남음${st.life >= 90 ? ' · 폭발 위험' : ''}</td></tr>`;
+      <tr><td title="예산·가동률에 따라 빨라지거나 느려집니다">상태 (수명)</td><td class="${st.life >= 85 ? 'neg' : ''}">${Math.round(100 - st.life)}%${st.life >= 90 ? ' · 폭발 위험' : ''}</td></tr>`;
   } else if (def.health || def.school) {
     const grade = st.load > 0 ? Math.min(1, st.capacity / st.load) : 1;
     const n = Math.max(1, Math.ceil(grade * 5));
@@ -870,6 +880,13 @@ export function structureRows(st: Structure, withLoad = true): string {
     rows += `<tr><td>화물 운행</td><td>${fmt(st.load)} · 상한 완화 ${fmt(Math.min(def.seaport.relief, def.seaport.perTrip * st.load))}</td></tr>`;
   } else if (def.income) {
     rows += `<tr><td>월 수입</td><td class="pos">§${fmt(def.income)}</td></tr>`;
+  }
+  const asset = city.assetOutlook(st.id);
+  if (asset) {
+    const remaining = asset.monthsLeft;
+    const text = remaining === null ? '노후화 없음' : remaining === 0 ? '수명 소진' : remaining >= 24 ? `약 ${Math.floor(remaining / 12)}년` : `약 ${remaining}개월`;
+    rows += `<tr><td title="지금 가동률과 예산을 유지할 때의 전망">예상 잔여 수명</td><td>${text}</td></tr>`;
+    if (asset.offlineUntilDay !== null) rows += `<tr><td>개보수</td><td class="neg">${fmt(Math.max(0, asset.offlineUntilDay - city.state.day))}일 뒤 재가동</td></tr>`;
   }
   return rows;
 }
@@ -911,11 +928,6 @@ export function ordinanceSignature(): string {
 }
 
 /** Time left before a plant's life runs out, at its nominal aging rate (funding and load change it). */
-function lifeLeft(life: number, years: number): string {
-  const months = Math.max(0, Math.round((100 - life) / (100 / (years * 12))));
-  return months >= 24 ? `${Math.floor(months / 12)}년` : `${months}개월`;
-}
-
 /**
  * A jammed street or road's 대로로 넓히기: the jammed straight stretch through it widened in one press, with its
  * length and price, else (nothing jammed beyond it, a bridge refused) the avenue tool to draw it by hand.

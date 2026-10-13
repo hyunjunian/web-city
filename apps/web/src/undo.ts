@@ -50,7 +50,7 @@ export function choice<T>(label: string, make: () => T): T {
 }
 
 /** Choices that are settings: an undo or redo keeps them as they are now instead of taking them back. */
-const SETTINGS = new Set(['세율', '부서 예산', '시설 예산']);
+const SETTINGS = new Set(['세율', '부서 예산', '시설 예산', '발전 운영']);
 
 let stack: Entry[] = [];
 /** What undo took back, newest last: redo puts it back (a new edit forgets it). */
@@ -144,6 +144,7 @@ function open(snap: SavedCity): void {
     if (there.funding !== st.funding) restored.setFunding(id, st.funding);
     if (st.vehicleFunding !== undefined && there.vehicleFunding !== st.vehicleFunding) restored.setVehicleFunding(id, st.vehicleFunding);
   }
+  restored.setPowerDispatch(now.powerDispatch ?? 'balanced');
   setCity(restored, { keepCamera: true, keepSlot: true, sameCity: true });
   // The open city is the guarded one setCity made (not the loaded one itself): entries compare with it.
   for (const e of stack) e.owner = city;

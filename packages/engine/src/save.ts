@@ -438,6 +438,7 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     };
     if (!fits(full, full.w, full.h)) throw new Error(`corrupt save: structure ${full.id} is off the map`);
     if (!whole(full.id) || !Object.hasOwn(STRUCTURES, full.kind)) throw new Error(`corrupt save: structure ${full.id} has no known kind`);
+    if (full.offlineUntilDay !== undefined && !whole(full.offlineUntilDay)) throw new Error('corrupt save: bad overhaul deadline');
     claim(full, -1);
     structures.set(full.id, full);
   }

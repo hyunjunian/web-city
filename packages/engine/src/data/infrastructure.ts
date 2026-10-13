@@ -9,6 +9,8 @@ export const REFURBISHMENT = {
   /** Mobilisation plus the share of a replacement represented by recovered life. */
   fixedCostShare: 0.15,
   recoveredLifeCostShare: 0.85,
+  /** Planned works briefly suspend output; reserve capacity lets the city carry on. */
+  downtimeDays: 7,
 } as const;
 
 /** Network repairs retain the route and foundations; severe wear costs more to mend. */

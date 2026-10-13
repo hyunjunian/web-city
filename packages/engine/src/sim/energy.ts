@@ -29,6 +29,8 @@ export function plantEmissionShare(cfg: SimConfig, st: Structure, load = st.load
 
 /** Actual source-strength share of a plant or incinerator, for fields and clients explaining pollution. */
 export function utilityEmissionShare(cfg: SimConfig, st: Structure): number {
+  // The city's refresh clears expired overhaul markers before computing fields.
+  if (st.offlineUntilDay !== undefined) return 0;
   const def = cfg.structures[st.kind];
   return def.plant ? plantEmissionShare(cfg, st)
     : def.incinerator && st.capacity > 0 ? Math.max(0, Math.min(1, st.load / st.capacity)) : 0;

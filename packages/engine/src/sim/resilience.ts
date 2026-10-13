@@ -2,7 +2,7 @@ import type { SimConfig } from '../config';
 import type { Fields } from './fields';
 import type { PowerReport, WaterReport } from './services';
 import { activeDeals, edgeTile } from './region';
-import type { CityState } from './state';
+import { structureOnline, type CityState } from './state';
 import { assetOutlook, networkRepairCost, REPAIR_DEPARTMENTS, type AssetOutlook, type RepairDepartment } from './infrastructure';
 
 export interface UtilitySource {
@@ -80,7 +80,7 @@ export function infrastructureReport(s: CityState, cfg: SimConfig, f: Fields, po
     const outlook = assetOutlook(s, cfg, st);
     if (outlook) assets.push(outlook);
     const def = cfg.structures[st.kind];
-    const capacity = def.plant ? st.capacity : def.incinerator ? st.load * def.incinerator.powerPerTon : 0;
+    const capacity = def.plant ? st.capacity : def.incinerator && structureOnline(s, st) ? st.load * def.incinerator.powerPerTon : 0;
     const network = networks.get(f.powerGrid[st.y * s.size + st.x]!);
     if (capacity > 0 && network) {
       network.sources.push({ kind: def.plant ? 'plant' : 'incinerator', id: st.id, capacity, x: st.x, y: st.y });

@@ -223,9 +223,9 @@ Sets power dispatch within each grid: balanced shares the load, economical uses 
 
 Generation, plant operating costs and source emissions for today's grid demand. With a strategy, compares it without changing the city or advancing time; future growth, wear and pollution feedback are left out.
 
-### `refurbishStructure(id: number, preview = false): ToolResult & { lifeBefore?: number; lifeAfter?: number }`
+### `refurbishStructure(id: number, preview = false): ToolResult & { lifeBefore?: number; lifeAfter?: number; offlineUntilDay?: number }`
 
-Overhauls an ageing utility on its existing site, retaining its id, name and connections. Restores machinery to 20% life used by default; `preview` only prices it.
+Overhauls an ageing utility on its existing site, retaining its id, name and connections. Restores machinery to 20% life used with seven days of suspended output by default; `preview` only prices it.
 
 ### `previewRepairNetworks(dept: RepairDepartment, x0: number, y0: number, x1: number, y1: number): RepairPreview`
 

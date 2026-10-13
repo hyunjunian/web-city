@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { City, loadCity, saveCity, type RepairDepartment } from '../src';
+import { City, loadCity, saveCity, utilityEmissionShare, type RepairDepartment } from '../src';
 
 const calm = { safety: { fires: false }, disasters: { simulated: false }, mayor: { riots: false } };
 function town(): City {
@@ -33,6 +33,10 @@ describe('capital maintenance', () => {
     expect(city.refurbishStructure(plant.id)).toEqual(quote);
     expect(city.state.structures.get(plant.id)).toBe(plant);
     expect(plant.life).toBe(outlook.refurbishment.lifeAfter);
+    expect(plant.capacity).toBe(0);
+    expect(plant.offlineUntilDay).toBe(city.state.day + outlook.refurbishment.downtimeDays);
+    city.step(outlook.refurbishment.downtimeDays);
+    expect(plant.offlineUntilDay).toBeUndefined();
     expect(plant.capacity).toBeGreaterThan(output * 2);
     expect(city.structureUpkeep(plant.id)!.total).toBeLessThan(outlook.upkeep);
     expect(city.state.funds).toBe(funds - quote.cost);
@@ -48,12 +52,14 @@ describe('capital maintenance', () => {
     city.refresh();
     expect(pump.capacity).toBe(0);
     expect(city.refurbishStructure(pump.id).ok).toBe(true);
+    city.step(city.cfg.infrastructure.refurbishment.downtimeDays);
     expect(pump.capacity).toBeGreaterThan(0);
     city.bulldoze(3, 3, 3, 3);
     pump.life = 80;
     city.refresh();
     expect(pump.powered).toBe(false);
     expect(city.refurbishStructure(pump.id).ok).toBe(true);
+    city.step(city.cfg.infrastructure.refurbishment.downtimeDays);
     expect(pump.capacity).toBe(0);
   });
 
@@ -92,6 +98,107 @@ describe('capital maintenance', () => {
     expect(city.assetOutlook(plant.id)!.monthsLeft).toBeGreaterThan(busy.monthsLeft!);
     city.cfg.services.plantDecayByFunding = [[0, 0], [120, 0]];
     expect(city.assetOutlook(plant.id)!.monthsLeft).toBeNull();
+  });
+});
+
+describe('planned utility outages', () => {
+  it('keeps service running on a connected backup and resumes exactly at a deadline between weekly refreshes', () => {
+    const city = town();
+    city.placeStructure('gasPlant', 9, 3);
+    city.cfg.structures.coalPlant.powerUse = 1_000;
+    city.step(2);
+    const plant = [...city.state.structures.values()].find((st) => st.kind === 'coalPlant')!;
+    plant.life = 80;
+    city.refresh();
+    expect(city.refurbishStructure(plant.id).ok).toBe(true);
+    expect(city.energyReport()!.supply).toBe(3_000);
+    expect(city.infrastructureReport().power[0]!.status).not.toBe('shortage');
+    expect(plant.capacity).toBe(0);
+    expect(utilityEmissionShare(city.cfg, plant)).toBe(0);
+    city.step(6);
+    expect(plant.capacity).toBe(0);
+    city.step(1);
+    expect(city.state.day).toBe(9);
+    expect(plant.capacity).toBeGreaterThan(5_000);
+    expect(plant.offlineUntilDay).toBeUndefined();
+    expect(saveCity(loadCity(saveCity(city), { config: { ...calm, structures: { coalPlant: { powerUse: 1_000 } } } }))).toEqual(saveCity(city));
+  });
+
+  it('retains schedules through saving and sliced month boundaries, with staggered plant and pump resumptions', () => {
+    const city = town();
+    city.step(25);
+    const plant = [...city.state.structures.values()].find((st) => st.kind === 'coalPlant')!;
+    const pump = [...city.state.structures.values()].find((st) => st.kind === 'waterPump')!;
+    plant.life = 80;
+    pump.life = 80;
+    city.refresh();
+    city.refurbishStructure(plant.id);
+    city.step(1);
+    city.refurbishStructure(pump.id);
+    const saved = saveCity(city);
+    const sliced = loadCity(saved, { config: calm });
+    city.step(6);
+    expect(plant.capacity).toBeGreaterThan(0);
+    expect(pump.capacity).toBe(0);
+    city.step(1);
+    expect(pump.capacity).toBeGreaterThan(0);
+    sliced.beginSteps(7);
+    while (sliced.resume());
+    expect(saveCity(sliced)).toEqual(saveCity(city));
+  });
+
+  it('suspends waste energy and emissions while preserving the representative waste intake for resumption', () => {
+    const city = new City({ size: 48, water: false, config: calm });
+    city.state.funds = 1_000_000;
+    city.placeStructure('coalPlant', 2, 2);
+    city.buildPowerLine(6, 3, 40, 3);
+    expect(city.placeStructure('wasteToEnergyPlant', 10, 5).ok).toBe(true);
+    const waste = [...city.state.structures.values()].find((st) => st.kind === 'wasteToEnergyPlant')!;
+    waste.life = 80;
+    waste.load = 100;
+    city.refresh();
+    expect(city.energyReport()!.wasteGeneration).toBe(1_000);
+    expect(city.refurbishStructure(waste.id).ok).toBe(true);
+    expect(waste.capacity).toBe(0);
+    expect(city.energyReport()!.wasteGeneration).toBe(0);
+    expect(utilityEmissionShare(city.cfg, waste)).toBe(0);
+    city.step(7);
+    expect(waste.capacity).toBeGreaterThan(400);
+    expect(city.energyReport()!.wasteGeneration).toBe(1_000);
+    expect(utilityEmissionShare(city.cfg, waste)).toBeGreaterThan(0);
+  });
+
+  it('suspends water treatment during works and restores its cleaning at completion', () => {
+    const city = new City({ size: 48, water: false, config: calm });
+    city.state.funds = 1_000_000;
+    city.placeStructure('coalPlant', 2, 2);
+    city.buildPowerLine(6, 3, 40, 3);
+    city.placeStructure('waterTreatmentPlant', 10, 5);
+    const treatment = [...city.state.structures.values()].find((st) => st.kind === 'waterTreatmentPlant')!;
+    treatment.life = 80;
+    city.refresh();
+    const water = () => city.query(4, 4)!.waterPollution;
+    expect(water()).toBe(0);
+    city.refurbishStructure(treatment.id);
+    expect(water()).toBeGreaterThan(0);
+    city.step(7);
+    expect(water()).toBe(0);
+  });
+
+  it('makes zero-downtime overhauls available as a tuning option and validates saved deadlines', () => {
+    const city = town();
+    city.cfg.infrastructure.refurbishment = { ...city.cfg.infrastructure.refurbishment, downtimeDays: 0 };
+    const plant = [...city.state.structures.values()].find((st) => st.kind === 'coalPlant')!;
+    plant.life = 80;
+    city.refresh();
+    expect(city.refurbishStructure(plant.id).ok).toBe(true);
+    expect(plant.capacity).toBeGreaterThan(5_000);
+    expect(plant.offlineUntilDay).toBeUndefined();
+    const saved = saveCity(city);
+    for (const deadline of [-1, NaN, Infinity, 1.5]) {
+      const bad = { ...saved, structures: saved.structures.map((st) => ({ ...st, offlineUntilDay: deadline })) };
+      expect(() => loadCity(bad)).toThrow('bad overhaul deadline');
+    }
   });
 });
 

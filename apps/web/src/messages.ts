@@ -29,6 +29,8 @@ const EXACT: Record<string, string> = {
   'this structure has no ageing machinery': '개보수할 노후 기계가 없는 시설입니다',
   'the machinery does not need an overhaul yet': '아직 기계 개보수가 필요하지 않습니다',
   'put out the fire before an overhaul': '불을 끈 뒤에 개보수할 수 있습니다',
+  'this facility is already being overhauled': '이미 개보수 중인 시설입니다',
+  'the city clock cannot schedule an overhaul': '도시 날짜가 범위를 넘어 개보수를 예약할 수 없습니다',
   'invalid rectangle': '수리할 범위가 올바르지 않습니다',
   'unknown power dispatch strategy': '지원하지 않는 발전 운용 방식입니다',
   'not a home for this wealth level': '이 주민의 소득 수준에 맞는 집이 아닙니다',

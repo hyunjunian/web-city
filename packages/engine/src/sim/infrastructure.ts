@@ -31,12 +31,14 @@ export interface AssetOutlook {
   /** Available output as a share of new equipment, before outages and funding reductions. */
   outputShare: number;
   upkeep: number;
+  offlineUntilDay: number | null;
   refurbishment: {
     eligible: boolean;
     cost: number;
     lifeAfter: number;
     outputShareAfter: number;
     upkeepAfter: number;
+    downtimeDays: number;
   };
 }
 
@@ -50,7 +52,7 @@ export function assetOutlook(s: CityState, cfg: SimConfig, st: Structure): Asset
   const refit = cfg.infrastructure.refurbishment;
   const lifeAfter = Math.min(st.life, Math.max(0, refit.targetLife));
   const recovered = st.life - lifeAfter;
-  const eligible = recovered > 0 && recovered >= refit.minRecovery;
+  const eligible = st.offlineUntilDay === undefined && recovered > 0 && recovered >= refit.minRecovery;
   const cost = eligible ? Math.ceil(Math.max(0, def.cost) * Math.min(1,
     Math.max(0, refit.fixedCostShare + refit.recoveredLifeCostShare * recovered / retirementLife))) : 0;
   const capacityAfter = def.plant ? def.plant.output * interp(curve, lifeAfter)
@@ -61,9 +63,11 @@ export function assetOutlook(s: CityState, cfg: SimConfig, st: Structure): Asset
     monthsLeft: st.life >= retirementLife ? 0 : wear > 0 ? Math.ceil((retirementLife - st.life) / wear) : null,
     outputShare: interp(curve, st.life),
     upkeep: structureUpkeep(s, cfg, st).total,
+    offlineUntilDay: st.offlineUntilDay ?? null,
     refurbishment: {
       eligible, cost, lifeAfter, outputShareAfter: interp(curve, lifeAfter),
       upkeepAfter: structureUpkeep(s, cfg, { ...st, life: lifeAfter, capacity: capacityAfter }).total,
+      downtimeDays: Math.max(0, Math.min(365, Math.round(refit.downtimeDays))),
     },
   };
 }

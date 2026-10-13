@@ -7,7 +7,7 @@ import type { Rng } from '../rng';
 import { buildingAccess, footprint, frontage, type Fields } from './fields';
 import { ordinanceEffects } from './mayor';
 import { activeDeals } from './region';
-import { atGrade, isLocalNet, type CityState, type GarbageStats, type Structure } from './state';
+import { atGrade, isLocalNet, structureOnline, type CityState, type GarbageStats, type Structure } from './state';
 import { drain } from './steps';
 
 export const LANDFILL_ZONE = 10;
@@ -25,7 +25,7 @@ export function garbageOf(cfg: SimConfig, b: { type: import('../types').DevType 
  */
 export function incineratorCapacity(s: CityState, cfg: SimConfig, st: Structure): number {
   const inc = cfg.structures[st.kind].incinerator;
-  if (!inc) return 0;
+  if (!inc || !structureOnline(s, st)) return 0;
   return inc.capacity * interp(cfg.services.waterOutputByAge, st.life) * Math.min(1.2, s.departments.sanitation / 100);
 }
 
@@ -135,7 +135,7 @@ export function* runGarbageSteps(s: CityState, f: Fields, cfg: SimConfig, rng: R
   let reduction = 0;
   for (const st of s.structures.values()) {
     const rc = cfg.structures[st.kind].recycling;
-    if (!rc || !st.powered) continue;
+    if (!rc || !st.powered || !structureOnline(s, st)) continue;
     served += rc.residents * interp(cfg.services.waterOutputByAge, st.life) * Math.min(1.1, s.departments.sanitation / 100);
     reduction = rc.reduction;
   }
