@@ -1,6 +1,7 @@
 // My Sims panel and the microphone tool.
 
 import { STRUCTURES, type Thought } from '@web-city/engine';
+import { GOALS, type GoalId } from './goals';
 import { icon } from './icons';
 import { ko } from './messages';
 import { THOUGHT, TYPE_NAME, WEALTH_NAME } from './names';
@@ -36,10 +37,23 @@ export function interviewAt(x: number, y: number): void {
 // Complaints first and in red; what they like, quietly after (a row of coloured emoji chips had no first thing to read).
 // Each group under its word: a red chip and a dotted grey one side by side left the dot to say "fine" (오염 • read as
 // "polluted").
-export const thoughtChips = (ts: Thought[]) => ([false, true] as const).map((ok) => {
+// On a home's card (`at`), a complaint says what it is about ("건강 지수 42/100" — the card's 보건 70% read as the
+// opposite) and each leads to the screen that mends it, at the home.
+export const thoughtChips = (ts: Thought[], at?: { x: number; y: number; why: Partial<Record<Thought['subject'], string>> }) => ([false, true] as const).map((ok) => {
   const these = ts.filter((t) => t.approve === ok);
-  return these.length ? `<span class="th-group ${ok ? 'pos' : 'neg'}"><span class="th-label">${ok ? '만족' : '불만'}</span>${these.map((t) => `<span class="thought ${ok ? 'pos' : 'neg'}">${THOUGHT[t.subject][1]}</span>`).join('')}</span>` : '';
+  const chip = (t: Thought) => {
+    const why = at?.why[t.subject];
+    const goal = at ? THOUGHT_GOAL[t.subject] : undefined;
+    const inner = `${THOUGHT[t.subject][1]}${why && !ok ? ` <small>${why}</small>` : ''}`;
+    const said = why ? `${THOUGHT[t.subject][1]} ${why}` : '';
+    return goal ? `<button type="button" class="thought ${ok ? 'pos' : 'neg'}" data-row-goal="${goal}" data-row-at="${at!.x},${at!.y}" title="${said ? `${said} · ` : ''}${GOALS[goal].name} 화면에서 보기">${inner}</button>`
+      : `<span class="thought ${ok ? 'pos' : 'neg'}"${said ? ` title="${said}"` : ''}>${inner}</span>`;
+  };
+  return these.length ? `<span class="th-group ${ok ? 'pos' : 'neg'}"><span class="th-label">${ok ? '만족' : '불만'}</span>${these.map(chip).join('')}</span>` : '';
 }).join('');
+
+/** The screen a thought's subject is mended on. */
+const THOUGHT_GOAL: Partial<Record<Thought['subject'], GoalId>> = { health: 'health', education: 'education', crime: 'police', pollution: 'environment', commute: 'traffic', transit: 'traffic' };
 
 /** What a pick asks for, by the buildings' own names (the Sims are 저소득층…, the homes 주거 저소득…). */
 const pickHint = (kind: 'job' | 'move' | 'dispatch', wealth: number): string => kind === 'dispatch' ? '지도에서 보낼 곳을 누르세요'

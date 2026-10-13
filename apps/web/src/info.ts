@@ -338,7 +338,14 @@ export function showInfo(x: number, y: number): void {
     .map(([m, v]) => `<span class="info-path"><i style="background:${ROUTE_COLOR[m]}"></i>${MEANS_NAME[m]} ${m === 'freight' ? `${v < 10 ? v.toFixed(1) : fmt(v)}/일` : v < 1 ? '1명 미만' : `${fmt(Math.round(v))}명`}</span>`).join('')}</p>` : '';
   // What its residents think of living here (what the microphone heard): a line of chips.
   const heard = b?.type?.[0] === 'R' && b.occupancy > 0 ? city.interview(b.x, b.y, 0) : null;
-  const voice = heard?.thoughts.length ? `<p class="info-voice" title="이 집 주민이 사는 곳을 어떻게 생각하는지">${icon('mic')}<span>주민 생각</span>${thoughtChips(heard.thoughts)}</p>` : '';
+  // (Each complaint with its figure, as the residents judge it: health and schooling by the home's indexes against the
+  // 100 they want, crime and dirt by their part of the mayor's rating.)
+  const mood = heard ? city.mayorAt(b!.x, b!.y) : null;
+  const sign = (v: number) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(1);
+  const voice = heard?.thoughts.length ? `<p class="info-voice" title="이 집 주민이 사는 곳을 어떻게 생각하는지">${icon('mic')}<span>주민 생각</span>${thoughtChips(heard.thoughts, { x, y, why: {
+    health: `지수 ${Math.round(b!.hq)}/${city.cfg.mySims.hqHigh}`, education: `지수 ${Math.round(b!.eq)}/${city.cfg.mySims.eqHigh}`,
+    ...(mood ? { crime: `평점 ${sign(mood.crime)}`, pollution: `평점 ${sign(mood.air + mood.water)}` } : {}),
+  } })}</p>` : '';
   const occupied = b?.type ? `
       <div class="info-meter" title="${b.type[0] === 'R' ? '주민' : '영업 중인 일자리'} ${fmt(b.capacity * b.occupancy)} / ${fmt(b.capacity)}">
         <div class="fill" style="width:${Math.round(b.occupancy * 100)}%;background:${TYPE_COLOR[b.type]}"></div>
@@ -412,8 +419,8 @@ ${paths}${voice}
       ${b?.type && !b.watered && waterNeeded ? `<tr${row('water')}><td>수도</td><td class="neg">끊김 (${b.noWaterMonths}개월째)</td></tr>` : ''}
       ${b?.type?.[0] === 'R' ? `
         <tr><td>평균 나이</td><td>${b.age.toFixed(0)}세</td></tr>
-        <tr${row('education')}><td>교육 지수</td><td>${b.eq.toFixed(0)}</td></tr>
-        <tr${row('health')}><td>건강 지수</td><td>${b.hq.toFixed(0)}</td></tr>${smogRow(x, y, q.airPollution)}` : ''}
+        <tr${row('education')}><td>교육 지수</td><td>${b.eq.toFixed(0)}${b.eq < city.cfg.mySims.eqHigh ? ` <small class="muted">· 낮음 (주민은 ${city.cfg.mySims.eqHigh} 이상을 원함)</small>` : ''}</td></tr>
+        <tr${row('health')}><td>건강 지수</td><td>${b.hq.toFixed(0)}${b.hq < city.cfg.mySims.hqHigh ? ` <small class="muted">· 낮음 (주민은 ${city.cfg.mySims.hqHigh} 이상을 원함)</small>` : ''}</td></tr>${smogRow(x, y, q.airPollution)}` : ''}
       ${stRows}${smokeRow(b ? b.id : q.structure ? -q.structure.id : 0, row('environment'))}
     </table>` : ''}
     ${q.structure && def!.category !== 'park' && def!.category !== 'garbage' && def!.category !== 'water' && def!.category !== 'landmark' && !(def!.category === 'safety' && def!.police?.radius === 0) && !def!.station ? fundingSlider(q.structure) : q.structure ? ((dept) => `<p class="muted">예산은 재정의 부서 예산 "${dept}"${josa(dept, '으로', '로')} 정합니다.</p>`)(def!.category === 'garbage' ? '위생' : def!.category === 'water' ? '수도' : def!.station ? '대중교통' : def!.category === 'landmark' ? '랜드마크' : def!.category === 'safety' ? '교도소' : '공원 미화') : ''}
