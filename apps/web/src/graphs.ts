@@ -20,6 +20,8 @@ interface GraphDef {
   names?: [string, string];
   /** A second series (dashed), e.g. capacity against usage. */
   compare?: (h: HistoryPoint) => number;
+  /** The space between the two series shaded by which is ahead (income over spending: the month's surplus or deficit). */
+  gap?: true;
   /** Colour tokens for the first and second series. */
   colors?: [string, string];
   /** Which way is better (1 up, −1 down): the change over the period is coloured by it (none: plain). */
@@ -46,7 +48,7 @@ const GRAPHS: GraphDef[] = [
   { key: 'funds', goal: 'finance', title: '자금', value: (h) => h.funds, format: money, better: 1 },
   { key: 'mayorRating', goal: 'environment', title: '시장 평점', value: (h) => h.mayorRating, format: fmt, better: 1 },
   { key: 'crimes', goal: 'police', title: '범죄와 체포', better: -1, value: (h) => h.crimes, compare: (h) => h.arrests ?? 0, names: ['범죄', '체포'], colors: ['--danger', '--accent'], format: fmt },
-  { key: 'budget', goal: 'finance', title: '수입과 지출 (월)', value: (h) => h.income ?? 0, compare: (h) => h.expenses ?? 0, names: ['수입', '지출'], colors: ['--good', '--danger'], format: (v) => `§${fmt(v)}`, optional: true },
+  { key: 'budget', goal: 'finance', title: '수입과 지출 (월)', value: (h) => h.income ?? 0, compare: (h) => h.expenses ?? 0, names: ['수입', '지출'], colors: ['--good', '--danger'], format: (v) => `§${fmt(v)}`, optional: true, gap: true },
   { key: 'abandoned', goal: 'growth', title: '버려진 건물', value: (h) => h.abandoned ?? 0, format: (v) => `${fmt(v)}채`, optional: true, better: -1 },
   { key: 'commute', goal: 'traffic', title: '평균 통근 시간', value: (h) => h.commute ?? 0, format: minutes, optional: true, better: -1 },
   { key: 'power', goal: 'power', title: '전력 (수요 대 공급)', value: (h) => h.powerDemand ?? 0, compare: (h) => h.powerSupply ?? 0, names: ['수요', '공급'], format: (v) => `${fmt(v)} MWh`, optional: true },
@@ -262,6 +264,23 @@ export class Graphs {
         ends = [g.format(hi), g.format(lo)];
       }
       const [c1, c2] = g.colors ? g.colors.map((c) => css(c) || line) : [line, ink];
+      // (Two lines a few percent apart from zero up overlapped: §10,189 against §9,717 read as one. The gap between them,
+      // green where income leads and red where spending does, is the month's balance at a glance.)
+      if (other && g.gap) {
+        ctx.save();
+        ctx.globalAlpha = 0.3;
+        for (let k = 0; k < vals.length - 1; k++) {
+          ctx.fillStyle = vals[k]! + vals[k + 1]! >= other[k]! + other[k + 1]! ? c1! : c2!;
+          ctx.beginPath();
+          ctx.moveTo(x(k), y(vals[k]!));
+          ctx.lineTo(x(k + 1), y(vals[k + 1]!));
+          ctx.lineTo(x(k + 1), y(other[k + 1]!));
+          ctx.lineTo(x(k), y(other[k]!));
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+      }
       if (other) {
         ctx.strokeStyle = c2!;
         ctx.lineWidth = 2;
@@ -273,7 +292,7 @@ export class Graphs {
       }
       // A soft wash under the main line, fading to zero: the shape of the change reads before the numbers.
       // (Not on a fitted axis: an area down to a bottom that isn't zero would overstate the change.)
-      if (!fit) {
+      if (!fit && !g.gap) {
         const base = y(0);
         const wash = ctx.createLinearGradient(0, Math.min(...vals.map(y)), 0, base);
         wash.addColorStop(0, c1!);
