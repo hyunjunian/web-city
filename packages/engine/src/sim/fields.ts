@@ -10,6 +10,7 @@ import { ordinanceEffects } from './mayor';
 import { edgeOf, neighbourWorkEdges } from './region';
 import { atGrade, idx, Net, tilesLinked, isAsphalt, isLocalNet, structureFunding, Terrain, zoneInfo, type Building, type CityState, type Rect } from './state';
 import { connectionTiles, type TravelFields } from './transport';
+import { utilityEmissionShare } from './energy';
 
 export const INF = 0x3fffffff;
 
@@ -780,9 +781,11 @@ export function* computeEffectFieldsSteps(s: CityState, f: Fields, cfg: SimConfi
     if (def.mayor) plateau(n, f.mayorEffect, st, funded(def.mayor[0]), def.mayor[1]);
     const polluter = def.plant ?? def.incinerator;
     if (polluter) {
-      // Plants pollute at full strength over their lot, fading to the radius edge.
-      lotSplat(n, f.air, st, polluter.air[0], polluter.air[1], s.height);
-      lotSplat(n, f.waterPollution, st, polluter.water[0], polluter.water[1]);
+      // Source strength follows generation (thermal equipment has standby
+      // emissions). Incinerators emit only in proportion to actual waste burned.
+      const emission = utilityEmissionShare(cfg, st);
+      lotSplat(n, f.air, st, polluter.air[0] * emission, polluter.air[1], s.height);
+      lotSplat(n, f.waterPollution, st, polluter.water[0] * emission, polluter.water[1]);
     }
     splat(n, f.nimbyCom, cx, cy, funded(def.com[0]), def.com[1]);
     splat(n, f.nimbyRes, cx, cy, funded(def.res[0]), def.res[1]);

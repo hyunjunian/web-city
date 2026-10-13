@@ -146,7 +146,8 @@ describe('power', () => {
     city.refresh();
     expect(city.power.supply).toBeCloseTo(6_000, -2);
     city.step(30);
-    expect(city.state.lastBudget!.powerUpkeep).toBeCloseTo(125, 0);
+    expect(city.state.lastBudget!.powerUpkeep).toBeGreaterThanOrEqual(250 * 0.65 * 0.5);
+    expect(city.state.lastBudget!.powerUpkeep).toBeLessThan(125); // fuel follows the small actual load
     const half = plant.life;
     const full = town();
     full.placeStructure('coalPlant', 1, 31);
@@ -365,7 +366,8 @@ describe('rewards and budget', () => {
     city.buildPowerLine(40, 0, 40, 10);
     city.step(30);
     const b = city.state.lastBudget!;
-    expect(b.powerUpkeep).toBeCloseTo(250 + 11 * 0.1, 1);
+    expect(b.powerUpkeep).toBeGreaterThanOrEqual(250 * 0.65 + 11 * 0.1);
+    expect(b.powerUpkeep).toBeLessThan(250 + 11 * 0.1); // the plant isn't at full load yet
     expect(b.healthUpkeep).toBe(400 + 50); // + ambulances
     expect(b.educationUpkeep).toBe(400 + 50); // + school buses
   });

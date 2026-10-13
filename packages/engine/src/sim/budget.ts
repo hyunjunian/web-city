@@ -12,6 +12,7 @@ import { ordinanceCost as ordinanceCostOf } from './mayor';
 import { settleDeals } from './region';
 import { DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, INTERCHANGE, isJail, Net, overNet, structureFunding, NETWORK_KINDS, type Building, type BudgetReport, type CityState, type DealResource, type NeighbourDeal, type Structure } from './state';
 import { drain } from './steps';
+import { generationCost } from './energy';
 
 export interface BudgetContext {
   residents: number;
@@ -22,6 +23,26 @@ export interface BudgetContext {
   month: number;
   /** Days each ordinance was in effect this month; without it (a preview) those in effect now count the full month. */
   ordinanceDays?: Partial<Record<OrdinanceId, number>>;
+}
+
+/** Remaining principal under the city's loan terms (stable for zero and very small rates). */
+export function loanPrincipal(cfg: SimConfig, loan: { amount: number; monthsLeft: number }): number {
+  if (!Number.isFinite(loan?.amount) || !Number.isFinite(loan?.monthsLeft)) return 0;
+  const terms = cfg.economy.loans;
+  const rate = terms.rate / 12;
+  if (rate === 0) return Math.round(loan.amount * loan.monthsLeft / terms.months);
+  return Math.round(loan.amount * Math.expm1(-loan.monthsLeft * Math.log1p(rate)) / Math.expm1(-terms.months * Math.log1p(rate)));
+}
+
+/** One month's payments and maturity, shared with financial projections. */
+export function settleLoans(s: CityState): number {
+  let payments = 0;
+  for (const loan of s.loans) {
+    payments += loan.payment;
+    loan.monthsLeft--;
+  }
+  s.loans = s.loans.filter((loan) => loan.monthsLeft > 0);
+  return payments;
 }
 
 /**
@@ -48,7 +69,7 @@ export function structureUpkeep(s: CityState, cfg: SimConfig, st: Structure): { 
   const age = def.plant
     ? interp(cfg.services.plantMaintenanceByAge, st.life)
     : def.pump || def.incinerator || def.recycling || def.treatment ? interp(cfg.services.waterMaintenanceByAge, st.life) : 1;
-  const running = def.upkeep * (structureFunding(s, def, st) / 100) * age;
+  const running = def.plant ? generationCost(s, cfg, st).total : def.upkeep * (structureFunding(s, def, st) / 100) * age;
   const v = (def.health ?? def.school)?.vehicles;
   const vehicles = v ? v * ((st.vehicleFunding ?? 100) / 100) : 0;
   const overcapacity = def.police?.overcapacityCost ? Math.max(0, st.load - st.capacity) * def.police.overcapacityCost : 0;
@@ -184,12 +205,7 @@ export function* collectBudgetSteps(s: CityState, cfg: SimConfig, ctx: BudgetCon
   // Neighbor Deals settle on the month's last day.
   const deals = settleDeals(s, cfg, ctx.delivered);
   const income = Object.values(taxByType).reduce((a, b) => a + b, 0) + ordinanceIncome + fares + dealIncome + deals.income;
-  let loanPayments = 0;
-  for (const loan of s.loans) {
-    loanPayments += loan.payment;
-    loan.monthsLeft--;
-  }
-  s.loans = s.loans.filter((l) => l.monthsLeft > 0);
+  const loanPayments = settleLoans(s);
   const expenses = roadUpkeep + upkeep.park + upkeep.power + upkeep.water + upkeep.garbage + upkeep.health
     + upkeep.education + upkeep.safety + transitUpkeep + upkeep.reward + upkeep.landmark + ordinanceCost + loanPayments
     + deals.expense;

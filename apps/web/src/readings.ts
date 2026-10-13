@@ -1,7 +1,7 @@
 // Reading the city for the goals: each goal's state, figures and forecasts, where its
 // trouble gathers on the map, and what would help (no DOM here: the screen is manage.ts).
 
-import { type Building, DEV_TYPES, ELEVATED, isLocalNet, linePath, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind, ZONES, type ZoneKind, zoneInfo } from '@web-city/engine';
+import { type Building, DEV_TYPES, ELEVATED, isLocalNet, linePath, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind, utilityEmissionShare, ZONES, type ZoneKind, zoneInfo } from '@web-city/engine';
 import { noRiders } from './info';
 import { ADVICE_TEXT, POLL_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME } from './names';
 import { capLeads, crimeKinds, currentAdvice, garbageFill } from './panels';
@@ -1152,7 +1152,7 @@ function pollutionFrom(of: 'air' | 'water', w: Float32Array, b: { x0: number; y0
       const def = STRUCTURES[st.kind];
       const burns = def.plant ?? def.incinerator;
       const [own0, ownR] = def.pollution ? (air ? [def.pollution[0], def.pollution[1]] : [def.pollution[2], def.pollution[3]]) : [0, 0];
-      const v = (burns ? lotReach(n, w, st, air ? burns.air[0] : burns.water[0], air ? burns.air[1] : burns.water[1], h, b) : 0) + (own0 > 0 ? lotReach(n, w, st, own0, ownR, h, b) : 0);
+      const v = (burns ? lotReach(n, w, st, (air ? burns.air[0] : burns.water[0]) * utilityEmissionShare(city.cfg, st), air ? burns.air[1] : burns.water[1], h, b) : 0) + (own0 > 0 ? lotReach(n, w, st, own0, ownR, h, b) : 0);
       add(`st:${st.kind}`, STRUCTURE_NAME[st.kind], v, st, -st.id);
     }
     // Cars and trucks (trains a quarter): the engine's cone of 2.5 tiles about each road tile. (Air only.)

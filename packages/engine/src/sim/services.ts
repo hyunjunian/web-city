@@ -10,6 +10,8 @@ import type { Fields } from './fields';
 import { ordinanceEffects } from './mayor';
 import { structureFunding, type Building, type CityState, type Structure } from './state';
 import { activeDeals, edgeTile } from './region';
+import { powerDispatchLoads } from './energy';
+import type { UtilityNetwork, UtilitySource } from './resilience';
 
 export const EDU_CURVES = ['elementary', 'highSchool', 'college', 'university', 'library', 'mainLibrary', 'museum', 'artMuseum', 'privateSchool', 'opera'] as const;
 /** Higher education: the fuller school system on top of a basic school, library or museum. */
@@ -37,6 +39,10 @@ export function healthClassOf(def: StructureDef): HealthClass | null {
 export interface PowerGrid {
   supply: number;
   demand: number;
+  /** Available local plant capacity, fixed waste-energy output, and imports on this grid. */
+  localCapacity: number;
+  wastePower: number;
+  importCapacity: number;
   /** Demand left unserved after the blackout. */
   shortfall: number;
 }
@@ -159,7 +165,8 @@ export function computePower(s: CityState, f: Fields, cfg: SimConfig): PowerRepo
 export function* computePowerSteps(s: CityState, f: Fields, cfg: SimConfig): Generator<void, PowerReport> {
   const count = yield* computeGrids(s, f, cfg);
   const ord = ordinanceEffects(s);
-  const grids: PowerGrid[] = Array.from({ length: count }, () => ({ supply: 0, demand: 0, shortfall: 0 }));
+  const grids: PowerGrid[] = Array.from({ length: count }, () => ({ supply: 0, demand: 0, shortfall: 0, localCapacity: 0, wastePower: 0, importCapacity: 0 }));
+  const plants: Structure[][] = Array.from({ length: count }, () => []);
   const gridOf = (r: { x: number; y: number }) => f.powerGrid[r.y * s.size + r.x]!;
 
   yield;
@@ -170,9 +177,17 @@ export function* computePowerSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
     st.capacity = def.plant ? plantCapacity(cfg, def, st, ord.gasPlantOutput) : st.capacity;
     const g = gridOf(st);
     if (g < 0) continue;
-    if (def.plant) grids[g]!.supply += st.capacity;
+    if (def.plant) {
+      grids[g]!.supply += st.capacity;
+      grids[g]!.localCapacity += st.capacity;
+      plants[g]!.push(st);
+    }
     // Waste to Energy: power in proportion to last month's garbage burned.
-    if (def.incinerator) grids[g]!.supply += st.load * def.incinerator.powerPerTon;
+    if (def.incinerator) {
+      const power = st.load * def.incinerator.powerPerTon;
+      grids[g]!.supply += power;
+      grids[g]!.wastePower += power;
+    }
     grids[g]!.demand += def.powerUse * ord.power;
   }
   const consumers: Building[][] = Array.from({ length: count }, () => []);
@@ -195,6 +210,7 @@ export function* computePowerSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
     const g = f.powerGrid[t]!;
     if (d.direction === 'buy') {
       grids[g]!.supply += d.amount;
+      grids[g]!.importCapacity += d.amount;
       imported[g]! += d.amount;
     } else grids[g]!.demand += d.amount;
   }
@@ -225,6 +241,22 @@ export function* computePowerSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
     grid.shortfall = Math.max(0, need);
   });
 
+  // Imported electricity and the power already made while burning waste
+  // displace generation. Local machines only produce the remaining load.
+  yield;
+  for (let g = 0; g < count; g++) {
+    if ((g & 0x1ff) === 0x1ff) yield;
+    const group = plants[g]!;
+    if (!group.length) continue;
+    const grid = grids[g]!;
+    const loads = powerDispatchLoads(s, cfg, group, grid.demand - imported[g]! - grid.wastePower, s.powerDispatch ?? 'balanced');
+    for (let k = 0; k < group.length; k++) {
+      const st = group[k]!;
+      st.load = loads[k]!;
+      st.effectiveness = st.capacity > 0 ? st.load / st.capacity : 0;
+    }
+  }
+
   f.powered.fill(0);
   yield;
   for (let i = 0; i < f.powered.length; i++) {
@@ -246,13 +278,6 @@ export function* computePowerSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
     const def = cfg.structures[st.kind];
     const g = gridOf(st);
     st.powered = g >= 0 && grids[g]!.supply > 0 && (def.plant !== undefined || !darkTracts.has(tractOf(st)));
-    if (def.plant) {
-      const grid = g >= 0 ? grids[g]! : null;
-      const own = grid ? grid.supply - imported[g]! : 0;
-      const served = grid ? Math.max(0, Math.min(grid.demand, grid.supply) - imported[g]!) : 0;
-      st.load = own > 0 ? (served * st.capacity) / own : 0;
-      st.effectiveness = st.capacity > 0 ? st.load / st.capacity : 0;
-    }
   }
   // Supply counts only grids that power something (as for water).
   let supply = 0;
@@ -597,6 +622,8 @@ export function quotientAverages(s: CityState): { eq: PerWealth; hq: PerWealth }
 export interface WaterReport {
   supply: number;
   demand: number;
+  /** Active pipe networks only (empty, sourceless stubs are left out). */
+  networks: UtilityNetwork[];
   /** Buildings cut off by shortages this month (including those on piped networks with no working source). */
   shortages: number;
   /** Of those, buildings on networks with no working source (not a shortfall in supply). */
@@ -728,6 +755,7 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   }
   // Neighbor Deals on the pipe network that reaches each edge.
   const imported = new Float64Array(count);
+  const importSources = new Map<number, UtilitySource[]>();
   yield;
   for (const d of activeDeals(s, 'water')) {
     const t = edgeTile(s, d.edge, (i) => s.pipe[i] === 1 && net[i]! >= 0);
@@ -736,6 +764,9 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
     if (d.direction === 'buy') {
       supply[g]! += d.amount;
       imported[g]! += d.amount;
+      const list = importSources.get(g) ?? [];
+      list.push({ kind: 'import', id: d.id, capacity: d.amount, x: t % n, y: Math.floor(t / n), edge: d.edge });
+      importSources.set(g, list);
     } else demand[g]! += d.amount;
   }
   // An idle pipe network must not hide coverage from a supplied one nearby.
@@ -904,5 +935,20 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
     st.load = own > 0 ? (Math.max(0, Math.min(demand[g]!, supply[g]!) - imported[g]!) * st.capacity) / own : 0;
     st.effectiveness = st.capacity > 0 ? st.load / st.capacity : 0;
   }
-  return { supply: totalSupply, demand: totalDemand, shortages: cut, sourceless, pumpsOff, ...(pumpsOffAt ? { pumpsOffAt } : {}), ...(sourcelessAt ? { sourcelessAt } : {}) };
+  const networks: UtilityNetwork[] = [];
+  yield;
+  for (let g = 0; g < count; g++) {
+    if ((g & 0x1fff) === 0x1fff) yield;
+    if (!(supply[g]! > 0 || demand[g]! > 0)) continue;
+    const list = byNet[g]!;
+    const local = sources[g]!.map((st): UtilitySource => ({ kind: 'pump', id: st.id, capacity: st.capacity, x: st.x, y: st.y }));
+    const allSources = [...local, ...(importSources.get(g) ?? [])];
+    const at = pumpOn[g] ?? list[0]?.b ?? allSources[0];
+    networks.push({
+      id: g, resource: 'water', supply: supply[g]!, demand: demand[g]!, importCapacity: imported[g]!, sources: allSources,
+      buildings: list.length, residents: list.reduce((total, c) => total + (c.b!.type?.[0] === 'R' ? c.b!.capacity * c.b!.occupancy : 0), 0),
+      x: at?.x ?? 0, y: at?.y ?? 0,
+    });
+  }
+  return { supply: totalSupply, demand: totalDemand, networks, shortages: cut, sourceless, pumpsOff, ...(pumpsOffAt ? { pumpsOffAt } : {}), ...(sourcelessAt ? { sourcelessAt } : {}) };
 }

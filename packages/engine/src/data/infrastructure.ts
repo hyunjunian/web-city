@@ -18,3 +18,6 @@ export const NETWORK_REPAIR = {
   /** Resurfacing asphalt or renewing damaged rails, relative to new construction. */
   damageCostShare: 0.5,
 } as const;
+
+/** A tenth of current load in reserve and a year to prepare major overhauls are planning targets, not enforced build limits. */
+export const INFRASTRUCTURE_PLANNING = { reserveRatio: 0.1, lookAheadMonths: 12 } as const;

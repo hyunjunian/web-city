@@ -211,6 +211,18 @@ A facility's monthly cost as the budget charges it (running, vehicles, a jail's 
 
 A utility facility's remaining life, ageing rate, output and overhaul price at current utilisation and funding; null for facilities without a finite service life.
 
+### `infrastructureReport(): InfrastructureReport`
+
+Capital maintenance needs and power/water resilience per connected network, including loss of its largest single supply source. Empty pipe stubs are omitted; current load and funding are held constant.
+
+### `setPowerDispatch(strategy: PowerDispatch): ToolResult`
+
+Sets power dispatch within each grid: balanced shares the load, economical uses the lowest generation cost first, clean the lowest air/water emission burden. Imports and waste energy are used first.
+
+### `energyReport(strategy: PowerDispatch = this.state.powerDispatch ?? 'balanced'): EnergyReport | null`
+
+Generation, plant operating costs and source emissions for today's grid demand. With a strategy, compares it without changing the city or advancing time; future growth, wear and pollution feedback are left out.
+
 ### `refurbishStructure(id: number, preview = false): ToolResult & { lifeBefore?: number; lifeAfter?: number }`
 
 Overhauls an ageing utility on its existing site, retaining its id, name and connections. Restores machinery to 20% life used by default; `preview` only prices it.
@@ -250,6 +262,10 @@ Finishes days under way: anything that reads the whole city or changes it must c
 ### `previewBudget(): BudgetReport`
 
 Next month's budget if it were settled now: today's tax rates, budgets, ordinances and loans on last month's tax base and fares. Nothing is paid (it runs on a copy); the 재정 panel shows it beside last month's.
+
+### `budgetForecast(months = 12, options: BudgetForecastOptions = {}): BudgetForecast`
+
+Projects 1–120 months of cash and debt at today's tax base, operating costs, delivery conditions and contract prices, with loan maturities and deal grace/probation. Optional capital spending, tax-income and operating-cost scenarios change no city state; growth, ageing and disasters are left out.
 
 ### `addMySim(name: string, x: number, y: number): ToolResult & { sim?: MySim }`
 

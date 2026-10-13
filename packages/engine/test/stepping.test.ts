@@ -49,6 +49,10 @@ describe('stepping in pieces', () => {
     ['facility overhauls', (c) => c.refurbishStructure(1)],
     ['network repair previews', (c) => c.previewRepairNetworks('roads', 0, 0, 31, 31)],
     ['network repairs', (c) => c.repairNetworks('roads', 0, 0, 31, 31)],
+    ['power dispatch', (c) => c.setPowerDispatch('clean')],
+    ['energy comparisons', (c) => c.energyReport('economical')],
+    ['infrastructure reports', (c) => c.infrastructureReport()],
+    ['cash flow forecasts', (c) => c.budgetForecast(12, { capitalSpend: 1_000 })],
   ];
 
   it.each(edits)('%s waits for the day under way before reading or changing the city', (_name, edit) => {

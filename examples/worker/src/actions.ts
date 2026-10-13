@@ -13,6 +13,9 @@ export const ACTIONS = [
   'rename', 'previewZone', 'previewNetwork', 'previewLine', 'previewBulldoze', 'canPlaceStructure', 'growthBlockers', 'stageOutlook',
   'repayLoan', 'loanPayment', 'loanBalance', 'powerReach', 'ordinanceAvailable', 'ordinanceCost', 'isUnlocked', 'placementsLeft',
   'structureUpkeep', 'understaffed', 'mySimCommute', 'canDrive', 'connectionsPerEdge', 'powerDemand', 'waterDemand',
+  'assetOutlook', 'refurbishStructure', 'previewRepairNetworks', 'repairNetworks', 'setPowerDispatch', 'energyReport',
+  'infrastructureReport',
+  'budgetForecast',
 ] as const;
 export type Action = (typeof ACTIONS)[number];
 

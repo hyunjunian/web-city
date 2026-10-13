@@ -17,6 +17,7 @@ import { FLORA } from './data/flora';
 import { MY_SIMS } from './data/mysims';
 import * as tn from './data/terrain';
 import * as infrastructure from './data/infrastructure';
+import * as energy from './data/energy';
 import { DIFFICULTY } from './data/difficulty';
 import { STAGE_TABLE, DENSITY_MAX_STAGE } from './data/stages';
 import { STRUCTURES } from './data/structures';
@@ -25,6 +26,12 @@ export const DEFAULT_CONFIG = {
   infrastructure: {
     refurbishment: infrastructure.REFURBISHMENT,
     networkRepair: infrastructure.NETWORK_REPAIR,
+    planning: infrastructure.INFRASTRUCTURE_PLANNING,
+  },
+  energy: {
+    generationCostShare: energy.GENERATION_COST_SHARE,
+    idleEmissionShare: energy.IDLE_EMISSION_SHARE,
+    waterEmissionWeight: energy.WATER_EMISSION_WEIGHT,
   },
   demand: {
     wealthOf: demand.WEALTH_OF,

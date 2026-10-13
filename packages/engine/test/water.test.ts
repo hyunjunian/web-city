@@ -199,6 +199,9 @@ describe('water', () => {
 
   it('treatment plants lower water pollution around them', () => {
     const city = town();
+    // Keep source emissions constant: placing the treatment facility itself adds power demand.
+    city.cfg.energy.idleEmissionShare = 1;
+    city.refresh();
     const before = city.query(10, 38)!.waterPollution;
     expect(before).toBeGreaterThan(0);
     city.placeStructure('waterTreatmentPlant', 8, 37); // next to the gas plant, so powered

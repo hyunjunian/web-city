@@ -11,6 +11,7 @@ import { drain } from './sim/steps';
 import { STRUCTURES } from './data/structures';
 import { DEV_TYPES } from './types';
 import { VOLUME_KINDS } from './sim/transport';
+import { POWER_DISPATCHES } from './sim/energy';
 
 export interface SavedCity {
   format: 'web-city';
@@ -49,6 +50,7 @@ export interface SavedCity {
   /** Last month's trips by means of travel, at their original precision. */
   volume?: City['volume'];
   departments?: Partial<CityState['departments']>;
+  powerDispatch?: CityState['powerDispatch'];
   landform?: number[];
   lineWear?: number[];
   pipeWear?: number[];
@@ -300,6 +302,7 @@ export function* saveCitySteps(city: City): Generator<void, SavedCity> {
     localCommute: city.fields.localCommute,
     volume: { ...city.volume },
     departments: { ...s.departments },
+    powerDispatch: s.powerDispatch ?? 'balanced',
     landform: r.landform!,
     lineWear: r.lineWear!,
     pipeWear: r.pipeWear!,
@@ -382,6 +385,7 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
   if (!whole(saved.day) || !whole(saved.seed) || !whole(saved.rngState)) throw new Error('corrupt save: bad day or seed');
   if (typeof saved.funds !== 'number' || !Number.isFinite(saved.funds)) throw new Error('corrupt save: bad funds');
   if (!['easy', 'medium', 'hard'].includes(saved.difficulty)) throw new Error('corrupt save: bad difficulty');
+  if (saved.powerDispatch !== undefined && !POWER_DISPATCHES.includes(saved.powerDispatch)) throw new Error('corrupt save: bad power dispatch');
   // (Caught here, not as NaN funds or an unknown kind deep inside the first step.)
   if (!saved.taxRates || !DEV_TYPES.every((t) => typeof saved.taxRates[t] === 'number' && Number.isFinite(saved.taxRates[t]))) {
     throw new Error('corrupt save: bad tax rates');
@@ -453,6 +457,7 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     rngState: saved.rngState,
     difficulty: saved.difficulty,
     day: saved.day,
+    powerDispatch: saved.powerDispatch ?? 'balanced',
     funds: saved.funds,
     terrain,
     net: decodeCodes(saved.net, N, Net.OneWay),

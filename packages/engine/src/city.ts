@@ -25,7 +25,7 @@ import { airportReach, assignTrafficSteps, computeTravelSteps, type VolumeKind }
 import { drain } from './sim/steps';
 import { checkUnlocks, missileMisfires, unlockChecks, updateRadiation, type UnlockCheck, type UnlockContext } from './sim/rewards';
 import { updatePotholes } from './sim/roads';
-import { collectBudget, collectBudgetSteps, departmentUpkeep, structureUpkeep } from './sim/budget';
+import { collectBudget, collectBudgetSteps, departmentUpkeep, loanPrincipal, structureUpkeep, type BudgetContext } from './sim/budget';
 import { autoDispatchSteps, dispatchUnit, FIT_CREW, freeUnits, neutraliseSpills, stepUnits, type DispatchKind } from './sim/dispatch';
 import {
   dealMonthly, dealTotals, defaultNeighbours, drainRegionalGrowth, edgeConnections, evaluateDeal, exportDemand, makeNeighbour, regionalDemand, reliefConnections,
@@ -60,6 +60,9 @@ import { generateForest, generateHeights, generateTerrain, terrainFromHeightmap,
 import { DEZONING_COST, ZONING_COST_HIGH_COMMERCIAL } from './data/economy';
 import { DEV_TYPES, perType, type DevType, type PerType } from './types';
 import { assetOutlook, networkRepairCost, REPAIR_DEPARTMENTS, type AssetOutlook, type RepairDepartment, type RepairPreview } from './sim/infrastructure';
+import { energyReport, POWER_DISPATCHES, type EnergyReport, type PowerDispatch } from './sim/energy';
+import { infrastructureReport, type InfrastructureReport } from './sim/resilience';
+import { budgetForecast, type BudgetForecast, type BudgetForecastOptions } from './sim/finance';
 
 export interface CityOptions {
   name?: string;
@@ -369,6 +372,7 @@ export class City {
         interchange: new Uint8Array(size * size),
         tunnel: new Uint8Array(size * size),
         departments: { roads: 100, transit: 100, power: 100, water: 100, parks: 100, sanitation: 100, landmarks: 100, corrections: 100 },
+        powerDispatch: 'balanced',
         landform: new Uint8Array(size * size),
         lineWear: new Uint8Array(size * size),
         pipeWear: new Uint8Array(size * size),
@@ -1604,11 +1608,7 @@ export class City {
 
   /** Principal still owed on a loan. */
   loanBalance(loan: { amount: number; monthsLeft: number }): number {
-    if (!Number.isFinite(loan?.amount) || !Number.isFinite(loan?.monthsLeft)) return 0;
-    const l = this.cfg.economy.loans;
-    const r = l.rate / 12;
-    if (r === 0) return Math.round(loan.amount * loan.monthsLeft / l.months);
-    return Math.round(loan.amount * Math.expm1(-loan.monthsLeft * Math.log1p(r)) / Math.expm1(-l.months * Math.log1p(r)));
+    return loanPrincipal(this.cfg, loan);
   }
 
   /** Pays a loan off early (our own addition; the balance is the remaining principal). */
@@ -1867,6 +1867,30 @@ export class City {
     this.refreshIfDirty();
     const st = this.state.structures.get(id);
     return st ? assetOutlook(this.state, this.cfg, st) : null;
+  }
+
+  /** Capital maintenance needs and power/water resilience per connected network, including loss of its largest single supply source. Empty pipe stubs are omitted; current load and funding are held constant. */
+  infrastructureReport(): InfrastructureReport {
+    this.refreshIfDirty();
+    return infrastructureReport(this.state, this.cfg, this.fields, this.power, this.water);
+  }
+
+  /** Sets power dispatch within each grid: balanced shares the load, economical uses the lowest generation cost first, clean the lowest air/water emission burden. Imports and waste energy are used first. */
+  setPowerDispatch(strategy: PowerDispatch): ToolResult {
+    this.settle();
+    if (!POWER_DISPATCHES.includes(strategy)) return { ok: false, cost: 0, message: 'unknown power dispatch strategy' };
+    if (this.state.powerDispatch !== strategy) {
+      this.state.powerDispatch = strategy;
+      this.effectsDirty = true;
+      if (!this.batching) this.refreshIfDirty();
+    }
+    return { ok: true, cost: 0 };
+  }
+
+  /** Generation, plant operating costs and source emissions for today's grid demand. With a strategy, compares it without changing the city or advancing time; future growth, wear and pollution feedback are left out. */
+  energyReport(strategy: PowerDispatch = this.state.powerDispatch ?? 'balanced'): EnergyReport | null {
+    this.refreshIfDirty();
+    return POWER_DISPATCHES.includes(strategy) ? energyReport(this.state, this.cfg, this.fields, this.power, strategy) : null;
   }
 
   /** Overhauls an ageing utility on its existing site, retaining its id, name and connections. Restores machinery to 20% life used by default; `preview` only prices it. */
@@ -2261,14 +2285,24 @@ export class City {
     return this.settleBudget({ ...s, loans: s.loans.map((l) => ({ ...l })), neighbourDeals: s.neighbourDeals.map((d) => ({ ...d })) }).report;
   }
 
+  /** Projects 1–120 months of cash and debt at today's tax base, operating costs, delivery conditions and contract prices, with loan maturities and deal grace/probation. Optional capital spending, tax-income and operating-cost scenarios change no city state; growth, ageing and disasters are left out. */
+  budgetForecast(months = 12, options: BudgetForecastOptions = {}): BudgetForecast {
+    this.refreshIfDirty();
+    return budgetForecast(this.state, this.cfg, this.budgetContext(this.state), months, options);
+  }
+
   private settleBudget(s: CityState): ReturnType<typeof collectBudget> {
     return drain(this.settleBudgetSteps(s));
   }
 
   /** `days`: bill ordinances by the days they were in effect (the real month end, not a preview). */
   private settleBudgetSteps(s: CityState, days = false): ReturnType<typeof collectBudgetSteps> {
+    return collectBudgetSteps(s, this.cfg, this.budgetContext(s, days));
+  }
+
+  private budgetContext(s: CityState, days = false): BudgetContext {
     const c = this.census;
-    return collectBudgetSteps(s, this.cfg, {
+    return {
       residents: c.residents[0] + c.residents[1] + c.residents[2],
       fares: this.fares,
       delivered: {
@@ -2280,7 +2314,7 @@ export class City {
       },
       month: Math.floor(s.day / DAYS_PER_MONTH),
       ...(days ? { ordinanceDays: s.ordinanceDays } : {}),
-    });
+    };
   }
 
   private *collectBudgetSteps(): Generator<void, void> {

@@ -3,6 +3,7 @@ import type { StructureKind } from '../data/structures';
 import { interp } from '../data/services';
 import { structureUpkeep } from './budget';
 import { utilityLifeYears, utilityWear } from './services';
+import { ordinanceEffects } from './mayor';
 import { ELEVATED, isAsphalt, isRail, NETWORK_KINDS, overNet, type CityState, type Structure } from './state';
 
 export const REPAIR_DEPARTMENTS = ['roads', 'power', 'water', 'transit'] as const;
@@ -52,6 +53,8 @@ export function assetOutlook(s: CityState, cfg: SimConfig, st: Structure): Asset
   const eligible = recovered > 0 && recovered >= refit.minRecovery;
   const cost = eligible ? Math.ceil(Math.max(0, def.cost) * Math.min(1,
     Math.max(0, refit.fixedCostShare + refit.recoveredLifeCostShare * recovered / retirementLife))) : 0;
+  const capacityAfter = def.plant ? def.plant.output * interp(curve, lifeAfter)
+    * (st.kind === 'gasPlant' ? ordinanceEffects(s).gasPlantOutput : 1) : st.capacity;
   return {
     id: st.id, kind: st.kind, x: st.x, y: st.y, life: st.life, retirementLife,
     wearPerMonth: wear,
@@ -60,7 +63,7 @@ export function assetOutlook(s: CityState, cfg: SimConfig, st: Structure): Asset
     upkeep: structureUpkeep(s, cfg, st).total,
     refurbishment: {
       eligible, cost, lifeAfter, outputShareAfter: interp(curve, lifeAfter),
-      upkeepAfter: structureUpkeep(s, cfg, { ...st, life: lifeAfter }).total,
+      upkeepAfter: structureUpkeep(s, cfg, { ...st, life: lifeAfter, capacity: capacityAfter }).total,
     },
   };
 }

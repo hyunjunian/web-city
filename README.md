@@ -196,6 +196,11 @@ city.refurbishStructure(plant.id, true); // 현장 개보수 미리보기(비용
 city.refurbishStructure(plant.id);    // 낡은 기계 개보수: 시설 이름·ID·연결 유지
 city.previewRepairNetworks('water', 0, 0, 63, 63); // 닳은 수도관만 수리할 비용
 city.repairNetworks('water', 0, 0, 63, 63);        // 도로·송전선·철로도 각각 수리 가능
+city.energyReport('clean');          // 현재 수요에서 저오염 운전의 발전량·비용·오염원 비교(변경 없음)
+city.setPowerDispatch('clean');      // balanced(가동률 균등) · economical(발전 비용 우선) · clean(오염 우선)
+const infrastructure = city.infrastructureReport(); // 망별 여유·최대 공급원 정지 시 부족량·정비 필요
+city.budgetForecast(12, { capitalSpend: infrastructure.capitalNeeded }); // 시설 투자 후 1년 자금·부채
+city.budgetForecast(24, { taxIncomeMultiplier: 0.8, monthlyOperatingChange: 100 }); // 세입 감소·추가 유지비 시나리오
 const json = saveCity(city);          // JSON 직렬화 (KV/D1/R2 저장용)
 
 // 미리 보기: 아무것도 바꾸지 않고 같은 규칙으로 계획만 합니다(비용, 못 하는 이유).
@@ -270,6 +275,25 @@ const shared = new Region({ width: 2, height: 2, citySize: 64, heightmap: { widt
 별도로 해결해야 합니다. 수리는 닳거나 손상된 타일에만 비용을 받고 망을 유지합니다. 이후 열화는 부서
 예산에 따릅니다. 수명 전망은 현재 가동률과 예산을 유지한다는 조건이며, 실제 노후화와 같은 공식을 씁니다.
 가격·회복 수준은 `config.infrastructure`로 조절할 수 있습니다.
+
+발전 운용도 자체 확장입니다. 전력망마다 수입 전력과 소각 발전을 먼저 쓰고, 남은 수요를 일반 발전소에
+배정합니다. 균등 가동·발전 비용 우선·저오염 우선의 세 전략을 비교하고 선택할 수 있습니다. 발전소의
+월 비용을 예산에 따른 정비비와 실제 가동량에 따른 발전비로 나누며, 발전비는 정비 예산을 0으로
+내려도 발생합니다. 발전소 오염은 가동률과 대기 운전(기본 15%)에, 소각장 오염은 실제 소각량에
+비례합니다. 부하를 맡은 시설은 더 빨리 늙으므로 낮은 비용·환경·수명을 함께 고려해야 합니다.
+`energyReport()`의 오염 수치는 배출원 강도 지수이며 실제 배출 톤수가 아닙니다. 전략 비교는 현재
+출력·수요를 고정하며 이후의 성장·노후화·수질 피드백을 예측하지 않습니다. 분담비·대기 운전·오염
+가중치는 `config.energy`로 조절합니다. 기존 저장에 전략이 없으면 균등 운전으로 불러옵니다.
+
+`infrastructureReport()`는 연결된 전력망·수도망마다 현재 여유와 최대 공급원 하나의 정지 후 용량을
+구분합니다. 수입 거래도 공급원으로 셉니다. 연결되지 않은 다른 망의 여유는 합치지 않습니다. 이 진단은
+현재 소비자 배정을 유지하며 다른 급수 범위로의 전환이나 여러 시설의 동시 피해를 계산하지 않습니다.
+1년 안에 정비해야 할 시설의 개보수 비용과 도시 전체의 구간 수리 비용도 조회할 수 있습니다.
+
+`budgetForecast()`는 현재 세입·운영비·공급 조건·거래 단가에서 1~120개월의 자금과 남은 원금을
+전망합니다. 대출 만기와 거래의 유예·시험 기간은 실제 결산 규칙을 쓰고, 가상 투자·세입 감소·추가
+유지비 시나리오는 상태를 바꾸지 않습니다. 성장·시설 노후화·재해·거래가격 재협상은 전망에 포함하지
+않습니다. 비용이 큰 도시 결산은 한 번만 계산하고 이후에는 부채·거래만 갱신합니다.
 
 원작 수치를 알 수 없어 직접 정한 값은 `packages/engine/src/data`의 상수로 분리했고, 각 상수에 근거를 주석으로 달았습니다.
 `new City({ config: { … } })`로 코드를 고치지 않고 덮어쓸 수 있습니다.
