@@ -60,11 +60,15 @@ export async function goToSquare(x: number, y: number): Promise<void> {
   }
   // A new city stays in the region for good: ask before founding one. (Where, said from the city open now: "(5, 4)에"
   // named a grid nobody sees, and the city was called "새 도시 (4, 6)".)
+  // (By the whole of both: a big city founded above this one and reaching past its west end was said to lie 북서.)
   const span = Math.max(1, Math.round(city.size / region.citySize));
   const [px, py] = regionPos;
-  const dir = `${y < py ? '북' : y >= py + span ? '남' : ''}${x < px ? '서' : x >= px + span ? '동' : ''}` || '';
+  const fs = foundSpan;
+  const dir = `${y + fs <= py ? '북' : y >= py + span ? '남' : ''}${x + fs <= px ? '서' : x >= px + span ? '동' : ''}`;
   const side = dir ? `${dir}쪽` : '';
-  const beside = (x >= px && x < px + span && (y === py - 1 || y === py + span)) || (y >= py && y < py + span && (x === px - 1 || x === px + span));
+  const overX = x < px + span && x + fs > px;
+  const overY = y < py + span && y + fs > py;
+  const beside = (overX && (y + fs === py || y === py + span)) || (overY && (x + fs === px || x === px + span));
   const tiles = region.citySize * foundSpan;
   if (!region.has(x, y) && !(await ask(`${city.state.name}의 ${side}${beside ? '(이웃 칸)' : ''}에 ${SPAN_NAME[foundSpan]} 새 도시(${tiles}×${tiles})를 세우고 그 도시로 옮겨 갈까요? 지금 도시는 저장됩니다.`, '새 도시 세우기'))) return;
   if (!region) return;
@@ -167,7 +171,7 @@ export function renderNeighbours(): void {
     <div class="nb-compass" role="group" aria-label="네 변의 이웃">${s.neighbours.map((nb) => `<label class="nb-edge ${'wens'[nb.edge]}"><span class="nb-dir">${EDGE_NAME[nb.edge]}</span><select data-edge="${nb.edge}" ${region ? 'disabled' : ''} aria-label="${EDGE_NAME[nb.edge]} 이웃">
       ${(['simnation', 'established', 'developed'] as const).map((k) => `<option value="${k}" ${nb.kind === k ? 'selected' : ''} title="${KIND_NAME[k]}">${KIND_SHORT[k]}</option>`).join('')}
     </select>${edgeLinks(nb.edge)}</label>`).join('')}<div class="nb-me">${icon('zones')}<b>${escapeHtml(s.name)}</b><small>이 도시</small></div></div>
-    ${region ? `<p class="legend nb-fixed">${s.neighbours.every((nb) => nb.kind === 'simnation') ? '<b>네 변 모두 도시 없음:</b> 이웃과의 통근·거래가 끊겨 있습니다 · 이웃 칸에 도시를 세우면 다시 이어집니다. ' : ''}지역 안에서는 지역 지도의 칸이 네 변의 이웃을 정합니다: 빈 칸은 도시 없음이고, 이웃 칸에 도시를 세우면 그 도시가 이웃이 됩니다.</p>` : ''}
+    ${region ? `<p class="legend nb-fixed">${s.neighbours.every((nb) => nb.kind === 'simnation') ? '<b>네 변 모두 도시 없음:</b> 이웃이 보태는 수요와 이웃과의 거래가 없습니다(통근은 지역 밖으로 계속됨) · 이웃 칸에 도시를 세우면 생깁니다. ' : ''}지역 안에서는 지역 지도의 칸이 네 변의 이웃을 정합니다: 빈 칸은 도시 없음이고, 이웃 칸에 도시를 세우면 그 도시가 이웃이 됩니다.</p>` : ''}
     <dl class="nb-kinds" aria-label="이웃의 종류">
       <dt>도시 없음</dt><dd>화물은 나갈 수 있고, 도로·철도 등 연결이 종류마다 처음 생길 때 오피스 수요 상한이 조금 오릅니다</dd>
       <dt>미개발</dt><dd>주민이 오가며 통근합니다</dd>
@@ -192,7 +196,8 @@ export function renderNeighbours(): void {
     const cell = Math.min(64, city.size);
     const span = Math.max(1, Math.round(city.size / cell));
     const side = span + 2 * REGION_MARGIN;
-    // (The neighbours become the region's cells, empty ones no city: the commuting to those there was stopped unsaid.)
+    // (The neighbours become the region's cells, empty ones no city: what those there gave — their demand, their deals
+    // — was stopped unsaid. Commuting goes on, out of the region.)
     const lost = city.state.neighbours.filter((nb) => nb.kind !== 'simnation').length;
     region = new Region({ name: `${city.state.name} 지역`, width: side, height: side, citySize: cell });
     regionPos = [REGION_MARGIN, REGION_MARGIN];
@@ -201,7 +206,7 @@ export function renderNeighbours(): void {
     neighbourSignature = '';
     neighbourKey = '';
     setCity(region.open(REGION_MARGIN, REGION_MARGIN));
-    flash(`"${region.name}"${josa(region.name, '을', '를')} 만들었습니다${lost ? ` · 이웃은 이제 지역의 칸이 정해, 비어 있는 네 변은 도시 없음입니다(이웃 ${lost}곳과의 통근·거래가 끊김) · 이웃 칸에 도시를 세우면 다시 이어집니다` : ''}`, 'info');
+    flash(`"${region.name}"${josa(region.name, '을', '를')} 만들었습니다${lost ? ` · 이웃은 이제 지역의 칸이 정해, 비어 있는 네 변은 도시 없음입니다(이웃 ${lost}곳이 보태던 수요와 거래가 끊김 · 통근은 지역 밖으로 계속됨) · 이웃 칸에 도시를 세우면 다시 이어집니다` : ''}`, 'info');
   });
   el.querySelector<HTMLButtonElement>('#region-load')?.addEventListener('click', async () => {
     // The city on screen isn't in that region: what wasn't saved of it goes.
