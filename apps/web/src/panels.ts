@@ -1054,7 +1054,9 @@ const alarms: { goal: GoalId; text: string; at?: [number, number] }[] = [];
 export function flushAlarms(): void {
   for (const a of alarms.splice(0)) {
     // (Not when its goal's own notice spoke lately: the two came together with two figures for one cap, 21,310 and 21,290.)
-    if (city.state.day - (goalToldAt(a.goal) ?? -Infinity) < 60) continue;
+    // (Counted forward only: a day before it, after an undo, is not "lately".)
+    const ago = city.state.day - (goalToldAt(a.goal) ?? -Infinity);
+    if (ago >= 0 && ago < 60) continue;
     toast(firstSentence(a.text), 'bad', a.at, () => {
       closeSheet(); // the place is on the map: the sheet over it goes
       openGoal(a.goal, a.at, true);

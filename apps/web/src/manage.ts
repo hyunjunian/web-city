@@ -994,6 +994,8 @@ export function watchGoals(): void {
     // Another city: what is wrong in it now is where it starts, not news.
     tonesSeen = { lineage: cityLineage, tones: new Map(GOAL_ORDER.map((id) => [id, goalStatus(id).tone])), codes: new Map(GOAL_ORDER.map((id) => [id, badCodes(id)])) };
     pausedFor.clear();
+    // (Nor what was told in the last: a city at day 700 told of its power kept another at day 200 from hearing of its own.)
+    toldAt.clear();
     return;
   }
   // (Several turning at once are each told: the clock stopped for the first doesn't silence the rest.)
@@ -1010,7 +1012,9 @@ export function watchGoals(): void {
     const fresh = [...codes].find((c) => !seen.has(c));
     if (tone !== 'bad' || was === undefined || (was === 'bad' && !fresh)) continue;
     const key = was === 'bad' ? `${id}:${fresh}` : id;
-    if (!running || active === id || day - (pausedFor.get(key) ?? -Infinity) < 180) continue;
+    // (Days since, counted only forward: an undo that went back before it is not "lately".)
+    const ago = day - (pausedFor.get(key) ?? -Infinity);
+    if (!running || active === id || (ago >= 0 && ago < 180)) continue;
     // (A lone fire inside the stations' reach is theirs to put out: not a pause.)
     const inc = incidents().find((x) => x.goal === id);
     if (inc && !inc.urgent && (!fresh || fresh === 'fires')) continue;
