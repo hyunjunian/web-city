@@ -953,8 +953,15 @@ export function capBest(): StructureKind | undefined {
   return parks.sort((a, b) => STRUCTURES[b].relief[0] / Math.max(1, STRUCTURES[b].cost) - STRUCTURES[a].relief[0] / Math.max(1, STRUCTURES[a].cost))[0];
 }
 
-/** About how many would move in now but for the homes' cap. */
-export const capWaiting = (): number => (['R$', 'R$$', 'R$$$'] as const).reduce((s, t) => s + Math.max(0, city.demand.raw[t]), 0);
+/**
+ * About how many would move in now but for the homes' cap: of the incomes held at it, as the advisor judges it (near
+ * the cap with demand left over) — another income's demand wants zones, not a park.
+ */
+export const capWaiting = (): number => {
+  const d = city.demand;
+  return (['R$', 'R$$', 'R$$$'] as const).filter((t) => d.raw[t] > 0 && Number.isFinite(d.cap[t]) && d.capPopulation[t] >= 0.95 * d.cap[t])
+    .reduce((s, t) => s + Math.max(0, d.raw[t]), 0);
+};
 
 /**
  * People waiting at the homes' cap, with a park in hand that lifts it: what the growth row and screen lead with, before
