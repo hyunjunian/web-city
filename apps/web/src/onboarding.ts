@@ -7,7 +7,7 @@ import { region } from './region';
 import { changeKey, city, cityLineage } from './state';
 import { markSuggested, panTipAt, selectTool } from './tools';
 import { closePane, paneShown, showTab, type Tab } from './tabs';
-import { $, ask, flash, fmt, touchFirst } from './util';
+import { $, ask, escapeHtml, flash, fmt, touchFirst } from './util';
 import { EDGE_NAME, STRUCTURE_NAME } from './names';
 import { dropToasts, toast } from './toast';
 import { GOALS, type GoalId } from './goals';
@@ -179,7 +179,8 @@ export function renderOnboarding(): void {
   // (The first step to do stands out until the first residents come: from then the city's state below leads the
   // pane. It went out with the first road, and nothing said what came next.)
   const row = ([ok, text, tool]: (typeof steps)[number], i = -1) => {
-    const body = `<span class="step-dot">${ok ? icon('check') : ''}</span><span class="step-text">${text}</span>`;
+    // (Plain words, escaped where they are drawn: a neighbour city's name, which a player gives, is among them.)
+    const body = `<span class="step-dot">${ok ? icon('check') : ''}</span><span class="step-text">${escapeHtml(text)}</span>`;
     // (The first road: drawn along the dashed route the tool shows, or laid at once. The first zones likewise.)
     const block = !ok && tool ? blocks.get(tool) : undefined;
     const lay = !ok && tool === 'road' && way && !way.short
