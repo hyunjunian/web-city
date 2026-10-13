@@ -747,7 +747,7 @@ function nextHtml(tones: Tone[]): Step {
     const g = GOALS[inc.goal];
     return { goal: inc.goal, problem: true, urgent: true, html: `<div class="lead bad urgent">
       <p class="lead-title">${icon(g.icon)}<span>${escapeHtml(inc.title)}</span><em>긴급</em></p>
-      <p class="lead-risk">${inc.goal !== 'fire' ? '두면 번져 건물이 부서지고 평점이 떨어집니다' : inc.plant ? '두면 발전소가 폭발해 둘레를 태웁니다' : '두면 번져 건물을 잃습니다'}</p>
+      <p class="lead-risk">${inc.goal !== 'fire' ? (inc.riot ? '두면 번져 건물이 부서지고 평점이 떨어집니다' : '두면 노리는 건물에 불을 지릅니다') : inc.plant ? '두면 발전소가 폭발해 둘레를 태웁니다' : '두면 번져 건물을 잃습니다'}</p>
       <p class="lead-do">${free ? (inc.riot ? riotHint(free) : inc.goal === 'fire' ? '소방차를 보내 불을 끄세요' : '경찰을 보내 체포하세요') : `보낼 ${unitName(inc.goal)}가 없습니다 · ${inc.goal === 'fire' ? '소방서' : '경찰서'}부터`}</p>
       <div class="next-acts"><button type="button" class="primary next-do" data-next="${inc.goal}" data-next-kind="incident" data-next-at="${inc.at.join(',')}">${free ? `출동 준비<small class="next-count">${free}대 가능</small>` : '화면 열기'}</button></div></div>` };
   }
