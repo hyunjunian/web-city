@@ -1552,7 +1552,9 @@ export class City {
     const r1 = (v: number) => Math.round(v * 10) / 10;
     return {
       arrests: st.safety.arrests,
-      commute: commuters ? r1(commute / commuters / 100) : 0,
+      // (To the hundredth of an hour: to the tenth, a commute steady near 1.15 h read 1시간 06분 one month and 1시간 12분
+      // the next, a change of 6 minutes that was only rounding.)
+      commute: commuters ? Math.round(commute / commuters) / 100 : 0,
       powerSupply: Math.round(st.power.supply), powerDemand: Math.round(st.power.demand),
       waterSupply: Math.round(st.water.supply), waterDemand: Math.round(st.water.demand),
       garbageCapacity: Math.round(st.garbage.capacity), garbageProduced: Math.round(st.garbage.produced),

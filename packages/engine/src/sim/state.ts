@@ -582,7 +582,7 @@ export interface HistoryPoint {
   trips?: Partial<Record<string, number>>;
   /** The other graphs (absent in older saves). */
   arrests?: number;
-  /** Average residential commute, hours. */
+  /** Average residential commute, hours (to the hundredth). */
   commute?: number;
   powerSupply?: number;
   powerDemand?: number;
