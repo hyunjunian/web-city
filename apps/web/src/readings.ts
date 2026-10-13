@@ -161,7 +161,7 @@ function readStatus(id: GoalId): Status {
       const prev = s.history.at(-2)?.crimes;
       // (A red row says why it is red: under a riot it read "체포 4".)
       if (s.mobs.length) return now('bad', `범죄 ${fmt(c)}`, `폭동 ${fmt(s.mobs.length)}곳 진행 중`);
-      if (s.arsonists.length) return now('bad', `범죄 ${fmt(c)}`, `방화범 ${fmt(s.arsonists.length)}명 · 경찰을 보내면 막습니다`);
+      if (s.arsonists.length) return now('bad', `범죄 ${fmt(c)}`, `방화범 ${fmt(s.arsonists.length)}명 · ${fmt(Math.min(...s.arsonists.map((a) => a.days)))}일 안에 불을 지름`);
       return pick('', `범죄 ${fmt(c)}`, `체포 ${fmt(st.safety.arrests)}${prev !== undefined && c > prev * 1.2 && c - prev > 5 ? ' · 늘어남' : ''}`);
     }
     case 'fire': {
