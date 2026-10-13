@@ -561,9 +561,14 @@ let armedByDock = false;
 /** …and was not in hand before (put away unused, the tray takes it back down). */
 let armedUnasked = false;
 export const dockArmed = (): boolean => armedByDock;
-/** The tool armed by the dock has built something: it is the player's now (the tray put away leaves it). */
-export function toolUsed(): void {
+/**
+ * A tool has built something: if the dock armed it, it is the player's now (the tray put away leaves it); and it is
+ * one of the recent ones. (Picked up alone it isn't: opening 교통 arms 도로 and 구역 arms 주거 저밀도, and every tray
+ * read "최근 [주거 저밀도] [도로]" before anything was built.)
+ */
+export function toolUsed(used: Tool = tool): void {
   armedUnasked = false;
+  noteRecent(used);
 }
 
 /** Tools drawn tile by tile, cheap and shown as they're dragged: armed straight from the dock. */
@@ -953,7 +958,6 @@ export function selectTool(id: string): void {
   // A tool of another category (a key, a goal's button) puts away a card that shows something else.
   if (openCat && ((openCat !== cat && tool.id !== 'query') || (tool.id === 'query' && $('#tray').classList.contains('from-bar')))) closeTray(); // (the bar's card goes with the tool put down)
   lastTool[cat] = tool.id;
-  noteRecent();
   if (BUILD_CATS.includes(cat)) lastBuildCat = cat;
   document.querySelectorAll<HTMLElement>('#tools .picker[data-tool]').forEach((p) => markPicked(p));
   document.querySelectorAll<HTMLButtonElement>('#tools button[data-tool]').forEach((b) => {
@@ -1022,7 +1026,21 @@ let viewBefore = 'none';
 // ------------------------------------------------------------------ finding a tool
 
 /** What the search box can find: every tool, every kind of facility (by its own name), and the screens (by what they hold). */
-type Found = { key: string; name: string; where: string; glyph: string; sub: string; locked: string; pick: () => void; words?: string };
+type Found = { key: string; name: string; where: string; glyph: string; sub: string; locked: string; pick: () => void; words?: string; aside?: true };
+
+/**
+ * Everyday words a tool or facility answers to besides its name: 물 found 물 파기 and 박물관 but no pump, 전기 only
+ * 풍력 발전기, and 집·공장·상가·다리 nothing at all.
+ */
+function wordsFor(t: Tool, d?: (typeof STRUCTURES)[StructureKind]): string {
+  if (d) return d.pump || d.category === 'water' ? '물 수도 급수' : d.plant ? '전기 전력' : d.incinerator || d.recycling ? '쓰레기' : d.police ? '경찰 범죄 치안'
+    : d.fire ? '불 화재 소방' : d.health ? '병원 건강 보건' : d.school ? '학교 교육' : d.category === 'park' ? '공원 녹지 놀이터' : d.station ? '대중교통 정류장 역' : '';
+  if (t.kind === 'zone') return t.zone[0] === 'R' ? '집 주택 아파트 주거' : t.zone[0] === 'C' ? '상가 가게 상점 사무실 상업' : t.zone[0] === 'I' ? '공장 산업 일자리' : t.zone === 'A' ? '농장 농사 밭' : t.zone === 'landfill' ? '쓰레기' : '';
+  if (t.kind === 'pipe') return '물 수도';
+  if (t.kind === 'powerline') return '전기 전력 전선';
+  if (t.kind === 'network' && (t.network === 'road' || t.network === 'street' || t.network === 'avenue' || t.network === 'highway')) return '다리 길 차';
+  return '';
+}
 
 /**
  * The words that find each screen: what is done or read there. Typed 세율 or 대출, the box offered no tool and
@@ -1063,7 +1081,7 @@ function findables(): Found[] {
           const earned = city.state.unlocked.filter((u) => u === k).length;
           const why = plainCodes(d.unlock?.description ?? d.unlockTiers?.[earned]?.description ?? d.offer?.description ?? '잠김');
           out.push({
-            key: `${t.id}:${k}`, name: STRUCTURE_NAME[k], where: `${cat.label} · ${g.title}`,
+            key: `${t.id}:${k}`, name: STRUCTURE_NAME[k], where: `${cat.label} · ${g.title}`, words: wordsFor(t, d),
             glyph: swatchOf(k),
             sub: d.cost || d.upkeep ? `§${fmt(d.cost)} · 월 §${fmt(d.upkeep)}` : '무료',
             locked: !open ? why : placed ? '이미 지음' : '',
@@ -1074,7 +1092,9 @@ function findables(): Found[] {
           });
         }
       } else {
-        out.push({ key: t.id, name: toolName(t), where: `${cat.label} · ${g.title}`, glyph: toolGlyph(t), sub: t.kind === 'terraform' && !city.established() ? '무료' : toolPrice(t), locked: usable(t) ? '' : '잠김', pick: () => selectTool(t.id) });
+        // (Terrain and disasters are listed after the rest: Enter on 물 dug a lake.)
+        out.push({ key: t.id, name: toolName(t), where: `${cat.label} · ${g.title}`, words: wordsFor(t), glyph: toolGlyph(t), sub: t.kind === 'terraform' && !city.established() ? '무료' : toolPrice(t), locked: usable(t) ? '' : '잠김', pick: () => selectTool(t.id),
+          ...(t.kind === 'terraform' || t.kind === 'disaster' || t.kind === 'level' || t.kind === 'trees' ? { aside: true as const } : {}) });
       }
     }
   }
@@ -1091,9 +1111,9 @@ let recent: string[] = (() => {
   }
 })();
 
-function noteRecent(): void {
-  if (tool.kind === 'query' || tool.kind === 'route' || tool.kind === 'mic' || tool.kind === 'disaster') return;
-  const key = tool.kind === 'structure' ? `${tool.id}:${chosen[tool.id]}` : tool.id;
+function noteRecent(t: Tool): void {
+  if (t.kind === 'query' || t.kind === 'route' || t.kind === 'mic' || t.kind === 'disaster') return;
+  const key = t.kind === 'structure' ? `${t.id}:${chosen[t.id]}` : t.id;
   if (recent[0] === key) return;
   recent = [key, ...recent.filter((k) => k !== key)].slice(0, 6);
   try {
@@ -1140,12 +1160,15 @@ function renderFound(q: string): void {
   // Typed as initial consonants only (ㅅㅂㅅ), it matches names by theirs (소방서).
   const initials = /^[ㄱ-ㅎ]+$/.test(query);
   const key = (v: string) => (initials ? chosung(norm(v)) : norm(v));
-  // Its own name first, then where it sits (발전 finds the plants; 서비스 finds the services), then the screens
-  // by what they hold (세율 finds 재정·정책).
+  // A name that starts with it first, then a word it answers to (물 finds the pumps, 세율 finds 재정·정책), then a
+  // name with it inside (발전기 has 전기 in it), then where it sits (발전 finds the plants; 서비스 the services).
+  // Terrain and disasters after all the rest, and the locked after the open.
+  const tier = (f: Found, at: number) => (at === 0 ? 0 : !initials && (f.words ?? '').split(' ').some((w) => norm(w).startsWith(query)) ? 1
+    : at > 0 ? 2 + at / 100 : !initials && (key(f.where).includes(query) || norm(f.words ?? '').includes(query)) ? 3 : -1);
   found = [...findables(), ...screens()]
-    .map((f) => ({ f, at: key(f.name).indexOf(query), inWhere: !initials && (key(f.where).includes(query) || norm(f.words ?? '').includes(query)) }))
-    .filter((x) => x.at >= 0 || x.inWhere)
-    .sort((a, b) => (a.at < 0 ? 99 : a.at) - (b.at < 0 ? 99 : b.at) || +!!a.f.locked - +!!b.f.locked)
+    .map((f) => ({ f, t: tier(f, key(f.name).indexOf(query)) }))
+    .filter((x) => x.t >= 0)
+    .sort((a, b) => +!!a.f.aside - +!!b.f.aside || a.t - b.t || +!!a.f.locked - +!!b.f.locked)
     .map((x) => x.f);
   $('#tray-title').innerHTML = `${icon('search')}찾기 · ${found.length}개`;
   res.innerHTML = found.length

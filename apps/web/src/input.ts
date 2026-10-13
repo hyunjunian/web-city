@@ -1019,6 +1019,7 @@ export function applyTool(): void {
   if (res?.ok && !res.message && tool.kind !== 'query' && tool.kind !== 'route' && tool.kind !== 'mic') {
     noteAction(`${tool.kind === 'structure' ? STRUCTURE_NAME[chosen[tool.id]!] : toolName(tool)}${res.cost ? ` · −§${fmt(res.cost)}` : ''}`, undefined, tool.id);
   }
+  const used = tool; // (before a handed-out facility's tool goes down)
   // A facility a suggestion handed out is one job: placed, the tool goes down and time runs on.
   if (res?.ok && tool.kind === 'structure' && handedPlaced(tool.id)) {
     const held = isHeld();
@@ -1026,7 +1027,7 @@ export function applyTool(): void {
     if (built) flash(`${built[0]}${held ? ' · 시간이 다시 흐릅니다' : ''}`, built[1]);
   }
   if (res?.ok) {
-    toolUsed();
+    toolUsed(used);
     // (A drag that laid something: a click or a stroke over what stood there teaches nothing.)
     if (usedKind && res.cost > 0 && (x0 !== x1 || y0 !== y1)) noteDrawn(usedKind);
   }
