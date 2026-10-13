@@ -61,11 +61,7 @@ export interface Fields {
    */
   jobless: Map<number, number>;
   /** Reused search arrays, two generations (the last result stays valid while the next is computed). */
-  /**
-   * Reused search buffers. `touched` lists the states the last search set
-   * (the first `count`), so the next one resets just those instead of the
-   * whole arrays; `count` −1 means the buffers have never been cleared.
-   */
+  /** Search buffers are allocated lazily and cleared before reuse. */
   searchPool: { dist: Float32Array; time: Float32Array; next: Int32Array }[][];
   searchGen: number;
   /** The landfills' NIMBY field and the landfill tiles it was made for (it changes only with zoning). */

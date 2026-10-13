@@ -660,6 +660,8 @@ export interface GarbageStats {
   stranded?: number;
   /** Road-accessible local waste whose collection network reaches no disposal facility or contracted export port. */
   routeCutOff?: number;
+  /** Incoming-waste contracts that could not be delivered, including suspended contracts without capacity to resume. */
+  failedImports?: number[];
 }
 
 export interface SafetyStats {

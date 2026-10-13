@@ -582,7 +582,7 @@ function* nearestOpenJobs(
 ): Generator<void, void> {
   const n = s.size;
   const N = n * n;
-  const moves = moveMasks(s, cross);
+  const moves = yield* moveMasksSteps(s, cross);
   yield;
   const { dist, time, next } = buf;
   dist.fill(INF);
@@ -896,12 +896,21 @@ type SearchBuffers = Fields['searchPool'][number][number];
  */
 const MOVES = new WeakMap<Float32Array, Uint8Array>();
 function moveMasks(s: CityState, cross: Float32Array[]): Uint8Array {
+  return drain(moveMasksSteps(s, cross));
+}
+
+/** Direction-mask preparation yields on large maps and skips tiles no driving mode can enter. */
+function* moveMasksSteps(s: CityState, cross: Float32Array[]): Generator<void, Uint8Array> {
   const key = cross[Mode.Car]!;
   let m = MOVES.get(key);
   if (m) return m;
   const n = s.size;
   m = new Uint8Array(n * n);
   for (let t = 0; t < n * n; t++) {
+    if ((t & 0x7ff) === 0x7ff) yield;
+    const ground = cross[Mode.Car]![t]! > 0 || cross[Mode.Bus]![t]! > 0;
+    const high = cross[Mode.HighCar]![t]! > 0 || cross[Mode.HighBus]![t]! > 0;
+    if (!ground && !high) continue;
     const x = t % n;
     const y = (t - x) / n;
     let bits = 0;
@@ -910,8 +919,8 @@ function moveMasks(s: CityState, cross: Float32Array[]): Uint8Array {
       const ny = y + DY[k]!;
       if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
       const u = ny * n + nx;
-      if (carMove(s, u, t)) bits |= 1 << k;
-      if (highMove(s, u, t)) bits |= 16 << k; // (into t from u, as for the ground)
+      if (ground && carMove(s, u, t)) bits |= 1 << k;
+      if (high && highMove(s, u, t)) bits |= 16 << k; // (into t from u, as for the ground)
     }
     m[t] = bits;
   }
@@ -927,7 +936,7 @@ function search(s: CityState, cross: Float32Array[], sources: readonly [number, 
 /** `search` in steps: a pause every few thousand states settled (see ./steps). */
 function* searchSteps(s: CityState, cross: Float32Array[], sources: readonly [number, number][], o: SearchOptions, buf?: SearchBuffers): Generator<void, TravelSearch> {
   const n = s.size;
-  const moves = moveMasks(s, cross);
+  const moves = yield* moveMasksSteps(s, cross);
   const N = n * n;
   const size = MODES * N;
   let dist: Float32Array, time: Float32Array, next: Int32Array;
@@ -1023,26 +1032,23 @@ function ferryWater(s: CityState, i: number): boolean {
 function edgeTilesWhere(s: CityState, test: (i: number) => boolean): number[] {
   const n = s.size;
   const out: number[] = [];
-  for (let i = 0; i < n * n; i++) {
-    const x = i % n;
-    const y = (i - x) / n;
-    if ((x === 0 || y === 0 || x === n - 1 || y === n - 1) && test(i)) out.push(i);
+  // Same row-major border order, touching each corner once; interior tiles cannot be connections.
+  for (let y = 0; y < n; y++) {
+    const step = y === 0 || y === n - 1 ? 1 : n - 1;
+    for (let x = 0; x < n; x += step) {
+      const i = y * n + x;
+      if (test(i)) out.push(i);
+    }
   }
   return out;
 }
 
 /** Map-edge tiles of networks that can be neighbour connections (not streets or onramps). */
 export function connectionTiles(s: CityState): number[] {
-  const n = s.size;
-  const out: number[] = [];
-  for (let i = 0; i < n * n; i++) {
+  return edgeTilesWhere(s, (i) => {
     const code = s.net[i]!;
-    if (code !== Net.Road && code !== Net.Avenue && code !== Net.Highway && code !== Net.Rail) continue;
-    const x = i % n;
-    const y = (i - x) / n;
-    if (x === 0 || y === 0 || x === n - 1 || y === n - 1) out.push(i);
-  }
-  return out;
+    return code === Net.Road || code === Net.Avenue || code === Net.Highway || code === Net.Rail;
+  });
 }
 
 function isJobSite(b: Building): boolean {

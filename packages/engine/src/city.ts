@@ -6,6 +6,7 @@ import { makeConfig, type ConfigOverrides, type SimConfig } from './config';
 import type { Difficulty } from './data/difficulty';
 import type { StructureDef, StructureKind } from './data/structures';
 import { Rng } from './rng';
+import { copyData } from './copy';
 import {
   allocateJobs, computeDemand, takeCensusSteps, type Census, type DemandReport,
 } from './sim/demand';
@@ -1550,7 +1551,7 @@ export class City {
   }
 
   /** This month's values for the city's graphs. */
-  private graphPoint(st: CityStats): Partial<HistoryPoint> {
+  private *graphPointSteps(st: CityStats): Generator<void, Partial<HistoryPoint>> {
     const s = this.state;
     const sv = this.cfg.services;
     let people = 0;
@@ -1558,7 +1559,9 @@ export class City {
     let commute = 0;
     let eq = 0;
     let life = 0;
+    let piece = 0;
     for (const b of s.buildings.values()) {
+      if ((++piece & 0x1ff) === 0) yield;
       if (!b.type || b.type[0] !== 'R') continue;
       const r = b.capacity * b.occupancy;
       people += r;
@@ -1573,6 +1576,7 @@ export class City {
     let air = 0;
     let water = 0;
     for (let i = 0; i < s.terrain.length; i++) {
+      if ((i & 0x1fff) === 0x1fff) yield;
       if (s.terrain[i] === Terrain.Water) continue;
       land++;
       air += Math.max(0, this.fields.air[i]!);
@@ -1594,14 +1598,15 @@ export class City {
     };
   }
 
-  private recordHistory(): void {
+  private *recordHistorySteps(): Generator<void, void> {
     const s = this.state;
     const st = this.stats();
+    const point = yield* this.graphPointSteps(st);
     s.history.push({
       month: Math.floor(s.day / DAYS_PER_MONTH), population: st.population, jobs: st.jobs,
       funds: Math.round(s.funds), mayorRating: st.mayorRating, crimes: st.safety.crimes,
       trips: Object.fromEntries(Object.entries(this.volume).map(([k, v]) => [k, Math.round(v! * 10) / 10])),
-      ...this.graphPoint(st),
+      ...point,
     });
     if (s.history.length > HISTORY_MONTHS) s.history.splice(0, s.history.length - HISTORY_MONTHS);
   }
@@ -2138,16 +2143,20 @@ export class City {
    * garbage and landfill to tenths of a ton, crime to hundredths), so a
    * reloaded city carries on exactly like the original.
    */
-  private quantize(): void {
+  private *quantizeSteps(): Generator<void, void> {
     const f = this.fields;
     const s = this.state;
     for (const a of [f.traffic, f.railTraffic, f.freightRail, f.subwayTraffic, f.monorailTraffic, f.highTraffic, f.ferryTraffic]) {
-      for (let i = 0; i < a.length; i++) a[i] = Math.round(a[i]! * 100) / 100;
+      for (let i = 0; i < a.length; i++) {
+        if ((i & 0x1fff) === 0x1fff) yield;
+        if (a[i] !== 0) a[i] = Math.round(a[i]! * 100) / 100;
+      }
     }
     for (let i = 0; i < s.garbage.length; i++) {
-      s.garbage[i] = Math.round(s.garbage[i]! * 10) / 10;
-      s.landfill[i] = Math.round(s.landfill[i]! * 10) / 10;
-      s.crime[i] = Math.round(s.crime[i]! * 100) / 100;
+      if ((i & 0x1fff) === 0x1fff) yield;
+      if (s.garbage[i] !== 0) s.garbage[i] = Math.round(s.garbage[i]! * 10) / 10;
+      if (s.landfill[i] !== 0) s.landfill[i] = Math.round(s.landfill[i]! * 10) / 10;
+      if (s.crime[i] !== 0) s.crime[i] = Math.round(s.crime[i]! * 100) / 100;
     }
   }
 
@@ -2212,7 +2221,7 @@ export class City {
     if (s.day % DAYS_PER_MONTH === 0) {
       yield;
       yield* this.monthSteps();
-      this.quantize();
+      yield* this.quantizeSteps();
       yield;
       // Plants aged, buildings left and loads moved after the month's
       // refresh: catch the fields up, so the figures a save made now reports
@@ -2317,7 +2326,7 @@ export class City {
     yield;
     this.checkUnlocks();
     yield;
-    this.recordHistory();
+    yield* this.recordHistorySteps();
     yield;
     const since = s.day - this.cfg.demand.taxMemoryDays;
     s.taxLog = s.taxLog.filter(([day]) => day >= since);
@@ -2355,6 +2364,9 @@ export class City {
     const c = this.census;
     const deliveredByDeal = new Map<number, boolean>();
     const graceRoom = new Map<string, number>();
+    if (s.garbageStats.failedImports) for (const deal of s.neighbourDeals) {
+      if (deal.direction === 'sell' && deal.resource === 'garbage') deliveredByDeal.set(deal.id, !s.garbageStats.failedImports.includes(deal.id));
+    }
     // Active sales already count in network demand. Grace-period sales need spare
     // capacity reserved once, in id order, before they can return on probation.
     const sales = s.neighbourDeals.filter((deal) => deal.direction === 'sell' && deal.resource !== 'garbage')
@@ -3102,8 +3114,8 @@ export class City {
       // Demand as the grids reckon it: conservation ordinances cut it.
       power: { supply: this.power.supply, demand: this.powerDemand() * ordinanceEffects(s).power, blackedOut: this.power.blackedOut },
       water: { supply: this.water.supply, demand: this.waterDemand() * ordinanceEffects(s).water, shortages: this.water.shortages, sourceless: this.water.sourceless ?? 0, pumpsOff: this.water.pumpsOff ?? 0, ...(this.water.pumpsOffAt ? { pumpsOffAt: { ...this.water.pumpsOffAt } } : {}), ...(this.water.sourcelessAt ? { sourcelessAt: { ...this.water.sourcelessAt } } : {}) },
-      safety: { ...s.safety, burning: s.fires.length + s.treeFires.length },
-      garbage: { ...s.garbageStats },
+      safety: { ...copyData(s.safety), burning: s.fires.length + s.treeFires.length },
+      garbage: copyData(s.garbageStats),
       mayorRating: Math.round(s.mayorRating),
       riots: s.riots,
       eq: c.avgEq.map(Math.round) as [number, number, number],
@@ -3372,7 +3384,7 @@ export class City {
       const g = s.garbageStats;
       // Tons a month, like the usage it is set against: incinerators' monthly capacity, and the free landfill
       // spread over five years (all of it, a stock, made any landfill a vast monthly surplus to sell).
-      capacity += Math.max(0, g.landfillSpace ?? 0) / GARBAGE_DEAL_MONTHS;
+      capacity += Math.max(0, g.landfillSpace ?? 0) / GARBAGE_DEAL_MONTHS * Math.max(0, Math.min(1, s.departments.sanitation / 100));
       usage = g.kept ?? g.produced - g.recycled;
       let tiles = 0;
       for (let i = 0; i < s.zone.length; i++) if (s.zone[i] === LANDFILL_ZONE) tiles++;

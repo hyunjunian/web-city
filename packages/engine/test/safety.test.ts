@@ -3,6 +3,20 @@ import { City, loadCity, saveCity, type CityOptions } from '../src';
 import { criminality, ignite } from '../src/sim/safety';
 import { sampleCity } from '../src/sample';
 
+describe('public crime statistics', () => {
+  it('does not expose mutable crime counts or incident coordinates from the city state', () => {
+    const city = new City({ size: 16, water: false });
+    city.state.safety.byType = { burglary: 2 };
+    city.state.safety.spots = [[17, 'burglary']];
+    const stats = city.stats();
+    stats.safety.byType!.burglary = 100;
+    stats.safety.spots![0]![0] = 99;
+    stats.safety.spots!.push([18, 'robbery']);
+    expect(city.state.safety.byType).toEqual({ burglary: 2 });
+    expect(city.state.safety.spots).toEqual([[17, 'burglary']]);
+  });
+});
+
 /** Powered town with homes and industry. */
 function town(config?: CityOptions['config'], seed = 5): City {
   const n = 48;

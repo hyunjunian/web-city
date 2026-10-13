@@ -6,7 +6,7 @@ import { interp } from '../data/services';
 import type { Rng } from '../rng';
 import { buildingAccess, footprint, frontage, type Fields } from './fields';
 import { ordinanceEffects } from './mayor';
-import { activeDeals, edgeReach, edgeTiles } from './region';
+import { edgeReach, edgeTiles } from './region';
 import { atGrade, ELEVATED, isLocalNet, Net, structureOnline, type CityState, type GarbageStats, type Structure } from './state';
 import { drain } from './steps';
 import { allocateDisposalSteps, type DisposalOutlet } from './disposal';
@@ -221,9 +221,11 @@ export function* runGarbageSteps(s: CityState, f: Fields, cfg: SimConfig, rng: R
   // Contracts enter or leave through an actual shared-border road, not any road anywhere in the city.
   const exports: DisposalOutlet[] = [];
   const importsByContract = new Map<number, number>();
+  const pendingImports = new Map<number, number>();
   const importAccess = new Map<number, number[]>();
   let importTons = 0;
-  for (const d of activeDeals(s, 'garbage')) {
+  for (const d of s.neighbourDeals) {
+    if (d.resource !== 'garbage' || d.direction === 'buy' && d.status === 'grace') continue;
     const eligible = new Set(edgeReach(s, 'garbage', d.edge));
     const ports = [...edgeTiles(s, d.edge, (i) => eligible.has(d.edge < 2 ? Math.floor(i / n) : i % n), 'garbage')];
     const components = [...new Set(ports.flatMap((i) => {
@@ -237,8 +239,8 @@ export function* runGarbageSteps(s: CityState, f: Fields, cfg: SimConfig, rng: R
     else {
       const made = s.neighbours[d.edge]?.usage.garbage ?? 0;
       const tons = made > 0 ? Math.min(d.amount, made) : d.amount;
-      importTons += tons;
-      importsByContract.set(-d.id, tons);
+      if (d.status === 'grace') pendingImports.set(-d.id, tons);
+      else { importTons += tons; importsByContract.set(-d.id, tons); }
       importAccess.set(-d.id, components);
       for (const component of components) networks.add(component);
     }
@@ -256,6 +258,7 @@ export function* runGarbageSteps(s: CityState, f: Fields, cfg: SimConfig, rng: R
   }
   const regions = yield* landfillRegionsSteps(s, f, networks, truck.ground);
   let landRoom = 0;
+  let landOperatingRoom = 0;
   let landSpace = 0;
   for (const r of regions) {
     let capacity = 0;
@@ -264,8 +267,9 @@ export function* runGarbageSteps(s: CityState, f: Fields, cfg: SimConfig, rng: R
       landSpace += free;
       capacity += free;
     }
-    outlets.push({ components: r.components, capacity });
-    if (r.connected) landRoom += capacity;
+    const operating = capacity * Math.max(0, Math.min(1, s.departments.sanitation / 100));
+    outlets.push({ components: r.components, capacity: operating });
+    if (r.connected) { landRoom += capacity; landOperatingRoom += operating; }
   }
 
   yield;
@@ -283,11 +287,18 @@ export function* runGarbageSteps(s: CityState, f: Fields, cfg: SimConfig, rng: R
   // Imported waste has its own delivery trucks; local pickup takes priority over imported waste and old piles.
   const remaining = () => outlets.map((outlet, i) => ({ components: outlet.components,
     capacity: i < exports.length ? 0 : Math.max(0, outlet.capacity - used[i]!) }));
-  const importOutlets = remaining().map((outlet) => ({ ...outlet, components: [...importAccess]
+  const importOutlets = () => remaining().map((outlet) => ({ ...outlet, components: [...importAccess]
     .filter(([, ports]) => ports.some((component) => outlet.components.includes(component))).map(([id]) => id) }));
-  const imports = yield* allocateDisposalSteps(importsByContract, importOutlets);
+  const imports = yield* allocateDisposalSteps(importsByContract, importOutlets());
   imports.used.forEach((tons, i) => { used[i]! += tons; });
   const imported = [...imports.collected.values()].reduce((a, b) => a + b, 0);
+  // A suspended import reserves no room and receives no waste. Test its ability to
+  // resume against spare capacity once, before the lower-priority backlog.
+  const pending = yield* allocateDisposalSteps(pendingImports, importOutlets());
+  const failedImports: number[] = [];
+  for (const [id, tons] of importsByContract) if ((imports.collected.get(id) ?? 0) + 1e-6 < tons) failedImports.push(-id);
+  for (const [id, tons] of pendingImports) if ((pending.collected.get(id) ?? 0) + 1e-6 < tons) failedImports.push(-id);
+  failedImports.sort((a, b) => a - b);
   const backlogDemand = new Map([...pilesByNetwork].map(([component, piles]) => [component,
     Math.max(0, Math.min(piles.tons * g.backlogPickup * Math.max(1, sanitation), (truckRoom.get(component) ?? 0) - (local.collected.get(component) ?? 0)))]));
   const backlog = yield* allocateDisposalSteps(backlogDemand, remaining());
@@ -374,7 +385,7 @@ export function* runGarbageSteps(s: CityState, f: Fields, cfg: SimConfig, rng: R
     landfilled,
     uncollected,
     piled,
-    capacity: burnRoom + landRoom,
+    capacity: burnRoom + landOperatingRoom,
     // (Space only trucks can reach: a landfill no road joins to the city fills no further.)
     landfillSpace: landRoom - landfilled,
     landfillCutOff: landSpace - landRoom,
@@ -383,5 +394,6 @@ export function* runGarbageSteps(s: CityState, f: Fields, cfg: SimConfig, rng: R
     importShort: Math.max(0, importTons - imported),
     stranded: strandedTons,
     routeCutOff,
+    failedImports,
   };
 }

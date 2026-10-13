@@ -6,13 +6,25 @@ import { frontage } from '../src/sim/fields';
 import { interp } from '../src/data/services';
 import { carMove, Net, SPAN } from '../src/sim/state';
 import type { Building } from '../src/sim/state';
-import { assignTraffic, congestionSlowdown, Mode, transfers } from '../src/sim/transport';
+import { assignTraffic, congestionSlowdown, connectionTiles, Mode, transfers } from '../src/sim/transport';
 
 const CALM = {
   safety: { fires: false },
   mayor: { riots: false },
   development: { requirePower: false, requireWater: false },
 } as const;
+
+describe('border connection enumeration', () => {
+  it('returns eligible border tiles in row order without duplicating corners or including interior roads', () => {
+    const city = new City({ size: 16, water: false });
+    const s = city.state;
+    s.net.fill(Net.Street);
+    for (const [i, kind] of [[0, Net.Road], [15, Net.Avenue], [2 * 16, Net.Highway], [2 * 16 + 15, Net.Rail],
+      [15 * 16, Net.Rail], [255, Net.Highway], [7 * 16 + 7, Net.Road]] as const) s.net[i] = kind;
+    s.net[8 * 16] = Net.OneWay;
+    expect(connectionTiles(s)).toEqual([0, 15, 32, 47, 240, 255]);
+  });
+});
 
 /**
  * Homes in the west, industry in the east, joined by one long road. `before`

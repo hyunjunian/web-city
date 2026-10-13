@@ -330,7 +330,7 @@ export function* saveCitySteps(city: City): Generator<void, SavedCity> {
     rubble: r.rubble!,
     garbage: r.garbage!,
     landfill: r.landfill!,
-    garbageStats: { ...s.garbageStats },
+    garbageStats: copyData(s.garbageStats),
     ordinances: [...s.ordinances],
     ordinanceDays: { ...s.ordinanceDays },
     loans: s.loans.map((l) => ({ ...l })),
@@ -386,6 +386,10 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
   if (typeof saved.funds !== 'number' || !Number.isFinite(saved.funds)) throw new Error('corrupt save: bad funds');
   if (!['easy', 'medium', 'hard'].includes(saved.difficulty)) throw new Error('corrupt save: bad difficulty');
   if (saved.powerDispatch !== undefined && !POWER_DISPATCHES.includes(saved.powerDispatch)) throw new Error('corrupt save: bad power dispatch');
+  const failedImports = saved.garbageStats?.failedImports;
+  if (failedImports !== undefined && (!Array.isArray(failedImports) || failedImports.some((id) => !Number.isSafeInteger(id) || id <= 0))) {
+    throw new Error('corrupt save: bad garbage import delivery record');
+  }
   // (Caught here, not as NaN funds or an unknown kind deep inside the first step.)
   if (!saved.taxRates || !DEV_TYPES.every((t) => typeof saved.taxRates[t] === 'number' && Number.isFinite(saved.taxRates[t]))) {
     throw new Error('corrupt save: bad tax rates');
@@ -520,7 +524,7 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     ...(whole(saved.zonedSince) ? { zonedSince: saved.zonedSince } : {}),
     garbageStats: {
       produced: 0, recycled: 0, kept: 0, incinerated: 0, landfilled: 0, uncollected: 0, piled: 0, capacity: 0, landfillSpace: 0,
-      ...saved.garbageStats,
+      ...(saved.garbageStats ? copyData(saved.garbageStats) : {}),
     },
     crime: saved.crime ? rleDecode(saved.crime, N, new Float32Array(N)).map((v) => v / 100) : new Float32Array(N),
     fires: (saved.fires ?? []).map((fi) => ({ ...fi })),
