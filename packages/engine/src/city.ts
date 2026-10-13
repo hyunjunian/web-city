@@ -59,6 +59,7 @@ import { VEHICLES, type VehicleId } from './data/udi';
 import { generateForest, generateHeights, generateTerrain, terrainFromHeightmap, type Heightmap } from './sim/terrain';
 import { DEZONING_COST, ZONING_COST_HIGH_COMMERCIAL } from './data/economy';
 import { DEV_TYPES, perType, type DevType, type PerType } from './types';
+import { assetOutlook, networkRepairCost, REPAIR_DEPARTMENTS, type AssetOutlook, type RepairDepartment, type RepairPreview } from './sim/infrastructure';
 
 export interface CityOptions {
   name?: string;
@@ -1859,6 +1860,71 @@ export class City {
   structureUpkeep(id: number): { running: number; vehicles: number; overcapacity: number; total: number } | null {
     const st = this.state.structures.get(id);
     return st ? structureUpkeep(this.state, this.cfg, st) : null;
+  }
+
+  /** A utility facility's remaining life, ageing rate, output and overhaul price at current utilisation and funding; null for facilities without a finite service life. */
+  assetOutlook(id: number): AssetOutlook | null {
+    this.refreshIfDirty();
+    const st = this.state.structures.get(id);
+    return st ? assetOutlook(this.state, this.cfg, st) : null;
+  }
+
+  /** Overhauls an ageing utility on its existing site, retaining its id, name and connections. Restores machinery to 20% life used by default; `preview` only prices it. */
+  refurbishStructure(id: number, preview = false): ToolResult & { lifeBefore?: number; lifeAfter?: number } {
+    this.refreshIfDirty();
+    const s = this.state;
+    const st = s.structures.get(id);
+    if (!st) return { ok: false, cost: 0, message: 'no such structure' };
+    const outlook = assetOutlook(s, this.cfg, st);
+    if (!outlook) return { ok: false, cost: 0, message: 'this structure has no ageing machinery' };
+    if (!outlook.refurbishment.eligible) return { ok: false, cost: 0, message: 'the machinery does not need an overhaul yet' };
+    if (s.fires.some((fire) => fire.target === -id)) return { ok: false, cost: 0, message: 'put out the fire before an overhaul' };
+    const { cost, lifeAfter } = outlook.refurbishment;
+    if (cost > s.funds) return { ok: false, cost, message: 'not enough funds' };
+    const result = { ok: true, cost, lifeBefore: st.life, lifeAfter };
+    if (!preview) {
+      s.funds -= cost;
+      st.life = lifeAfter;
+      this.effectsDirty = true;
+      if (!this.batching) this.refreshIfDirty();
+    }
+    return result;
+  }
+
+  /** Prices repair of only the damaged roads/rails or worn lines/pipes in a rectangle. Healthy tiles and other networks are left out. */
+  previewRepairNetworks(dept: RepairDepartment, x0: number, y0: number, x1: number, y1: number): RepairPreview {
+    const plan = this.planNetworkRepairs(dept, x0, y0, x1, y1);
+    return { ok: !plan.message && plan.tiles.length > 0, cost: plan.cost, tiles: plan.tiles.length, ...(plan.message ? { message: plan.message } : {}) };
+  }
+
+  /** Pays for the previewed network repairs immediately without demolishing anything or changing routes. Further deterioration still depends on department funding. */
+  repairNetworks(dept: RepairDepartment, x0: number, y0: number, x1: number, y1: number): RepairPreview {
+    const plan = this.planNetworkRepairs(dept, x0, y0, x1, y1);
+    if (plan.message || !plan.tiles.length) return { ok: false, cost: plan.cost, tiles: plan.tiles.length, ...(plan.message ? { message: plan.message } : {}) };
+    const s = this.state;
+    const damage = dept === 'power' ? s.lineWear : dept === 'water' ? s.pipeWear : dept === 'roads' ? s.potholes : s.railDamage;
+    for (const i of plan.tiles) damage[i] = 0;
+    s.funds -= plan.cost;
+    if (dept === 'roads') this.networkDirty = true; // potholes change travel time
+    else this.effectsDirty = true;
+    return { ok: true, cost: plan.cost, tiles: plan.tiles.length };
+  }
+
+  private planNetworkRepairs(dept: RepairDepartment, x0: number, y0: number, x1: number, y1: number): LinePlan {
+    this.settle();
+    if (!REPAIR_DEPARTMENTS.includes(dept)) return { tiles: [], cost: 0, message: 'unknown repair department' };
+    if (![x0, y0, x1, y1].every(Number.isFinite)) return { tiles: [], cost: 0, message: 'invalid rectangle' };
+    const tiles: number[] = [];
+    let cost = 0;
+    for (const [x, y] of this.rect(x0, y0, x1, y1)) {
+      const i = idx(this.state, x, y);
+      const price = networkRepairCost(this.state, this.cfg, dept, i);
+      if (price !== null) {
+        tiles.push(i);
+        cost += price;
+      }
+    }
+    return this.priced(tiles, Math.ceil(cost));
   }
 
   /** Recomputes fields if a tool changed the map since the last refresh. */

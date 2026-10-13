@@ -510,18 +510,29 @@ export function updateStrikes(s: CityState, cfg: SimConfig, rng: Rng): void {
  * for both). Returns power plants that reached the end of their life; pumps
  * simply stop producing at 110%.
  */
+export function utilityLifeYears(def: StructureDef): number | null {
+  return def.plant?.lifeYears ?? def.pump?.lifeYears ?? def.incinerator?.lifeYears ?? def.recycling?.lifeYears ?? def.treatment?.lifeYears ?? null;
+}
+
+/** Life percentage used in a month at the current load and funding. Shared with capital forecasts. */
+export function utilityWear(s: CityState, cfg: SimConfig, st: Structure, plantWear = ordinanceEffects(s).plantWear): number {
+  const def = cfg.structures[st.kind];
+  const life = utilityLifeYears(def);
+  if (!life) return 0;
+  // Recycling centers and treatment plants have no throughput; treat them as fully used.
+  const usage = def.recycling || def.treatment ? 100 : Math.min(120, st.effectiveness * 100);
+  return (100 / (life * 12)) * interp(cfg.services.plantDecayByFunding, structureFunding(s, def, st))
+    * interp(cfg.services.plantDecayByUsage, usage) * (def.plant ? plantWear : 1);
+}
+
 export function agePlants(s: CityState, cfg: SimConfig): Structure[] {
-  const sv = cfg.services;
   const dead: Structure[] = [];
+  const plantWear = ordinanceEffects(s).plantWear;
   for (const st of s.structures.values()) {
     const def = cfg.structures[st.kind];
-    const life = def.plant?.lifeYears ?? def.pump?.lifeYears ?? def.incinerator?.lifeYears ?? def.recycling?.lifeYears ?? def.treatment?.lifeYears;
+    const life = utilityLifeYears(def);
     if (!life) continue;
-    // Recycling centers and treatment plants have no throughput; treat them as fully used.
-    const usage = def.recycling || def.treatment ? 100 : Math.min(120, st.effectiveness * 100);
-    // Garbage structures age by the Sanitation department's funding.
-    const wear = def.plant ? ordinanceEffects(s).plantWear : 1;
-    st.life += (100 / (life * 12)) * interp(sv.plantDecayByFunding, structureFunding(s, def, st)) * interp(sv.plantDecayByUsage, usage) * wear;
+    st.life += utilityWear(s, cfg, st, plantWear);
     if (!def.plant) st.life = Math.min(110, st.life);
     if (def.plant && st.life >= 100) dead.push(st);
   }

@@ -35,6 +35,8 @@ export type {
 } from './sim/state';
 export type { DemandReport, Census } from './sim/demand';
 export { serviceRadius } from './sim/services';
+export type { AssetOutlook, RepairDepartment, RepairPreview } from './sim/infrastructure';
+export { REPAIR_DEPARTMENTS } from './sim/infrastructure';
 export { terrainFromHeightmap } from './sim/terrain';
 export type { Heightmap } from './sim/terrain';
 export { DISASTER_KINDS } from './sim/disasters';

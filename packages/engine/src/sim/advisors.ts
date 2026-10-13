@@ -12,6 +12,7 @@ import { LANDFILL_ZONE } from './garbage';
 import { healthClassOf } from './services';
 import { LOW_POLLUTION } from '../data/rewards';
 import { drain } from './steps';
+import { utilityWear } from './services';
 
 export type AdvisorId = 'planner' | 'finance' | 'utilities' | 'safety' | 'healthEducation' | 'transportation' | 'environment';
 
@@ -89,9 +90,8 @@ export function* adviseSteps(s: CityState, cfg: SimConfig, f: Fields, st: Adviso
   const old = [...s.structures.values()].filter((x) => def(x.kind).plant && x.life >= 85).sort((a, b) => b.life - a.life);
   if (old.length) {
     const p = old[0]!;
-    // Months left at the plant's nominal aging rate (funding and load change it).
-    const months = Math.max(0, Math.round((100 - p.life) / (100 / (def(p.kind).plant!.lifeYears * 12))));
-    say('utilities', 'bad', 'plantOld', months, p);
+    const wear = utilityWear(s, cfg, p);
+    if (wear > 0) say('utilities', 'bad', 'plantOld', Math.max(0, Math.ceil((100 - p.life) / wear)), p);
   }
   // Pumps wear out and stop at 110% of their lives: one past 95% wants replacing.
   const worn = [...s.structures.values()].filter((x) => def(x.kind).pump && x.life >= 95).sort((a, b) => b.life - a.life);

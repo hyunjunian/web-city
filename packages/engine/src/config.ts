@@ -16,11 +16,16 @@ import * as rg from './data/region';
 import { FLORA } from './data/flora';
 import { MY_SIMS } from './data/mysims';
 import * as tn from './data/terrain';
+import * as infrastructure from './data/infrastructure';
 import { DIFFICULTY } from './data/difficulty';
 import { STAGE_TABLE, DENSITY_MAX_STAGE } from './data/stages';
 import { STRUCTURES } from './data/structures';
 
 export const DEFAULT_CONFIG = {
+  infrastructure: {
+    refurbishment: infrastructure.REFURBISHMENT,
+    networkRepair: infrastructure.NETWORK_REPAIR,
+  },
   demand: {
     wealthOf: demand.WEALTH_OF,
     workforceProfile: demand.WORKFORCE_PROFILE,

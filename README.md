@@ -190,6 +190,12 @@ city.query(20, 55);                   // 타일 정보와 쾌적도 요인별 �
 city.growthBlockers(20, 55);          // 빈 구역이 왜 비어 있는지(noPower · noRoad · noJobs · lowDesirability …)
 city.growthMap();                     // 모든 빈 구역 칸의 첫 번째 막힘(GROWTH_CODES 순번 + 1, 데이터 뷰용)
 city.stageOutlook('R$');              // 지금 허용되는 최고 단계와 다음 단계가 열리는 인구
+const plant = [...city.state.structures.values()].find(s => s.kind === 'coalPlant')!;
+city.assetOutlook(plant.id);          // 현재 가동률·예산 기준 남은 수명, 출력, 개보수 비용
+city.refurbishStructure(plant.id, true); // 현장 개보수 미리보기(비용만, 상태 변경 없음)
+city.refurbishStructure(plant.id);    // 낡은 기계 개보수: 시설 이름·ID·연결 유지
+city.previewRepairNetworks('water', 0, 0, 63, 63); // 닳은 수도관만 수리할 비용
+city.repairNetworks('water', 0, 0, 63, 63);        // 도로·송전선·철로도 각각 수리 가능
 const json = saveCity(city);          // JSON 직렬화 (KV/D1/R2 저장용)
 
 // 미리 보기: 아무것도 바꾸지 않고 같은 규칙으로 계획만 합니다(비용, 못 하는 이유).
@@ -258,6 +264,12 @@ const shared = new Region({ width: 2, height: 2, citySize: 64, heightmap: { widt
 | 시설 표 | 시민·공공시설·교통 시설의 대기·수질 오염, 철거비(보상은 Rush Hour 개정 값), Rush Hour 시설의 최대 화재 단계(51구역 5, 소방 비행장 2 등)와 인화성, 대형 펌프 해제(총인구 10,000 또는 물 사용량 월 40,000m³) |
 
 ### 직접 정한 값
+
+시설의 현장 개보수와 구간 수리는 자체 확장입니다. 개보수는 기계의 수명 사용률을 기본 20%까지 되돌리고,
+회복하는 수명에 비례한 자본 비용을 받습니다. 시설 ID·이름·연결을 유지하며, 전력 단절이나 수질 오염은
+별도로 해결해야 합니다. 수리는 닳거나 손상된 타일에만 비용을 받고 망을 유지합니다. 이후 열화는 부서
+예산에 따릅니다. 수명 전망은 현재 가동률과 예산을 유지한다는 조건이며, 실제 노후화와 같은 공식을 씁니다.
+가격·회복 수준은 `config.infrastructure`로 조절할 수 있습니다.
 
 원작 수치를 알 수 없어 직접 정한 값은 `packages/engine/src/data`의 상수로 분리했고, 각 상수에 근거를 주석으로 달았습니다.
 `new City({ config: { … } })`로 코드를 고치지 않고 덮어쓸 수 있습니다.

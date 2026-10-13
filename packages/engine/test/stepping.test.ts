@@ -45,6 +45,10 @@ describe('stepping in pieces', () => {
     ['terrain previews', (c) => c.previewTerraform(20, 20, 25, 25, 'raise')],
     ['tree previews', (c) => c.previewTrees(20, 20, 25, 25)],
     ['budget forecasts', (c) => c.previewBudget()],
+    ['asset outlooks', (c) => c.assetOutlook(1)],
+    ['facility overhauls', (c) => c.refurbishStructure(1)],
+    ['network repair previews', (c) => c.previewRepairNetworks('roads', 0, 0, 31, 31)],
+    ['network repairs', (c) => c.repairNetworks('roads', 0, 0, 31, 31)],
   ];
 
   it.each(edits)('%s waits for the day under way before reading or changing the city', (_name, edit) => {

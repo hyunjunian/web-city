@@ -207,6 +207,22 @@ What a department's budget pays a month at `level` percent (its own level by def
 
 A facility's monthly cost as the budget charges it (running, vehicles, a jail's overcrowding), or null.
 
+### `assetOutlook(id: number): AssetOutlook | null`
+
+A utility facility's remaining life, ageing rate, output and overhaul price at current utilisation and funding; null for facilities without a finite service life.
+
+### `refurbishStructure(id: number, preview = false): ToolResult & { lifeBefore?: number; lifeAfter?: number }`
+
+Overhauls an ageing utility on its existing site, retaining its id, name and connections. Restores machinery to 20% life used by default; `preview` only prices it.
+
+### `previewRepairNetworks(dept: RepairDepartment, x0: number, y0: number, x1: number, y1: number): RepairPreview`
+
+Prices repair of only the damaged roads/rails or worn lines/pipes in a rectangle. Healthy tiles and other networks are left out.
+
+### `repairNetworks(dept: RepairDepartment, x0: number, y0: number, x1: number, y1: number): RepairPreview`
+
+Pays for the previewed network repairs immediately without demolishing anything or changing routes. Further deterioration still depends on department funding.
+
 ### `refreshIfDirty(): void`
 
 Recomputes fields if a tool changed the map since the last refresh.
