@@ -1058,7 +1058,8 @@ export function watchGoals(): void {
     const better = p.better ? Math.sign(d) === p.better : null;
     const also = p.also ? metrics(id).find((x) => x[0] === p.also!.label) : undefined;
     const alsoLine = also && p.also && also[1] !== p.also.value ? ` · ${p.also.label} ${p.also.value} → ${also[1]}` : '';
-    const line = `${p.label.replace(/ \([^)]*\)$/, '')} ${p.value} → ${m[1]}${alsoLine}`; // (its scale, "(0–200)", is for the tile)
+    // (A figure that reads the same, said so: "1시간 11분 → 1시간 11분" read as a slip.)
+    const line = `${p.label.replace(/ \([^)]*\)$/, '')} ${m[1] === p.value ? `${p.value} 그대로` : `${p.value} → ${m[1]}`}${alsoLine}`; // (its scale, "(0–200)", is for the tile)
     // Told on the goal's log too, under what was done.
     j.done.unshift({ goal: id, day, text: `└ 3개월 뒤: ${line}`, key: 'result' });
     // (Toned as its toast is: a figure that held — "변화 없음" — came as a red warning in the news, the toast grey.)
