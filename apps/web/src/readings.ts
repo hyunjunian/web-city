@@ -119,9 +119,11 @@ function readStatus(id: GoalId): Status {
       // The class most wanted has filled its zones: more of them is the whole of what it needs.
       if (top(lead) >= 300 && adviceFor('growth').some((a) => a.code === `zone${lead}`))
         return pick('warn', `${CLASS_WORD[lead]} 수요 +${short(top(lead))}`, `빈 ${CLASS_WORD[lead]} 구역이 없습니다 · 구역을 더 칠하세요`);
-      // A class held at its cap leads when nothing else is wanted much (the "농업 +520" headline hid it).
-      const cappedCls = (['R', 'C', 'I'] as const).find((k) => DEV_TYPES.some((t) => t[0] === k && t !== 'IA' && capped(t)));
-      if (cappedCls && top(lead) < 100) return pick('warn', `${CLASS_WORD[cappedCls]} 상한`, `${(['R', 'C', 'I'] as const).map(word).join(' · ')}${dem.IA >= 1 ? ` · 농업 +${short(dem.IA)}` : ''}`);
+      // A class held at its cap leads when nothing else is wanted much (the "농업 +520" headline hid it), or when the
+      // row's word is the cap (a trickle of demand left at it kept "농업 수요 +521" over "주거 … 상한에 닿았습니다").
+      const capWord = first?.code === 'capRes' ? 'R' : first?.code === 'capOffice' ? 'C' : first?.code === 'capIndustry' ? 'I' : undefined;
+      const cappedCls = capWord ?? (['R', 'C', 'I'] as const).find((k) => DEV_TYPES.some((t) => t[0] === k && t !== 'IA' && capped(t)));
+      if (cappedCls && (capWord || top(lead) < 100)) return pick('warn', `${CLASS_WORD[cappedCls]} 상한`, `${(['R', 'C', 'I'] as const).map(word).join(' · ')}${dem.IA >= 1 ? ` · 농업 +${short(dem.IA)}` : ''}`);
       return pick(st.abandoned > 0 ? 'warn' : '', headline(),
         `${(['R', 'C', 'I'] as const).map(word).join(' · ')}${dem.IA >= 1 ? ` · 농업 +${short(dem.IA)}` : ''}${st.abandoned ? ` · 버려짐 ${fmt(st.abandoned)}` : ''}`);
     }
