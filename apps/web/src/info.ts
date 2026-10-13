@@ -106,14 +106,15 @@ export function keepInView(r: { x: number; y: number; w: number; h: number }): v
   const [dx, dy] = [cam.x - ox, cam.y - oy];
   [cam.x, cam.y] = [ox, oy];
   if (Math.abs(dx) < 1e-3 && Math.abs(dy) < 1e-3) return;
-  // (Kept, to give back when the card goes — added to a move it made for the lot before, if nothing moved it since.)
-  const was = shiftedFor && untouched(shiftedFor) ? shiftedFor : { dx: 0, dy: 0 };
+  // (Kept, to give back when the card goes — where it was before the card first moved it for a lot, if nothing moved
+  // it since: a second lot pressed mid-glide summed to the wrong place.)
+  const home = shiftedFor && untouched(shiftedFor) ? shiftedFor.home : { x: ox, y: oy };
   glide(dx, dy);
-  shiftedFor = { dx: was.dx + dx, dy: was.dy + dy, x: ox + dx, y: oy + dy, scale: cam.scale, moves: moveCount(), city: cityGeneration };
+  shiftedFor = { home, x: ox + dx, y: oy + dy, scale: cam.scale, moves: moveCount(), city: cityGeneration };
 }
 
-/** How far keepInView moved the camera for the card, where it left it, and the game's camera moves and city then. */
-let shiftedFor: { dx: number; dy: number; x: number; y: number; scale: number; moves: number; city: number } | null = null;
+/** Where the camera was before the card moved it, where it left it, and the game's camera moves and city then. */
+let shiftedFor: { home: { x: number; y: number }; x: number; y: number; scale: number; moves: number; city: number } | null = null;
 /** Left where the card put it (or on its way there): not moved since by the player, nor by a flight or framing begun since. */
 const untouched = (s: { x: number; y: number; scale: number; moves: number; city: number }) => {
   const at = gliding ?? cam;
@@ -128,7 +129,7 @@ const untouched = (s: { x: number; y: number; scale: number; moves: number; city
 export function giveBackView(): void {
   const s = shiftedFor;
   shiftedFor = null;
-  if (s && untouched(s)) glide(s.x - s.dx - cam.x, s.y - s.dy - cam.y);
+  if (s && untouched(s)) glide(s.home.x - cam.x, s.home.y - cam.y);
 }
 
 /** Moves the camera by (dx, dy) tiles over 220ms, easing out; any other camera move after it stops it. */
