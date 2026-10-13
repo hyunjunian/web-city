@@ -1955,8 +1955,10 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .th-label { font-size: 11.5px; font-weight: 650; color: var(--muted); }
 .th-group.neg .th-label { color: var(--danger-ink); }
 /* The card's foot: its goal's screen and taking it down, side by side after what it says. */
-.info-own:has(.info-goal, .info-bulldoze) { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
-.info-own .info-goal, .info-own .info-bulldoze { margin: 0; min-height: 34px; }
+.info-own:has(.info-goal, .info-bulldoze, .info-mysim) { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.info-own .info-goal, .info-own .info-bulldoze, .info-own .info-mysim { margin: 0; min-height: 34px; }
+.info-own .info-mysim { gap: 6px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; }
+.info-own .info-mysim .i { width: 15px; height: 15px; }
 .info-own .info-bulldoze { margin-left: auto; padding: 0 12px; border-radius: 999px; font-size: 12.5px; }
 /* A building's essentials at a glance under its meter: green when fine, red when cut. */
 .info-glance .ok .i { color: var(--good, #2e9e57); }

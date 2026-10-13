@@ -380,6 +380,9 @@ export function showInfo(x: number, y: number): void {
   const fold = !!(b || q.structure || growth || land || q.network); // (a road's environment too: its gauge and its traffic are what it says)
   // Removing what is selected, from its card (it took the bulldozer tool and a drag over the same spot).
   const bz = b || q.structure ? city.previewBulldoze(x, y, x, y) : null;
+  // (A home's My Sim at its foot, beside its screen: the 주민 sheet says to press a home for one, and it was folded
+  // away under 자세히 · 이름·서비스·환경.)
+  const mysim = b?.type?.[0] === 'R' && b.occupancy > 0 ? `<button type="button" id="mysim-add" class="info-mysim" title="이 집에 My Sim을 들여 그 생각을 따라가기">${icon('users')}My Sim 입주</button>` : '';
   const demolish = bz?.ok ? `<button type="button" id="info-bulldoze" class="info-bulldoze" title="이 ${b ? '건물' : '시설'}을 헐기 (되돌리기 가능)">${icon('eraser')}철거 · §${fmt(bz.cost)}</button>` : '';
   // The way to its goal's screen and the way to take it down: the card's foot, after what it says.
   const goal = goalLink(q.structure?.kind, b ? 'built' : q.zone, !b && !q.structure && !!q.network);
@@ -420,12 +423,11 @@ ${paths}${voice}
       <span class="${q.watered ? '' : 'muted'}">${icon('droplet')}${q.watered ? '물 있음' : '물 없음'}</span>
       ${q.zone !== 'landfill' ? `<span title="${TYPE_NAME[type]} 쾌적도 (기본 ${d.baseline})">${icon('sparkles')}쾌적도 ${d.total.toFixed(0)}</span>` : ''}
     </div>` : ''}
-    ${goal || demolish ? `<div class="info-own">${goal}${demolish}</div>` : ''}
+    ${goal || demolish || mysim ? `<div class="info-own">${goal}${mysim}${demolish}</div>` : ''}
     ${fold ? `<details class="info-more"${infoMoreOpen ? ' open' : ''}><summary>자세히${b || q.structure ? ' · 이름·서비스·환경' : land ? ' · 서비스·환경' : ' · 환경·교통'}</summary>` : ''}
     ${b || q.structure ? `<input id="bname" maxlength="40" placeholder="이름 붙이기 (${b ? (b.type ? TYPE_NAME[b.type] : '버려진 건물') : STRUCTURE_NAME[q.structure!.kind]})" value="${escapeHtml(q.name ?? '')}">` : ''}
-    ${b?.type || (b?.type?.[0] === 'R' && b.occupancy > 0) ? `<div class="info-actions">
-      ${b?.type ? `<label class="check" title="역사 건물은 재개발되거나 다른 계층으로 바뀌지 않지만, 버려지거나 불타거나 재해로 무너질 수는 있습니다"><input type="checkbox" id="historical" ${b.historical ? 'checked' : ''}> 역사 건물로 지정</label>` : ''}
-      ${b?.type?.[0] === 'R' && b.occupancy > 0 ? '<button id="mysim-add">My Sim 입주</button>' : ''}
+    ${b?.type ? `<div class="info-actions">
+      <label class="check" title="역사 건물은 재개발되거나 다른 계층으로 바뀌지 않지만, 버려지거나 불타거나 재해로 무너질 수는 있습니다"><input type="checkbox" id="historical" ${b.historical ? 'checked' : ''}> 역사 건물로 지정</label>
     </div>` : ''}
 
     ${land ? `<h3 class="sub">서비스와 안전</h3>
