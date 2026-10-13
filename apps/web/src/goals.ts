@@ -119,7 +119,7 @@ const ADVICE_GOAL: Record<string, GoalId> = {
   broke: 'finance', deficit: 'finance', taxHigh: 'finance', taxEasing: 'finance', surplus: 'finance',
   noPower: 'power', powerShort: 'power', powerCutOff: 'power', powerSurplus: 'power', plantOld: 'power', idlePlant: 'power',
   noWater: 'water', waterShort: 'water', pumpsOff: 'water', pipesNoSource: 'water', pumpOld: 'water', idlePump: 'water', dryBuildings: 'water',
-  landfillFull: 'garbage', landfillSoon: 'garbage', garbagePiling: 'garbage', landfillNoRoad: 'garbage',
+  landfillFull: 'garbage', landfillSoon: 'garbage', garbagePiling: 'garbage', landfillNoRoad: 'garbage', landfillNew: 'garbage', landfillNewNoRoad: 'garbage',
   noPolice: 'police', policeReach: 'police', cellsFull: 'police', riot: 'police', policeStrike: 'police', linesWorn: 'power', pipesWorn: 'water',
   noFire: 'fire', fires: 'fire', plantUnprotected: 'fire', fireStrike: 'fire',
   noHospital: 'health', hospitalFull: 'health', hospitalStrike: 'health', hqLow: 'health',

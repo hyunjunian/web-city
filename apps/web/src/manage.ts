@@ -21,7 +21,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -256,7 +256,10 @@ function guideHtml(id: GoalId): string {
   const title = said ? `<b>${escapeHtml(glue(said))}</b>` : `<b>${escapeHtml(s.value)}</b> <span class="g-note">${escapeHtml(glue(s.note))}</span>`;
   const spot = suggestSpot(id);
   let action: string;
-  if (st.kind === 'open') {
+  if (st.wait) {
+    action = `<div class="g-act"><p class="g-act-head">${icon('check')}<b>다음 달까지 기다리면 됩니다</b></p>
+      <p class="g-act-why">${escapeHtml(st.wait)}</p></div>`;
+  } else if (st.kind === 'open') {
     // Nothing to build or press for it: where it is worst, and the views that show why.
     const at = worst?.at ?? (spot ? [spot.x, spot.y] : null);
     action = `<div class="g-act"><p class="g-act-head">${icon('search')}<b>원인부터 살펴보세요</b></p>
@@ -444,6 +447,8 @@ interface GuideStep {
   riskCode?: string;
   /** Where its block is wanted (beside the homes it is for), when not where its kind already is. */
   near?: [number, number];
+  /** Nothing to do but wait for what was done (a landfill laid since the month's tally): what is coming. */
+  wait?: string;
 }
 
 
@@ -518,6 +523,9 @@ function goalStep(id: GoalId): GuideStep {
     && (a.code === 'pipesNoSource' || a.code === 'dryBuildings' || a.code === 'idlePump' || (a.code === 'waterShort' && waterApart())));
   const apart = piped ? pipeStep() : null;
   if (apart) return apart;
+  // A landfill laid since the month's tally: nothing more to lay until it takes its first month (the list, reading
+  // last month's figures, offered a second one beside it).
+  if (worst?.code === 'landfillNew') return { kind: 'open', what: '', why: '', fixAct: '', act: '', glyph: '', sub: '', fx: '', site: false, wait: '쓰레기 수치는 매달 말에 다시 셉니다. 그때부터 새 매립지가 쓰레기를 받습니다' };
   // A station cut off from the roads that the card leads with (its crews can't leave): the road to it, laid at once.
   // (Only garbage piling at a plant waits behind what the list puts first: the line to the dark zones.)
   const road = worst?.code === 'facilityNoRoad' && worst.level === 'bad' ? roadStep(worst) : null;
@@ -1351,7 +1359,8 @@ function buildActions(g: Goal): string {
     }
   }
   const g2 = st.garbage;
-  const landfillFirst = g === GOALS.garbage && g2.produced > 0 && (g2.capacity <= 0 || (g2.landfillSpace >= 0 && g2.landfillSpace < Math.max(0, (g2.kept || g2.produced - g2.recycled) - g2.incinerated) * 6));
+  // (Not with a landfill laid since the month's tally, which these figures don't know yet.)
+  const landfillFirst = g === GOALS.garbage && g2.produced > 0 && !freshLandfill()?.joined && (g2.capacity <= 0 || (g2.landfillSpace >= 0 && g2.landfillSpace < Math.max(0, (g2.kept || g2.produced - g2.recycled) - g2.incinerated) * 6));
   for (const id of order) {
     const t = TOOLS.find((x) => x.id === id);
     if (!t) continue;

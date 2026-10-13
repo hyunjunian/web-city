@@ -5,7 +5,7 @@ import { type Building, DEV_TYPES, isLocalNet, Net, NETWORK_KINDS, type PollTopi
 import { noRiders } from './info';
 import { ADVICE_TEXT, POLL_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME } from './names';
 import { capLeads, crimeKinds, currentAdvice, garbageFill } from './panels';
-import { changeKey, city, cityGeneration } from './state';
+import { changeKey, city, cityGeneration, cityLineage } from './state';
 import { kindsFor, structureStat, TOOLS } from './tools';
 import { coverageRadius } from './views';
 import { fmt, landfillMonths, landfillSpan, money, short, straightRuns } from './util';
@@ -153,6 +153,9 @@ function readStatus(id: GoalId): Status {
       const f = garbageFill(g);
       const months = landfillMonths(g);
       if (!g.produced && !g.capacity) return pick('', '—', '아직 쓰레기 없음 · 주민이 들어오면 매립지가 필요');
+      // (A landfill laid since the month's tally: waiting for it, not red and "못 치움" as if nothing were done.)
+      const fresh = freshLandfill();
+      if (fresh?.joined && (g.uncollected > 1 || (months !== null && months < 6))) return now('warn', `${short(g.kept || g.produced - g.recycled)} t/월`, '새 매립지 · 다음 달부터 수거');
       return pick(f.tone as Tone, `${short(g.kept || g.produced - g.recycled)} t/월`,
         g.uncollected > 1 ? `못 치움 ${fmt(g.uncollected)} t` : months !== null ? `매립지 ${landfillSpan(months)} 남음` : '매립·소각·재활용', f.ratio);
     }
@@ -1652,6 +1655,39 @@ export function siteAwayFromHomes(kind: StructureKind): [number, number] | null 
   return at;
 }
 let awayMemo: { key: string; at: [number, number] | null } | null = null;
+
+/** The landfill tiles at the month's garbage tally (a new tally, a new record), to tell a landfill laid since from a full one. */
+let talliedLandfill: { key: string; tiles: Set<number> } | null = null;
+let freshMemo: { key: string; fresh: { tiles: number; joined: boolean } | null } | null = null;
+
+/**
+ * Landfill zoned since the month's garbage tally: its tiles, and whether a road runs beside one. The tally's figures
+ * are last month's, so a landfill laid a moment ago read "가득 차" (full) and asked for a second one until the month's
+ * end. (A city just opened counts what it has as tallied.)
+ */
+export function freshLandfill(): { tiles: number; joined: boolean } | null {
+  const s = city.state;
+  // (By the city and the tally's month, not the record itself: undo brings back a copy of the same tally.)
+  const tally = `${cityLineage}|${s.history.at(-1)?.month ?? -1}`;
+  if (talliedLandfill?.key !== tally) {
+    const tiles = new Set<number>();
+    for (let i = 0; i < s.zone.length; i++) if (s.zone[i] === 10) tiles.add(i);
+    talliedLandfill = { key: tally, tiles };
+    freshMemo = null;
+  }
+  const key = `${tally}|${city.revision}|${cityGeneration}`;
+  if (freshMemo?.key === key) return freshMemo.fresh;
+  let tiles = 0;
+  let joined = false;
+  const n = city.size;
+  for (let i = 0; i < s.zone.length; i++) {
+    if (s.zone[i] !== 10 || talliedLandfill.tiles.has(i)) continue;
+    tiles++;
+    joined ||= city.roadBeside(i % n, Math.floor(i / n), 1, 1);
+  }
+  freshMemo = { key, fresh: tiles ? { tiles, joined } : null };
+  return freshMemo.fresh;
+}
 
 /**
  * A landfill to zone now: square, sized to hold about a year of the city's garbage (4×4 to 10×10), on open dry land

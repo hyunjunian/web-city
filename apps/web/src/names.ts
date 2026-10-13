@@ -147,7 +147,7 @@ export const ADVISOR_NAME: Record<AdvisorId, string> = {
 /** The tool that fixes an advisor's problem, and its button's label. */
 export const ADVICE_TOOL: Record<string, [string, string]> = {
   noPower: ['power', '발전소'], powerShort: ['power', '발전소'], powerCutOff: ['powerline', '송전선'], plantOld: ['power', '발전소'], noWater: ['water', '수도 시설'], pumpOld: ['water', '수도 시설'], waterShort: ['water', '수도 시설'], pipesNoSource: ['pipe', '수도관'],
-  landfillFull: ['landfill', '매립지'], landfillSoon: ['landfill', '매립지'], garbagePiling: ['landfill', '매립지'], landfillNoRoad: ['landfill', '매립지'], facilityNoRoad: ['road', '도로'], understaffed: ['R-medium', '주거 구역'],
+  landfillFull: ['landfill', '매립지'], landfillSoon: ['landfill', '매립지'], garbagePiling: ['landfill', '매립지'], landfillNoRoad: ['landfill', '매립지'], landfillNewNoRoad: ['road', '도로'], facilityNoRoad: ['road', '도로'], understaffed: ['R-medium', '주거 구역'],
   noPolice: ['police', '경찰서'], policeReach: ['police', '경찰서'], cellsFull: ['police:cityJail', '교도소'], noFire: ['fire', '소방서'], plantUnprotected: ['fire', '소방서'], noHospital: ['health', '병원'], noSchool: ['education', '학교'],
   schoolFull: ['education', '학교'], hospitalFull: ['health', '병원'], eqLow: ['education', '학교'], hqLow: ['health', '병원'], schoolStrike: ['education', '학교'], hospitalStrike: ['health', '병원'],
   capRes: ['park', '공원·광장'], noParks: ['park', '공원'], zoneR: ['R-low', '주거 구역'], zoneC: ['C-low', '상업 구역'], zoneI: ['I-medium', '산업 구역'], zoneA: ['A', '농업 구역'],
@@ -180,6 +180,8 @@ export const ADVICE_TEXT: Record<string, (v: number, type?: DevType) => string> 
   rubble: (v) => `구역 ${v}칸이 재해 잔해로 덮여 있습니다. 치워야 다시 지어집니다.`,
   facilityNoRoad: (v) => `도로에 닿지 않은 시설이 ${v}곳 있습니다. 쓰레기를 거둘 수 없어 쌓이고, 경찰서·소방서·병원·학교라면 출동도 못 합니다. 시설 옆까지 도로를 이으세요.`,
   landfillFull: (v) => `매립지가 ${v ? `${v}개월` : '한 달'} 안에 가득 찹니다.`,
+  landfillNew: (v) => `새 매립지 ${fmt(v)}칸이 다음 달부터 쓰레기를 받고, 그동안 쌓인 쓰레기도 남는 자리로 차차 치웁니다.`,
+  landfillNewNoRoad: () => '새 매립지 옆에 도로가 없습니다. 도시와 이어진 도로가 닿아야 쓰레기 수거차가 쓰레기를 가져옵니다.',
   capRes: (v, t) => `${t ? TYPE_NAME[t] : '주거'} 인구가 상한(${fmt(v)}명)에 닿았습니다. 더는 들어오지 못하니 공원·광장과 보상 건물로 상한을 올리세요.`,
   capOffice: () => '오피스 수요가 상한에 막혔습니다. 이웃 도시로 나가는 도로·철도·고속도로 연결과 공항이 상한을 올립니다.',
   capIndustry: () => '산업 수요가 상한에 막혔습니다. 화물이 이웃으로 나가는 철도·고속도로 연결과 항구가 상한을 올립니다.',

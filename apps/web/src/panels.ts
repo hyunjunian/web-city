@@ -4,7 +4,7 @@ import { DEV_TYPES, type DevType, GROWTH_CODES, STRUCTURES, ZONES, type PollTopi
 import { icon } from './icons';
 import { chooseSpeed, refreshTaxes, refreshViewSummary, showOverlay } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
-import { capped as atCap, deptEmpty, deptFunded, newReadings, readStats } from './readings';
+import { capped as atCap, deptEmpty, deptFunded, freshLandfill, newReadings, readStats } from './readings';
 import { active, autoPause, markToolSite, openGoal, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
 import { buildOrdinances, ordinanceMonth, ordinanceSignature, refreshInfo, setOrdinanceMonth } from './info';
 import { ko } from './messages';
@@ -655,11 +655,20 @@ export const currentAdvice = (): typeof adviceCache => {
   if (adviceCity !== city) return [];
   // A tax already cut to neutral still costs demand while the old rate is remembered (90 days): said as that,
   // as good news, not "세율을 조금 내려 보세요" with no button for it, which had players cut further for nothing.
-  const sig = `${Object.values(city.state.taxRates).join('|')}|${city.demand.neutralTax}`;
+  const fresh = freshLandfill();
+  const sig = `${Object.values(city.state.taxRates).join('|')}|${city.demand.neutralTax}|${fresh?.tiles}:${fresh?.joined}`;
   if (eased?.from !== adviceCache || eased.sig !== sig) {
     const d = city.demand;
     const out: typeof adviceCache = [];
+    const g = city.state.garbageStats;
+    const room = (fresh?.tiles ?? 0) * city.cfg.garbage.landfill.tileCapacity;
     for (const a of adviceCache) {
+      // A landfill laid since the month's tally, which still calls the old one full (or filling): said as the new one,
+      // not "가득 차 · 더 지정하세요", which had a second landfill laid beside it. (One no road reaches: the road it needs.)
+      if (fresh && ((a.code === 'garbagePiling' && a.value === 1) || (a.code === 'landfillFull' && (g.landfillSpace + room) / Math.max(1, g.landfilled) >= 6))) {
+        out.push({ ...a, code: fresh.joined ? 'landfillNew' : 'landfillNewNoRoad', value: fresh.tiles, level: fresh.joined ? 'neutral' as const : 'bad' as const });
+        continue;
+      }
       if (a.code !== 'taxHigh' || !a.type || city.state.taxRates[a.type] > d.neutralTax) {
         out.push(a);
         continue;
