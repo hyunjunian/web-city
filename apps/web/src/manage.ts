@@ -446,6 +446,17 @@ interface GuideStep {
 
 
 /** A goal's own recommendation, read from what its screen would show (one source of truth). */
+/** The ordinances the troubled goals' guides put forward now (the policy list marks them 추천 and puts them first). */
+export function guideOrdinances(): Set<OrdinanceId> {
+  const out = new Set<OrdinanceId>();
+  for (const id of GOAL_ORDER) {
+    if (!goalStatus(id).tone) continue;
+    const st = goalStep(id);
+    if (st.kind === 'ord') out.add(st.fixAct as OrdinanceId);
+  }
+  return out;
+}
+
 function goalStep(id: GoalId): GuideStep {
   // The trouble the card leads with ends with a budget (worn lines, a strike for want of funds): that first, before
   // anything to build (a striking station's card said 예산 부족 and recommended a kiosk).

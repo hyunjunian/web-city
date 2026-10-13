@@ -2,7 +2,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceId, ORDINANCES, serviceRadius, type Structure, type StructureKind, STRUCTURES, type TripMeans } from '@web-city/engine';
 import { icon } from './icons';
-import { type AirSource, airShareOf, airSourcesAt, budgetMends, facilityLine, waterSourcesOn, hasRoadNow, jamRun, widenTo, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
+import { type AirSource, airShareOf, airSourcesAt, budgetMends, facilityLine, goalStatus, waterSourcesOn, hasRoadNow, jamRun, widenTo, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
 import { ko } from './messages';
 import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -15,8 +15,8 @@ import { refreshTaxes } from './controls';
 import { toolGlyph, TOOLS } from './tools';
 import { choice, remember } from './undo';
 import { coverageRadius, overlayReading } from './views';
-import { type GoalId, goalOfStructure, GOALS, goalsOfOrdinance } from './goals';
-import { active } from './manage';
+import { GOAL_ORDER, type GoalId, goalOfStructure, GOALS, goalsOfOrdinance } from './goals';
+import { active, guideOrdinances } from './manage';
 
 /** Why a Route Query found no trips here. */
 function none(b: Building | null | undefined): string {
@@ -576,14 +576,22 @@ const ORDINANCE_NEEDS: Record<string, string> = {
 
 export function buildOrdinances(): void {
   const el = $('#ordinances');
-  el.innerHTML = (Object.keys(ORDINANCES) as OrdinanceId[]).map((id) => {
+  // In force first, then what an area's screen puts forward (marked 추천), then the rest one can enact, then those
+  // waiting on a building: 22 switches in the engine's order, the one two screens recommended unmarked among them.
+  const put = guideOrdinances();
+  const rank = (id: OrdinanceId) => (city.state.ordinances.includes(id) ? 0 : put.has(id) ? 1 : city.ordinanceAvailable(id) ? 2 : 3);
+  const ids = (Object.keys(ORDINANCES) as OrdinanceId[]).map((id, k) => ({ id, k })).sort((a, b) => rank(a.id) - rank(b.id) || a.k - b.k).map((x) => x.id);
+  el.innerHTML = ids.map((id) => {
     const on = city.state.ordinances.includes(id);
     const avail = on || city.ordinanceAvailable(id);
     const cost = city.ordinanceCost(id);
     const price = cost < 0 ? `+§${fmt(-cost)}` : `§${fmt(cost)}`;
+    // (The areas it helps at the end of its effects, to the right: under the name they wrapped to a line of their own.)
+    const goals = goalsOfOrdinance(id).map((g) => `<button type="button" class="goal-tag" data-goal-open="${g}" title="${GOALS[g].name} 화면에서 보기 (이 조례가 돕는 분야)">${icon(GOALS[g].icon)}${GOALS[g].name}</button>`).join('');
     return `<label class="ordinance ${avail ? '' : 'muted'}">
       <input type="checkbox" data-ord="${id}" ${on ? 'checked' : ''} ${avail ? '' : 'disabled'}>
-      <span><b>${ORDINANCE_NAME[id]}</b> <span class="muted">월 ${price}</span>${goalsOfOrdinance(id).map((g) => ` <button type="button" class="goal-tag" data-goal-open="${g}" title="${GOALS[g].name} 화면에서 보기 (이 조례가 돕는 분야)">${icon(GOALS[g].icon)}${GOALS[g].name}</button>`).join('')}<br><small>${ORDINANCES[id].description}</small>${avail ? '' : `<br><small class="needs">필요: ${ORDINANCE_NEEDS[(ORDINANCES[id] as { requires?: string }).requires ?? ''] ?? '조건 미충족'}</small>`}</span>
+      <span><b>${ORDINANCE_NAME[id]}</b> <span class="muted">월 ${price}</span>${!on && put.has(id) ? ' <em class="ord-rec" title="살펴볼 분야의 화면이 권하는 조례">추천</em>' : ''}
+        <span class="ord-fx"><small>${ORDINANCES[id].description}</small>${goals ? `<span class="ord-goals">${goals}</span>` : ''}</span>${avail ? '' : `<small class="needs">필요: ${ORDINANCE_NEEDS[(ORDINANCES[id] as { requires?: string }).requires ?? ''] ?? '조건 미충족'}</small>`}</span>
     </label>`;
   }).join('');
   el.querySelectorAll<HTMLInputElement>('input[data-ord]').forEach((box) => {
@@ -849,7 +857,9 @@ export function setOrdinanceMonth(v: typeof ordinanceMonth): void {
 
 /** The ordinance list's signature: availability and cost of each (a new police station, a bigger population). */
 export function ordinanceSignature(): string {
-  return (Object.keys(ORDINANCES) as OrdinanceId[]).map((id) => `${+city.ordinanceAvailable(id)}${Math.round(city.ordinanceCost(id))}${+city.state.ordinances.includes(id)}`).join('|');
+  // (With the areas' standing: what their screens put forward moves with it.)
+  return (Object.keys(ORDINANCES) as OrdinanceId[]).map((id) => `${+city.ordinanceAvailable(id)}${Math.round(city.ordinanceCost(id))}${+city.state.ordinances.includes(id)}`).join('|')
+    + GOAL_ORDER.map((id) => goalStatus(id).tone).join();
 }
 
 /** Time left before a plant's life runs out, at its nominal aging rate (funding and load change it). */

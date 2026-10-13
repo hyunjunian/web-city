@@ -1229,7 +1229,13 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .funding.dept .dept-none { display: flex; align-items: center; min-height: 26px; color: var(--muted); font-size: 12.5px; font-style: normal; } /* (a slider row's height) */
 .ordinance { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 12px; margin-bottom: 12px; font-size: 13px; cursor: pointer; }
 .ordinance small { color: var(--muted); font-size: 11.5px; }
-.ordinance small.needs { color: var(--warn-ink); }
+.ordinance small.needs { display: block; color: var(--warn-ink); }
+/* Its effects, and the areas it helps after them on the right (on a line of their own when the effects fill it). */
+.ord-fx { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin-top: 1px; }
+.ord-fx > small { flex: 0 1 auto; min-width: 0; }
+.ord-goals { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
+.ord-goals .goal-tag { margin-left: 0; }
+.ord-rec { margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 11px; font-weight: 650; font-style: normal; vertical-align: 1px; }
 .ordinance.muted { cursor: default; }
 .loan-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; font-size: 13px; }
 .loan-row select { flex: 1; min-width: 0; }
