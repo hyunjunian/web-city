@@ -10,6 +10,7 @@ import { setupMenu } from './menu';
 import { drawMinimap, setupMinimap } from './minimap';
 import { cancelMySimAction } from './mysims';
 import { updatePanels } from './panels';
+import { freshLandfill } from './readings';
 import { leaveRegion } from './region';
 import { cam, city, cityLineage, clampCamera, dirty, fitCamera, mapBand, mapCovers, onCityChange, overlay, redraw, renderer, selected, setCity, setDirty, setSaveSlotId, speed } from './state';
 import { autosave, autosaveSlot, autosaveSteps, lastAutosave, resumeAutosave } from './storage';
@@ -121,7 +122,10 @@ function frameBody(now: number): void {
       city.beginSteps(1);
       carry -= 1;
     }
-    if (!city.resume()) redraw(); // the day is done: show it
+    if (!city.resume()) {
+      redraw(); // the day is done: show it
+      freshLandfill(); // (the landfill the month's tally counted, noted before anything else can be zoned)
+    }
   }
   carry = Math.min(carry, 3);
   if (panelsDue) {

@@ -656,13 +656,17 @@ export const currentAdvice = (): typeof adviceCache => {
   // A tax already cut to neutral still costs demand while the old rate is remembered (90 days): said as that,
   // as good news, not "세율을 조금 내려 보세요" with no button for it, which had players cut further for nothing.
   const fresh = freshLandfill();
-  const sig = `${Object.values(city.state.taxRates).join('|')}|${city.demand.neutralTax}|${fresh?.tiles}:${fresh?.joined}`;
+  const g = city.state.garbageStats;
+  const sig = `${Object.values(city.state.taxRates).join('|')}|${city.demand.neutralTax}|${fresh?.tiles}:${fresh?.joined}|${Math.round(g.uncollected)}:${Math.round(g.landfillSpace)}`;
   if (eased?.from !== adviceCache || eased.sig !== sig) {
     const d = city.demand;
     const out: typeof adviceCache = [];
-    const g = city.state.garbageStats;
     const room = (fresh?.tiles ?? 0) * city.cfg.garbage.landfill.tileCapacity;
     for (const a of adviceCache) {
+      // Garbage advice from before the month's tally that the tally has answered since (nothing left lying, room for
+      // six months): gone until the advisors next look, which they do by the week (a new landfill read "가득 차" in red
+      // for weeks after it had taken its first month).
+      if ((a.code === 'garbagePiling' && g.uncollected - (g.stranded ?? 0) <= 1) || (a.code === 'landfillFull' && g.landfillSpace / Math.max(1, g.landfilled) >= 6)) continue;
       // A landfill laid since the month's tally, which still calls the old one full (or filling): said as the new one,
       // not "가득 차 · 더 지정하세요", which had a second landfill laid beside it. (One no road reaches: the road it needs.)
       if (fresh && ((a.code === 'garbagePiling' && a.value === 1) || (a.code === 'landfillFull' && (g.landfillSpace + room) / Math.max(1, g.landfilled) >= 6))) {

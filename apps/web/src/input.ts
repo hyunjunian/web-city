@@ -301,7 +301,7 @@ export function updatePreview(): void {
       : def.seaport ? `물가에 · 화물 운행당 산업 상한 +${def.seaport.perTrip} (최대 ${def.seaport.relief})`
       : def.income ? `월 §${fmt(def.income)} 수입 · 시장 평점 ${def.mayor?.[0] ?? 0}${def.radiation ? ' · 방사능' : ''}`
       : def.category === 'landmark' || def.category === 'reward' ? `시장 평점 ${(def.mayor?.[0] ?? 0) >= 0 ? '+' : ''}${def.mayor?.[0] ?? 0}${def.mayor ? ` (${def.mayor[1] >= city.size ? '도시 전체' : `${def.mayor[1]}칸`})` : ''} · 상업 ${def.com[0]}${def.bulldoze ? ` · 철거 §${fmt(def.bulldoze)}` : ''}`
-      : `주거 상한 완화 +${fmt(def.relief[0])}`;
+      : `주거 상한 +${fmt(def.relief[0])}`; // (as the tray and the park's card say it)
     // (A station: how many of what its service misses it would reach from here, the figure to move it about by.)
     const goal = reach && check.ok && !city.stepping ? goalOfStructure(kind) : null; // (not mid-day: its cover is being redone)
     const gained = goal && (goal === 'police' || goal === 'fire' || goal === 'health' || goal === 'education')
@@ -310,7 +310,7 @@ export function updatePreview(): void {
     const plants = gained >= 0 && goal === 'fire' ? plantsReached(sx + def.w / 2, sy + def.h / 2, reach) : 0;
     // (A pump or tower off the pipes: the buildings it waters as it stands, and that pipes take it further.)
     const watered = def.pump && check.ok && !pipedAt(kind, sx, sy) ? wateredBy(kind, sx, sy) : 0;
-    const reached = watered ? `새로 물이 닿는 건물 ${fmt(watered)}채 · 더 멀리는 수도관으로` : gained < 0 ? '' : `새로 닿는 ${plants ? `발전소 ${fmt(plants)}곳 · ` : ''}${goal === 'health' || goal === 'education' ? '집' : '건물'} ${gained ? `${fmt(gained)}채` : '없음'}`;
+    const reached = watered ? `새로 물이 닿는 건물 ${fmt(watered)}채 · 더\u00a0멀리는\u00a0수도관으로` : gained < 0 ? '' : `새로 닿는 ${plants ? `발전소 ${fmt(plants)}곳 · ` : ''}${goal === 'health' || goal === 'education' ? '집' : '건물'} ${gained ? `${fmt(gained)}채` : '없음'}`;
     const extraNow = reached ? `${extra} · ${reached}` : extra;
     // Warnings and refusals first: the hint shows three lines, and the ⚠ were last to be cut.
     // (Name and price are on the tool chip and by the pointer: the bar says what they don't.)

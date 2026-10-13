@@ -23,7 +23,7 @@ export function setupMenu(): void {
   dropdown.addEventListener('toggle', () => {
     if (!dropdown.open) return;
     const m = lastAutosave + 6;
-    $('#autosave-note').textContent = `다음 자동 저장: ${2000 + Math.floor(m / 12)}년 ${(m % 12) + 1}월 (탭을 떠날 때도 저장)`;
+    $('#autosave-note').textContent = `다음 자동 저장: ${2000 + Math.floor(m / 12)}년 ${(m % 12) + 1}월 (탭을\u00a0떠날\u00a0때도\u00a0저장)`;
   });
   document.addEventListener('pointerdown', (e) => {
     if (dropdown.open && !dropdown.contains(e.target as Node)) dropdown.open = false;

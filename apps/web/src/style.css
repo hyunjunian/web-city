@@ -1032,6 +1032,12 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 }
 #tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(370px, 100%), 1fr)); column-gap: 22px; align-items: start; padding: 0 18px 2px; overflow-y: auto; } /* row by row, so groups keep their places (columns rebalanced them as their text changed) */
 #tools.more-below { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); }
+/* (And a word for it: at 1280×720 the fade alone took the 공원 heading, and the card looked finished.) */
+#tray:has(#tools.more-below)::after {
+  content: '아래에 더 있음'; position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
+  padding: 2px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--float-solid); box-shadow: var(--shadow-sm);
+  color: var(--muted); font-size: 11.5px; font-weight: 600; white-space: nowrap; pointer-events: none;
+}
 /* Finding a tool by name, and the ones used lately. */
 #tray-find { display: grid; gap: 8px; padding: 0 18px 12px; flex: none; }
 #tray-find:not(:has(#tray-recent:not([hidden]))) { display: none; }
@@ -2620,7 +2626,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #goal-strip:not([hidden]) { top: calc(70px + env(safe-area-inset-top)); left: calc(var(--dock-w) + 16px); right: 56px; }
   #manage-chip:not([hidden]) { top: calc(66px + env(safe-area-inset-top)); left: calc(var(--dock-w) + 16px); }
   /* (Under whatever hangs from the top bar: toast.ts measures it, as the view's card is as tall as its count.) */
-  #toasts { top: var(--toasts-top, calc(66px + env(safe-area-inset-top))); bottom: auto; align-content: start; left: calc(var(--dock-w) + 16px); right: 56px; width: auto; transform: none; animation: none; }
+  #toasts { top: var(--toasts-top, calc(66px + env(safe-area-inset-top))); bottom: auto; align-content: start; left: calc(var(--dock-w) + 16px); right: 64px; width: auto; transform: none; animation: none; } /* (clear of 전체 by a gap, not 1px) */
   /* A goal's chip (its screen put away) under the top bar: the view's card below it. */
   #app:not(.pane-open) #view:has(#manage-chip:not([hidden])) #mapbar #map-layer:not(.picking) { top: calc(100% + 56px); }
   .toast { animation-name: drop-in; }

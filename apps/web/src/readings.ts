@@ -392,10 +392,15 @@ function goalMetrics(id: GoalId): Metric[] {
       const g = st.garbage;
       const months = landfillMonths(g);
       const now = g.kept || g.produced - g.recycled;
-      return [['처리할 쓰레기', `${fmt(now)} t`, '', now, -1, '이번 달, 재활용·조례로 줄인 뒤'], ['처리 여유 (소각·매립)', `${fmt(g.capacity)} t`, '', g.capacity, 1, '소각장이 태울 수 있는 양과 매립지에 남은 자리'],
-        ['매립지 남은 기간', months === null ? '—' : landfillSpan(months), months !== null && months < 6 ? 'bad' : months !== null && months < 18 ? 'warn' : ''],
+      // (A landfill laid since the month's tally: the room it brings, from next month — the figures beside the screen's
+      // "다음 달까지 기다리면 됩니다" read 0 t, — and 못 치움 in red.)
+      const fresh = freshLandfill();
+      const toCome = fresh?.joined ? fresh.tiles * city.cfg.garbage.landfill.tileCapacity : 0;
+      const comeSpan = toCome ? landfillSpan(Math.floor(toCome / Math.max(1, now - g.incinerated))) : '';
+      return [['처리할 쓰레기', `${fmt(now)} t`, '', now, -1, '이번 달, 재활용·조례로 줄인 뒤'], ['처리 여유 (소각·매립)', `${fmt(g.capacity)} t${toCome ? ` · 다음 달부터 +${fmt(toCome)} t` : ''}`, '', g.capacity, 1, '소각장이 태울 수 있는 양과 매립지에 남은 자리'],
+        ['매립지 남은 기간', toCome && (months === null || months < 6) ? `다음 달부터 약 ${comeSpan}` : months === null ? '—' : landfillSpan(months), toCome ? '' : months !== null && months < 6 ? 'bad' : months !== null && months < 18 ? 'warn' : ''],
         // (Each its own figure: "재활용·소각 197 · 788 t" left which number was which to guess.)
-        ['재활용', `${fmt(g.recycled)} t`, '', Math.round(g.recycled), 1, '이번 달 재활용으로 줄인 양'], ['소각', `${fmt(g.incinerated)} t`, '', Math.round(g.incinerated), 0, '이번 달 소각 발전소가 태운 양'], ['못 치움', g.uncollected > 1 ? `${fmt(g.uncollected)} t` : '없음', g.uncollected > 1 ? 'bad' : '', g.uncollected, -1]];
+        ['재활용', `${fmt(g.recycled)} t`, '', Math.round(g.recycled), 1, '이번 달 재활용으로 줄인 양'], ['소각', `${fmt(g.incinerated)} t`, '', Math.round(g.incinerated), 0, '이번 달 소각 발전소가 태운 양'], ['못 치움', g.uncollected > 1 ? `${fmt(g.uncollected)} t` : '없음', g.uncollected > 1 && !toCome ? 'bad' : '', g.uncollected, -1]];
     }
     case 'police':
       return [['범죄 (지난달)', fmt(st.safety.crimes), '', st.safety.crimes, -1, crimeKinds(st.safety.byType)], ['체포', fmt(st.safety.arrests), '', st.safety.arrests, 1], ['예방', fmt(st.safety.prevented), '', st.safety.prevented, 1],

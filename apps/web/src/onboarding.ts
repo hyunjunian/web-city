@@ -179,7 +179,7 @@ export function renderOnboarding(): void {
     const block = !ok && tool ? blocks.get(tool) : undefined;
     const lay = !ok && tool === 'road' && way && !way.short
       ? `<button type="button" class="link step-lay" data-lay="road" title="지도 가장자리까지 가장 싼 곧은 길을 바로 놓기 (도로를 들면 지도에 점선으로 보이는 그 길 · Ctrl+Z로 되돌리기)">추천 길 바로 놓기 · ${fmt(way.path.length)}칸 §${fmt(way.cost)}</button>`
-      : block ? `<button type="button" class="link step-lay" data-lay="${tool}" title="도로에 닿는 빈 땅에 바로 놓기${tool === 'I-medium' ? ' (주거에서 떨어진 곳)' : tool === 'C-low' ? ' (주거 가까이)' : ''} · Ctrl+Z로 되돌리기">추천 자리에 ${block.side}×${block.side} 바로 놓기 · §${fmt(block.cost)}</button>`
+      : block ? `<button type="button" class="link step-lay" data-lay="${tool}" title="도로에 닿는 빈 땅에 바로 놓기${tool === 'I-medium' ? ' (주거에서 떨어진 곳)' : tool === 'C-low' ? ' (주거 가까이)' : ''} · Ctrl+Z로 되돌리기">추천 자리에 ${tool === 'I-medium' ? '산업' : tool === 'C-low' ? '상업' : '주거'} ${block.side}×${block.side} 바로 놓기 · §${fmt(block.cost)}</button>`
       : !ok && tool === 'goal:power' && plant ? `<button type="button" class="link step-lay" data-lay="plant" title="전력 화면이 권하는 발전소를 전기 없는 구역 가까이 도로 옆(연기가 주거에 닿지 않는 곳)에 바로 짓기 · 월 §${fmt(STRUCTURES[plant.kind].upkeep)} · Ctrl+Z로 되돌리기">추천 자리에 ${STRUCTURE_NAME[plant.kind]} 바로 짓기 · §${fmt(STRUCTURES[plant.kind].cost)}</button>`
       : !ok && tool === 'goal:power' && wire ? `<button type="button" class="link step-lay" data-lay="powerline" title="전력망에서 전기 없는 가장 가까운 구역까지 가장 짧은 송전선을 바로 잇기 (송전선을 들면 지도에 보이는 그 길 · Ctrl+Z로 되돌리기)">송전선 ${fmt(wire.path.length)}칸 바로 잇기 · §${fmt(wire.cost)}</button>`
       : !ok && tool === 'goal:garbage' && fill ? `<button type="button" class="link step-lay" data-lay="landfill" title="${fillSpan(fill.months) ? `${fillSpan(fill.months)}의 쓰레기를 묻을 크기로, ` : ''}도로에 닿고 주거·상업에서 떨어진 빈 땅에 바로 놓기 · 월 §${fmt(fill.side * fill.side * city.cfg.garbage.landfill.upkeep)} · Ctrl+Z로 되돌리기">추천 자리에 매립지 ${fill.side}×${fill.side} 바로 놓기 · §${fmt(fill.cost)}</button>`
@@ -360,11 +360,12 @@ function cheer(steps: [boolean, string, string | null, boolean?][]): void {
       if (now) now.click();
       else if (tool) takeStep(tool);
     } : tool ? () => takeStep(tool) : undefined;
-    // (Said in the notice itself, with the price: a press that builds isn't left to a tooltip a phone never shows.)
+    // (Said in the notice itself, what and for how much: a press that builds isn't left to a tooltip a phone never
+    // shows. "바로 놓기 §500" kept together, and each "·" at a line's end: a phone's narrow notice began a line with
+    // "· 다음은" and split "눌러서 / 바로 짓기".)
     const said = lay?.textContent?.trim() ?? '';
-    const verb = /바로 (놓기|짓기|잇기)/.exec(said)?.[0];
-    const price = /§[\d,]+/.exec(said)?.[0];
-    toast(`시작하기 ${now.size}/${steps.length}: ${what} 완료 · 다음은 ${short(next[1])}${verb ? ` · 눌러서 ${verb}${price ? ` ${price}` : ''}` : ''}`, 'good', undefined,
+    const act = said.replace(/^추천 자리에 /, '').replace(' · ', ' ').replace(/(바로) (놓기|짓기|잇기) (.*§[\d,]+)$/, '$1\u00a0$2\u00a0$3');
+    toast(`시작하기 ${now.size}/${steps.length}: ${what} 완료\u00a0· 다음은 ${short(next[1])}${lay ? `\u00a0· 눌러서 ${act}` : ''}`, 'good', undefined,
       press, false, lay ? `눌러서 ${said}` : tool ? `눌러서 다음 단계: ${short(next[1])}` : undefined);
   });
 }
