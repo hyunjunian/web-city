@@ -23,6 +23,8 @@ export interface BudgetContext {
   month: number;
   /** Days each ordinance was in effect this month; without it (a preview) those in effect now count the full month. */
   ordinanceDays?: Partial<Record<OrdinanceId, number>>;
+  /** A projection may reuse unchanged border connections; live budgets check the current map. */
+  connected?: (edge: number, resource: DealResource) => boolean;
 }
 
 /** Remaining principal under the city's loan terms (stable for zero and very small rates). */
@@ -203,7 +205,7 @@ export function* collectBudgetSteps(s: CityState, cfg: SimConfig, ctx: BudgetCon
   upkeep.reward += upkeep.deal;
   const fares = ctx.fares;
   // Neighbor Deals settle on the month's last day.
-  const deals = settleDeals(s, cfg, ctx.delivered);
+  const deals = settleDeals(s, cfg, ctx.delivered, ctx.connected);
   const income = Object.values(taxByType).reduce((a, b) => a + b, 0) + ordinanceIncome + fares + dealIncome + deals.income;
   const loanPayments = settleLoans(s);
   const expenses = roadUpkeep + upkeep.park + upkeep.power + upkeep.water + upkeep.garbage + upkeep.health

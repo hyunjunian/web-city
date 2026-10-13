@@ -327,6 +327,9 @@ export class City {
   private tractFull = new Map<string, Set<number>>();
   private edgeRuns: ReturnType<typeof edgeConnections> | null = null;
   private effectsDirtyFlag = true;
+  private coverageDirty = false;
+  /** Utilities and pollution are fresh only through this settled simulation day. */
+  private sourceFieldsDay = -1;
   /** A building left since the last census (burned, flattened): retaken at the day's end. */
   private censusStale = false;
   private get effectsDirty(): boolean {
@@ -1498,8 +1501,11 @@ export class City {
   setDepartmentFunding(dept: 'roads' | 'transit' | 'power' | 'water' | 'parks' | 'sanitation' | 'landmarks' | 'corrections', percent: number): void {
     this.settle();
     if (!Number.isFinite(percent) || !Object.hasOwn(this.state.departments, dept)) return;
-    this.state.departments[dept] = Math.max(0, Math.min(dept === 'parks' || dept === 'landmarks' ? 100 : 120, Math.round(percent)));
-    this.networkDirty = true;
+    const level = Math.max(0, Math.min(dept === 'parks' || dept === 'landmarks' ? 100 : 120, Math.round(percent)));
+    if (this.state.departments[dept] === level) return;
+    this.state.departments[dept] = level;
+    if (dept === 'roads' || dept === 'transit') this.networkDirty = true;
+    else this.effectsDirty = true;
   }
 
   /** Sets a civic building's funding level in percent (plants 0–120, services 0–150). */
@@ -1510,8 +1516,13 @@ export class City {
     const def = this.cfg.structures[st.kind];
     if (def.category === 'landmark' || isJail(def)) return false; // funded together (setDepartmentFunding('landmarks' / 'corrections'))
     const max = def.plant || def.police || def.fire || def.incinerator || def.recycling || def.airport || def.seaport ? 120 : def.health || def.school ? 150 : 100;
-    st.funding = Math.max(0, Math.min(max, Math.round(percent)));
-    this.effectsDirty = true;
+    const level = Math.max(0, Math.min(max, Math.round(percent)));
+    if (st.funding === level) return true;
+    st.funding = level;
+    if (this.coverageOnlyFacility(def) && def.com[0] <= 0 && def.res[0] <= 0 && (def.mayor?.[0] ?? 0) <= 0 && (def.pollution?.[0] ?? 0) >= 0) {
+      this.coverageDirty = true;
+      this.revision++;
+    } else this.effectsDirty = true;
     return true;
   }
 
@@ -1520,11 +1531,22 @@ export class City {
     this.settle();
     const st = this.state.structures.get(structureId);
     if (!st || !Number.isFinite(percent)) return false;
-    const svc = this.cfg.structures[st.kind].health ?? this.cfg.structures[st.kind].school;
+    const def = this.cfg.structures[st.kind];
+    const svc = def.health ?? def.school;
     if (!svc?.vehicles) return false;
-    st.vehicleFunding = Math.max(0, Math.min(200, Math.round(percent)));
-    this.effectsDirty = true;
+    const level = Math.max(0, Math.min(200, Math.round(percent)));
+    if ((st.vehicleFunding ?? 100) === level) return true;
+    st.vehicleFunding = level;
+    if (this.coverageOnlyFacility(def)) {
+      this.coverageDirty = true;
+      this.revision++;
+    } else this.effectsDirty = true;
     return true;
+  }
+
+  private coverageOnlyFacility(def: StructureDef): boolean {
+    return (def.category === 'health' || def.category === 'education') && !def.plant && !def.pump && !def.incinerator
+      && !def.recycling && !def.treatment && !def.station && !def.airport && !def.seaport && !def.police && !def.fire;
   }
 
   /** This month's values for the city's graphs. */
@@ -1963,7 +1985,8 @@ export class City {
   /** Recomputes fields if a tool changed the map since the last refresh. */
   refreshIfDirty(): void {
     this.settle();
-    if (this.networkDirty || this.effectsDirty) this.refresh({ travel: this.networkDirty });
+    if (this.coverageDirty && !this.networkDirty && !this.effectsDirty && this.sourceFieldsDay === this.state.day) drain(this.refreshCoverageSteps());
+    else if (this.networkDirty || this.effectsDirty || this.coverageDirty) this.refresh({ travel: this.networkDirty });
   }
 
   /** Everything about one tile: terrain, zone, networks, the building or structure on it, fields (pollution, crime, coverage, land value …), trip times and desirability by developer type with each factor. */
@@ -2123,7 +2146,7 @@ export class City {
     // days of growth before the month-end refresh. Those two days use the
     // previous week's fields instead (a speed trade; outcomes stay close).
     const d = s.day % DAYS_PER_MONTH;
-    if (this.networkDirty || this.effectsDirty || (d % dc.desirabilityInterval === 0 && d + dc.desirabilityInterval <= DAYS_PER_MONTH)) {
+    if (this.networkDirty || this.effectsDirty || this.coverageDirty || (d % dc.desirabilityInterval === 0 && d + dc.desirabilityInterval <= DAYS_PER_MONTH)) {
       // Routes change with the network; otherwise the month's first refresh
       // plans them and the weekly ones reuse that plan (it is the costliest part).
       yield* this.refreshSteps({ travel: this.networkDirty || s.day % DAYS_PER_MONTH === 0 });
@@ -2934,6 +2957,22 @@ export class City {
     this.tractFull.clear();
     this.networkDirty = false;
     this.effectsDirty = false;
+    this.coverageDirty = false;
+    this.sourceFieldsDay = s.day;
+    yield;
+    yield* this.updateDemandSteps();
+  }
+
+  /** A same-day school/clinic edit changes coverage and desirability, while utility loads and source geometry stay current. */
+  private *refreshCoverageSteps(): Generator<void, void> {
+    yield* computeCoverageSteps(this.state, this.fields, this.cfg);
+    yield;
+    yield* computeDesirabilitySteps(this.state, this.fields, this.cfg, this.desirability);
+    this.fullDesirability.clear();
+    this.growth = null;
+    this.tractCache.clear();
+    this.tractFull.clear();
+    this.coverageDirty = false;
     yield;
     yield* this.updateDemandSteps();
   }

@@ -35,6 +35,7 @@ describe('capital maintenance', () => {
     expect(plant.life).toBe(outlook.refurbishment.lifeAfter);
     expect(plant.capacity).toBe(0);
     expect(plant.offlineUntilDay).toBe(city.state.day + outlook.refurbishment.downtimeDays);
+    expect(city.assetOutlook(plant.id)!.monthsLeft).toBeNull();
     city.step(outlook.refurbishment.downtimeDays);
     expect(plant.offlineUntilDay).toBeUndefined();
     expect(plant.capacity).toBeGreaterThan(output * 2);

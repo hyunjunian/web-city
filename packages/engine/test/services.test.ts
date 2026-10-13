@@ -22,6 +22,68 @@ function town(opts: { size?: number; config?: CityOptions['config'] } = {}): Cit
 const structures = (c: City, kind: string) => [...c.state.structures.values()].filter((s) => s.kind === kind);
 
 describe('service funding refreshes', () => {
+  it.each(['power', 'water', 'parks', 'sanitation', 'landmarks', 'corrections'] as const)('%s funding retains the route plan while updating the full utility and effect model', (dept) => {
+    const config = { safety: { fires: false }, disasters: { simulated: false } };
+    const start = town({ config });
+    powerUp(start);
+    start.placeStructure('waterPump', 20, 33);
+    start.buildPipe(20, 16, 46, 16);
+    start.buildPipe(20, 16, 20, 33);
+    start.step(60);
+    const saved = saveCity(start);
+    const a = loadCity(saved, { config }), b = loadCity(saved, { config });
+    const plan = a.fields.travel;
+    a.setDepartmentFunding(dept, 50);
+    a.refreshIfDirty();
+    b.setDepartmentFunding(dept, 50);
+    b.refresh({ travel: false });
+    expect(a.fields.travel).toBe(plan);
+    expect(a.stats()).toEqual(b.stats());
+    expect(a.demand).toEqual(b.demand);
+    expect(saveCity(a)).toEqual(saveCity(b));
+  });
+
+  it('updates same-day clinic coverage exactly like a full refresh while retaining unchanged utility results', () => {
+    const config = { safety: { fires: false }, disasters: { simulated: false } };
+    const start = town({ config });
+    powerUp(start);
+    start.placeStructure('medicalClinic', 20, 8);
+    start.step(90);
+    const saved = saveCity(start);
+    const a = loadCity(saved, { config }), b = loadCity(saved, { config });
+    const clinic = [...a.state.structures.values()].find((st) => st.kind === 'medicalClinic')!;
+    const power = a.power, water = a.water;
+    a.setFunding(clinic.id, 40);
+    a.setVehicleFunding(clinic.id, 180);
+    a.refreshIfDirty();
+    b.setFunding(clinic.id, 40);
+    b.setVehicleFunding(clinic.id, 180);
+    b.refresh({ travel: false });
+    expect(a.power).toBe(power);
+    expect(a.water).toBe(water);
+    for (const key of ['air', 'waterPollution', 'nimbyRes', 'nimbyCom', 'healthQuality', 'hqBoost', 'schoolQuality'] as const) expect(a.fields[key]).toEqual(b.fields[key]);
+    expect(a.stats()).toEqual(b.stats());
+    expect(a.demand).toEqual(b.demand);
+    expect(saveCity(a)).toEqual(saveCity(b));
+    a.step(1);
+    const previous = a.power;
+    a.setFunding(clinic.id, 80);
+    a.refreshIfDirty();
+    expect(a.power).not.toBe(previous); // new development and loads may have arrived since the last full refresh
+  });
+
+  it('recomputes source effects when a modded clinic has funding-dependent civic bonuses', () => {
+    const city = town({ config: { structures: { medicalClinic: { com: [40, 12] } } } });
+    powerUp(city);
+    city.placeStructure('medicalClinic', 20, 8);
+    const clinic = [...city.state.structures.values()].find((st) => st.kind === 'medicalClinic')!;
+    const at = 8 * city.size + 20;
+    const before = city.fields.nimbyCom[at]!;
+    city.setFunding(clinic.id, 50);
+    city.refreshIfDirty();
+    expect(city.fields.nimbyCom[at]).toBeCloseTo(before / 2, 5);
+  });
+
   it('updates service capacity and coverage while keeping the unchanged route plan', () => {
     const city = town();
     powerUp(city);

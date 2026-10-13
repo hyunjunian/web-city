@@ -11,8 +11,9 @@ import { edgeOf, neighbourWorkEdges } from './region';
 import { atGrade, idx, Net, tilesLinked, isAsphalt, isLocalNet, structureFunding, structureOnline, Terrain, zoneInfo, type Building, type CityState, type Rect } from './state';
 import { connectionTiles, type TravelFields } from './transport';
 import { utilityEmissionShare } from './energy';
+import { cappedChebyshevSteps, DISTANCE_INF } from './spatial';
 
-export const INF = 0x3fffffff;
+export const INF = DISTANCE_INF;
 
 export interface Fields {
   /** Nearest network tile reachable within 3 steps (or -1) and its distance. */
@@ -434,53 +435,6 @@ function computeLandValue(s: CityState, f: Fields, cfg: SimConfig): void {
   }
 }
 
-/** Multi-source Chebyshev distance, capped at `cap`. */
-function chebyshev(n: number, sources: Iterable<number>, out: Int32Array, cap: number): void {
-  // Two raster passes of the chessboard distance transform (exact for this metric).
-  out.fill(INF); // INF + 1 still fits an Int32
-  let any = false;
-  for (const i of sources) {
-    out[i] = 0;
-    any = true;
-  }
-  if (!any) return;
-  for (let y = 0; y < n; y++) {
-    const row = y * n;
-    for (let x = 0; x < n; x++) {
-      const i = row + x;
-      let d = out[i]!;
-      if (d === 0) continue;
-      if (x > 0 && out[i - 1]! + 1 < d) d = out[i - 1]! + 1;
-      if (y > 0) {
-        const up = i - n;
-        if (out[up]! + 1 < d) d = out[up]! + 1;
-        if (x > 0 && out[up - 1]! + 1 < d) d = out[up - 1]! + 1;
-        if (x < n - 1 && out[up + 1]! + 1 < d) d = out[up + 1]! + 1;
-      }
-      out[i] = d;
-    }
-  }
-  for (let y = n - 1; y >= 0; y--) {
-    const row = y * n;
-    for (let x = n - 1; x >= 0; x--) {
-      const i = row + x;
-      let d = out[i]!;
-      if (d === 0) continue;
-      if (x < n - 1 && out[i + 1]! + 1 < d) d = out[i + 1]! + 1;
-      if (y < n - 1) {
-        const down = i + n;
-        if (out[down]! + 1 < d) d = out[down]! + 1;
-        if (x > 0 && out[down - 1]! + 1 < d) d = out[down - 1]! + 1;
-        if (x < n - 1 && out[down + 1]! + 1 < d) d = out[down + 1]! + 1;
-      }
-      // Like a search that stops at `cap`: farther tiles are unreached. (A
-      // neighbour past the cap can't bring a tile within it, so clamping as
-      // we go changes nothing.)
-      out[i] = d > cap ? INF : d;
-    }
-  }
-}
-
 /** Box sum of `src` over a (2r+1)² window, via a summed-area table. */
 function boxSum(n: number, src: Float32Array, r: number, out: Float32Array): void {
   const W = n + 1;
@@ -741,10 +695,10 @@ export function* computeEffectFieldsSteps(s: CityState, f: Fields, cfg: SimConfi
   yield;
   for (let w = 0; w < 3; w++) {
     boxSum(n, dens[w as 0]!, dcfg.resProximityRadius, f.resNear[w as 0]);
-    chebyshev(n, resSrc[w as 0], f.distRes[w as 0], cap);
+    yield* cappedChebyshevSteps(n, resSrc[w as 0], f.distRes[w as 0], cap);
   }
-  chebyshev(n, co2, f.distCo2, cap);
-  chebyshev(n, co3, f.distCo3, cap);
+  yield* cappedChebyshevSteps(n, co2, f.distCo2, cap);
+  yield* cappedChebyshevSteps(n, co3, f.distCo3, cap);
 
   f.nimbyRes.fill(0);
   f.nimbyCom.fill(0);

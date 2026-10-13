@@ -26,7 +26,7 @@ export interface AssetOutlook {
   /** Nominal life percentage at retirement: 100 for power, 110 for other utilities. */
   retirementLife: number;
   wearPerMonth: number;
-  /** At constant utilisation and funding; null when ageing is stopped. */
+  /** At constant utilisation and funding; null when ageing is stopped or output is temporarily suspended. */
   monthsLeft: number | null;
   /** Available output as a share of new equipment, before outages and funding reductions. */
   outputShare: number;
@@ -60,7 +60,7 @@ export function assetOutlook(s: CityState, cfg: SimConfig, st: Structure): Asset
   return {
     id: st.id, kind: st.kind, x: st.x, y: st.y, life: st.life, retirementLife,
     wearPerMonth: wear,
-    monthsLeft: st.life >= retirementLife ? 0 : wear > 0 ? Math.ceil((retirementLife - st.life) / wear) : null,
+    monthsLeft: st.offlineUntilDay !== undefined ? null : st.life >= retirementLife ? 0 : wear > 0 ? Math.ceil((retirementLife - st.life) / wear) : null,
     outputShare: interp(curve, st.life),
     upkeep: structureUpkeep(s, cfg, st).total,
     offlineUntilDay: st.offlineUntilDay ?? null,

@@ -884,7 +884,7 @@ export function structureRows(st: Structure, withLoad = true): string {
   const asset = city.assetOutlook(st.id);
   if (asset) {
     const remaining = asset.monthsLeft;
-    const text = remaining === null ? '노후화 없음' : remaining === 0 ? '수명 소진' : remaining >= 24 ? `약 ${Math.floor(remaining / 12)}년` : `약 ${remaining}개월`;
+    const text = asset.offlineUntilDay !== null ? '재가동 후 계산' : remaining === null ? '노후화 없음' : remaining === 0 ? '수명 소진' : remaining >= 24 ? `약 ${Math.floor(remaining / 12)}년` : `약 ${remaining}개월`;
     rows += `<tr><td title="지금 가동률과 예산을 유지할 때의 전망">예상 잔여 수명</td><td>${text}</td></tr>`;
     if (asset.offlineUntilDay !== null) rows += `<tr><td>개보수</td><td class="neg">${fmt(Math.max(0, asset.offlineUntilDay - city.state.day))}일 뒤 재가동</td></tr>`;
   }

@@ -7,6 +7,44 @@ import { perType } from '../src/types';
 const CALM = { safety: { fires: false }, mayor: { riots: false } } as const;
 
 describe('neighbour connections', () => {
+  it('feeds imported power and water through the shared border section rather than an earlier disconnected stub', () => {
+    const peer = new City({ size: 32, water: false, config: { ...CALM, disasters: { simulated: false } } });
+    peer.state.funds = 1_000_000;
+    peer.placeStructure('coalPlant', 24, 20);
+    peer.placeStructure('waterPump', 27, 26);
+    peer.buildPowerLine(28, 24, 31, 24);
+    peer.buildPipe(27, 26, 31, 26);
+    peer.refresh();
+    const city = new City({ size: 32, water: false, config: { ...CALM, disasters: { simulated: false } } });
+    city.state.funds = 1_000_000;
+    city.batch(() => {
+      for (const y of [3, 23]) {
+        city.buildPowerLine(0, y, 4, y);
+        city.buildPipe(0, y, 4, y);
+        city.placeStructure('waterPump', 4, y + 1);
+        city.placeStructure('medicalClinic', 4, y + 2);
+      }
+    });
+    city.setNeighbourCity(0, peer.snapshot(), [[16, 32, { power: true, water: true, garbage: false }]]);
+    expect(city.makeDeal(0, 'power', 'buy', 1_000).ok).toBe(true);
+    expect(city.makeDeal(0, 'water', 'buy', 1_000).ok).toBe(true);
+    city.refreshIfDirty();
+    const north = city.query(4, 4)!.structure!;
+    const south = city.query(4, 24)!.structure!;
+    expect(north.powered).toBe(false);
+    expect(south.powered).toBe(true);
+    const infrastructure = city.infrastructureReport();
+    expect(infrastructure.power.flatMap((network) => network.sources).filter((source) => source.kind === 'import')).toEqual([
+      expect.objectContaining({ capacity: 1_000, x: 0, y: 23 }),
+    ]);
+    expect(infrastructure.water.flatMap((network) => network.sources).filter((source) => source.kind === 'import')).toEqual([
+      expect.objectContaining({ capacity: 1_000, x: 0, y: 23 }),
+    ]);
+    peer.bulldozePipes(31, 26, 31, 26);
+    city.setNeighbourCity(0, peer.snapshot(), [[16, 32, { power: true, water: false, garbage: false }]]);
+    expect(city.infrastructureReport().water.every((network) => network.importCapacity === 0)).toBe(true);
+  });
+
   it('counts a run of edge tiles as one connection', () => {
     const city = new City({ size: 32, water: false });
     city.state.funds = 100_000;

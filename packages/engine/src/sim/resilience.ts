@@ -98,7 +98,7 @@ export function infrastructureReport(s: CityState, cfg: SimConfig, f: Fields, po
   }
   for (const deal of activeDeals(s, 'power')) {
     if (deal.direction !== 'buy') continue;
-    const tile = edgeTile(s, deal.edge, (i) => s.power[i] === 1 && f.powerGrid[i]! >= 0);
+    const tile = edgeTile(s, deal.edge, (i) => s.power[i] === 1 && f.powerGrid[i]! >= 0, 'power');
     const network = tile >= 0 ? networks.get(f.powerGrid[tile]!) : undefined;
     if (!network) continue;
     const source: UtilitySource = { kind: 'import', id: deal.id, capacity: deal.amount, x: tile % s.size, y: Math.floor(tile / s.size), edge: deal.edge };
@@ -108,15 +108,19 @@ export function infrastructureReport(s: CityState, cfg: SimConfig, f: Fields, po
   assets.sort((a, b) => (a.monthsLeft ?? Infinity) - (b.monthsLeft ?? Infinity) || a.id - b.id);
   const due = assets.filter((asset) => asset.refurbishment.eligible && asset.monthsLeft !== null && asset.monthsLeft <= cfg.infrastructure.planning.lookAheadMonths);
   const repairs = Object.fromEntries(REPAIR_DEPARTMENTS.map((dept) => [dept, { tiles: 0, cost: 0 }])) as InfrastructureReport['repairs'];
+  const addRepair = (dept: RepairDepartment, i: number) => {
+    const cost = networkRepairCost(s, cfg, dept, i);
+    if (cost === null) return;
+    repairs[dept].tiles++;
+    repairs[dept].cost += cost;
+  };
   for (let i = 0; i < s.net.length; i++) {
-    for (const dept of REPAIR_DEPARTMENTS) {
-      const damaged = dept === 'roads' ? s.potholes[i] : dept === 'power' ? s.lineWear[i] : dept === 'water' ? s.pipeWear[i] : s.railDamage[i];
-      if (!damaged) continue;
-      const cost = networkRepairCost(s, cfg, dept, i);
-      if (cost === null) continue;
-      repairs[dept].tiles++;
-      repairs[dept].cost += cost;
-    }
+    // The usual healthy map only reads four byte flags: no per-tile iterator,
+    // department dispatch or price calculation until something needs work.
+    if (s.potholes[i]) addRepair('roads', i);
+    if (s.lineWear[i]) addRepair('power', i);
+    if (s.pipeWear[i]) addRepair('water', i);
+    if (s.railDamage[i]) addRepair('transit', i);
   }
   for (const dept of REPAIR_DEPARTMENTS) repairs[dept].cost = Math.ceil(repairs[dept].cost);
   const target = cfg.infrastructure.planning.reserveRatio;

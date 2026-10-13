@@ -207,7 +207,7 @@ export function* computePowerSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   const imported = new Float64Array(count);
   yield;
   for (const d of activeDeals(s, 'power')) {
-    const t = edgeTile(s, d.edge, (i) => s.power[i] === 1 && f.powerGrid[i]! >= 0);
+    const t = edgeTile(s, d.edge, (i) => s.power[i] === 1 && f.powerGrid[i]! >= 0, 'power');
     if (t < 0) continue;
     const g = f.powerGrid[t]!;
     if (d.direction === 'buy') {
@@ -757,7 +757,7 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   const importSources = new Map<number, UtilitySource[]>();
   yield;
   for (const d of activeDeals(s, 'water')) {
-    const t = edgeTile(s, d.edge, (i) => s.pipe[i] === 1 && net[i]! >= 0);
+    const t = edgeTile(s, d.edge, (i) => s.pipe[i] === 1 && net[i]! >= 0, 'water');
     if (t < 0) continue;
     const g = net[t]!;
     if (d.direction === 'buy') {

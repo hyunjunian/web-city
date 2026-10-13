@@ -1,7 +1,7 @@
 import type { SimConfig } from '../config';
 import { collectBudget, loanPrincipal, settleLoans, type BudgetContext } from './budget';
-import { settleDeals } from './region';
-import type { CityState } from './state';
+import { hasDealConnection, settleDeals } from './region';
+import type { CityState, DealResource } from './state';
 
 export interface BudgetForecastOptions {
   /** One-off spending now, to compare a proposed investment without making it. */
@@ -66,7 +66,15 @@ export function budgetForecast(s: CityState, cfg: SimConfig, ctx: BudgetContext,
     firstImpeachmentMonth: at.funds <= cfg.economy.impeachmentFunds ? 0 : null,
     endedDeals: [], points: [],
   };
-  const first = collectBudget(at, cfg, { ...ctx, month: ctx.month + 1 });
+  // The projection never edits networks or neighbour borders. Check each
+  // standing connection once, rather than scan every edge in every month.
+  const connections = new Map<string, boolean>();
+  for (const deal of at.neighbourDeals) {
+    const key = `${deal.edge}:${deal.resource}`;
+    if (!connections.has(key)) connections.set(key, hasDealConnection(at, deal.edge, deal.resource));
+  }
+  const connected = (edge: number, resource: DealResource) => connections.get(`${edge}:${resource}`) ?? false;
+  const first = collectBudget(at, cfg, { ...ctx, connected, month: ctx.month + 1 });
   result.endedDeals.push(...first.ended.map((deal) => deal.id));
   const base = first.report;
   const taxBase = Object.values(base.taxByType).reduce((sum, value) => sum + value, 0);
@@ -83,7 +91,7 @@ export function budgetForecast(s: CityState, cfg: SimConfig, ctx: BudgetContext,
       // collectBudget already settled the first month at the unmodified tax base and costs.
       at.funds = result.fundsAfterCapital;
     } else {
-      const deals = settleDeals(at, cfg, ctx.delivered);
+      const deals = settleDeals(at, cfg, ctx.delivered, connected);
       neighbourIncome = deals.income;
       neighbourExpense = deals.expense;
       result.endedDeals.push(...deals.ended.map((deal) => deal.id));
