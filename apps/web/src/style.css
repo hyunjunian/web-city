@@ -1194,8 +1194,11 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .budget-table tr.sub td:first-child { padding-left: 14px; }
 .budget-table tr.head td { font-weight: 600; }
 .budget-table tr.head + tr.head td, .budget-table tr.sub + tr.head td { padding-top: 10px; }
-.budget-table .share { position: absolute; left: 0; bottom: 1px; height: 2px; border-radius: 1px; opacity: 0.4; } /* (clear of the label: it read as an underline) */
+.budget-table .share { position: absolute; left: 0; bottom: 1px; z-index: 1; height: 4px; border-radius: 2px; opacity: 0.8; }
 .budget-table tr.sub .share { left: 14px; max-width: calc(100% - 14px); }
+/* (On a faint track the row's width: a hairline of its own length read as an underline gone short.) */
+.budget-table td:first-child:has(> .share)::after { content: ''; position: absolute; left: 0; right: 6px; bottom: 1px; height: 4px; border-radius: 2px; background: var(--surface-2); }
+.budget-table tr.sub td:first-child:has(> .share)::after { left: 14px; }
 .budget-table .share.in { background: var(--good); }
 .budget-table .share.out { background: var(--data); }
 .budget-table tr.total td { padding-top: 8px; border-top: 1px solid var(--line); }
@@ -1218,6 +1221,9 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .funding input { width: 100%; min-width: 0; }
 .funding.dept { grid-template-columns: 92px minmax(0, 1fr) 52px; margin-top: 4px; }
 .funding.dept span { grid-column: auto; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
+/* (As long as its top end allows: the thumb's 11px at either end kept, 100% falls at one place down the list.) */
+.funding.dept input[style*='--span'] { justify-self: start; width: calc(22px + (100% - 22px) * var(--span, 1)); }
+.funding.dept .dept-none { display: flex; align-items: center; min-height: 26px; color: var(--muted); font-size: 12.5px; font-style: normal; } /* (a slider row's height) */
 .ordinance { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 12px; margin-bottom: 12px; font-size: 13px; cursor: pointer; }
 .ordinance small { color: var(--muted); font-size: 11.5px; }
 .ordinance small.needs { color: var(--warn-ink); }

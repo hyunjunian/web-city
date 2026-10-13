@@ -691,6 +691,8 @@ const deptSig = (d: typeof city.state.departments) => `${d.roads}|${d.transit}|$
 
 
 /** Civic services funded building by building: one slider sets them all (the info card still sets one). */
+/** The highest top end among the budget sliders (보건·교육 150%): the length they are measured against. */
+const DEPT_TOP = 150;
 const SERVICE_GROUPS = [
   ['police', '치안', 120, '경찰서 모두(교도소는 부서 예산 "교도소"): 줄이면 순찰 반경과 체포가 줄고, 낮게 두면 파업할 수 있습니다'],
   ['fire', '소방', 120, '소방서 모두: 줄이면 화재 진압 반경이 줄고, 낮게 두면 파업할 수 있습니다'],
@@ -727,13 +729,19 @@ export function renderDepartments(): void {
     ['corrections', '교도소', '모든 교도소를 함께: 줄이면 감방이 줄어 범죄자가 풀려납니다'],
     ['landmarks', '랜드마크', '모든 랜드마크를 함께: 줄인 만큼 시장 지지도·상업 유인 효과가 줄어듭니다(100% 넘게는 못 줌)'],
   ] as const;
+  // Each slider as long as its top end allows, so 100% stands at one place down the list (a 0–100 one ends there,
+  // a 0–150 one runs on): the same 100% sat at three places. One with nothing behind it (no jail, no landmark) says
+  // so in words, not as a greyed slider.
+  const slider = (attr: string, max: number, value: number) =>
+    `<input ${attr} type="range" min="0" max="${max}" step="5" value="${value}" data-mark="100" style="--span:${(max / DEPT_TOP).toFixed(3)}">`;
+  const none = (what: string) => `<em class="dept-none" title="${what}${what === '시설' ? '이' : '를'} 지으면 조절할 수 있습니다">아직 없음</em><span></span>`;
   el.innerHTML = `
     <h3 class="sub">부서 예산</h3>
-    ${DEPTS.map(([k, name, hint]) => `<label class="funding dept" title="${hint}">${name} <input data-dept="${k}" type="range" min="0" max="${k === 'parks' || k === 'landmarks' ? 100 : 120}" step="5" value="${d[k]}" data-mark="100"${deptEmpty(k) ? ' disabled' : ''}><span>${deptEmpty(k) ? '없음' : `${d[k]}%`}</span></label>`).join('')}
+    ${DEPTS.map(([k, name, hint]) => `<label class="funding dept" title="${hint}">${name} ${deptEmpty(k) ? none(k === 'corrections' ? '교도소' : '랜드마크') : `${slider(`data-dept="${k}"`, k === 'parks' || k === 'landmarks' ? 100 : 120, d[k])}<span>${d[k]}%</span>`}</label>`).join('')}
     <h3 class="sub">시설 예산 (종류별 모두)</h3>
     ${SERVICE_GROUPS.map(([k, name, max, hint]) => {
       const f = serviceFunding(k);
-      return `<label class="funding dept" title="${hint}">${name} <input data-service="${k}" type="range" min="0" max="${max}" step="5" value="${f?.[1] ?? 100}" data-mark="100"${f ? '' : ' disabled'}><span>${f ? `${f[1]}%` : '없음'}</span></label>`;
+      return `<label class="funding dept" title="${hint}">${name} ${f ? `${slider(`data-service="${k}"`, max, f[1])}<span>${f[1]}%</span>` : none('시설')}</label>`;
     }).join('')}
     <p class="legend" id="dept-hint">${deptHint || '예산을 움직이면 그 효과가 여기 나옵니다.'}</p>`;
   const hintFor = (k: string) => DEPTS.find(([d]) => d === k)?.[2] ?? '';
