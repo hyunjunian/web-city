@@ -247,7 +247,7 @@ export function updatePreview(): void {
   if (!at || drive) {
     // (A touch screen has no hover to show the site: it says how a facility is placed.)
     // (Driving: how to drive, what the moment wants, rather than what can't be done.)
-    hint.textContent = drive ? `${touchFirst() ? '방향 버튼' : '방향키·WASD'}로 노란 목표까지 운전하세요${SPECIAL[drive.plan.vehicle] ? ` · ${touchFirst() ? SPECIAL[drive.plan.vehicle]!.label.replace(' (Space)', ' 버튼') : SPECIAL[drive.plan.vehicle]!.label}` : ''} · 운전 중에는 짓지 못함`
+    hint.textContent = drive ? `${touchFirst() ? '방향 버튼으로' : '방향키·WASD로'} 노란 목표까지 운전하세요${SPECIAL[drive.plan.vehicle] ? ` · ${touchFirst() ? SPECIAL[drive.plan.vehicle]!.label.replace(' (Space)', ' 버튼') : SPECIAL[drive.plan.vehicle]!.label}` : ''} · 운전 중에는 짓지 못함`
       : touchFirst() && tool.kind === 'structure' ? '놓을 자리를 누르세요 · 아래 짓기로 확정합니다' : '';
     preview = null;
     tag = null;
