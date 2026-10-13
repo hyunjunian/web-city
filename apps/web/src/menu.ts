@@ -121,6 +121,11 @@ export function setupMenu(): void {
     if (!file) return;
     try {
       const loaded = loadCity(JSON.parse(await file.text()) as SavedCity);
+      // (As every other way to open a city asks: a wrong file replaced the city and its unsaved months unasked.)
+      if (unsavedProgress() && !(await ask(`지금 도시에서 저장하지 않은 진행은 사라집니다(자동 저장은 6개월마다, 저장은 ${touchFirst() ? '' : 'Ctrl+S 또는 '}⋯ 메뉴). "${loaded.state.name}" 파일을 열까요?`, '파일 열기'))) {
+        (e.target as HTMLInputElement).value = '';
+        return;
+      }
       leaveRegion();
       setCity(loaded);
       flash(`"${loaded.state.name}"${josa(loaded.state.name, '을', '를')} 파일에서 불러왔습니다`);
