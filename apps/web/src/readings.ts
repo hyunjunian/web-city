@@ -680,9 +680,11 @@ export const capped = (t: (typeof DEV_TYPES)[number]) => {
 /**
  * The two subway stations nearest each other that no track joins, and the track between them as the subway tool draws
  * it from one to the other, with its price; null with fewer than two, or all joined. (Placed at their pair of sites,
- * the two stations stood with no word of the track they need.) Joined counts the elevated rail too, where a
- * transition (or a tile with both) takes the trains from one to the other, as the engine's trains go: a line run up
- * onto elevated rail and down again was marked as two to join. Kept for the week; short of money by today's funds.
+ * the two stations stood with no word of the track they need.) As the engine's trains go: a station of the subway's
+ * (an elevated rail station too) boards from track on or beside it, not at its corners, subway or elevated rail, and
+ * the two kinds of track meet where a transition (or a tile with both) takes the trains from one to the other — a line
+ * run up onto elevated rail and down again was marked as two to join. Kept for the week; short of money by today's
+ * funds.
  */
 export function subwayGap(): { path: [number, number][]; cost: number; short: boolean } | null {
   const key = changeKey();
@@ -702,7 +704,7 @@ export function subwayAlone(id: number): boolean {
 function findSubwayGap(): { gap: { path: [number, number][]; cost: number } | null; alone: ReadonlySet<number> } {
   const s = city.state;
   const n = city.size;
-  const stations = [...s.structures.values()].filter((st) => st.kind === 'subwayStation');
+  const stations = [...s.structures.values()].filter((st) => STRUCTURES[st.kind].station?.mode === 'subway');
   const alone = new Set<number>();
   if (stations.length < 2) return { gap: null, alone };
   // Track pieces, by flood over the subway's tiles and the elevated rail's: the two meet only through a transition or
@@ -732,11 +734,12 @@ function findSubwayGap(): { gap: { path: [number, number][]; cost: number } | nu
     }
     parts++;
   }
-  // The pieces each station stands on or beside, by their subway track (a station boards from that).
+  // The pieces each station stands on or beside (not at its corners: the engine's trains don't stop there).
   const on = stations.map((st) => {
     const set = new Set<number>();
     for (let y = st.y - 1; y <= st.y + st.h; y++) for (let x = st.x - 1; x <= st.x + st.w; x++) {
-      if (x >= 0 && y >= 0 && x < n && y < n && s.subway[y * n + x] && part[y * n + x]! >= 0) set.add(part[y * n + x]!);
+      const corner = (x === st.x - 1 || x === st.x + st.w) && (y === st.y - 1 || y === st.y + st.h);
+      if (!corner && x >= 0 && y >= 0 && x < n && y < n && part[y * n + x]! >= 0) set.add(part[y * n + x]!);
     }
     return set;
   });
@@ -748,6 +751,8 @@ function findSubwayGap(): { gap: { path: [number, number][]; cost: number } | nu
   for (let a = 0; a < stations.length; a++) for (let b = a + 1; b < stations.length; b++) {
     if ([...on[a]!].some((p) => on[b]!.has(p))) continue;
     const [p, q] = [stations[a]!, stations[b]!];
+    // (Subway track for a subway station to take: two elevated rail stations wait for elevated rail, not this.)
+    if (p.kind !== 'subwayStation' && q.kind !== 'subwayStation') continue;
     const d = Math.abs(p.x - q.x) + Math.abs(p.y - q.y);
     if (d >= best) continue;
     const plan = city.previewLine('subway', p.x, p.y, q.x, q.y);
