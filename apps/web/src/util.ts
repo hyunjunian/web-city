@@ -63,21 +63,31 @@ export function endFlash(): void {
 }
 
 /** Where a refusal goes when the hint bar is covered (set up by main: a toast). */
-let coveredSay: ((msg: string) => void) | null = null;
-export const onCoveredFlash = (say: (msg: string) => void) => { coveredSay = say; };
+let coveredSay: ((msg: string, tone: 'info' | 'bad') => void) | null = null;
+let noteTimer = 0;
+export const onCoveredFlash = (say: (msg: string, tone: 'info' | 'bad') => void) => { coveredSay = say; };
 
 /** Shows a message in the hint bar for a few seconds (longer for long ones). */
 export function flash(msg: string, tone: 'info' | 'bad' = 'info'): void {
   const hint = $('#hint');
   hint.textContent = glue(msg);
   // A refusal the hint bar can't show — under a phone's city sheet or a card, where the press was — is said by a
-  // toast too (on a phone a widen or a build short of money did nothing anyone could see).
-  if (tone === 'bad' && coveredSay) {
-    const r = hint.getBoundingClientRect();
-    const over = r.width ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null;
-    const cover = over?.closest('#pane, #info-card, #sheet, #tray, dialog');
+  // toast too (on a phone a widen or a build short of money did nothing anyone could see). Under an open sheet, any
+  // word is said at the sheet's own head, where its buttons were pressed (a region made, a Sim moved in: said under
+  // it, where nobody saw — and a notice too sat under a phone's sheet).
+  const r = hint.getBoundingClientRect();
+  const over = r.width ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) : null;
+  const cover = over?.closest('#pane, #info-card, #sheet, #tray, dialog');
+  const note = document.getElementById('sheet-note');
+  if (cover?.id === 'sheet' && note) {
+    note.textContent = glue(msg);
+    note.dataset.tone = tone;
+    note.hidden = false;
+    clearTimeout(noteTimer);
+    noteTimer = window.setTimeout(() => (note.hidden = true), Math.min(9000, 3000 + msg.length * 50));
+  } else if (tone === 'bad' && coveredSay && cover && !(cover.id === 'pane' && !document.getElementById('app')?.classList.contains('pane-open'))) {
     // (Not a pane on its way out: the hint is in sight a moment later, and the same words came twice.)
-    if (cover && !(cover.id === 'pane' && !document.getElementById('app')?.classList.contains('pane-open'))) coveredSay(msg);
+    coveredSay(msg, tone);
   }
   hint.dataset.tone = tone;
   // Read out too (the hint bar itself changes with every hover, so it isn't a live region).

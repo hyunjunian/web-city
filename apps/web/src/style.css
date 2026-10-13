@@ -1716,6 +1716,10 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 
 #sheet .sheet-body .card-head { display: flex; }
 #sheet-title { display: block; }
+/* What the sheet's own buttons did, said at its head (the hint bar it would go to lies under the sheet). */
+.sheet-note { margin: 0 24px 8px; padding: 8px 12px; border-radius: var(--r-md); background: var(--accent-soft); color: var(--text); font-size: 13px; line-height: 1.45; }
+.sheet-note[data-tone='bad'] { background: var(--danger-soft); color: var(--danger-ink); }
+@media (max-width: 860px) { .sheet-note { margin: 0 12px 8px; } }
 @media (max-width: 860px) {
   /* A sheet: its own title and close button. */
   #sheet .sheet-body .card-head { position: static; padding: 16px 12px 6px 18px; }
