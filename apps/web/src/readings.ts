@@ -1606,7 +1606,9 @@ export function layCost(lay: Lay, line: readonly [number, number][]): number | n
   if (lay === 'pipe') return line.some(([x, y]) => s.terrain[y * n + x] === Terrain.Water) ? null : line.filter(([x, y]) => !s.pipe[y * n + x]).length * city.cfg.services.pipeCost.build;
   if (line.some(([x, y]) => s.occupant[y * n + x] !== 0)) return null;
   if (lay === 'powerline') return line.filter(([x, y]) => !s.power[y * n + x] && !s.zone[y * n + x]).length * city.cfg.services.powerLineCost.build;
-  if (line.some(([x, y]) => s.net[y * n + x])) return null;
+  // (But its first tile may be the town's own road it runs out from: the road to the neighbours starts there, and
+  // 추천 길 바로 놓기 said "그사이 막혀서…" on every town with a road and laid nothing.)
+  if (line.some(([x, y], k) => s.net[y * n + x] && !(k === 0 && isLocalNet(s.net[y * n + x]!)))) return null;
   let cost = 0;
   // (Each run after the first from the tile past its corner: priced twice, an L showed §60 for §50 and refused.)
   straightRuns(line).forEach(([x0, y0, x1, y1], k) => {
