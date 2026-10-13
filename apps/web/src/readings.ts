@@ -321,7 +321,8 @@ function pollMetric(id: GoalId): Metric[] {
   // 깎이고" read as a contradiction — those it keeps out aren't asked.)
   // (Nobody minding yet, said as that: "불만 없는 주민 100%" stood beside the screen's 주의 like a contradiction.)
   const none = p >= 95;
-  return [[none ? `${POLL_NAME[topic]}에 대한 주민 불만` : `${POLL_NAME[topic]}에 불만 없는 주민`, none ? '아직 없음' : `${p}%`, p < 25 ? 'bad' : p < 50 ? 'warn' : '', p, 1, `지금 사는 주민 가운데 ${POLL_NAME[topic]}에 불만이 없는 비율 ${p}% (여론 조사: 시장 평점을 움직입니다 · 들어오지 못한 사람은 셈에 없음)${why}`]];
+  // (Up to 5% minding is "거의", not "아직 없음".)
+  return [[none ? `${POLL_NAME[topic]}에 대한 주민 불만` : `${POLL_NAME[topic]}에 불만 없는 주민`, none ? (p >= 100 ? '아직 없음' : '거의 없음') : `${p}%`, p < 25 ? 'bad' : p < 50 ? 'warn' : '', p, 1, `지금 사는 주민 가운데 ${POLL_NAME[topic]}에 불만이 없는 비율 ${p}% (여론 조사: 시장 평점을 움직입니다 · 들어오지 못한 사람은 셈에 없음)${why}`]];
 }
 
 export function metrics(id: GoalId): Metric[] {

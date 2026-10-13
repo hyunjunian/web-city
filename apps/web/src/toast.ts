@@ -106,6 +106,8 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
   body.dataset.text = text;
   body.dataset.at = where;
   el.append(badge, body);
+  // (One the clock stopped for, said at once by #sr-alert below: not a second time by the notices' polite region.)
+  if (sticky && tone === 'bad') el.setAttribute('aria-live', 'off');
   if (sticky) {
     // The clock stopped for it: the two ways on, side by side under what it says — look into it, or go on.
     const acts = document.createElement('span');
