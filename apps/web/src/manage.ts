@@ -21,7 +21,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -265,6 +265,16 @@ function guideHtml(id: GoalId): string {
     action = `<div class="g-act"><p class="g-act-head">${icon('search')}<b>원인부터 살펴보세요</b></p>
       <p class="g-act-why">아래 진단과 지도 보기(${GOALS[id].views.map(([, label]) => label).join(' · ')})에서 원인이 보입니다</p>
       ${at ? `<div class="g-act-btns"><button type="button" class="primary" data-spot="${at.join(',')}">${icon('target')}가장 심한 곳 보기</button></div>` : ''}</div>`;
+  } else if (st.widen) {
+    // A stretch to widen, shown on the map from end to end before it is widened.
+    const { run, to } = st.widen;
+    const path: [number, number][] = [];
+    for (let y = Math.min(run[1], run[3]); y <= Math.max(run[1], run[3]); y++) for (let x = Math.min(run[0], run[2]); x <= Math.max(run[0], run[2]); x++) path.push([x, y]);
+    guideSite = { id, sites: [{ at: [run[0], run[1]], label: '' }, { at: [run[2], run[3]], label: `${to === 'road' ? '도로' : '대로'} ${fmt(path.length)}칸` }], path };
+    const short = st.sub.includes('자금 부족');
+    action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b><small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small></p>
+      <p class="g-act-why">${escapeHtml(st.why)}</p>
+      <div class="g-act-btns"><button type="button" class="primary" data-widen="${run.join(',')}" data-widen-kind="${to}" title="지도의 두 과녁 사이 구간을 ${to === 'road' ? '도로' : '대로'}로 바로 넓히기">${icon('plus')}바로 넓히기</button></div></div>`;
   } else if (st.kind === 'line' && st.line && st.lay) {
     // A line or road to lay, shown on the map from end to end before it is laid.
     const [a, b] = [st.line[0]!, st.line.at(-1)!];
@@ -449,6 +459,8 @@ interface GuideStep {
   near?: [number, number];
   /** Nothing to do but wait for what was done (a landfill laid since the month's tally): what is coming. */
   wait?: string;
+  /** A jammed stretch to widen in one press (see bestJamRun): its ends, and to what. */
+  widen?: { run: [number, number, number, number]; to: 'road' | 'avenue' };
 }
 
 
@@ -564,6 +576,10 @@ function goalStep(id: GoalId): GuideStep {
   const held = capFirst(id);
   const lift = held ? capStep(held) : null;
   if (lift) return { ...lift, said: firstSentence(adviceText(held!)) };
+  // Jams, which the commute's row names as why it is long: the stretch whose widening relieves the most, widened in one
+  // press. (A bus pair came first and moved some 3% of the trips; a month on, the card offered the same pair again.)
+  const wide = id === 'traffic' && jammedTiles() >= 10 ? widenStep() : null;
+  if (wide) return wide;
   const tpl = document.createElement('template');
   tpl.innerHTML = (id === 'finance' ? financeActions() : '') + buildActions(GOALS[id]);
   const best = tpl.content.querySelector<HTMLElement>('.act.best');
@@ -689,6 +705,19 @@ function pumpStep(a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
   const level = city.state.departments.water;
   return level > 0 ? null : { kind: 'budget', what: '수도 예산 100%로', why: `수도 예산이 0%라 ${name}${josa(name, '이', '가')} 멈췄습니다`, fixAct: 'dept:water',
     act: '', glyph: icon('wallet'), sub: `부서 예산 · 지금 ${level}%`, fx: '', site: false };
+}
+
+/** The traffic guide's step: the jammed stretch that relieves the most (bestJamRun) widened in one press, or null. */
+function widenStep(): GuideStep | null {
+  const run = bestJamRun();
+  if (!run) return null;
+  const to = widenTo(run);
+  const p = city.previewNetwork(run[0], run[1], run[2], run[3], to);
+  if (!p.ok && p.message !== 'not enough funds') return null;
+  const tiles = Math.abs(run[2] - run[0]) + Math.abs(run[3] - run[1]) + 1;
+  const was = NETWORK_KINDS[city.state.net[run[1] * city.size + run[0]]!] === 'street' ? '골목' : '도로';
+  return { kind: 'line', what: `${was} ${fmt(tiles)}칸을 ${to === 'road' ? '도로' : '대로'}로`, why: '넘치는 차가 가장 많은 구간입니다: 넓히면 그 길의 막힘이 풀리고 통근이 빨라집니다',
+    fixAct: '', act: '', glyph: icon('road'), sub: `${p.ok ? '' : '자금 부족 · '}§${fmt(p.cost)}`, fx: '', site: false, widen: { run, to } };
 }
 
 /** The guide's step laying the road from a facility cut off (the advice's) to the nearest road, or null if none can go. */
@@ -1280,6 +1309,27 @@ export function bestBuild(id: GoalId): StructureKind | null {
   return (tpl.content.querySelector<HTMLElement>('.act.best[data-kind]')?.dataset.kind as StructureKind | undefined) ?? null;
 }
 
+/** A passenger station's note in the build list: one alone carries no one, and each kind joins its pair its own way. */
+const PAIR_NOTE: Partial<Record<string, string>> = {
+  bus: '둘 이상 놓기: 집 근처 하나, 일터 근처 하나 (도로로 이어져 있어야 탑니다)',
+  subway: '둘 이상 놓기: 집 근처 하나, 일터 근처 하나 · 두 역 사이를 지하철 선로로 이어야 탑니다',
+  rail: '둘 이상 놓기: 집 쪽 하나, 일터 쪽 하나 · 철도로 이어져 있어야 탑니다 (차로 와서도 탐)',
+  monorail: '둘 이상 놓기: 집 쪽 하나, 일터 쪽 하나 · 모노레일 선로로 이어야 탑니다',
+  ferry: '둘 이상 놓기: 물가의 집 쪽 하나, 일터 쪽 하나',
+};
+
+/** Transit begun: a pair of stops or stations of one kind (as the guide builds them), or one that riders board. */
+function transitBegun(): boolean {
+  const by = new Map<string, number>();
+  for (const st of city.state.structures.values()) {
+    const m = STRUCTURES[st.kind].station?.mode;
+    if (!m || m === 'freight' || m === 'carFerry') continue;
+    if (st.load >= 1) return true;
+    by.set(m, (by.get(m) ?? 0) + 1);
+  }
+  return [...by.values()].some((v) => v >= 2);
+}
+
 /** The goal's build actions: each kind of facility it may place, and its other tools. */
 function buildActions(g: Goal): string {
   const items: string[] = [];
@@ -1359,7 +1409,8 @@ function buildActions(g: Goal): string {
       .reduce<StructureKind | null>((a, k) => (!a || perCell(k) < perCell(a) ? k : a), null) ?? best;
   }
   // Long commutes: the cheapest stop that can be paid for (riders off the roads where they take it).
-  if (g === GOALS.traffic && (city.state.history.at(-1)?.commute ?? 0) > 1) {
+  // (Only until transit has begun: once a pair stood, the card offered the same pair again, beside the first.)
+  if (g === GOALS.traffic && (city.state.history.at(-1)?.commute ?? 0) > 1 && !transitBegun()) {
     // (Only a stop on a network there is: a rail station without track carries no one.)
     const s = city.state;
     const ready = (mode: string) => (mode === 'bus' ? s.net.some((v) => v !== Net.None && v !== Net.Rail) : mode === 'subway' ? s.subway.some((v) => v) : mode === 'rail' ? s.net.includes(Net.Rail) : false);
@@ -1415,8 +1466,9 @@ function buildActions(g: Goal): string {
         if (!city.isUnlocked(k) || city.placementsLeft(k) <= 0) continue;
         const d = STRUCTURES[k];
         const shortOf = d.cost > city.state.funds;
-        // A first stop carries no one: riders need one near home and one near work, on the same network.
-        const fx = forecast(k) || (k === best && d.station ? '둘 이상 놓기: 집 근처 하나, 일터 근처 하나 (같은 노선으로 이어져야 탑니다)' : '');
+        // A first stop carries no one: riders need one near home and one near work, on the same network (each kind its
+        // own: a subway station had no word of the track between).
+        const fx = forecast(k) || (d.station ? PAIR_NOTE[d.station.mode] ?? '' : '');
         items.push(`<button type="button" class="act${shortOf ? ' short' : ''}${k === best ? ' best' : ''}" data-act="${t.id}" data-kind="${k}" title="${STRUCTURE_NAME[k]} · ${d.w}×${d.h}칸 · 건설 §${fmt(d.cost)} · 유지 월 §${fmt(d.upkeep)}${k === best ? (d.station ? ' · 통근이 길 때 가장 싸게 시작하는 대중교통' : d.plant || d.pump ? ' · 수요를 넉넉히 감당하는 것 중 가장 쌈 (2년 비용)' : d.police || d.fire ? ' · 닿지 않는 곳에 가장 작은 서부터' : ' · 2년 비용 대비 가장 많이 감당') : ''}">
           <span class="act-name">${toolGlyph(t)}${STRUCTURE_NAME[k]}${k === best ? '<em class="act-best">추천</em>' : ''}</span><span class="act-sub">${shortOf ? '자금 부족 · ' : ''}§${fmt(d.cost)} · 월 §${fmt(d.upkeep)} · ${structureStat(k)}</span>${fx ? `<span class="act-fx${/−|모자람/.test(fx) ? ' neg' : ''}">${fx}</span>` : ''}</button>`);
       }
@@ -1721,7 +1773,8 @@ function spotLine(id: GoalId): string {
     const tiles = run ? Math.abs(run[2] - run[0]) + Math.abs(run[3] - run[1]) + 1 : 0;
     // (Said as what becomes what: "가장 막힌 구간 도로로 · 1칸" didn't say it was a 골목.)
     const was = run && NETWORK_KINDS[city.state.net[run[1] * city.size + run[0]]!] === 'street' ? '골목' : '도로';
-    const widen = run && p && (p.ok || p.message === 'not enough funds')
+    // (Not when the guide above widens it already: the same button twice.)
+    const widen = run && p && (p.ok || p.message === 'not enough funds') && !(guideSite?.id === id && guideSite.path)
       ? `<button type="button" class="advice-view spot-build" data-widen="${run.join(',')}" data-widen-kind="${to}" title="가장 많이 막힌 구간: ${was} ${fmt(tiles)}칸을 ${word}로 바로 넓히기 · §${fmt(p.cost)}">${icon('plus')}${was} ${fmt(tiles)}칸 → ${word} · §${fmt(p.cost)}${p.ok ? '' : ' · 자금 부족'}</button>` : '';
     return `<p class="mg-spot">${icon('target')}<span><b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${fmt(spot.tiles)}칸</span>
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button>${widen}</span></p>`;
