@@ -128,7 +128,7 @@ export function updateDriveHud(): void {
   const arrow = dist ? `<span class="goal-arrow" style="transform: rotate(${angle.toFixed(2)}rad)" aria-hidden="true">➜</span> ${compass}쪽 ` : '';
   $('#drive-info').innerHTML = `<div><b>${MISSION_NAME_KO[drive.plan.id]}</b> · ${VEHICLE_NAME_KO[drive.plan.vehicle]}</div>
     <div class="time ${drive.left < 10 ? 'low' : ''}">${Math.max(0, drive.left).toFixed(1)}초</div>
-    <div class="muted">${arrow}목표까지 ${dist}칸${drive.away && dist ? ' <b class="drive-away">· 멀어지는 중</b>' : ''}${drive.plan.fire !== undefined && MISSIONS[drive.plan.id].alignment === 'good' ? ' · 불 옆에서 Space로 끄세요' : ''}${drive.plan.vehicle === 'tank' ? ` · 포탄 ${drive.ammo}` : ''}</div>`;
+    <div class="muted">${arrow}목표까지 ${dist}칸${drive.plan.fire !== undefined && MISSIONS[drive.plan.id].alignment === 'good' ? ' · 불 옆에서 Space로 끄세요' : ''}${drive.plan.vehicle === 'tank' ? ` · 포탄 ${drive.ammo}` : ''}</div>${drive.away && dist ? '<div class="drive-away">멀어지는 중 · 화살표 쪽으로</div>' : ''}`;
 }
 
 /** Leaves a drive without a result (another city opened: the mission was the old city's). */
