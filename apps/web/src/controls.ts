@@ -15,7 +15,7 @@ import { closeInfo, closePane, revealMap } from './tabs';
 import { $, flash, fmt } from './util';
 import { choice } from './undo';
 import { type GoalId, GOALS } from './goals';
-import { capped } from './readings';
+import { capped, incidents } from './readings';
 
 /** Day / night view (cosmetic). */
 const NIGHT_KEY = 'web-city:night';
@@ -730,7 +730,7 @@ export function viewProblem(v: string): string {
   const had = problemMemo.get(v);
   if (had && (had.key === key || city.stepping)) return had.text;
   if (city.stepping) return '';
-  const [text, tone] = viewSummaryNow(v);
+  const [text, tone] = viewSummaryNow(v, false);
   const out = tone === 'bad' ? text : '';
   problemMemo.set(v, { key, text: out });
   return out;
@@ -744,10 +744,17 @@ function viewSummary(v: string): [string, '' | 'bad' | 'good', number[]] {
   return scanMemo.out;
 }
 
-function viewSummaryNow(v: string): [string, '' | 'bad' | 'good', number[]] {
+function viewSummaryNow(v: string, live = true): [string, '' | 'bad' | 'good', number[]] {
   const s = city.state;
   const f = city.fields;
   const n = s.size;
+  // While a fire burns or a riot runs, the reach view leads with it, and 찾아가기 goes there: with the trucks out it
+  // went to buildings beyond reach. (Not on a build card's heading, which is about reach.)
+  const now = live && (v === 'fire' || v === 'police') ? incidents().filter((x) => x.goal === v) : [];
+  if (now.length) {
+    const what = now.map((x) => x.goal === 'fire' ? `불난 곳 ${fmt(x.places.length)}곳` : x.riot ? `폭동 ${fmt(x.places.length)}곳` : `방화범 ${fmt(x.places.length)}명`).join(' · ');
+    return [what, 'bad', now.flatMap((x) => x.places.map(([px, py]) => py * n + px))];
+  }
   const blds = [...s.buildings.values()].filter((b) => b.type);
   // (Not the growth view: zones painted and nothing grown yet is when it is wanted most.)
   if (!blds.length && v !== 'growth') return ['', '', []];

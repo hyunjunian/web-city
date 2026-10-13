@@ -66,7 +66,9 @@ export function goalStatus(id: GoalId): Status {
 function readStatus(id: GoalId): Status {
   const st = readStats();
   const s = city.state;
-  const advice = adviceFor(id);
+  // (What burns or riots now is read live below: the advisors' word on it lags — it kept a row red with "불이 2곳에서
+  // 타고 있습니다" after the fire was out, and said nothing of a fire lit since.)
+  const advice = adviceFor(id).filter((a) => a.code !== 'fires' && a.code !== 'riot');
   const worst: Tone = advice.some((a) => a.level === 'bad') ? 'bad' : advice.some((a) => a.level === 'neutral') ? 'warn' : '';
   const first = advice.find((a) => a.level !== 'good');
   const said = first ? (ADVICE_TEXT[first.code]?.(first.value ?? 0, first.type) ?? '').split(/[.:]/)[0]! : '';
@@ -74,6 +76,8 @@ function readStatus(id: GoalId): Status {
     const t: Tone = tone === 'bad' || worst === 'bad' ? 'bad' : tone === 'warn' || worst === 'warn' ? 'warn' : tone;
     return { tone: t, value, note: said && t !== '' && t !== 'good' ? said : note, bar };
   };
+  // Something happening now: its line says what, whatever else the advisors have to say.
+  const now = (tone: Tone, value: string, note: string) => ({ ...pick(tone, value, note), note });
   switch (id) {
     case 'finance': {
       const b = s.lastBudget;
@@ -154,10 +158,18 @@ function readStatus(id: GoalId): Status {
     case 'police': {
       const c = st.safety.crimes;
       const prev = s.history.at(-2)?.crimes;
-      return pick(s.mobs.length ? 'bad' : '', `범죄 ${fmt(c)}`, `체포 ${fmt(st.safety.arrests)}${prev !== undefined && c > prev * 1.2 && c - prev > 5 ? ' · 늘어남' : ''}`);
+      // (A red row says why it is red: under a riot it read "체포 4".)
+      if (s.mobs.length) return now('bad', `범죄 ${fmt(c)}`, `폭동 ${fmt(s.mobs.length)}곳 진행 중`);
+      if (s.arsonists.length) return now('bad', `범죄 ${fmt(c)}`, `방화범 ${fmt(s.arsonists.length)}명 · 경찰을 보내면 막습니다`);
+      return pick('', `범죄 ${fmt(c)}`, `체포 ${fmt(st.safety.arrests)}${prev !== undefined && c > prev * 1.2 && c - prev > 5 ? ' · 늘어남' : ''}`);
     }
-    case 'fire':
-      return pick(st.safety.burning ? 'bad' : '', st.safety.burning ? `불타는 중 ${st.safety.burning}` : `화재 ${fmt(st.safety.fires)}`, `지난달 · 전소 ${fmt(st.safety.burned)}`);
+    case 'fire': {
+      // A lone fire inside the stations' cover is theirs to put out: 주의, not 급함 (it had the row red and
+      // "급한 일 1" with no card above and "지난달 · 전소 0" for a reason).
+      const inc = incidents().find((x) => x.goal === 'fire');
+      if (inc) return now(inc.urgent ? 'bad' : 'warn', `불타는 중 ${fmt(inc.places.length)}`, `불 ${fmt(inc.places.length)}곳 · ${inc.why}`);
+      return pick('', `화재 ${fmt(st.safety.fires)}`, `지난달 · 전소 ${fmt(st.safety.burned)}`);
+    }
     case 'health': {
       const list = facilities(GOALS.health);
       const [l, c] = loadOf(list);
@@ -2052,7 +2064,7 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
  * What is happening right now and can't wait for a plan: buildings and trees burning
  * (소방), mobs in the streets (치안). Each with where it is and the unit to send.
  */
-export type Incident = { goal: 'fire' | 'police'; title: string; at: [number, number]; places: [number, number][]; tool: 'send-fire' | 'send-police'; urgent: boolean; riot?: boolean };
+export type Incident = { goal: 'fire' | 'police'; title: string; at: [number, number]; places: [number, number][]; tool: 'send-fire' | 'send-police'; urgent: boolean; riot?: boolean; /** (a fire) why it is or isn't urgent, for its row */ why?: string };
 let incidentMemo: { key: string; list: Incident[] } | null = null;
 export function incidents(): Incident[] {
   const s = city.state;
@@ -2069,8 +2081,10 @@ export function incidents(): Incident[] {
   // or on a plant; a lone fire inside cover is the stations' to put out (it took over the card for years).
   const cover = city.fields.fireCover;
   const onPlant = s.fires.some((f) => f.target < 0 && !!STRUCTURES[s.structures.get(-f.target)?.kind ?? 'park' as StructureKind]?.plant);
-  const fireUrgent = fire.length >= 3 || onPlant || fire.some(([x, y]) => (cover[y * s.size + x] ?? 0) <= 0);
-  if (fire.length) list.push({ goal: 'fire', title: `불이 났습니다: ${fmt(fire.length)}곳`, at: fire[0]!, places: fire, tool: 'send-fire', urgent: fireUrgent });
+  const outside = fire.some(([x, y]) => (cover[y * s.size + x] ?? 0) <= 0);
+  const fireUrgent = fire.length >= 3 || onPlant || outside;
+  const why = onPlant ? '발전소가 타는 중' : outside ? '소방서 반경 밖 · 출동이 필요' : fireUrgent ? '번지는 중 · 출동이 필요' : '소방서가 끄는 중';
+  if (fire.length) list.push({ goal: 'fire', title: `불이 났습니다: ${fmt(fire.length)}곳`, at: fire[0]!, places: fire, tool: 'send-fire', urgent: fireUrgent, why });
   if (s.mobs.length) list.push({ goal: 'police', title: `폭동이 일어났습니다: ${fmt(s.mobs.length)}곳`, at: [s.mobs[0]!.x, s.mobs[0]!.y], places: s.mobs.map((m) => [m.x, m.y]), tool: 'send-police', urgent: true, riot: true });
   // Arsonists show up before they strike: police on the spot lock them up.
   if (s.arsonists.length) {

@@ -152,7 +152,8 @@ const hoverable = () => matchMedia('(hover: hover)').matches;
 export function refreshStrip(): void {
   const el = $('#goal-strip');
   const tones = GOAL_ORDER.map((id) => [id, goalStatus(id).tone] as const);
-  const inc = new Set(incidents().map((x) => x.goal));
+  // (A lone fire the stations are putting out is its row's amber, not red.)
+  const inc = new Set(incidents().filter((x) => x.urgent).map((x) => x.goal));
   // In the city pane's order (the worst, then the weightiest): the chip names the list's top row.
   const byWeight = (a: (typeof tones)[number], b: (typeof tones)[number]) => WEIGHT[b[0]] - WEIGHT[a[0]];
   const worst = [...tones.filter(([id, t]) => t === 'bad' || inc.has(id as 'fire')).sort(byWeight), ...tones.filter(([id, t]) => t === 'warn' && !inc.has(id as 'fire')).sort(byWeight)].slice(0, 3);
@@ -2343,7 +2344,12 @@ export function setupGoals(): void {
       // Phones: the pane steps aside for the map; the goal's chip brings it back.
       if (phone()) {
         closePane();
-        flash(`${kind ? STRUCTURE_NAME[kind] : toolName(TOOLS.find((x) => x.id === act.dataset.act)!)}: 지도에서 놓을 곳을 고르세요 · 위의 ${GOALS[active!].name} 칩으로 돌아옵니다`, 'info');
+        // (A unit to send isn't a thing to place: it said "지도에서 놓을 곳을 고르세요" for a fire truck.)
+        const tool = TOOLS.find((x) => x.id === act.dataset.act)!;
+        const now = incidents().filter((x) => x.goal === active);
+        const what = tool.kind !== 'dispatch' ? '지도에서 놓을 곳을 고르세요'
+          : `${tool.unit === 'fire' ? '불난 곳(빨간 원)을 누르세요' : now.some((x) => x.riot) ? '폭동 자리를 세 번 누르세요' : now.length ? '방화범이 있는 곳을 누르세요' : '보낼 곳을 누르세요'} · 출동 가능 ${fmt(city.freeUnits(tool.unit))}대`;
+        flash(`${kind ? STRUCTURE_NAME[kind] : toolName(tool)}: ${what} · 위의 ${GOALS[active!].name} 칩으로 돌아옵니다`, 'info');
       }
       // Pressed from the keyboard: on to the map, where the arrows move the build cursor and Enter builds.
       else if ((e as MouseEvent).detail === 0 && act.matches(':focus-visible')) {
