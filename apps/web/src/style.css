@@ -2618,8 +2618,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   /* (Where the bar has room — a tablet, a phone sideways — the speeds at a finger's width, as the bar's other buttons.) */
   #mapbar.fit1:not(.fit3) .gear-compact button { min-width: 42px; height: 32px; }
   .gear button .i { width: 16px; height: 16px; }
-  /* (The bar takes all three steps; the wind and the map alone are not for a phone's bar or menu.) */
-  #sb-wind, #mapbar #btn-focus-menu { display: none !important; }
+  /* (The bar takes all three steps; the wind and the map alone are not for a phone's bar or menu — nor its button where
+     the bar has room on a tablet or a phone sideways: pressed there it only changed its own label.) */
+  #sb-wind, #mapbar #btn-focus-menu, #mapbar #btn-focus { display: none !important; }
   #mapbar .dropdown-menu { max-height: calc(100dvh - 80px); }
   /* The view's card beside the build bar, clear of 전체 보기; its list as wide as the top bar. */
   #view #mapbar #map-layer { left: calc(var(--dock-w) + 7px); right: 54px; width: auto; max-width: none; top: calc(100% + 6px); } /* (8px from the build bar, in line with a goal's chip: the bar's 1px border counts) */
