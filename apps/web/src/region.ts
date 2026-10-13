@@ -197,8 +197,9 @@ export function renderNeighbours(): void {
     const span = Math.max(1, Math.round(city.size / cell));
     const side = span + 2 * REGION_MARGIN;
     // (The neighbours become the region's cells, empty ones no city: what those there gave — their demand, their deals
-    // — was stopped unsaid. Commuting goes on, out of the region.)
-    const lost = city.state.neighbours.filter((nb) => nb.kind !== 'simnation').length;
+    // — was stopped unsaid. Only a developed one gave either; commuting goes on, out of the region.)
+    const had = city.state.neighbours.filter((nb) => nb.kind !== 'simnation').length;
+    const lost = city.state.neighbours.filter((nb) => nb.kind === 'developed').length;
     region = new Region({ name: `${city.state.name} 지역`, width: side, height: side, citySize: cell });
     regionPos = [REGION_MARGIN, REGION_MARGIN];
     region.close(REGION_MARGIN, REGION_MARGIN, city);
@@ -206,7 +207,7 @@ export function renderNeighbours(): void {
     neighbourSignature = '';
     neighbourKey = '';
     setCity(region.open(REGION_MARGIN, REGION_MARGIN));
-    flash(`"${region.name}"${josa(region.name, '을', '를')} 만들었습니다${lost ? ` · 이웃은 이제 지역의 칸이 정해, 비어 있는 네 변은 도시 없음입니다(이웃 ${lost}곳이 보태던 수요와 거래가 끊김 · 통근은 지역 밖으로 계속됨) · 이웃 칸에 도시를 세우면 다시 이어집니다` : ''}`, 'info');
+    flash(`"${region.name}"${josa(region.name, '을', '를')} 만들었습니다${had ? ` · 이웃은 이제 지역의 칸이 정해, 비어 있는 네 변은 도시 없음입니다${lost ? `(개발된 이웃 ${lost}곳이 보태던 수요와 거래가 끊김 · 통근은 지역 밖으로 계속됨)` : ''} · 이웃 칸에 도시를 세우면 다시 이어집니다` : ''}`, 'info');
   });
   el.querySelector<HTMLButtonElement>('#region-load')?.addEventListener('click', async () => {
     // The city on screen isn't in that region: what wasn't saved of it goes.

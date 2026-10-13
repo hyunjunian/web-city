@@ -837,6 +837,23 @@ const sideOf = (i: number, n: number): number => {
   return x === 0 ? 0 : x === n - 1 ? 1 : y === 0 ? 2 : 3;
 };
 
+/**
+ * The stretches of the map's edge with a city across them, as [side, from, to) along it (sides numbered as the
+ * neighbours are); null when the whole edge has, or none of it (a road anywhere on it is as good). In a region a side
+ * may face a city along only part of it: a big city beside a small one.
+ */
+export function cityEdges(): [number, number, number][] | null {
+  const n = city.size;
+  const sides = citySides();
+  const out: [number, number, number][] = [];
+  for (const nb of city.state.neighbours) {
+    if (nb.kind === 'simnation' || (sides && !sides.includes(nb.edge))) continue;
+    if (nb.shared?.length) for (const [a, b] of nb.shared) out.push([nb.edge, Math.max(0, a), Math.min(n, b)]);
+    else out.push([nb.edge, 0, n]);
+  }
+  return !out.length || (out.length === 4 && out.every(([, a, b]) => a === 0 && b === n)) ? null : out;
+}
+
 /** The neighbours as the links to them are read: their kinds and the stretches of border played cities share. */
 const borderKey = () => city.state.neighbours.map((nb) => `${nb.kind}${nb.shared?.map(([a, b]) => `:${a}-${b}`).join('') ?? ''}`).join();
 
@@ -963,15 +980,72 @@ function findEdgeRoad(kind: 'road' | 'avenue'): { path: [number, number][]; cost
     if (!p.ok && !short) continue;
     if (!best || p.cost < best.cost) best = { t, cost: p.cost };
   }
-  if (!best) return null;
-  const { from, to } = best.t;
-  const [dx, dy] = [Math.sign(to[0] - from[0]), Math.sign(to[1] - from[1])];
-  const path: [number, number][] = [];
-  for (let [x, y] = from; ; x += dx, y += dy) {
-    path.push([x, y]);
-    if (x === to[0] && y === to[1]) break;
+  // The tiles from one point to another in a straight line, both ends in.
+  const line = (from: [number, number], to: [number, number]): [number, number][] => {
+    const [dx, dy] = [Math.sign(to[0] - from[0]), Math.sign(to[1] - from[1])];
+    const out: [number, number][] = [];
+    for (let [x, y] = from; ; x += dx, y += dy) {
+      out.push([x, y]);
+      if (x === to[0] && y === to[1]) break;
+    }
+    return out;
+  };
+  if (best) return { path: line(best.t.from, best.t.to), cost: best.cost };
+  return roads ? bentEdgeRoad(kind, line) : null;
+}
+
+/**
+ * Where no straight run from the town's roads meets a stretch of edge a city lies across (a small city beside part of a
+ * big map's side, past the rows the town has reached): one bend — from the town's road nearest that stretch, along
+ * the side to it, then straight out to the edge. The nearest few asked, the cheapest kept; its tiles and price, or
+ * null. (Clear of buildings and other networks all the way, as a laid road must be.)
+ */
+function bentEdgeRoad(kind: 'road' | 'avenue', line: (a: [number, number], b: [number, number]) => [number, number][]): { path: [number, number][]; cost: number } | null {
+  const spans = cityEdges();
+  if (!spans) return null;
+  const s = city.state;
+  const n = city.size;
+  type Bend = { from: [number, number]; bend: [number, number]; to: [number, number]; rank: number };
+  const bends: Bend[] = [];
+  for (let i = 0; i < s.net.length; i++) {
+    if (!isLocalNet(s.net[i]!)) continue;
+    const x = i % n;
+    const y = (i - x) / n;
+    for (const [e, a, b] of spans) {
+      if (b - a < 3) continue;
+      const along = e < 2 ? y : x;
+      const depth = e === 0 ? x : e === 1 ? n - 1 - x : e === 2 ? y : n - 1 - y;
+      // (A tile in from the stretch's ends; level with it already, a straight run was tried. Not from a road on the edge
+      // itself: there the bend would be the edge's tile.)
+      const near = Math.min(b - 2, Math.max(a + 1, along));
+      if (near === along || depth < 1) continue;
+      // (And a few rows further in, to go round a lake the nearest row crosses.)
+      const inward = near === a + 1 ? 1 : -1;
+      for (let k = 0; k < 4; k++) {
+        const p = near + inward * 4 * k;
+        if (p < a + 1 || p > b - 2) break;
+        const bend: [number, number] = e < 2 ? [x, p] : [p, y];
+        const to: [number, number] = e === 0 ? [0, p] : e === 1 ? [n - 1, p] : e === 2 ? [p, 0] : [p, n - 1];
+        bends.push({ from: [x, y], bend, to, rank: Math.abs(along - p) + depth });
+      }
+    }
   }
-  return { path, cost: best.cost };
+  bends.sort((u, v) => u.rank - v.rank);
+  let best: { path: [number, number][]; cost: number } | null = null;
+  let asked = 0;
+  for (const t of bends) {
+    if (asked >= 24 || (best && t.rank > best.path.length * 2 + 8)) break;
+    const path = [...line(t.from, t.bend), ...line(t.bend, t.to).slice(1)];
+    if (path.some(([x, y], k) => s.occupant[y * n + x] || (k > 0 && s.net[y * n + x]))) continue;
+    asked++;
+    // (The second run from the tile past the bend: the bend's tile is the first run's.)
+    const step: [number, number] = [t.bend[0] + Math.sign(t.to[0] - t.bend[0]), t.bend[1] + Math.sign(t.to[1] - t.bend[1])];
+    const p1 = city.previewNetwork(t.from[0], t.from[1], t.bend[0], t.bend[1], kind);
+    const p2 = city.previewNetwork(step[0], step[1], t.to[0], t.to[1], kind);
+    if ([p1, p2].some((p) => !p.ok && p.message !== 'not enough funds')) continue;
+    if (!best || p1.cost + p2.cost < best.cost) best = { path, cost: p1.cost + p2.cost };
+  }
+  return best;
 }
 
 /** A kind of source of the air over the smoggy homes: its share of it, how many there are, and the worst one (to go to). */

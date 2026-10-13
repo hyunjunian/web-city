@@ -443,6 +443,8 @@ export class Renderer {
   covers: { left: number; top: number; right: number; bottom: number }[] = [];
   /** A road in hand on a town not yet joined to its neighbours: the map's edge is where it should reach. */
   edgeHint = false;
+  /** With it, the stretches of the edge a city lies across, [side (0 W, 1 E, 2 N, 3 S), from, to); null: all of it. */
+  edgeSpans: [number, number, number][] | null = null;
   /** Where the keyboard's build cursor is (set by the arrows; a mouse moving takes it away). */
   cursor: { x: number; y: number } | null = null;
   /** Adds build feedback: a flash or dust over a rectangle, or a cost rising from a point. */
@@ -2032,12 +2034,22 @@ export class Renderer {
     }
 
     if (this.edgeHint) {
-      // The whole edge, dashed in the accent, and a word on where the road should go.
+      // The whole edge, dashed in the accent, and a word on where the road should go. (In a region, the stretches a
+      // city lies across, each with its word.)
       const u = this.dpr / sc;
+      const spans = this.edgeSpans;
       ctx.setLineDash([8 * u, 6 * u]);
       ctx.lineWidth = 3 * u;
       ctx.strokeStyle = 'rgba(47,111,224,0.85)';
-      ctx.strokeRect(0.5, 0.5, n - 1, n - 1);
+      if (spans) {
+        ctx.beginPath();
+        for (const [e, a, b] of spans) {
+          const [x0, y0, x1, y1] = e === 0 ? [0.5, a, 0.5, b] : e === 1 ? [n - 0.5, a, n - 0.5, b] : e === 2 ? [a, 0.5, b, 0.5] : [a, n - 0.5, b, n - 0.5];
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+        }
+        ctx.stroke();
+      } else ctx.strokeRect(0.5, 0.5, n - 1, n - 1);
       ctx.setLineDash([]);
       const px = 13 * u;
       ctx.font = `700 ${px}px system-ui, sans-serif`;
@@ -2050,12 +2062,16 @@ export class Renderer {
       // (Not with the suggested road to the neighbours drawn — the path that reaches the edge, not a screen's own line:
       // its label says as much, and on a phone the one line in the middle lay over its start.)
       const toEdge = !!this.guidePath?.some(([x, y]) => x === 0 || y === 0 || x === n - 1 || y === n - 1);
-      const spots: (readonly [number, CanvasTextAlign])[] = toEdge ? [] : wide ? [[1 + 6 * u, 'start'], [n - 1 - 6 * u, 'end']] : [[n / 2, 'center']];
-      for (const [tx, align] of spots) {
+      const say = '가장자리까지 이으면 이웃 도시와 연결';
+      const spots: (readonly [number, number, CanvasTextAlign, string])[] = toEdge ? []
+        : spans ? spans.map(([e, a, b]) => e === 0 ? [1 + 6 * u, (a + b) / 2, 'start', `← ${say}`] as const
+          : e === 1 ? [n - 1 - 6 * u, (a + b) / 2, 'end', `${say} →`] as const
+          : e === 2 ? [(a + b) / 2, 1 + 16 * u, 'center', `↑ ${say}`] as const : [(a + b) / 2, n - 1 - 8 * u, 'center', `↓ ${say}`] as const)
+        : wide ? [[1 + 6 * u, n / 2, 'start', `← ${say}`], [n - 1 - 6 * u, n / 2, 'end', `${say} →`]] : [[n / 2, n / 2, 'center', say]];
+      for (const [tx, ty, align, words] of spots) {
         ctx.textAlign = align;
-        const words = align === 'start' ? '← 가장자리까지 이으면 이웃 도시와 연결' : align === 'end' ? '가장자리까지 이으면 이웃 도시와 연결 →' : '가장자리까지 이으면 이웃 도시와 연결';
-        ctx.strokeText(words, tx, n / 2);
-        ctx.fillText(words, tx, n / 2);
+        ctx.strokeText(words, tx, ty);
+        ctx.fillText(words, tx, ty);
       }
       ctx.textAlign = 'start';
     }

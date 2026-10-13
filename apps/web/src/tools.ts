@@ -14,7 +14,7 @@ import { closeInfo, closePane, closeSheet, showTab } from './tabs';
 import { cancelMySimAction } from './mysims';
 import { $, endFlash, flash, fmt, touchFirst } from './util';
 import { GOAL_ORDER, GOALS, type GoalId } from './goals';
-import { capped, goalStatus, readStats, roadLinked } from './readings';
+import { capped, cityEdges, goalStatus, readStats, roadLinked } from './readings';
 
 export type Category = 'power' | 'water' | 'garbage' | 'safety' | 'health' | 'education' | 'park' | 'transport' | 'reward' | 'deal' | 'landmark';
 
@@ -1301,8 +1301,12 @@ export function markSuggested(): void {
  */
 export function refreshEdgeHint(): void {
   const on = tool.kind === 'network' && (tool.network === 'road' || tool.network === 'avenue') && !roadLinked();
-  if (on !== renderer.edgeHint) {
+  // (In a region, only the stretches a city lies across: the whole edge was outlined, and a road to the rest joined
+  // nobody.)
+  const spans = on ? cityEdges() : null;
+  if (on !== renderer.edgeHint || JSON.stringify(spans) !== JSON.stringify(renderer.edgeSpans)) {
     renderer.edgeHint = on;
+    renderer.edgeSpans = spans;
     redraw();
   }
 }
