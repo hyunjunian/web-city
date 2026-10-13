@@ -5,7 +5,7 @@
 // all on the same panel; the map, tool and info card follow from it.
 
 import { placeAt } from './input';
-import { DEV_TYPES, type DevType, Net, ORDINANCES, STRUCTURES, type HistoryPoint, type OrdinanceId, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
+import { DEV_TYPES, type DevType, Net, NETWORK_KINDS, ORDINANCES, STRUCTURES, type HistoryPoint, type OrdinanceId, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
 import { icon } from './icons';
 import { chooseSpeed, refreshTaxes, runningSpeed, showOverlay, toggleFocus, viewEmpty } from './controls';
 import { redrawInfo, refreshInfo, riotNear, showInfo } from './info';
@@ -21,7 +21,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -1711,14 +1711,15 @@ function spotLine(id: GoalId): string {
   }
   // (Traffic: the worst-jammed stretch, widened to an avenue in one press, beside 보기.)
   if (id === 'traffic') {
-    const jam = worstJam();
-    const run = jam ? jamRun(jam[0], jam[1]) : null;
+    const run = bestJamRun();
     const to = run ? widenTo(run) : 'avenue';
     const word = to === 'road' ? '도로' : '대로';
     const p = run ? city.previewNetwork(run[0], run[1], run[2], run[3], to) : null;
     const tiles = run ? Math.abs(run[2] - run[0]) + Math.abs(run[3] - run[1]) + 1 : 0;
+    // (Said as what becomes what: "가장 막힌 구간 도로로 · 1칸" didn't say it was a 골목.)
+    const was = run && NETWORK_KINDS[city.state.net[run[1] * city.size + run[0]]!] === 'street' ? '골목' : '도로';
     const widen = run && p && (p.ok || p.message === 'not enough funds')
-      ? `<button type="button" class="advice-view spot-build" data-widen="${run.join(',')}" data-widen-kind="${to}" title="가장 막힌 구간 ${fmt(tiles)}칸을 ${word}로 바로 넓히기 · §${fmt(p.cost)}">${icon('plus')}가장 막힌 구간 ${word}로 · ${fmt(tiles)}칸 §${fmt(p.cost)}${p.ok ? '' : ' · 자금 부족'}</button>` : '';
+      ? `<button type="button" class="advice-view spot-build" data-widen="${run.join(',')}" data-widen-kind="${to}" title="가장 많이 막힌 구간: ${was} ${fmt(tiles)}칸을 ${word}로 바로 넓히기 · §${fmt(p.cost)}">${icon('plus')}${was} ${fmt(tiles)}칸 → ${word} · §${fmt(p.cost)}${p.ok ? '' : ' · 자금 부족'}</button>` : '';
     return `<p class="mg-spot">${icon('target')}<span><b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${fmt(spot.tiles)}칸</span>
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button>${widen}</span></p>`;
   }

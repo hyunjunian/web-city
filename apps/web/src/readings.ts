@@ -1385,29 +1385,34 @@ export function widenTo(run: [number, number, number, number]): 'road' | 'avenue
 }
 
 /**
- * The worst-jammed street or road tile (traffic against its capacity), past capacity, at grade (a bridge or tunnel
- * isn't widened in place, and jamRun refuses it), or null. Kept for the week, as the jam count is.
+ * The jammed stretch whose widening relieves the most: of every jammed street or road's stretch (jamRun), the one with
+ * the most traffic over its capacity along it, or null. (By the worst tile alone it was often a 1-tile alley, and the
+ * 166 jammed tiles went to 165.) Kept for the week.
  */
-export function worstJam(): [number, number] | null {
+export function bestJamRun(): [number, number, number, number] | null {
   const key = changeKey();
-  if (worstMemo?.key === key) return worstMemo.at;
+  if (bestRunMemo?.key === key) return bestRunMemo.run;
   const s = city.state;
   const f = city.fields;
   const n = city.size;
   const cap = { street: city.cfg.transport.speed.street.capacity, road: city.cfg.transport.speed.road.capacity };
-  let best = -1;
-  let worst = 1;
+  const seen = new Set<string>();
+  let best: [number, number, number, number] | null = null;
+  let most = 0;
   for (let i = 0; i < n * n; i++) {
     const kind = NETWORK_KINDS[s.net[i]!];
-    if ((kind !== 'street' && kind !== 'road') || s.tunnel[i]) continue;
-    const load = f.traffic[i]! / cap[kind];
-    if (load > worst) [best, worst] = [i, load];
+    if ((kind !== 'street' && kind !== 'road') || s.tunnel[i] || f.traffic[i]! <= cap[kind]) continue;
+    const run = jamRun(i % n, Math.floor(i / n));
+    if (!run || seen.has(run.join())) continue;
+    seen.add(run.join());
+    let over = 0;
+    for (let y = run[1]; y <= run[3]; y++) for (let x = run[0]; x <= run[2]; x++) over += Math.max(0, f.traffic[y * n + x]! - cap[kind]);
+    if (over > most) [best, most] = [run, over];
   }
-  const at: [number, number] | null = best < 0 ? null : [best % n, Math.floor(best / n)];
-  worstMemo = { key, at };
-  return at;
+  bestRunMemo = { key, run: best };
+  return best;
 }
-let worstMemo: { key: string; at: [number, number] | null } | null = null;
+let bestRunMemo: { key: string; run: [number, number, number, number] | null } | null = null;
 
 /** Does a building reach a road now (homes and shops fronting one, industry and farms within reach of one)? Its
  * countdown resets only at the month's end: without this, a road laid to it was offered again at once. */
