@@ -372,11 +372,12 @@ export function buildOverlay(): void {
     const heat = 'linear-gradient(90deg, rgb(220,60,60), rgb(220,220,60), rgb(50,220,60))';
     // The coverage views' blue (render.ts coverage).
     const cover = 'linear-gradient(90deg, rgba(40,110,230,0.12), rgba(40,110,230,0.65))';
+    // (Its ends in words too where a bare number said nothing of which way is good: −60 · +60 for the mayor's rating.)
     const scale = ({
-      desirability: [heat, '0', '150+'], mayor: [heat, '−60', '+60'], health: [cover, '없음', '좋음'], school: [cover, '없음', '좋음'],
-      hq: [heat, '0', '200'], commute: ['linear-gradient(90deg, rgb(50,220,60), rgb(220,220,60), rgb(220,60,60))', '빠름', '2.5시간'], eq: [heat, '0', '200'], flammability: ['linear-gradient(90deg, rgb(50,220,60), rgb(220,220,60), rgb(220,60,60))', '안전', '위험'],
+      desirability: [heat, '0 낮음', '150+ 높음'], mayor: [heat, '−60 불만', '+60 만족'], health: [cover, '없음', '좋음'], school: [cover, '없음', '좋음'],
+      hq: [heat, '0 낮음', '200 높음'], commute: ['linear-gradient(90deg, rgb(50,220,60), rgb(220,220,60), rgb(220,60,60))', '빠름', '2.5시간'], eq: [heat, '0 낮음', '200 높음'], flammability: ['linear-gradient(90deg, rgb(50,220,60), rgb(220,220,60), rgb(220,60,60))', '안전', '위험'],
       traffic: ['linear-gradient(90deg, rgb(80,200,60), rgb(255,30,60))', '원활', '용량 2배'],
-      landValue: ['linear-gradient(90deg, rgba(120,40,160,0.05), rgba(120,40,160,0.7))', '0', '50'],
+      landValue: ['linear-gradient(90deg, rgba(120,40,160,0.05), rgba(120,40,160,0.7))', '0 낮음', '50 높음'],
       air: ['linear-gradient(90deg, rgba(90,70,40,0.05), rgba(90,70,40,0.75))', '깨끗', '오염'],
       waterPollution: ['linear-gradient(90deg, rgba(120,85,45,0.05), rgba(120,85,45,0.75))', '깨끗', '오염'],
       police: [cover, '약함', '강함'], fire: [cover, '약함', '강함'],
