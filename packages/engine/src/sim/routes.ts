@@ -78,23 +78,25 @@ export function routeQuery(s: CityState, f: Fields, cfg: SimConfig, x: number, y
   return { trips: picked.slice(0, limit), byMeans };
 }
 
-/** Modes riders leave a line from at a station (onto foot). */
-const LINES: ReadonlySet<number> = new Set([Mode.Bus, Mode.HighBus, Mode.Train, Mode.Subway, Mode.Monorail, Mode.Ferry]);
+/** The lines riders leave at a station (onto foot), and the kinds of station each stops at. */
+const LINES: ReadonlyMap<number, readonly string[]> = new Map([
+  [Mode.Bus, ['bus']], [Mode.HighBus, ['bus']], [Mode.Train, ['rail']], [Mode.Subway, ['subway']], [Mode.Monorail, ['monorail']], [Mode.Ferry, ['ferry', 'carFerry']],
+]);
 
 /**
  * Riders who got off at each passenger station last month: per station id, the commuters whose ride ended on its tiles
- * (its lot, edge or frontage), shared where two stations' tiles meet. Boardings are a station's load; this is the other
- * end, the stop by work that nobody boards.
+ * (its lot, edge or frontage) by a line of its kind, shared where two such stations' tiles meet. Boardings are a
+ * station's load; this is the other end, the stop by work that nobody boards.
  */
 export function alightings(s: CityState, f: Fields, cfg: SimConfig): Map<number, number> {
-  const at = new Map<number, number[]>();
+  const at = new Map<number, { id: number; mode: string }[]>();
   for (const st of s.structures.values()) {
     const def = cfg.structures[st.kind].station;
     if (!def || def.mode === 'freight') continue;
     for (const t of new Set([...footprint(s, st), ...perimeter(s, st), ...frontage(s, st)])) {
-      const ids = at.get(t);
-      if (ids) ids.push(st.id);
-      else at.set(t, [st.id]);
+      const list = at.get(t);
+      if (list) list.push({ id: st.id, mode: def.mode });
+      else at.set(t, [{ id: st.id, mode: def.mode }]);
     }
   }
   const out = new Map<number, number>();
@@ -104,10 +106,13 @@ export function alightings(s: CityState, f: Fields, cfg: SimConfig): Map<number,
     if (log.freight[k]) continue;
     const r = log.route(k);
     for (let j = 1; j < r.tiles.length; j++) {
-      if (r.modes[j] !== Mode.Walk || !LINES.has(r.modes[j - 1]!)) continue;
-      const ids = at.get(r.tiles[j]!) ?? at.get(r.tiles[j - 1]!);
-      if (!ids) continue;
-      for (const id of ids) out.set(id, (out.get(id) ?? 0) + log.amount[k]! / ids.length);
+      const kinds = r.modes[j] === Mode.Walk ? LINES.get(r.modes[j - 1]!) : undefined;
+      if (!kinds) continue;
+      // (Only a station of the line's kind: a bus getting off by a subway station's door is the bus stop's.)
+      const of = (t: number) => at.get(t)?.filter((x) => kinds.includes(x.mode)) ?? [];
+      const here = of(r.tiles[j]!);
+      const list = here.length ? here : of(r.tiles[j - 1]!);
+      for (const x of list) out.set(x.id, (out.get(x.id) ?? 0) + log.amount[k]! / list.length);
     }
   }
   return out;

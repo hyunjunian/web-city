@@ -271,6 +271,11 @@ describe('commuting', () => {
     });
     city.step(360);
     expect(city.fields.subwayTraffic[tile(city, 30, 31)]).toBeGreaterThan(0);
+    // Riders board at one station and get off at the other: each is counted at its own end.
+    const stations = [...city.state.structures.values()].filter((s) => s.kind === 'subwayStation');
+    const off = city.alightings();
+    expect(stations.some((s) => s.load > 0 && (off.get(s.id) ?? 0) < s.load)).toBe(true);
+    expect(stations.reduce((a, s) => a + (off.get(s.id) ?? 0), 0)).toBeGreaterThan(0);
   }, 60_000);
 });
 
