@@ -952,8 +952,21 @@ export function capBest(): StructureKind | undefined {
   return parks.sort((a, b) => STRUCTURES[b].relief[0] / Math.max(1, STRUCTURES[b].cost) - STRUCTURES[a].relief[0] / Math.max(1, STRUCTURES[a].cost))[0];
 }
 
+/** About how many would move in now but for the homes' cap. */
+export const capWaiting = (): number => (['R$', 'R$$', 'R$$$'] as const).reduce((s, t) => s + Math.max(0, city.demand.raw[t]), 0);
+
+/**
+ * People waiting at the homes' cap, with a park in hand that lifts it: what the growth row and screen lead with, before
+ * any zone (they offered a farm block while 4,579 people waited on a §130 tennis court).
+ */
+export function capLeads(): boolean {
+  if (!currentAdvice().some((a) => a.code === 'capRes' && a.level !== 'good') || capWaiting() < 100) return false;
+  const park = capBest();
+  return !!park && STRUCTURES[park].cost <= city.state.funds;
+}
+
 export function capHint(): string {
-  const waiting = (['R$', 'R$$', 'R$$$'] as const).reduce((s, t) => s + Math.max(0, city.demand.raw[t]), 0);
+  const waiting = capWaiting();
   const best = capBest();
   return `${waiting >= 1 ? ` 약 ${fmt(waiting)}명이 들어오려고 기다립니다.` : ''}${best ? ` ${STRUCTURE_NAME[best]}(§${fmt(STRUCTURES[best].cost)}) 하나가 +${fmt(STRUCTURES[best].relief[0])}명.` : ''} 세율을 낮춰도 상한은 그대로입니다.`;
 }

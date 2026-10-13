@@ -13,7 +13,7 @@ import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { whyNoDeals } from './region';
 import { journal } from './journal';
-import { abandonHint, capBest, capHint, jobHint, pushNotice, rciMini, updatePanels } from './panels';
+import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, updatePanels } from './panels';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, panTipAt, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
@@ -457,6 +457,29 @@ export function guideOrdinances(): Set<OrdinanceId> {
   return out;
 }
 
+/**
+ * People waiting at the homes' cap, with a park to lift it in hand: its advice, the growth card's lead before any zone
+ * (it offered a farm block while 4,579 people waited on a §130 tennis court, the town 1,441 short of its next stage).
+ */
+function capFirst(id: GoalId): ReturnType<typeof adviceFor>[number] | undefined {
+  return id === 'growth' && capLeads() ? adviceFor('growth').find((a) => a.code === 'capRes' && a.level !== 'good') : undefined;
+}
+
+/**
+ * The cap's fix: the park its 해 보기 hands over, with its price and how far it lifts the cap (the card said 공원·광장
+ * and no more), built near the homes.
+ */
+function capStep(a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
+  const park = capBest();
+  const tool = adviceTool(a.code);
+  if (!park || !tool) return null;
+  const act = tool[0].split(':')[0]!;
+  const t = TOOLS.find((x) => x.id === act);
+  const d = STRUCTURES[park];
+  return { kind: 'fix' as const, what: STRUCTURE_NAME[park], why: adviceText(a), fixAct: act, act, glyph: t ? toolGlyph(t) : '',
+    sub: `§${fmt(d.cost)} · 월 §${fmt(d.upkeep)}`, fx: `주거 상한 +${fmt(d.relief[0])}명`, site: false, build: park, anywhere: true };
+}
+
 function goalStep(id: GoalId): GuideStep {
   // The trouble the card leads with ends with a budget (worn lines, a strike for want of funds): that first, before
   // anything to build (a striking station's card said 예산 부족 and recommended a kiosk).
@@ -497,6 +520,9 @@ function goalStep(id: GoalId): GuideStep {
   // (Only garbage piling at a plant waits behind what the list puts first: the line to the dark zones.)
   const road = worst?.code === 'facilityNoRoad' && worst.level === 'bad' ? roadStep(worst) : null;
   if (road) return road;
+  const held = capFirst(id);
+  const lift = held ? capStep(held) : null;
+  if (lift) return { ...lift, said: firstSentence(adviceText(held!)) };
   const tpl = document.createElement('template');
   tpl.innerHTML = (id === 'finance' ? financeActions() : '') + buildActions(GOALS[id]);
   const best = tpl.content.querySelector<HTMLElement>('.act.best');
@@ -530,14 +556,8 @@ function goalStep(id: GoalId): GuideStep {
   if (a) {
     const act = adviceTool(a.code)![0].split(':')[0]!;
     const t = TOOLS.find((x) => x.id === act);
-    // The cap's fix is the park its 해 보기 hands over, with its price and how far it lifts the cap
-    // (the card said 공원·광장 and no more).
-    const park = a.code === 'capRes' ? capBest() : undefined;
-    if (park) {
-      const d = STRUCTURES[park];
-      return { kind: 'fix' as const, what: STRUCTURE_NAME[park], why: adviceText(a), fixAct: act, act, glyph: t ? toolGlyph(t) : '',
-        sub: `§${fmt(d.cost)} · 월 §${fmt(d.upkeep)}`, fx: `주거 상한 +${fmt(d.relief[0])}명`, site: false, build: park, anywhere: true };
-    }
+    const park = a.code === 'capRes' ? capStep(a) : null;
+    if (park) return park;
     const road = a.code === 'facilityNoRoad' ? roadStep(a) : null;
     if (road) return road;
     return { kind: 'fix' as const, what: adviceTool(a.code)![1], why: adviceText(a), fixAct: act, act, glyph: t ? toolGlyph(t) : '', sub: '', fx: '', site: false };
@@ -1969,7 +1989,9 @@ function goalHtml(id: GoalId): string {
   const list = facilities(g);
   const view = currentView();
   const advice = adviceFor(id).filter((a) => a.level !== 'good' || adviceFor(id).every((x) => x.level === 'good'));
-  const lead = guideSaid(id);
+  // (What the card leads with, which 진단 then gives as 위의 문제: the cap's word when its park comes first.)
+  const capped = capFirst(id);
+  const lead = capped ? { said: firstSentence(adviceText(capped)), worst: capped } : guideSaid(id);
   // Several of a kind are numbered in the order they were built (five rows of 양수 펌프 could not be told apart).
   const ofKind = new Map<string, number>();
   for (const f of list) ofKind.set(f.kind, (ofKind.get(f.kind) ?? 0) + 1);

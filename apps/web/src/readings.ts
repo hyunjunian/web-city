@@ -4,7 +4,7 @@
 import { type Building, DEV_TYPES, isLocalNet, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind, ZONES, type ZoneKind, zoneInfo } from '@web-city/engine';
 import { noRiders } from './info';
 import { ADVICE_TEXT, POLL_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME } from './names';
-import { crimeKinds, currentAdvice, garbageFill } from './panels';
+import { capLeads, crimeKinds, currentAdvice, garbageFill } from './panels';
 import { changeKey, city, cityGeneration } from './state';
 import { kindsFor, structureStat, TOOLS } from './tools';
 import { coverageRadius } from './views';
@@ -70,7 +70,8 @@ function readStatus(id: GoalId): Status {
   // 타고 있습니다" after the fire was out, and said nothing of a fire lit since.)
   const advice = adviceFor(id).filter((a) => a.code !== 'fires' && a.code !== 'riot');
   const worst: Tone = advice.some((a) => a.level === 'bad') ? 'bad' : advice.some((a) => a.level === 'neutral') ? 'warn' : '';
-  const first = advice.find((a) => a.level !== 'good');
+  // (Homes held at their cap with a park to lift it in hand: the growth row says that, as its screen leads with it.)
+  const first = id === 'growth' && capLeads() ? advice.find((a) => a.code === 'capRes') : advice.find((a) => a.level !== 'good');
   const said = first ? fullNote(first, id) || (ADVICE_TEXT[first.code]?.(first.value ?? 0, first.type) ?? '').split(/[.:]/)[0]! : '';
   const pick = (tone: Tone, value: string, note: string, bar?: number) => {
     const t: Tone = tone === 'bad' || worst === 'bad' ? 'bad' : tone === 'warn' || worst === 'warn' ? 'warn' : tone;
