@@ -2266,6 +2266,9 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .nb-edge.e { grid-area: e; }
 .nb-dir { font-weight: 650; color: var(--text); }
 .nb-edge select { width: 100%; min-width: 0; min-height: 34px; padding: 4px 26px 4px 10px; background-color: var(--surface); background-position: right 8px center; font-size: 12.5px; }
+/* In a region the cells decide them: plain, without the dropdown's chevron (they looked as if they could be picked). */
+.nb-edge select:disabled { opacity: 0.75; padding-right: 10px; background-image: none; cursor: default; }
+.nb-fixed { margin: -4px 0 10px; }
 .nb-links { font-size: 11px; line-height: 1.35; color: var(--good-ink, var(--good)); }
 .nb-links.none { color: var(--faint); }
 .nb-me { grid-area: me; display: grid; place-items: center; align-content: center; gap: 3px; min-width: 0; padding: 10px 8px; border-radius: var(--r-md); background: var(--accent-soft); color: var(--accent-hi); text-align: center; }

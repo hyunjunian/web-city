@@ -6,7 +6,7 @@ import { ko } from './messages';
 import { EDGE_NAME, KIND_NAME, RESOURCE_NAME, RESOURCE_UNIT, SPAN_NAME } from './names';
 import { updatePanels } from './panels';
 import { changeKey, city, setCity } from './state';
-import { $, ask, escapeHtml, flash, fmt } from './util';
+import { $, ask, escapeHtml, flash, fmt, josa } from './util';
 import { choice } from './undo';
 import { unsavedProgress } from './saves';
 
@@ -159,6 +159,7 @@ export function renderNeighbours(): void {
     <div class="nb-compass" role="group" aria-label="네 변의 이웃">${s.neighbours.map((nb) => `<label class="nb-edge ${'wens'[nb.edge]}"><span class="nb-dir">${EDGE_NAME[nb.edge]}</span><select data-edge="${nb.edge}" ${region ? 'disabled' : ''} aria-label="${EDGE_NAME[nb.edge]} 이웃">
       ${(['simnation', 'established', 'developed'] as const).map((k) => `<option value="${k}" ${nb.kind === k ? 'selected' : ''} title="${KIND_NAME[k]}">${KIND_SHORT[k]}</option>`).join('')}
     </select>${edgeLinks(nb.edge)}</label>`).join('')}<div class="nb-me">${icon('zones')}<b>${escapeHtml(s.name)}</b><small>이 도시</small></div></div>
+    ${region ? '<p class="legend nb-fixed">지역 안에서는 지역 지도의 칸이 네 변의 이웃을 정합니다: 빈 칸은 도시 없음이고, 이웃 칸에 도시를 세우면 그 도시가 이웃이 됩니다.</p>' : ''}
     <dl class="nb-kinds" aria-label="이웃의 종류">
       <dt>도시 없음</dt><dd>화물 출구와 연결 종류별 첫 오피스 상한 완화만 줍니다 (심네이션)</dd>
       <dt>미개발</dt><dd>주민이 오가며 통근합니다</dd>
@@ -183,6 +184,8 @@ export function renderNeighbours(): void {
     const cell = Math.min(64, city.size);
     const span = Math.max(1, Math.round(city.size / cell));
     const side = span + 2 * REGION_MARGIN;
+    // (The neighbours become the region's cells, empty ones no city: the commuting to those there was stopped unsaid.)
+    const lost = city.state.neighbours.filter((nb) => nb.kind !== 'simnation').length;
     region = new Region({ name: `${city.state.name} 지역`, width: side, height: side, citySize: cell });
     regionPos = [REGION_MARGIN, REGION_MARGIN];
     region.close(REGION_MARGIN, REGION_MARGIN, city);
@@ -190,6 +193,7 @@ export function renderNeighbours(): void {
     neighbourSignature = '';
     neighbourKey = '';
     setCity(region.open(REGION_MARGIN, REGION_MARGIN));
+    flash(`"${region.name}"${josa(region.name, '을', '를')} 만들었습니다${lost ? ` · 이웃은 이제 지역의 칸이 정해, 비어 있는 네 변은 도시 없음입니다(이웃 ${lost}곳과의 통근·거래가 끊김) · 이웃 칸에 도시를 세우면 다시 이어집니다` : ''}`, 'info');
   });
   el.querySelector<HTMLButtonElement>('#region-load')?.addEventListener('click', async () => {
     // The city on screen isn't in that region: what wasn't saved of it goes.
