@@ -285,6 +285,31 @@ describe('garbage', () => {
     expect(loadCity(source).state.garbageStats.failedImports).toBeUndefined();
   });
 
+  it('updates financial previews when current funding closes a previously successful waste contract', () => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    city.batch(() => {
+      city.buildNetwork(0, 10, 31, 10, 'road');
+      city.placeStructure('gasPlant', 1, 11);
+      city.zone(20, 11, 23, 14, 'landfill');
+      city.setNeighbour(1, 'developed', 10);
+    });
+    city.state.neighbourDeals.push({ id: 1, edge: 1, resource: 'garbage', direction: 'sell', amount: 100, price: 1,
+      startDay: 0, status: 'active', monthsLeft: 0 });
+    city.state.nextDealId = 2;
+    city.step(30);
+    expect(city.state.garbageStats.failedImports).toEqual([]);
+    expect(city.state.lastBudget!.neighbourIncome).toBe(100);
+    city.setDepartmentFunding('sanitation', 0);
+    const before = saveCity(city);
+    expect(city.previewGarbage().imported).toBe(0);
+    expect(city.budgetForecast(1).points[0]!.neighbourIncome).toBe(0);
+    expect(city.previewBudget().neighbourIncome).toBe(0);
+    expect(saveCity(city)).toEqual(before);
+    city.step(30);
+    expect(city.state.lastBudget!.neighbourIncome).toBe(0);
+  });
+
   it('trucks cannot enter a landfill from a tunnel, but can from a low bridge', () => {
     const city = new City({ size: 32, water: false });
     city.state.funds = 1_000_000;

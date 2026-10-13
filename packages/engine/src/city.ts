@@ -2342,13 +2342,14 @@ export class City {
     this.refreshIfDirty(); // finish pending days and use today's utility supply for standing deals
     // What settling changes: the treasury, loans' months and deals' standing.
     const s = this.state;
-    return this.settleBudget({ ...s, loans: s.loans.map((l) => ({ ...l })), neighbourDeals: s.neighbourDeals.map((d) => ({ ...d })) }).report;
+    return this.settleBudget({ ...s, garbageStats: this.previewGarbage(), loans: s.loans.map((l) => ({ ...l })), neighbourDeals: s.neighbourDeals.map((d) => ({ ...d })) }).report;
   }
 
   /** Projects 1–120 months of cash and debt at today's tax base, operating costs, delivery conditions and contract prices, with loan maturities and deal grace/probation. Optional capital spending, tax-income and operating-cost scenarios change no city state; growth, ageing and disasters are left out. */
   budgetForecast(months = 12, options: BudgetForecastOptions = {}): BudgetForecast {
     this.refreshIfDirty();
-    return budgetForecast(this.state, this.cfg, this.budgetContext(this.state), months, options);
+    const state = { ...this.state, garbageStats: this.previewGarbage() };
+    return budgetForecast(state, this.cfg, this.budgetContext(state), months, options);
   }
 
   private settleBudget(s: CityState): ReturnType<typeof collectBudget> {
