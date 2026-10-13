@@ -7,7 +7,7 @@
 import { placeAt } from './input';
 import { DEV_TYPES, type DevType, Net, ORDINANCES, STRUCTURES, type HistoryPoint, type OrdinanceId, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
 import { icon } from './icons';
-import { chooseSpeed, refreshTaxes, runningSpeed, showOverlay, toggleFocus } from './controls';
+import { chooseSpeed, refreshTaxes, runningSpeed, showOverlay, toggleFocus, viewEmpty } from './controls';
 import { redrawInfo, refreshInfo, riotNear, showInfo } from './info';
 import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -2026,7 +2026,7 @@ function goalHtml(id: GoalId): string {
     }).join('')}</div>
     ${usageBar(id)}
     ${airCauses(id)}
-    <div class="mg-views" role="group" aria-label="지도 보기">${icon('layers')}${g.views.map(([v, label]) => `<button type="button" class="vchip" data-mg-view="${v}" aria-pressed="${view === v}">${label}</button>`).join('')}</div>
+    <div class="mg-views" role="group" aria-label="지도 보기">${icon('layers')}${g.views.map(([v, label]) => `<button type="button" class="vchip${viewEmpty(v) ? ' empty" title="지금은 지도에 보여 줄 것이 없습니다' : ''}" data-mg-view="${v}" aria-pressed="${view === v}">${label}</button>`).join('')}</div>
     ${((said) => (said ? `<section class="mg-sec"><h3>${icon('info')}진단</h3>${said}</section>` : ''))(advice.map((a) => diagnosis(a, lead, id)).join(''))}
     ${id === 'finance' ? financeActions() : ''}
     ${spotLine(id)}

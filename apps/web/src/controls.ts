@@ -656,7 +656,7 @@ export function showOverlay(value: string): void {
 }
 
 /** A view with nothing on the map to show: a network the city hasn't built, or radiation where there is none. */
-function viewEmpty(v: string): boolean {
+export function viewEmpty(v: string): boolean {
   const network = v.startsWith('volume:') ? v.slice(7) as VolumeNetwork : null;
   if (network) {
     for (let i = 0; i < city.size * city.size; i++) if (volumeAt(city.state, city.fields, network, i) >= 0) return false;
