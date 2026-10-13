@@ -30,12 +30,16 @@ export function interviewAt(x: number, y: number): void {
   redraw();
   el.innerHTML = `<p><b>${icon('mic', 'inline-i')}지나가던 ${WEALTH_NAME[r.wealth]} 주민</b> <span class="muted">(지도에 표시한 집 근처에 삶)</span></p>
     <p>${r.thoughts.length ? thoughtChips(r.thoughts) : '<span class="muted">딱히 할 말이 없답니다.</span>'}</p>
-    <p class="legend">빨강 = 불만, 회색 = 좋아함. 집 주변의 건강·교육·치안·오염·통근 등에 대한 생각입니다.</p>`;
+    <p class="legend">집 주변의 건강·교육·치안·공기·통근 등에 대한 생각입니다.</p>`;
 }
 
 // Complaints first and in red; what they like, quietly after (a row of coloured emoji chips had no first thing to read).
-export const thoughtChips = (ts: Thought[]) => [...ts].sort((a, b) => Number(a.approve) - Number(b.approve))
-  .map((t) => `<span class="thought ${t.approve ? 'pos' : 'neg'}" title="${t.approve ? '좋아함' : '불만'}">${THOUGHT[t.subject][1]}</span>`).join('');
+// Each group under its word: a red chip and a dotted grey one side by side left the dot to say "fine" (오염 • read as
+// "polluted").
+export const thoughtChips = (ts: Thought[]) => ([false, true] as const).map((ok) => {
+  const these = ts.filter((t) => t.approve === ok);
+  return these.length ? `<span class="th-group ${ok ? 'pos' : 'neg'}"><span class="th-label">${ok ? '만족' : '불만'}</span>${these.map((t) => `<span class="thought ${ok ? 'pos' : 'neg'}">${THOUGHT[t.subject][1]}</span>`).join('')}</span>` : '';
+}).join('');
 
 const PICK_HINT = { job: '지도에서 같은 소득층이 일하는 일터를 누르세요', move: '지도에서 같은 소득층의 집을 누르세요', dispatch: '지도에서 보낼 곳을 누르세요' } as const;
 

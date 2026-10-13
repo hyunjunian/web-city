@@ -121,7 +121,7 @@ export const CHECK_NAME: Record<string, string> = {
 };
 
 export const THOUGHT: Record<ThoughtSubject, [string, string]> = {
-  health: ['❤', '건강'], education: ['✏', '교육'], crime: ['🚓', '치안'], pollution: ['🏭', '오염'], commute: ['🚗', '출퇴근'],
+  health: ['❤', '건강'], education: ['✏', '교육'], crime: ['🚓', '치안'], pollution: ['🏭', '공기'], commute: ['🚗', '출퇴근'],
   transit: ['🚌', '대중교통 통근'], bus: ['🚏', '버스 정류장'], landmark: ['🗽', '랜드마크'], sailboat: ['⛵', '마리나'], rat: ['🐀', '방사능 쥐'],
   airport: ['✈', '공항'], farm: ['🌾', '농장'], jail: ['🔒', '교도소'], landfill: ['🗑', '매립지'], park: ['🌳', '공원'], recycling: ['♻', '재활용'],
   reward: ['🏆', '보상 건물'], shop: ['🛍', '상점'], restaurant: ['🍴', '식당'], hotel: ['🏨', '호텔'], car: ['🔧', '정비소'], friend: ['🙂', '친구'],
