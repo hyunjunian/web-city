@@ -2412,8 +2412,14 @@ export function setupGoals(): void {
         // (A unit to send isn't a thing to place: it said "지도에서 놓을 곳을 고르세요" for a fire truck.)
         const tool = TOOLS.find((x) => x.id === act.dataset.act)!;
         const now = incidents().filter((x) => x.goal === active);
-        const what = tool.kind !== 'dispatch' ? '지도에서 놓을 곳을 고르세요'
-          : `${tool.unit === 'fire' ? '불난 곳(빨간 원)을 누르세요' : now.some((x) => x.riot) ? '폭동 자리를 세 번 누르세요' : now.length ? '방화범이 있는 곳을 누르세요' : '보낼 곳을 누르세요'} · 출동 가능 ${fmt(city.freeUnits(tool.unit))}대`;
+        const free = city.freeUnits(tool.kind === 'dispatch' ? tool.unit : 'fire');
+        const need = city.cfg.mayor.riotMob.minUnits;
+        // (As things are: the ring is on burning buildings only, and a riot pressed three times wants three cars.)
+        const where = tool.kind !== 'dispatch' ? '' : tool.unit === 'fire'
+          ? (city.state.fires.length ? '불난 곳(빨간 원)을 누르세요' : city.state.treeFires.length ? '불붙은 숲을 누르세요' : '지금 불난 곳이 없습니다')
+          : now.some((x) => x.riot) ? (free >= need ? '폭동 자리를 세 번 누르세요' : `폭동 자리를 누르세요 (진압에는 ${need}대, 지금 ${fmt(free)}대)`)
+          : now.length ? '방화범이 있는 곳을 누르세요' : '보낼 곳을 누르세요';
+        const what = tool.kind !== 'dispatch' ? '지도에서 놓을 곳을 고르세요' : `${where} · 출동 가능 ${fmt(free)}대`;
         flash(`${kind ? STRUCTURE_NAME[kind] : toolName(tool)}: ${what} · 위의 ${GOALS[active!].name} 칩으로 돌아옵니다`, 'info');
       }
       // Pressed from the keyboard: on to the map, where the arrows move the build cursor and Enter builds.
