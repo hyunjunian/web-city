@@ -68,7 +68,8 @@
       </aside>
 
       <main id="view">
-        <canvas id="map"></canvas>
+        <canvas id="map" tabindex="0" role="application" aria-label="도시 지도" aria-describedby="map-keys"></canvas>
+        <p id="map-keys" class="sr-only">방향키로 지도를 옮기고, 도구를 든 채 Enter로 커서 자리에 짓습니다. S는 추천 자리로, 0에서 3은 속도, Space는 멈춤과 이어 하기, 물음표는 조작법입니다.</p>
 
         <!-- The build menu, floating down the map's left: removing, then the build categories. (First in the map's
              parts, so Tab reaches it before the top bar, left to right as they sit.) -->
@@ -145,10 +146,11 @@
             <button id="zoom-out" class="icon-btn" title="축소 (−)" aria-label="축소"><span data-icon="minus"></span></button>
             <button id="zoom-fit" class="icon-btn" title="전체 보기 (Home)" aria-label="전체 보기"><span data-icon="fit"></span><span class="zoom-label" aria-hidden="true">전체</span></button>
           </div>
-          <canvas id="minimap" class="floating" aria-label="미니맵: 눌러서 이동" title="미니맵: 누르거나 끌어서 이동"></canvas>
+          <canvas id="minimap" class="floating" aria-hidden="true" title="미니맵: 누르거나 끌어서 이동"></canvas>
         </div>
 
         <div id="toasts" aria-live="polite"></div>
+        <div id="sr-alert" class="sr-only" role="alert"></div>
         <div id="hint"></div>
         <div id="sr-status" class="sr-only" role="status" aria-live="polite"></div>
         <div id="cursor-tag" hidden aria-hidden="true"></div>

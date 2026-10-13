@@ -82,7 +82,9 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
   // (Not a button: the clock's 계속 sits inside it.)
   const el = document.createElement('div');
   el.tabIndex = 0;
-  el.setAttribute('role', 'button');
+  // (A group, not a button: a button's insides are lost to a screen reader, and 계속 and 닫기 sit inside it.)
+  el.setAttribute('role', 'group');
+  el.setAttribute('aria-label', text.replace(/ · 멈춤 \(.*\)$/, ''));
   el.className = `toast ${tone}`;
   if (goal) el.dataset.goal = goal;
   el.title = label ?? (open ? '눌러서 관리 화면 열기' : at ? '눌러서 그곳 보기' : '닫기');
@@ -162,6 +164,7 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
   el.onkeydown = (e) => {
     if (e.target !== el || (e.key !== 'Enter' && e.key !== ' ')) return;
     e.preventDefault();
+    e.stopPropagation(); // (its Space opens it; the page's would pause the clock as well)
     el.click();
   };
   el.onclick = () => {
@@ -200,6 +203,11 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
   if (!sticky) wait(7000);
   if (sticky) {
     el.classList.add('sticky');
+    // (The clock stopped for it — a fire, a blackout: said at once to a screen reader, not after what it is reading.)
+    if (tone === 'bad') {
+      const alert = document.getElementById('sr-alert');
+      if (alert) alert.textContent = text.replace(/ · 멈춤 \(.*\)$/, '');
+    }
     window.addEventListener('speedchange', function gone() {
       if (speed === 0) return;
       window.removeEventListener('speedchange', gone);

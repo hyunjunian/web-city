@@ -636,9 +636,10 @@ export function closeTray(byPlayer = false): boolean {
   if (!hadFocus && active && $('#tray').contains(active)) active.blur();
   $('#tray').hidden = true;
   if (hadFocus) {
-    const back = [...document.querySelectorAll<HTMLButtonElement>(`#dock-tools [data-cat="${cat}"], #dock-tools .dock-build`)].find((b) => b.offsetParent);
-    // (With a tool in hand the menu is away: back to the tool bar's name.)
-    (back ?? (tool.id !== 'query' ? $('#tool-chip-label') : null))?.focus();
+    // (A tool picked from it: the keys are the map's now — focus back on the dock button had the next Enter open 교통
+    // again and swap the tool for 도로, where the help says Enter builds at the cursor.)
+    if (tool.id !== 'query') active?.blur();
+    else [...document.querySelectorAll<HTMLButtonElement>(`#dock-tools [data-cat="${cat}"], #dock-tools .dock-build`)].find((b) => b.offsetParent)?.focus();
   }
   document.querySelectorAll<HTMLButtonElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) => {
     b.classList.remove('open');

@@ -161,7 +161,7 @@ export function refreshStrip(): void {
   // count opens the city pane, where they are listed.
   const more = tones.filter(([id, t]) => t === 'bad' || t === 'warn' || inc.has(id as 'fire')).length - 1;
   const html = active || !phone() || !worst.length ? '' : worst.slice(0, 1).map(([id, t]) => `<button type="button" class="${inc.has(id as 'fire') ? 'bad' : t}" data-strip-goal="${id}" title="${GOALS[id].name} 화면">${icon(inc.has(id as 'fire') ? (id === 'fire' ? 'flame' : 'megaphone') : GOALS[id].icon)}${GOALS[id].name}</button>`).join('')
-    + (more > 0 ? `<button type="button" class="strip-more" data-strip-more title="다른 항목 ${more}개 · 도시 현황 열기">+${more}</button>` : '');
+    + (more > 0 ? `<button type="button" class="strip-more" data-strip-more title="다른 항목 ${more}개 · 도시 현황 열기" aria-label="다른 분야 ${more}개 · 도시 현황 열기">+${more} 분야</button>` : '');
   if (el.innerHTML !== html) el.innerHTML = html;
   el.hidden = !html;
 }
@@ -2153,8 +2153,13 @@ export function toggleUrgentGoal(): void {
     closeGoal();
     return;
   }
+  // (The first row of 도시 상태, as the list orders them: by GOAL_ORDER alone, M opened 재정·정책 under a list that
+  // began with 수도.)
   const rank = { bad: 0, warn: 1, '': 2, good: 2 } as const;
-  const id = [...GOAL_ORDER].sort((a, b) => rank[goalStatus(a).tone] - rank[goalStatus(b).tone])[0]!;
+  const id = [...WATCHED].sort((a, b) => {
+    const [ta, tb] = [goalStatus(a).tone, goalStatus(b).tone];
+    return rank[ta] - rank[tb] || (ta ? WEIGHT[b] - WEIGHT[a] : 0);
+  })[0]!;
   openGoal(id);
 }
 
