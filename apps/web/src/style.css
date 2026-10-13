@@ -2647,9 +2647,18 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #tray, #info-card, #sheet, #pane { top: calc(62px + env(safe-area-inset-top)); }
   /* The city pane open on the left: the view's card beside it (and gone if a card is open on the right too). */
   #app.pane-open #view #mapbar #map-layer:not(.picking) { left: calc(min(380px, 50vw) - 2px); } /* (50% would be the bar's) */
-  /* Little height: the pane's head and figures tighter, so 도시 상태 starts in sight. */
+  /* Little height: the pane's head and figures tighter, so 도시 상태 starts in sight (it began at the pane's foot,
+     under a 40px count and a reward card of three lines). The residents and the stage on one line, the reward tighter. */
   #pane:not(.managing) { gap: 10px; }
-  .hero-value { font-size: 36px; }
+  .city-sum { gap: 10px; }
+  .summary.score { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'main stage' 'bar bar' 'next next'; column-gap: 12px; row-gap: 5px; align-items: center; }
+  .score-main { grid-area: main; }
+  .score-stage { grid-area: stage; }
+  .score-bar { grid-area: bar; }
+  .score-next { grid-area: next; }
+  .score .sum-value { font-size: 30px; }
+  .city-sum .reward { padding: 8px 10px 8px 8px; row-gap: 3px; }
+  .city-sum .rw-left { -webkit-line-clamp: 1; line-clamp: 1; }
 
   #app.pane-open #view.info-open #mapbar #map-layer:not(.picking) { display: none; }
 }
