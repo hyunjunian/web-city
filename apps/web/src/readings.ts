@@ -1,7 +1,7 @@
 // Reading the city for the goals: each goal's state, figures and forecasts, where its
 // trouble gathers on the map, and what would help (no DOM here: the screen is manage.ts).
 
-import { type Building, DEV_TYPES, isLocalNet, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind, ZONES, type ZoneKind, zoneInfo } from '@web-city/engine';
+import { type Building, DEV_TYPES, isLocalNet, linePath, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind, ZONES, type ZoneKind, zoneInfo } from '@web-city/engine';
 import { noRiders } from './info';
 import { ADVICE_TEXT, POLL_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME } from './names';
 import { capLeads, crimeKinds, currentAdvice, garbageFill } from './panels';
@@ -672,6 +672,64 @@ export const capped = (t: (typeof DEV_TYPES)[number]) => {
   const d = city.demand;
   return Number.isFinite(d.cap[t]) && d.capPopulation[t] >= d.cap[t] * 0.98 && d.demand[t] < 1;
 };
+
+/**
+ * The two subway stations nearest each other that no track joins, and the track between them as the subway tool draws
+ * it from one to the other, with its price; null with fewer than two, or all joined. (Placed at their pair of sites,
+ * the two stations stood with no word of the track they need.) Kept for the week.
+ */
+export function subwayGap(): { path: [number, number][]; cost: number; short: boolean } | null {
+  const key = changeKey();
+  if (gapMemo?.key === key) return gapMemo.gap;
+  const s = city.state;
+  const n = city.size;
+  const stations = [...s.structures.values()].filter((st) => st.kind === 'subwayStation');
+  let gap: { path: [number, number][]; cost: number; short: boolean } | null = null;
+  if (stations.length >= 2) {
+    // Track pieces, by flood over the subway's tiles.
+    const part = new Int32Array(n * n).fill(-1);
+    let parts = 0;
+    for (let i = 0; i < n * n; i++) {
+      if (!s.subway[i] || part[i]! >= 0) continue;
+      const todo = [i];
+      part[i] = parts;
+      while (todo.length) {
+        const j = todo.pop()!;
+        const [x, y] = [j % n, Math.floor(j / n)];
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+          const [u, v] = [x + dx, y + dy];
+          const k = v * n + u;
+          if (u < 0 || v < 0 || u >= n || v >= n || !s.subway[k] || part[k]! >= 0) continue;
+          part[k] = parts;
+          todo.push(k);
+        }
+      }
+      parts++;
+    }
+    // The pieces each station stands on or beside.
+    const on = stations.map((st) => {
+      const set = new Set<number>();
+      for (let y = st.y - 1; y <= st.y + st.h; y++) for (let x = st.x - 1; x <= st.x + st.w; x++) {
+        if (x >= 0 && y >= 0 && x < n && y < n && part[y * n + x]! >= 0) set.add(part[y * n + x]!);
+      }
+      return set;
+    });
+    let best = Infinity;
+    for (let a = 0; a < stations.length; a++) for (let b = a + 1; b < stations.length; b++) {
+      if ([...on[a]!].some((p) => on[b]!.has(p))) continue;
+      const [p, q] = [stations[a]!, stations[b]!];
+      const d = Math.abs(p.x - q.x) + Math.abs(p.y - q.y);
+      if (d >= best) continue;
+      const plan = city.previewLine('subway', p.x, p.y, q.x, q.y);
+      if (!plan.ok && plan.message !== 'not enough funds') continue;
+      best = d;
+      gap = { path: linePath(p.x, p.y, q.x, q.y), cost: plan.cost, short: !plan.ok };
+    }
+  }
+  gapMemo = { key, gap };
+  return gap;
+}
+let gapMemo: { key: string; gap: { path: [number, number][]; cost: number; short: boolean } | null } | null = null;
 
 /**
  * A disaster on the move (a tornado, meteors, a robot, a monster, a UFO) that the alarms wait for, for its first 30

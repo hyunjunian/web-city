@@ -21,7 +21,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -1895,6 +1895,18 @@ function placeToolMark(): void {
       { x: b[0], y: b[1], w: 1, h: 1, tone: 'spot', label: `추천 · ${tool.kind === 'pipe' ? '수도관' : '송전선'} ${fmt(line.length)}칸` },
     ] : [];
     showToolMarks(marks, line);
+    return;
+  }
+  // Subway track in hand while two stations stand with no track between them: that track, dashed end to end, to draw
+  // along from one to the other.
+  if (tool.kind === 'subway') {
+    const gap = subwayGap();
+    const [a, b] = gap ? [gap.path[0]!, gap.path.at(-1)!] : [null, null];
+    const marks: typeof renderer.marks = a && b && gap ? [
+      { x: a[0], y: a[1], w: 1, h: 1, tone: 'spot', label: '' },
+      { x: b[0], y: b[1], w: 1, h: 1, tone: 'spot', label: `추천 · 지하철 선로 ${fmt(gap.path.length)}칸 · §${fmt(gap.cost)}${gap.short ? ' · 자금 부족' : ''}` },
+    ] : [];
+    showToolMarks(marks, gap?.path ?? null);
     return;
   }
   // A road or avenue in hand while nothing joins the town to its neighbours (no settlers nor trade come without): the

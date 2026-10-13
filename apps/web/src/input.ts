@@ -11,7 +11,7 @@ import { ABANDON_NAME, DISASTER_NAME, NETWORK_NAME, STRUCTURE_NAME, TYPE_NAME, Z
 import { updatePanels } from './panels';
 import { type Preview, zoneTint } from './render';
 import { coverageRadius, GROWTH_LABEL, growthNow, overlayReading } from './views';
-import { facilityLine, newlyReached, plantsReached, roadLinked, smokeClear } from './readings';
+import { facilityLine, newlyReached, plantsReached, roadLinked, smokeClear, subwayGap } from './readings';
 import { goalOfStructure } from './goals';
 import { cam, centerOn, city, drag, fitCamera, glideTo, hover, mapBand, overlay, redraw, renderer, selected, setDrag, setHover, speed, stopFlight } from './state';
 import { drive, SPECIAL } from './udi';
@@ -963,7 +963,9 @@ export function applyTool(): void {
       if (res.ok) {
         justBuilt = { x: sx, y: sy, w: def.w, h: def.h, kind };
         const reached = gained || plants ? ` · 새로 닿는 ${[plants ? `발전소 ${fmt(plants)}곳` : '', gained ? `${goal === 'health' || goal === 'education' ? '집' : '건물'} ${fmt(gained)}채` : ''].filter(Boolean).join(' · ')}` : '';
-        built = [`${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 지었습니다 · −§${fmt(res.cost)}${reached}${warn}${warn ? '' : touchFirst() ? ' · 위쪽 ↶로 되돌리기' : ' · Ctrl+Z로 되돌리기'}`, warn ? 'bad' : 'info'];
+        // (A subway station another stands apart from: the track they need, said — the tool shows where.)
+        const track = kind === 'subwayStation' && !warn && subwayGap() ? ' · 다른 역과 지하철 선로로 이어야 탑니다 (교통 › 지하철)' : '';
+        built = [`${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 지었습니다 · −§${fmt(res.cost)}${reached}${warn}${track}${warn || track ? '' : touchFirst() ? ' · 위쪽 ↶로 되돌리기' : ' · Ctrl+Z로 되돌리기'}`, warn ? 'bad' : 'info'];
         flash(...built);
       }
       break;
