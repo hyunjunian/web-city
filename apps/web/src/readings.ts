@@ -1,7 +1,7 @@
 // Reading the city for the goals: each goal's state, figures and forecasts, where its
 // trouble gathers on the map, and what would help (no DOM here: the screen is manage.ts).
 
-import { type Building, DEV_TYPES, isLocalNet, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind, type TripMeans, ZONES, type ZoneKind, zoneInfo } from '@web-city/engine';
+import { type Building, DEV_TYPES, isLocalNet, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind, ZONES, type ZoneKind, zoneInfo } from '@web-city/engine';
 import { noRiders } from './info';
 import { ADVICE_TEXT, POLL_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME } from './names';
 import { capLeads, crimeKinds, currentAdvice, garbageFill } from './panels';
@@ -474,21 +474,15 @@ export function facilityLine(f: Structure): [string, Tone] {
   return [structureStat(f.kind), ''];
 }
 
-const MEANS_OF: Partial<Record<string, TripMeans>> = { bus: 'bus', subway: 'subway', rail: 'train', monorail: 'monorail', ferry: 'ferry', carFerry: 'ferry' };
-
 /**
- * Riders who got off at a passenger stop last month, of one nobody boards: commuters board by their homes and get off
- * by their work, so the pair's stop by work counted no one ("승차 0", flagged as a stop that carries nobody, while the
- * pair's riders all came to it). Kept for the week.
+ * Riders who got off at a passenger stop last month: commuters board by their homes and get off by their work, so the
+ * pair's stop by work counted no one ("승차 0", flagged as a stop that carries nobody, while the pair's riders all came
+ * to it). Every station's at once, kept for the week.
  */
 export function alighted(f: Structure): number {
-  const means = MEANS_OF[STRUCTURES[f.kind].station?.mode ?? ''];
-  if (!means) return 0;
   const key = changeKey();
-  if (offMemo?.key !== key) offMemo = { key, by: new Map() };
-  let n = offMemo.by.get(f.id);
-  if (n === undefined) offMemo.by.set(f.id, (n = city.routeQuery(f.x, f.y).byMeans[means] ?? 0));
-  return n;
+  if (offMemo?.key !== key) offMemo = { key, by: city.alightings() };
+  return offMemo.by.get(f.id) ?? 0;
 }
 let offMemo: { key: string; by: Map<number, number> } | null = null;
 

@@ -77,3 +77,38 @@ export function routeQuery(s: CityState, f: Fields, cfg: SimConfig, x: number, y
   picked.sort((a, b) => b.amount - a.amount);
   return { trips: picked.slice(0, limit), byMeans };
 }
+
+/** Modes riders leave a line from at a station (onto foot). */
+const LINES: ReadonlySet<number> = new Set([Mode.Bus, Mode.HighBus, Mode.Train, Mode.Subway, Mode.Monorail, Mode.Ferry]);
+
+/**
+ * Riders who got off at each passenger station last month: per station id, the commuters whose ride ended on its tiles
+ * (its lot, edge or frontage), shared where two stations' tiles meet. Boardings are a station's load; this is the other
+ * end, the stop by work that nobody boards.
+ */
+export function alightings(s: CityState, f: Fields, cfg: SimConfig): Map<number, number> {
+  const at = new Map<number, number[]>();
+  for (const st of s.structures.values()) {
+    const def = cfg.structures[st.kind].station;
+    if (!def || def.mode === 'freight') continue;
+    for (const t of new Set([...footprint(s, st), ...perimeter(s, st), ...frontage(s, st)])) {
+      const ids = at.get(t);
+      if (ids) ids.push(st.id);
+      else at.set(t, [st.id]);
+    }
+  }
+  const out = new Map<number, number>();
+  if (!at.size) return out;
+  const log = f.tripLog ?? replayTrips(s, f, cfg);
+  for (let k = 0; log && k < log.count; k++) {
+    if (log.freight[k]) continue;
+    const r = log.route(k);
+    for (let j = 1; j < r.tiles.length; j++) {
+      if (r.modes[j] !== Mode.Walk || !LINES.has(r.modes[j - 1]!)) continue;
+      const ids = at.get(r.tiles[j]!) ?? at.get(r.tiles[j - 1]!);
+      if (!ids) continue;
+      for (const id of ids) out.set(id, (out.get(id) ?? 0) + log.amount[k]! / ids.length);
+    }
+  }
+  return out;
+}

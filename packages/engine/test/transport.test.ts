@@ -240,6 +240,12 @@ describe('commuting', () => {
     const q = city.routeQuery(used.x, used.y);
     expect(q.trips.length).toBeGreaterThan(0);
     expect(q.byMeans.bus).toBeGreaterThan(0);
+    // The other stop, which nobody boards, is where they got off.
+    const off = city.alightings();
+    const other = stops.find((x) => x !== used)!;
+    expect(other.load).toBeLessThan(1);
+    expect(off.get(other.id)).toBeCloseTo(city.routeQuery(other.x, other.y).byMeans.bus!, 3);
+    expect(off.get(other.id)).toBeGreaterThan(0);
     // Over its capacity, the transportation advisor points at it.
     used.load = 1_500;
     const full = city.advisors().find((a) => a.code === 'stationFull');

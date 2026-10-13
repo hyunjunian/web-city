@@ -51,7 +51,7 @@ import {
 } from './sim/mayor';
 import { ORDINANCES, type OrdinanceId } from './data/ordinances';
 import { commute, jobOf, thoughtsAt, thoughtsAtHome, type Thought } from './sim/mysims';
-import { routeQuery, type RouteQuery } from './sim/routes';
+import { alightings, routeQuery, type RouteQuery } from './sim/routes';
 import { adviseSteps, type Advice } from './sim/advisors';
 import { canDrive, finishMission, missionAvailable, planMission, vehicleAvailable, type ActiveMission } from './sim/udi';
 import { MISSIONS, type MissionId } from './data/missions';
@@ -2637,6 +2637,12 @@ export class City {
   opinionPolls(): Record<PollTopic, { approve: number; score: number }> {
     this.refreshIfDirty();
     return opinionPolls(this.state, this.fields, this.cfg);
+  }
+
+  /** Riders who got off at each passenger station last month (station id → riders; boardings are its load). */
+  alightings(): Map<number, number> {
+    this.refreshIfDirty();
+    return alightings(this.state, this.fields, this.cfg);
   }
 
   /** Route Query: trips from, to or across (x, y), their routes and means. */

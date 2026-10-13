@@ -291,6 +291,10 @@ Population by Age and Education by Age (bar graphs): residents and their average
 
 City Opinion Polls: per topic, the share of residents who approve.
 
+### `alightings(): Map<number, number>`
+
+Riders who got off at each passenger station last month (station id → riders; boardings are its load).
+
 ### `routeQuery(x: number, y: number): RouteQuery`
 
 Route Query: trips from, to or across (x, y), their routes and means.
