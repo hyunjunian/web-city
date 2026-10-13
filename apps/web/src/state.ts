@@ -113,6 +113,17 @@ export function mapCovers(): Band[] {
   });
 }
 
+/**
+ * The scale that frames `span` tiles in w × h CSS px: fitted inside it (zooming out stops at 1, or 2 for a town).
+ * Nothing built yet, on a phone, the land fills it instead, the map's sides past its edges: fitted across, the
+ * map was a band in the middle of a screen half black above and below. (전체 보기 still shows it whole.)
+ */
+export function fitScale(w: number, h: number, span: number, whole = false): number {
+  const s = city.state;
+  const fill = !whole && span === s.size && matchMedia('(max-width: 860px)').matches && !s.buildings.size && !s.structures.size && s.zone.every((z) => !z);
+  return Math.max(whole ? 1 : 2, (fill ? Math.max(w, h) : Math.min(w, h)) / span);
+}
+
 export function fitCamera(whole = false): void {
   // (A glide under way doesn't carry on over the new framing: closing the phone's pane started one toward the town
   // being left, and the sample city opened framed where it had been.)
@@ -124,7 +135,7 @@ export function fitCamera(whole = false): void {
   // (framed on the whole screen, the town sat half under the sheet with a dark band over it), beside it held sideways.
   const b = matchMedia('(max-width: 860px)').matches ? mapBand() : { left: 0, top: 0, right: r.width, bottom: r.height };
   const [w, h] = [b.right - b.left, b.bottom - b.top];
-  cam.scale = Math.max(whole ? 1 : 2, Math.min(w, h) / span); // (zooming out stops at 1)
+  cam.scale = fitScale(w, h, span, whole);
   cam.x = cx - (b.left + w / 2) / cam.scale;
   cam.y = cy - (b.top + h / 2) / cam.scale;
   bandFraming = b.bottom < r.height - 1 || b.left > 1 ? { x: cam.x, y: cam.y, scale: cam.scale } : null;

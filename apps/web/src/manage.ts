@@ -14,7 +14,7 @@ import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESO
 import { whyNoDeals } from './region';
 import { journal } from './journal';
 import { abandonHint, capBest, capHint, jobHint, pushNotice, rciMini, updatePanels } from './panels';
-import { builtArea, cam, centerOn, changeKey, city, cityLineage, flightCount, glideTo, graphs, mapBand, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
+import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, panTipAt, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
@@ -1122,7 +1122,7 @@ export function paneClosed(): void {
   if (!still && (!was || was.flight !== flightCount() || Math.abs(cam.scale - was.scale) > 1e-6)) return;
   const v = renderer.canvas.getBoundingClientRect();
   const { cx, cy, span } = builtArea();
-  glideTo(cx, cy, Math.max(2, Math.min(v.width, v.height) / span), 300);
+  glideTo(cx, cy, fitScale(v.width, v.height, span), 300);
 }
 
 /** Back to the overview: the view the goal put on goes, and a tool it handed out is put down. */
