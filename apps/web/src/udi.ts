@@ -6,7 +6,7 @@ import { ko } from './messages';
 import { icon } from './icons';
 import { CLASS_ICON, DIFFICULTY_NAME, STRUCTURE_NAME, TRAINING_NAME } from './names';
 import { pushNotice, updatePanels } from './panels';
-import { cam, city, redraw, renderer, speed } from './state';
+import { cam, city, mapBand, redraw, renderer, speed } from './state';
 import { closeTopLayer, showTab } from './tabs';
 import { closeTray } from './tools';
 import { choice } from './undo';
@@ -105,9 +105,11 @@ export function startDrive(id: MissionId): void {
 
 export function followVehicle(): void {
   if (!drive) return;
-  const r = renderer.canvas.getBoundingClientRect();
-  cam.x = drive.x + 0.5 - r.width / 2 / cam.scale;
-  cam.y = drive.y + 0.5 - r.height / 2 / cam.scale;
+  // (Centred in the map nothing covers — under the top bar, beside the build bar — not the whole canvas: the target
+  // ahead began under the bar.)
+  const b = mapBand();
+  cam.x = drive.x + 0.5 - (b.left + b.right) / 2 / cam.scale;
+  cam.y = drive.y + 0.5 - (b.top + b.bottom) / 2 / cam.scale;
   const n = city.size;
   renderer.drive = { x: drive.x, y: drive.y, tx: drive.plan.target % n, ty: Math.floor(drive.plan.target / n), color: MISSIONS[drive.plan.id].alignment === 'evil' ? '#e5484d' : '#3b82f6' };
   redraw();
