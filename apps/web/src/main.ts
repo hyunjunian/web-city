@@ -271,6 +271,11 @@ setupGoals();
 setupMenu();
 setupDriving();
 setupTabs();
+// (The skip link's jump: a fragment alone scrolls, it doesn't hand the canvas the keys.)
+document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click', (e) => {
+  e.preventDefault();
+  $('#map').focus();
+});
 setupBack();
 setupUndo();
 setupMinimap();

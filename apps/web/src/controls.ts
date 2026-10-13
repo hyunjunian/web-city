@@ -148,12 +148,24 @@ export function showHelp(): void {
 export function buildSpeed(): void {
   for (const el of document.querySelectorAll<HTMLElement>('.gear')) {
     el.innerHTML = '';
+    // One choice of four: a radio group, a single Tab stop whose arrows move the speed (four stops before, and no arrows).
+    el.setAttribute('role', 'radiogroup');
     SPEEDS.forEach((s, i) => {
       const b = document.createElement('button');
       b.innerHTML = icon(s.icon);
       b.title = s.title;
+      b.setAttribute('role', 'radio');
       b.setAttribute('aria-label', s.title.replace(/ \(.*\)$/, ''));
       b.onclick = () => chooseSpeed(i);
+      b.onkeydown = (e) => {
+        const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+        if (!d) return;
+        e.preventDefault();
+        e.stopPropagation(); // (not the map's arrows as well)
+        const j = Math.max(0, Math.min(SPEEDS.length - 1, i + d));
+        chooseSpeed(j);
+        (el.children[j] as HTMLElement | undefined)?.focus();
+      };
       el.append(b);
     });
   }
@@ -252,7 +264,8 @@ export function setSpeed(i: number): void {
   document.querySelectorAll<HTMLElement>('.gear').forEach((el) => {
     el.querySelectorAll<HTMLButtonElement>('button').forEach((b, k) => {
       b.classList.toggle('active', k === i);
-      b.setAttribute('aria-pressed', String(k === i));
+      b.setAttribute('aria-checked', String(k === i));
+      b.tabIndex = k === i ? 0 : -1;
     });
     el.dataset.speed = String(i);
   });
