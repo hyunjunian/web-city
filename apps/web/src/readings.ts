@@ -283,7 +283,9 @@ function pollMetric(id: GoalId): Metric[] {
   // read as a contradiction.)
   const mr = city.cfg.mayor?.pollution?.zero;
   const why = topic === 'environment' && mr ? ` · 오염이 ${fmt(mr)}을 넘어야 불만이 되지만, 40만 넘어도 쾌적도와 건강은 떨어집니다` : '';
-  return [[`주민 만족 (${POLL_NAME[topic]})`, `${p}%`, p < 25 ? 'bad' : p < 50 ? 'warn' : '', p, 1, `${POLL_NAME[topic]}에 불만이 없는 주민 비율 (여론 조사: 시장 평점을 움직입니다)${why}`]];
+  // (Said as what it counts, those living here with no complaint: "주민 만족 (세금) 100%" under "세율이 높아 수요가 71%
+  // 깎이고" read as a contradiction — those it keeps out aren't asked.)
+  return [[`${POLL_NAME[topic]}에 불만 없는 주민`, `${p}%`, p < 25 ? 'bad' : p < 50 ? 'warn' : '', p, 1, `지금 사는 주민 가운데 ${POLL_NAME[topic]}에 불만이 없는 비율 (여론 조사: 시장 평점을 움직입니다 · 들어오지 못한 사람은 셈에 없음)${why}`]];
 }
 
 export function metrics(id: GoalId): Metric[] {
