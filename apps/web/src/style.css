@@ -1231,15 +1231,21 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .tax-row input { width: 100%; }
 .tax-out { display: flex; align-items: center; justify-content: flex-end; gap: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); }
 .tax-step { display: none; width: 32px; min-height: 32px; padding: 0; border-radius: 50%; font-size: 17px; line-height: 1; }
-@media (pointer: coarse) and (hover: none) {
-  .tax-row { grid-template-columns: 64px minmax(0, 1fr) auto; }
-  .tax-step { display: inline-grid; place-items: center; }
-}
 .tax-row small { display: block; font-size: 11px; line-height: 1.2; }
 .tax-row small.neg { color: var(--danger); }
 .tax-row small.pos { color: var(--good-ink); }
 .tax-row .tax-effect { grid-column: 2 / 4; margin-top: -6px; }
 .tax-row .tax-effect { min-height: 13px; } /* kept when empty: rows don't jump as a rate starts to bite */
+@media (pointer: coarse) and (hover: none) {
+  /* (The slider on a row of its own, the pane's width: beside the label and − 12.5% + it was 46px wide on a tablet's
+     288px pane, too short for a finger.) */
+  .tax-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: 'label out' 'range range' 'fx fx'; row-gap: 2px; margin: 6px 0; }
+  .tax-row > span:first-child { grid-area: label; }
+  .tax-row input { grid-area: range; }
+  .tax-row .tax-out { grid-area: out; }
+  .tax-row .tax-effect { grid-area: fx; margin-top: 0; }
+  .tax-step { display: inline-grid; place-items: center; }
+}
 #taxes details summary { margin: 8px 0 4px; color: var(--muted); font-size: 12.5px; cursor: pointer; }
 .funding { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 10px; margin-top: 10px; }
 .funding span { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
@@ -2606,6 +2612,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #mapbar .icon-btn, #mapbar .dropdown > summary { width: 38px; height: 40px; }
   .gear-compact { padding: 2px; }
   #mapbar.fit1 .gear-compact button { min-width: 34px; height: 30px; padding: 0; }
+  /* (Where the bar has room — a tablet, a phone sideways — the speeds at a finger's width, as the bar's other buttons.) */
+  #mapbar.fit1:not(.fit3) .gear-compact button { min-width: 42px; height: 32px; }
   .gear button .i { width: 16px; height: 16px; }
   /* (The bar takes all three steps; the wind and the map alone are not for a phone's bar or menu.) */
   #sb-wind, #mapbar #btn-focus-menu { display: none !important; }
@@ -2700,6 +2708,11 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   .score-next { grid-area: next; }
   .score .sum-value { font-size: 30px; }
   .city-sum .reward { padding: 8px 10px 8px 8px; row-gap: 3px; }
+  /* (Still only 수도 in sight under 도시 상태 at 390px high: the reward's what-is-left line goes — the card opens the
+     full list — and the rows start nearer.) */
+  .city-sum .reward .rw-left { display: none; }
+  #status { gap: 8px; }
+  #pane .watch-card { padding-top: 4px; }
 
   #app.pane-open #view.info-open #mapbar #map-layer:not(.picking) { display: none; }
 }

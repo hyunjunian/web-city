@@ -636,9 +636,14 @@ export function fitMapbar(): void {
   const set = (level: number) => {
     for (let i = 1; i <= 4; i++) bar.classList.toggle(`fit${i}`, level >= i);
   };
-  if (matchMedia('(max-width: 860px)').matches) return set(4);
+  // A phone held upright: all folded (the bar spans the screen). Wider — a tablet, a phone sideways, where the bar
+  // stands at its own width in the corner — by the room it has: folded all the same there, 주민, help and the view's
+  // name sat in ⋯ beside 400px of empty bar row.
+  if (matchMedia('(max-width: 639px) and (orientation: portrait)').matches) return set(4);
   const cs = getComputedStyle(bar);
-  const room = view.clientWidth - parseFloat(cs.left) - parseFloat(cs.right);
+  // (In the corner its computed right is what its width leaves, not a bound: there the room ends at 전체 보기.)
+  const corner = matchMedia('(min-width: 640px) and (max-width: 860px), (max-width: 860px) and (orientation: landscape) and (max-height: 520px)').matches;
+  const room = view.clientWidth - parseFloat(cs.left) - (corner ? 64 : parseFloat(cs.right));
   let level = 0;
   for (; level < 4; level++) {
     set(level);
