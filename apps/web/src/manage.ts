@@ -21,7 +21,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
-import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, type Incident, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, hasRoadNow, jamRun, widenTo, landfillSite, powerToSpare, worstJam, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -717,8 +717,8 @@ function nextHtml(tones: Tone[]): Step {
     return { goal: inc.goal, problem: true, urgent: true, html: `<div class="lead bad urgent">
       <p class="lead-title">${icon(g.icon)}<span>${escapeHtml(inc.title)}</span><em>긴급</em></p>
       <p class="lead-risk">${inc.goal === 'fire' ? '두면 번져 건물을 잃습니다' : '두면 번져 건물이 부서지고 평점이 떨어집니다'}</p>
-      <p class="lead-do">${free ? `출동 가능 ${free}대 · 출동시켜 ${inc.goal === 'fire' ? '불을 끄세요' : inc.riot ? '진압하세요' : '체포하세요'}${riotHint(inc, free)}` : `보낼 ${inc.goal === 'fire' ? '소방차' : '경찰'}가 없습니다 · ${inc.goal === 'fire' ? '소방서' : '경찰서'}부터`}</p>
-      <div class="next-acts"><button type="button" class="primary next-do" data-next="${inc.goal}" data-next-kind="incident" data-next-at="${inc.at.join(',')}">${free ? '출동 준비' : '화면 열기'}</button></div></div>` };
+      <p class="lead-do">${free ? (inc.riot ? riotHint(free) : inc.goal === 'fire' ? '소방차를 보내 불을 끄세요' : '경찰을 보내 체포하세요') : `보낼 ${unitName(inc.goal)}가 없습니다 · ${inc.goal === 'fire' ? '소방서' : '경찰서'}부터`}</p>
+      <div class="next-acts"><button type="button" class="primary next-do" data-next="${inc.goal}" data-next-kind="incident" data-next-at="${inc.at.join(',')}">${free ? `출동 준비<small class="next-count">${free}대 가능</small>` : '화면 열기'}</button></div></div>` };
   }
   // The most serious, not the first in the list: no power or water, money running out, a fire, before
   // traffic or wealth (rubbish on two roadless lots led the card while the jail let criminals go).
@@ -1843,12 +1843,16 @@ function timeButton(): string {
  * A riot takes three police units or more unless it is on a dead-end street (an engine rule):
  * each press of the map sends one, so say so, and warn when the city has fewer to send.
  */
-function riotHint(inc: Incident, free: number): string {
-  if (!inc.riot) return '';
-  return free < 3
-    ? ` · 폭동은 경찰차 3대 이상이 있어야 진압됩니다(막다른 길 제외). 지금은 ${free}대뿐이라 경찰서를 더 지어야 합니다`
-    : ' · 폭동은 3대 이상 보내야 진압됩니다(막다른 길 제외): 지도에서 그곳을 세 번 누르세요';
+/**
+ * What a riot asks of the police, in a line: fewer cars than it takes do little (but in a dead end). (Four clauses in
+ * bold — the cars free, the order, the rule and the presses — ran to four lines; the count is on the button now.)
+ */
+function riotHint(free: number): string {
+  const need = city.cfg.mayor.riotMob.minUnits;
+  return free < need ? `경찰차가 ${free}대뿐입니다 · ${need}대가 모여야 진압되니 경찰서를 더 지으세요` : `경찰차 ${need}대가 모여야 진압됩니다 · 지도에서 그곳을 세 번 누르세요`;
 }
+/** The unit sent to an incident, in words. */
+const unitName = (goal: 'fire' | 'police') => (goal === 'fire' ? '소방차' : '경찰차');
 
 /** What is happening now on this goal's watch (a fire, a riot): where, and the unit to send, before any plan. */
 function incidentBanner(id: GoalId): string {
@@ -1856,7 +1860,7 @@ function incidentBanner(id: GoalId): string {
   if (!inc) return '';
   const free = city.freeUnits(inc.goal);
   return `<section class="mg-alert">${icon(inc.goal === 'fire' ? 'flame' : 'megaphone')}<span><b>${inc.title}</b>
-    <small>${free ? `출동 가능 ${free}대: 출동을 누르고 지도에서 그곳을 누르세요${riotHint(inc, free)}` : `보낼 ${inc.goal === 'fire' ? '소방차' : '경찰'}가 없습니다: ${inc.goal === 'fire' ? '소방서' : '경찰서'}부터 지으세요`}</small></span>
+    <small>${free ? `출동 가능 ${free}대 · ${inc.riot ? riotHint(free) : `출동을 누르고 지도에서 ${inc.goal === 'fire' ? '불난 곳' : '그곳'}을 누르세요`}` : `보낼 ${unitName(inc.goal)}가 없습니다: ${inc.goal === 'fire' ? '소방서' : '경찰서'}부터 지으세요`}</small></span>
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${inc.at.join(',')}" title="지도에서 그곳 보기">보기</button>${free ? `<button type="button" class="advice-view act-now" data-act="${inc.tool}" title="출동 도구 들기">${icon(inc.goal === 'fire' ? 'flame' : 'shield')}출동</button>` : ''}</span></section>`;
 }
 
