@@ -330,8 +330,24 @@ function cheer(steps: [boolean, string, string | null, boolean?][]): void {
   }
   const what = fresh.map((i) => short(steps[i]![1])).join(' · ');
   const tool = next[2];
-  toast(`시작하기 ${now.size}/${steps.length}: ${what} 완료 · 다음은 ${short(next[1])}`, 'good', undefined,
-    tool ? () => takeStep(tool) : undefined, false, tool ? `눌러서 다음 단계: ${short(next[1])}` : undefined);
+  // (Once the list is drawn: a next step it lays in one press, the notice lays too — on a phone the list is behind 도시,
+  // and the notice only picked up the tool for a drag over the dashed block.)
+  queueMicrotask(() => {
+    const lay = document.querySelector<HTMLButtonElement>('#onboarding-steps > ol.steps > li:first-child .step-lay');
+    const kind = lay?.dataset.lay;
+    // (Found again on the press, as the list's own link is: the list may have been drawn anew since.)
+    const press = kind ? () => {
+      const now = document.querySelector<HTMLButtonElement>(`#onboarding-steps .step-lay[data-lay="${kind}"]`);
+      if (now) now.click();
+      else if (tool) takeStep(tool);
+    } : tool ? () => takeStep(tool) : undefined;
+    // (Said in the notice itself, with the price: a press that builds isn't left to a tooltip a phone never shows.)
+    const said = lay?.textContent?.trim() ?? '';
+    const verb = /바로 (놓기|짓기|잇기)/.exec(said)?.[0];
+    const price = /§[\d,]+/.exec(said)?.[0];
+    toast(`시작하기 ${now.size}/${steps.length}: ${what} 완료 · 다음은 ${short(next[1])}${verb ? ` · 눌러서 ${verb}${price ? ` ${price}` : ''}` : ''}`, 'good', undefined,
+      press, false, lay ? `눌러서 ${said}` : tool ? `눌러서 다음 단계: ${short(next[1])}` : undefined);
+  });
 }
 
 /** The checklist's deficit step: to be closed soon, or (years of money left) as the town grows. */
