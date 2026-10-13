@@ -47,12 +47,12 @@ export const VEHICLE_NAME_KO: Record<VehicleId, string> = {
 };
 
 export const MISSION_NAME_KO: Record<MissionId, string> = {
-  trainingRoad: '운전 연습: 도로',
-  trainingRail: '운전 연습: 철도',
-  trainingTank: '운전 연습: 탱크',
-  trainingPlane: '운전 연습: 비행기',
-  trainingHelicopter: '운전 연습: 헬리콥터',
-  trainingBoat: '운전 연습: 배',
+  trainingRoad: '운전 연습(도로)',
+  trainingRail: '운전 연습(철도)',
+  trainingTank: '운전 연습(탱크)',
+  trainingPlane: '운전 연습(비행기)',
+  trainingHelicopter: '운전 연습(헬리콥터)',
+  trainingBoat: '운전 연습(배)',
   aSpecialLoadOfGarbage: '특별한 쓰레기',
   catchTheRobbers: '강도 잡기',
   copGoneBad: '타락한 경찰',

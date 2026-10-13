@@ -181,7 +181,10 @@ export function endDrive(success: boolean, quit = false): void {
   ].filter(Boolean).join(' · ');
   const text = `${MISSION_NAME_KO[plan.id]} ${success ? '성공' : '실패'}${result ? `: ${result}` : ''}`;
   pushNotice({ text, warn: !success });
-  toast(text, success ? 'good' : 'bad');
+  // (New missions it opened: told here, and the notice leads to them — it led nowhere, and the month's own notices
+  // told two of them again.)
+  toast(text, success ? 'good' : 'bad', undefined, opened ? () => showTab('sims') : undefined);
+  if (opened && missionsSeen.city === city.state) for (const id of city.availableMissions()) missionsSeen.ids.add(id);
   setSpeed(speedBefore);
   endFlash(); // "운전하는 동안에는 시간이 멈춥니다" stayed up after the drive
   updatePreview(); // the hint still said the map can't be edited

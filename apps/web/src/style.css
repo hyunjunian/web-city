@@ -2005,6 +2005,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @media (min-width: 861px) {
   #toasts { top: auto; bottom: 14px; left: auto; right: 14px; transform: none; width: min(360px, calc(100% - 28px)); align-content: end; }
   #view:has(#hint:not(:empty)) #toasts { bottom: 62px; } /* above the hint's line */
+  #view:has(#drive-hud:not([hidden])) #toasts { bottom: 214px; } /* above the driving pad, as the hint goes (a notice sat on ▼ ▶) */
   #view.info-open #toasts { left: auto; right: calc(var(--info-w) + 28px); width: min(360px, calc(100% - var(--info-w) - 56px)); }
   /* Stacked, the older ones fold to a line (three alerts stood 200px tall over the town); pointed at or focused, one
      opens again. Not one the clock stopped for: its 살펴보기 and 계속 stay whole. */
