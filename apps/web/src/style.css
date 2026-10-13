@@ -1031,6 +1031,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
   animation: tray-in 0.2s var(--ease);
 }
 #tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(370px, 100%), 1fr)); column-gap: 22px; align-items: start; padding: 0 18px 2px; overflow-y: auto; } /* row by row, so groups keep their places (columns rebalanced them as their text changed) */
+#tools.more-below { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); }
 /* Finding a tool by name, and the ones used lately. */
 #tray-find { display: grid; gap: 8px; padding: 0 18px 12px; flex: none; }
 #tray-find:not(:has(#tray-recent:not([hidden]))) { display: none; }
@@ -2548,12 +2549,14 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 @media (min-width: 861px) {
   #tray {
     top: 70px; bottom: auto; left: calc(var(--dock-w) + 24px); transform: none;
-    width: min(860px, calc(100% - var(--dock-w) - 38px)); max-height: min(calc(100% - 84px), 600px);
+    /* (As tall as the map allows, clear of the hint at its foot: capped at 600px it cut 공원 off on a tall screen
+       with a third of the map unused, and on a short one its foot sat over the hint.) */
+    width: min(860px, calc(100% - var(--dock-w) - 38px)); max-height: calc(100% - 140px);
     animation: tray-beside 0.2s var(--ease);
   }
   #tray[data-cat='zones'] { width: min(720px, calc(100% - var(--dock-w) - 38px)); }
   /* (Clear of the tool's bar at the foot, which stays: the tool in hand is still named there.) */
-  #view:has(#tool-chip:not([hidden])) #tray { max-height: min(calc(100% - 144px), 600px); }
+  #view:has(#tool-chip:not([hidden])) #tray { max-height: calc(100% - 196px); }
   /* The 주민 · 지역 sheet under the top row too, so the clock stays in reach. */
   #sheet { top: 70px; max-height: calc(100% - 84px); }
 }

@@ -382,6 +382,10 @@ export function buildTools(): void {
   });
   $('#tray-close').onclick = () => closeTray(true);
   wireFind();
+  // A fade at the card's foot while more of it is below (the parks under 서비스 sat past the foot unannounced).
+  const tools = $('#tools');
+  tools.addEventListener('scroll', markScroll, { passive: true });
+  new ResizeObserver(markScroll).observe(tools);
   // Arrow keys move between the tray's tiles and cards: left/right in reading
   // order, up/down to the nearest button above or below.
   $('#tools').addEventListener('keydown', (e) => {
@@ -576,6 +580,12 @@ export function toolUsed(used: Tool = tool): void {
 // (Not lines and pipes: their tool turns the map to its own view, which a look at the card shouldn't.)
 const DRAW_KINDS: string[] = ['network', 'zone'];
 
+/** Whether the tools' card goes on below what shows of it: its foot fades then. */
+function markScroll(): void {
+  const el = $('#tools');
+  el.classList.toggle('more-below', el.scrollHeight - el.scrollTop - el.clientHeight > 4);
+}
+
 export function openTray(cat: CategoryId, fromDock = false): void {
   openCat = cat;
   // Opened from the tool's bar (a tool in hand), the card goes when that tool is put down.
@@ -597,6 +607,7 @@ export function openTray(cat: CategoryId, fromDock = false): void {
   refreshStructureLists(); // its cards were left alone while shut
   clearFind();
   $('#tools').scrollTop = 0;
+  requestAnimationFrame(markScroll);
   // Reopened, it shows the tool in hand (a landfill or a pump sat a scroll down every time).
   // (A facility's hidden tile is 'active' too: its card in the list is the one to show.)
   document.querySelector<HTMLElement>('#tools .tray-section:not([hidden]) :is(.tile.active:not([hidden]), .pick.active)')?.scrollIntoView({ block: 'nearest' });
