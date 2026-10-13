@@ -70,6 +70,13 @@
       <main id="view">
         <canvas id="map"></canvas>
 
+        <!-- The build menu, floating down the map's left: removing, then the build categories. (First in the map's
+             parts, so Tab reaches it before the top bar, left to right as they sit.) -->
+        <nav id="dock" class="floating" aria-label="도구">
+          <button class="dock-btn dock-city" data-app="city" aria-label="도시 현황" title="도시 현황"><span data-icon="gauge"></span><span class="dock-label">도시</span></button>
+          <div id="dock-tools" role="toolbar" aria-label="도구" aria-orientation="vertical"></div>
+        </nav>
+
         <!-- The map's top bar: what the map shows, the clock (date, speed, wind), then undo, 주민, help, the map alone
              and the menu. The view's card (its list, legend and count) hangs under it. -->
         <div id="mapbar" class="floating" role="group" aria-label="지도 보기·시간·메뉴">
@@ -140,12 +147,6 @@
           </div>
           <canvas id="minimap" class="floating" aria-label="미니맵: 눌러서 이동" title="미니맵: 누르거나 끌어서 이동"></canvas>
         </div>
-
-        <!-- The build menu, floating down the map's left: removing, then the build categories. -->
-        <nav id="dock" class="floating" aria-label="도구">
-          <button class="dock-btn dock-city" data-app="city" aria-label="도시 현황" title="도시 현황"><span data-icon="gauge"></span><span class="dock-label">도시</span></button>
-          <div id="dock-tools" role="toolbar" aria-label="도구" aria-orientation="vertical"></div>
-        </nav>
 
         <div id="toasts" aria-live="polite"></div>
         <div id="hint"></div>

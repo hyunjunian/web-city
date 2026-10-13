@@ -193,6 +193,21 @@ export function setupTabs(): void {
   };
   document.querySelectorAll<HTMLButtonElement>('[data-sheet-btn]').forEach((b) => (b.onclick = () => toggleSheet(b.dataset.sheetBtn as SheetTab)));
   $('#sheet-close').onclick = closeSheet;
+  // Tab keeps to the sheet while it is open, round from its last control to its ×: it ran on into the page behind,
+  // and Esc then closed it with the keyboard left there (on the city's name), not back on 주민.
+  $('#sheet').addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey) return;
+    const all = [...$('#sheet').querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]
+      .filter((el) => !el.matches(':disabled') && el.getClientRects().length > 0);
+    const first = all[0];
+    const last = all.at(-1);
+    if (!first || !last) return;
+    const at = document.activeElement;
+    if (!e.shiftKey && at === last) first.focus();
+    else if (e.shiftKey && (at === first || at === $('#sheet-title'))) last.focus();
+    else return;
+    e.preventDefault();
+  });
   $('#info-close').onclick = closeInfo;
   $('#pane-close').onclick = closePane;
   markOpen();
