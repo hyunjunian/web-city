@@ -71,7 +71,7 @@ function readStatus(id: GoalId): Status {
   const advice = adviceFor(id).filter((a) => a.code !== 'fires' && a.code !== 'riot');
   const worst: Tone = advice.some((a) => a.level === 'bad') ? 'bad' : advice.some((a) => a.level === 'neutral') ? 'warn' : '';
   const first = advice.find((a) => a.level !== 'good');
-  const said = first ? (ADVICE_TEXT[first.code]?.(first.value ?? 0, first.type) ?? '').split(/[.:]/)[0]! : '';
+  const said = first ? fullNote(first, id) || (ADVICE_TEXT[first.code]?.(first.value ?? 0, first.type) ?? '').split(/[.:]/)[0]! : '';
   const pick = (tone: Tone, value: string, note: string, bar?: number) => {
     const t: Tone = tone === 'bad' || worst === 'bad' ? 'bad' : tone === 'warn' || worst === 'warn' ? 'warn' : tone;
     return { tone: t, value, note: said && t !== '' && t !== 'good' ? said : note, bar };
@@ -214,6 +214,23 @@ function readStatus(id: GoalId): Status {
         homes > 0 ? `공기 나쁜 주거지 ${fmt(homes)}칸 · ${from}` : '낮을수록 좋음 · 주거지 공기는 괜찮음');
     }
   }
+}
+
+/**
+ * A full hospital or school as its row says it: which, and the whole beside it ("정원의 181%인 병원·보건소가 있습니다"
+ * read against the 114% under it, which is all of them together).
+ */
+export function fullNote(a: { code: string; value?: number; at?: [number, number] }, id: GoalId): string {
+  if ((a.code !== 'hospitalFull' && a.code !== 'schoolFull') || !a.at) return '';
+  const v = a.value ?? 0;
+  const s = city.state;
+  const occ = s.occupant[a.at[1] * s.size + a.at[0]] ?? 0;
+  const one = occ < 0 ? s.structures.get(-occ) : undefined;
+  if (!one) return '';
+  const curve = STRUCTURES[one.kind].school?.curve;
+  const [l, c] = loadOf(facilities(GOALS[id]).filter((f) => id !== 'education' || STRUCTURES[f.kind].school?.curve === curve));
+  const level = id === 'education' && curve && LEVEL_NAME[curve] ? `${LEVEL_NAME[curve]} ` : '';
+  return `${STRUCTURE_NAME[one.kind]} 한 곳이 정원의 ${fmt(v)}%${c ? ` · ${level}전체 ${Math.round((l / c) * 100)}%` : ''}`;
 }
 
 /**
