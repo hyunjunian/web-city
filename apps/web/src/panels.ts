@@ -1000,7 +1000,8 @@ export function capHint(): string {
 const alarms: { goal: GoalId; text: string; at?: [number, number] }[] = [];
 export function flushAlarms(): void {
   for (const a of alarms.splice(0)) {
-    if (goalToldAt(a.goal) === city.state.day) continue;
+    // (Not when its goal's own notice spoke lately: the two came together with two figures for one cap, 21,310 and 21,290.)
+    if (city.state.day - (goalToldAt(a.goal) ?? -Infinity) < 60) continue;
     toast(firstSentence(a.text), 'bad', a.at, () => {
       closeSheet(); // the place is on the map: the sheet over it goes
       openGoal(a.goal, a.at, true);
@@ -1026,7 +1027,7 @@ export function advice(): string {
     const parts = [r.buildings && `건물 ${r.buildings}`, r.structures && `시설 ${r.structures}`, r.networkTiles && `도로·선로 ${r.networkTiles}칸`,
       r.undergroundTiles && `지하 ${r.undergroundTiles}칸`, r.fires && `화재 ${r.fires}`].filter(Boolean).join(' · ');
     const text = `피해 보고 — ${REPORT_NAME[r.kind]}: ${parts || '피해 없음'}${r.rebuildCost ? ` · 복구비 약 §${fmt(r.rebuildCost)}` : ''}${r.kind === 'meltdown' ? ' · 방사능은 사라지지 않습니다' : ''}`;
-    pushNotice({ text, until: city.state.day + 90, warn: true, at: [r.x, r.y] });
+    pushNotice({ text, until: city.state.day + 90, warn: true, at: [r.x, r.y], rubble: true });
     // A power plant gone up takes the city's power with it: stopped and told like a fire, to the power screen.
     if (r.kind === 'explosion' || r.kind === 'meltdown') {
       const at: [number, number] = [r.x, r.y];
@@ -1084,7 +1085,10 @@ export function advice(): string {
   // Not in a new city's first month, nor before anyone lives here: its problems are the checklist's
   // next steps (a toast that no power means no growth came the moment the first zone was laid).
   const settling = city.state.day < 30 || !readStats().population;
-  if (alarmed.owner === city && !settling) {
+  // (A tornado or quake under way: its alarms wait for it to pass — rubble was told at 4 tiles of the 333 it left, and
+  // a cap already red came up mid-storm.)
+  const storm = alarmed.owner === city && city.state.liveDisasters.length > 0;
+  if (alarmed.owner === city && !settling && !storm) {
     for (const a of sorted) {
       if (a.level !== 'bad' || alarmed.codes.has(a.code)) continue;
       // One coming and going month to month is announced at most twice a year.
@@ -1099,12 +1103,14 @@ export function advice(): string {
       alarmed.last.set(a.code, city.state.day);
     }
   }
-  alarmed = { owner: city, codes: settling ? new Set() : bad, last: alarmed.owner === city ? alarmed.last : new Map() };
+  if (!storm) alarmed = { owner: city, codes: settling ? new Set() : bad, last: alarmed.owner === city ? alarmed.last : new Map() };
   // The advisors' word is on each goal's screen (and 도시 상태); here is the news.
   void sorted;
   const news = [...journal().notices].reverse();
   const shown = adviceAll ? news : news.slice(0, ADVICE_SHOWN);
   const when = (day: number) => `${2000 + Math.floor(day / 360)}.${Math.floor((day % 360) / 30) + 1}`;
   const more = news.length > ADVICE_SHOWN ? `<button type="button" class="link advice-more" aria-expanded="${adviceAll}">${adviceAll ? '줄여 보기' : `소식 ${news.length - ADVICE_SHOWN}개 더 보기`}</button>` : '';
-  return shown.map((n) => `<p class="advice news ${n.warn ? 'bad' : n.info ? 'neutral' : 'good'}">${icon(n.warn ? 'alert' : n.info ? 'info' : 'award', 'adv-i')}<span class="news-when">${when(n.day ?? n.until - 90)}</span>${escapeHtml(n.text)}${n.at || n.goal || buildable(n) ? `<span class="advice-acts">${n.at ? `<button type="button" class="advice-view" data-at="${n.at.join(',')}" title="지도에서 그곳 보기">보기</button>` : ''}${buildable(n) ? `<button type="button" class="advice-view" data-build="${n.build}" title="${STRUCTURE_NAME[n.build!]} 도구 들기">${icon('plus')}짓기</button>` : ''}${n.goal ? `<button type="button" class="advice-goal" data-goal="${n.goal}">${GOALS[n.goal].name} 화면 ${icon('chevronRight')}</button>` : ''}</span>` : ''}</p>`).join('') + more;
+  // (A damage report clears its rubble from where it is told: the one press was two screens away, under 개발·수요's 진단.)
+  const rubble = shown.some((n) => n.rubble) ? city.clearRubble(true) : null;
+  return shown.map((n) => `<p class="advice news ${n.warn ? 'bad' : n.info ? 'neutral' : 'good'}">${icon(n.warn ? 'alert' : n.info ? 'info' : 'award', 'adv-i')}<span class="news-when">${when(n.day ?? n.until - 90)}</span>${escapeHtml(n.text)}${n.at || n.goal || buildable(n) ? `<span class="advice-acts">${n.at ? `<button type="button" class="advice-view" data-at="${n.at.join(',')}" title="지도에서 그곳 보기">보기</button>` : ''}${n.rubble && rubble?.ok ? `<button type="button" class="advice-view" data-clear-rubble title="도시의 잔해 ${fmt(rubble.tiles)}칸을 모두 치웁니다">${icon('eraser')}잔해 치우기 §${fmt(rubble.cost)}</button>` : ''}${buildable(n) ? `<button type="button" class="advice-view" data-build="${n.build}" title="${STRUCTURE_NAME[n.build!]} 도구 들기">${icon('plus')}짓기</button>` : ''}${n.goal ? `<button type="button" class="advice-goal" data-goal="${n.goal}">${GOALS[n.goal].name} 화면 ${icon('chevronRight')}</button>` : ''}</span>` : ''}</p>`).join('') + more;
 }

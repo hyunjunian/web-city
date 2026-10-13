@@ -318,7 +318,7 @@ function guideHtml(id: GoalId): string {
     const siteTitle = spot?.plants ? '지도의 과녁에 바로 짓기: 소방이 닿지 않는 발전소 가까이'
       : SERVICE_SITE.has(id) ? `지도의 과녁에 바로 짓기: ${SPOT_WORD[id]}${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 가까이` : `지도의 과녁(${SPOT_WORD[id] ?? ''})에 바로 짓기`;
     // What the press does: an ordinance or a finance lever takes effect at once (해 보기 sounded like a tool to try).
-    const go = st.kind === 'ord' ? '시행하기' : st.fin === 'loan' ? '빌리기' : st.fin || st.kind === 'budget' ? '적용하기' : '해 보기';
+    const go = st.kind === 'ord' ? '시행하기' : st.fin === 'loan' ? '빌리기' : st.fixAct === 'rubble:all' ? '치우기' : st.fin || st.kind === 'budget' ? '적용하기' : '해 보기';
     if (own) guideSite = { id, build: st.build!, sites: own.at.map((at, k) => ({ at, label: `추천 자리 · ${STRUCTURE_NAME[st.build!]}${own.labels[k] ? ` (${own.labels[k]})` : ''}` })) };
     // A landfill handed out as a zone tool: where, and how big, zoned in one press (해 보기 left a spot "by a road,
     // far from homes" to be found, and a size to be guessed).
@@ -535,6 +535,16 @@ function goalStep(id: GoalId): GuideStep {
   // (Only garbage piling at a plant waits behind what the list puts first: the line to the dark zones.)
   const road = worst?.code === 'facilityNoRoad' && worst.level === 'bad' ? roadStep(worst) : null;
   if (road) return road;
+  // Rubble from a disaster over the zones: cleared in one press before anything else (the card offered a park for the cap
+  // while 333 tiles lay under rubble, and the clearing was down in 진단).
+  if (id === 'growth') {
+    const rub = adviceFor('growth').find((a) => a.code === 'rubble');
+    const clear = rub && (rub.value ?? 0) >= 16 ? city.clearRubble(true) : null;
+    if (clear?.ok && clear.cost <= city.state.funds) {
+      return { kind: 'budget', what: '잔해 모두 치우기', why: '잔해를 치운 구역에 건물이 다시 들어섭니다', fixAct: 'rubble:all', act: '', glyph: icon('eraser'),
+        sub: `§${fmt(clear.cost)} · ${fmt(clear.tiles)}칸`, fx: '', site: false, said: firstSentence(adviceText(rub!)) };
+    }
+  }
   const held = capFirst(id);
   const lift = held ? capStep(held) : null;
   if (lift) return { ...lift, said: firstSentence(adviceText(held!)) };
@@ -951,6 +961,13 @@ export function watchGoals(): void {
     // (A lone fire inside the stations' reach is theirs to put out: not a pause.)
     const inc = incidents().find((x) => x.goal === id);
     if (inc && !inc.urgent && (!fresh || fresh === 'fires')) continue;
+    // A tornado or quake under way: anything but its fires and riots waits for it to pass, and is told then (the clock
+    // stopped mid-storm for a cap already red before it).
+    if (!inc && city.state.liveDisasters.length) {
+      tonesSeen.tones.set(id, was);
+      tonesSeen.codes.set(id, seen);
+      continue;
+    }
     pausedFor.set(key, day);
     toldAt.set(id, day);
     // (Turned off: said, and time goes on. So too before anyone lives here: a first power plant
@@ -966,6 +983,8 @@ export function watchGoals(): void {
     // (No advisor's word for it: the goal's own reading says what is wrong — "조치가 필요해졌습니다" said nothing.)
     const why = (word ? ADVICE_TEXT[word.code]?.(word.value ?? 0, word.type) : undefined) ?? (goalStatus(id).note || undefined);
     // (Paused, the toast stays until it is read or time goes on: one that left in seconds left only a badge.)
+    // (An advisor's alarm about it still showing goes: one notice for one trouble.)
+    for (const el of document.querySelectorAll<HTMLElement>(`#toasts .toast.bad[data-goal="${id}"]:not(.sticky)`)) el.remove();
     toast(`${inc ? inc.title : `${GOALS[id].name}: ${why ? firstSentence(why) : '조치가 필요해졌습니다'}`}${stop ? stoppedNote() : ''}`, 'bad', inc?.at ?? word?.at, () => openGoal(id, inc?.at ?? word?.at), stop, undefined, id);
     if (inc && stop) centerOn(inc.at[0], inc.at[1]); // a fire or a riot: the map goes to it
   }
@@ -2159,7 +2178,13 @@ export function setupGoals(): void {
     if (guide?.dataset.guideKind === 'budget') {
       // A budget raised to 100% (undoable as the sliders are, logged for the result).
       const [what, key] = guide.dataset.guideAct!.split(':') as [string, string];
-      if (what === 'tax') {
+      if (what === 'rubble') {
+        const res = choice('잔해 치우기', () => city.clearRubble());
+        if (res.ok) noteAction(`잔해 치우기 ${fmt(res.tiles)}칸 · −§${fmt(res.cost)}`);
+        flash(res.ok ? `잔해 ${fmt(res.tiles)}칸을 치웠습니다 · −§${fmt(res.cost)}` : ko(res.message ?? ''), res.ok ? 'info' : 'bad');
+        city.refreshIfDirty();
+        redraw();
+      } else if (what === 'tax') {
         const to = city.demand.neutralTax;
         choice('세율', () => city.setTaxRate(key as DevType, to));
         noteAction(`세율: ${TYPE_NAME[key as DevType]} ${to.toFixed(1)}%`);
