@@ -389,8 +389,9 @@ export function updatePanels(): void {
   }
   dateEl.style.setProperty('--month-pct', `${((city.state.day % 30) / 30) * 100}%`);
   $('#sb-wind').innerHTML = `${icon('wind')}<span>${wind}</span>`;
-  // The wind matters where fire spreads: in sight in a gale or while something burns, else out of the way.
-  $('#sb-wind').hidden = !(city.state.wind.strength > 0.5 || city.state.fires.length || city.state.treeFires.length);
+  // The wind matters where fire spreads: in sight in a gale or while something burns, else unseen — its room kept, so
+  // the clock beside it doesn't move as it comes and goes (the speeds shifted 52px just as a fire had pause wanted).
+  $('#sb-wind').classList.toggle('calm', !(city.state.wind.strength > 0.5 || city.state.fires.length || city.state.treeFires.length));
   // (The map's top bar keeps the date and the clock: population and money are read in the city pane.)
   // The advisors first: the watch list reads their latest word (a row lagged an update behind).
   const adv = advice();

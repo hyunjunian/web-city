@@ -313,8 +313,9 @@ kbd {
 #sb-date.turned { animation: month-in 0.3s var(--ease); }
 @keyframes month-in { from { opacity: 0.35; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
 .sb-date { font-size: 15px; font-weight: 650; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; min-width: 6.6em; text-align: right; } /* months of different length don't shift the speed buttons */
-.sb-wind { display: inline-flex; align-items: center; gap: 5px; min-width: 5.5em; color: var(--muted); font-size: 13px; } /* "↙ 강풍" and "→" take the same room */
+.sb-wind { display: inline-flex; align-items: center; gap: 5px; min-width: 7.4em; color: var(--muted); font-size: 13px; } /* "바람 ↙ 강풍" and "바람 →" take the same room */
 .sb-wind .i { width: 17px; height: 17px; }
+.sb-wind.calm { visibility: hidden; } /* (its room kept: see panels.ts) */
 
 .dropdown { position: relative; }
 .dropdown > summary { list-style: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
