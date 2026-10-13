@@ -434,6 +434,8 @@ export class Renderer {
   marks: { x: number; y: number; w: number; h: number; tone: '' | 'warn' | 'bad' | 'spot' | 'area'; label?: string; hot?: boolean; site?: StructureKind }[] = [];
   /** A line the guide offers to lay (tile by tile), drawn dashed between its two targets before it is laid. */
   guidePath: [number, number][] | null = null;
+  /** What a My Sim's pick in progress may take (a home or a workplace of its wealth), outlined. */
+  pickable: { x: number; y: number; w: number; h: number }[] = [];
   /** Edge markers drawn for targets out of view: where (CSS pixels on the canvas) and the tile they point to. */
   edgeMarks: { x: number; y: number; r: number; tx: number; ty: number; label: string }[] = [];
   /** The part of the map nothing covers (CSS px from its top left; see mapBand), where the edge arrows keep. */
@@ -1991,6 +1993,20 @@ export class Renderer {
       ctx.setLineDash([]);
       ctx.lineCap = 'butt';
       ctx.lineJoin = 'miter'; // (the facility outlines after it keep their square corners)
+    }
+
+    // A My Sim's pick in progress: the buildings it may take, outlined (nothing on the map said which would do).
+    if (this.pickable.length) {
+      const u = this.dpr / sc;
+      ctx.setLineDash([]);
+      ctx.lineWidth = 3.5 * u;
+      ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+      for (const p of this.pickable) ctx.strokeRect(p.x + 0.1, p.y + 0.1, p.w - 0.2, p.h - 0.2);
+      ctx.setLineDash([5 * u, 3 * u]);
+      ctx.lineWidth = 2 * u;
+      ctx.strokeStyle = '#2f6fe0';
+      for (const p of this.pickable) ctx.strokeRect(p.x + 0.1, p.y + 0.1, p.w - 0.2, p.h - 0.2);
+      ctx.setLineDash([]);
     }
 
     if (!this.marks.length) this.edgeMarks = [];

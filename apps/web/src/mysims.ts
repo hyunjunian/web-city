@@ -1,11 +1,11 @@
 // My Sims panel and the microphone tool.
 
-import { type Thought } from '@web-city/engine';
+import { STRUCTURES, type Thought } from '@web-city/engine';
 import { icon } from './icons';
 import { ko } from './messages';
-import { THOUGHT, WEALTH_NAME } from './names';
+import { THOUGHT, TYPE_NAME, WEALTH_NAME } from './names';
 import { pushNotice, updatePanels } from './panels';
-import { centerOn, city, redraw, setSelected } from './state';
+import { centerOn, city, redraw, renderer, setSelected } from './state';
 import { forgetInfo, showInfo } from './info';
 import { closeSheet, revealMap, showTab } from './tabs';
 import { $, ask, escapeHtml, flash, hours, josa } from './util';
@@ -41,7 +41,26 @@ export const thoughtChips = (ts: Thought[]) => ([false, true] as const).map((ok)
   return these.length ? `<span class="th-group ${ok ? 'pos' : 'neg'}"><span class="th-label">${ok ? '만족' : '불만'}</span>${these.map((t) => `<span class="thought ${ok ? 'pos' : 'neg'}">${THOUGHT[t.subject][1]}</span>`).join('')}</span>` : '';
 }).join('');
 
-const PICK_HINT = { job: '지도에서 같은 소득층이 일하는 일터를 누르세요', move: '지도에서 같은 소득층의 집을 누르세요', dispatch: '지도에서 보낼 곳을 누르세요' } as const;
+/** What a pick asks for, by the buildings' own names (the Sims are 저소득층…, the homes 주거 저소득…). */
+const pickHint = (kind: 'job' | 'move' | 'dispatch', wealth: number): string => kind === 'dispatch' ? '지도에서 보낼 곳을 누르세요'
+  : kind === 'move' ? `지도에서 ${TYPE_NAME[(['R$', 'R$$', 'R$$$'] as const)[wealth]!]} 집(파란 테두리)을 누르세요`
+  : `지도에서 ${['저소득', '중소득', '고소득'][wealth]} 일자리가 있는 일터(파란 테두리)를 누르세요`;
+
+/** The buildings a pick may take, outlined on the map while it is pending (nothing showed which would do). */
+function showPickable(a: { id: number; kind: 'job' | 'move' | 'dispatch' } | null): void {
+  const sim = a && city.state.mySims.find((m) => m.id === a.id);
+  const w = city.cfg.demand.wealthOf;
+  const list: typeof renderer.pickable = [];
+  if (sim && a.kind !== 'dispatch') {
+    for (const b of city.state.buildings.values()) {
+      if (!b.type || b.occupancy <= 0 || w[b.type] !== sim.wealth || (b.type[0] === 'R') !== (a.kind === 'move')) continue;
+      list.push({ x: b.x, y: b.y, w: b.w, h: b.h });
+    }
+    if (a.kind === 'job') for (const st of city.state.structures.values()) if (STRUCTURES[st.kind].jobs[sim.wealth]! > 0) list.push({ x: st.x, y: st.y, w: st.w, h: st.h });
+  }
+  renderer.pickable = list;
+  redraw();
+}
 
 /** A pending My Sim action: the next map click picks its job, new home or destination. */
 export let mySimAction: { id: number; kind: 'job' | 'move' | 'dispatch' } | null = null;
@@ -119,9 +138,10 @@ export function renderMySims(force = false): void {
       if (mySimAction) {
         // The pick is made on the map: clear the way and say what to pick.
         closeSheet();
-        const name = city.state.mySims.find((m) => m.id === id)?.name ?? 'My Sim';
-        flash(`${name}: ${PICK_HINT[mySimAction.kind]} (Esc로 취소)`);
+        const sim = city.state.mySims.find((m) => m.id === id);
+        flash(`${sim?.name ?? 'My Sim'}: ${pickHint(mySimAction.kind, sim?.wealth ?? 0)} (Esc로 취소)`);
       }
+      showPickable(mySimAction);
     };
   });
 }
@@ -130,6 +150,7 @@ export function renderMySims(force = false): void {
 export function cancelMySimAction(): boolean {
   if (!mySimAction) return false;
   mySimAction = null;
+  showPickable(null);
   if ($('#mysims').isConnected) renderMySims(true);
   return true;
 }
@@ -145,8 +166,14 @@ export function mySimClick(x: number, y: number): void {
     pushNotice({ text: `${sim.name}의 의견: ${ts.map((t) => `${THOUGHT[t.subject][0]}${t.approve ? '👍' : '👎'}`).join(' ')}`, until: city.state.day + 60, at: [x, y] });
   } else {
     const res = a.kind === 'job' ? choice('My Sim', () => city.setMySimJob(a.id, x, y)) : choice('My Sim', () => city.moveMySim(a.id, x, y));
-    if (!res.ok) flash(ko(res.message ?? 'pick a lived-in home'), 'bad');
+    // (Refused, the pick stays open for another try: it was dropped, and 이사 had to be found again in the sheet.)
+    if (!res.ok) {
+      mySimAction = a;
+      flash(`${ko(res.message ?? 'pick a lived-in home')} · 파란 테두리 안을 누르세요 (Esc로 취소)`, 'bad');
+      return;
+    }
   }
+  showPickable(null);
   renderMySims(true);
   updatePanels();
 }
