@@ -8,7 +8,7 @@ import { placeAt } from './input';
 import { DEV_TYPES, type DevType, Net, ORDINANCES, STRUCTURES, type HistoryPoint, type OrdinanceId, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
 import { icon } from './icons';
 import { chooseSpeed, refreshTaxes, runningSpeed, showOverlay, toggleFocus } from './controls';
-import { redrawInfo, refreshInfo, showInfo } from './info';
+import { redrawInfo, refreshInfo, riotNear, showInfo } from './info';
 import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { whyNoDeals } from './region';
@@ -2273,13 +2273,15 @@ export function setupGoals(): void {
       renderGoal(true);
       return;
     }
-    // A burning building's 소방차 보내기: the nearest free truck sent there, as the dispatch tool would.
-    const send = (e.target as HTMLElement).closest<HTMLElement>('#info [data-send-fire]');
+    // A burning building's 소방차 보내기, a riot's 경찰차 보내기: the nearest free unit sent there, as the dispatch tool would.
+    const send = (e.target as HTMLElement).closest<HTMLElement>('#info [data-send]');
     if (send) {
-      const [x, y] = send.dataset.sendFire!.split(',').map(Number) as [number, number];
-      const res = city.dispatch('fire', x, y);
+      const unit = send.dataset.send === 'police' ? 'police' : 'fire';
+      const [x, y] = send.dataset.sendAt!.split(',').map(Number) as [number, number];
+      const res = city.dispatch(unit, x, y);
       const u = res.ok ? city.state.units.at(-1) : undefined;
-      if (u) flash(`${u.air ? '소방 헬기' : '소방차'} 출동 · ${u.travel > 0 ? `도착 약 ${Math.ceil(u.travel)}일` : '바로 도착'} · 남은 차량 ${fmt(city.freeUnits('fire'))}대`, 'info');
+      const riot = unit === 'police' ? riotNear(x, y) : null;
+      if (u) flash(`${unit === 'police' ? '경찰차' : u.air ? '소방 헬기' : '소방차'} 출동 · ${u.travel > 0 ? `도착 약 ${Math.ceil(u.travel)}일` : '바로 도착'}${riot ? ` · 폭동에 ${riot.cars}/${riot.need}대${riot.cars < riot.need ? ' (더 보내세요)' : ''}` : ''} · 남은 차량 ${fmt(city.freeUnits(unit))}대`, 'info');
       else flash(ko(res.message ?? 'no unit'), 'bad');
       redraw();
       redrawInfo();

@@ -285,6 +285,7 @@ export function showInfo(x: number, y: number): void {
     : b.noRoadMonths && !hasRoadNow(b) ? (() => { const path = roadToFacility(b, 'b'); return path ? { kind: 'road' as const, path, goal: 'growth' as const } : null; })()
     : !b.powered && powerToSpare() ? (() => { const path = lineToStructure(b, 'b'); return path ? { kind: 'powerline' as const, path, goal: 'power' as const } : null; })() : null;
   const layPrice = lay ? layCost(lay.kind, lay.path) : null;
+  const riot = riotNear(x, y);
   const chips = [
     b && !b.powered ? `<button type="button" class="chip bad"${go('power')} title="${city.cfg.services.noPowerMonths}개월이 되면 버려집니다 · 눌러서 전력 화면">${icon('zap')}전기 끊김 ${b.noPowerMonths}/${city.cfg.services.noPowerMonths}개월</button>` : '',
     b?.type && !b.watered && waterNeeded ? `<button type="button" class="chip bad"${go('water')} title="${city.cfg.services.noWaterMonths}개월이 되면 버려집니다 · 눌러서 수도 화면">${icon('droplet')}물 끊김 ${b.noWaterMonths}/${city.cfg.services.noWaterMonths}개월</button>` : '',
@@ -297,8 +298,12 @@ export function showInfo(x: number, y: number): void {
     b?.historical ? '<span class="chip gold">역사 건물</span>' : '',
     // (With the truck to send, in one press: it said 불타는 중 and left the dispatch tool to be found.)
     q.burning ? (city.freeUnits('fire') > 0
-      ? `<button type="button" class="chip bad" data-send-fire="${x},${y}" title="가까운 소방서에서 소방차를 보냅니다 · 출동 가능 ${fmt(city.freeUnits('fire'))}대">${icon('flame')}불타는 중 · 소방차 보내기</button>`
+      ? `<button type="button" class="chip bad" data-send="fire" data-send-at="${x},${y}" title="가까운 소방서에서 소방차를 보냅니다 · 출동 가능 ${fmt(city.freeUnits('fire'))}대">${icon('flame')}불타는 중 · 소방차 보내기</button>`
       : `<span class="chip bad" title="소방서가 없거나 모든 차가 출동 중입니다">${icon('flame')}불타는 중 · 보낼 소방차 없음</span>`) : '',
+    // A riot on or beside it: the police to send, and how many have gathered of those it takes (the card said nothing of it).
+    riot ? (city.freeUnits('police') > 0
+      ? `<button type="button" class="chip bad" data-send="police" data-send-at="${riot.x},${riot.y}" title="가까운 경찰서에서 경찰차를 보냅니다 · ${riot.need}대가 모여야 진압됩니다 · 출동 가능 ${fmt(city.freeUnits('police'))}대">${icon('megaphone')}폭동 · 경찰차 보내기 ${riot.cars}/${riot.need}대</button>`
+      : `<span class="chip bad" title="경찰서가 없거나 모든 차가 출동 중입니다">${icon('megaphone')}폭동 · 보낼 경찰차 없음</span>`) : '',
     offRoad ? `<span class="chip bad" title="쓰레기를 거둘 수 없어 쌓입니다${def!.police || def!.fire || def!.health || def!.school ? '. 경찰차·소방차·구급차·통학버스도 나가지 못합니다' : ''}">${icon('road')}도로에 닿지 않음</span>` : '',
     // (The road to it, laid in one press: the chip above only said what was missing.)
     roadPath && roadCost !== null ? `<button type="button" class="chip" data-lay-path="${roadPath.map((p) => p.join(',')).join(';')}" data-lay-kind="road" data-lay-goal="${goalOfStructure(q.structure!.kind) ?? ''}" title="가장 가까운 도로까지 ${fmt(roadPath.length)}칸, 빈 땅으로 바로 잇기 (§${fmt(roadCost)})">${icon('road')}도로 ${fmt(roadPath.length)}칸 잇기</button>` : '',
@@ -567,6 +572,16 @@ function factorRows(factors: Record<string, number>, names: Record<string, strin
     <td class="${v >= 0 ? 'pos' : 'neg'}">${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}</td></tr>`).join('');
 }
 
+
+/** A riot on the tile or beside it: where, the police cars gathered there, and how many it takes. */
+export function riotNear(x: number, y: number): { x: number; y: number; cars: number; need: number } | null {
+  const s = city.state;
+  const mob = s.mobs.find((m) => Math.max(Math.abs(m.x - x), Math.abs(m.y - y)) <= 1);
+  if (!mob) return null;
+  const reach = city.cfg.safety.dispatch.police.radius + 1;
+  const cars = s.units.filter((u) => u.kind === 'police' && Math.hypot(u.x - mob.x, u.y - mob.y) <= reach).length;
+  return { x: mob.x, y: mob.y, cars, need: city.cfg.mayor.riotMob.minUnits };
+}
 
 /** What the ordinance list last showed: each one's availability and cost (rebuilt when any changes). */
 export let ordinanceMonth = '';
