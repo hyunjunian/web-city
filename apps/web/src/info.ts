@@ -8,7 +8,7 @@ import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { updatePanels } from './panels';
 import { ROUTE_COLOR, structureColor, TYPE_COLOR, zoneTint } from './render';
-import { cam, city, overlay, overlayType, redraw, renderer, setSelected } from './state';
+import { cam, city, clampCamera, overlay, overlayType, redraw, renderer, setSelected } from './state';
 import { closeInfo, showTab } from './tabs';
 import { $, escapeHtml, flash, fmt, glue, hours, josa, pct, touchFirst } from './util';
 import { refreshTaxes } from './controls';
@@ -98,7 +98,33 @@ export function keepInView(r: { x: number; y: number; w: number; h: number }): v
   const far = (r.x + r.w - cam.x) * cam.scale + v.left + margin;
   const low = (r.y + r.h - cam.y) * cam.scale + v.top + margin;
   if (below ? low < c.top || sy > c.bottom : far < c.left || sx > c.right || sy < c.top || sy > c.bottom) return;
-  glide(below ? 0 : (sx - (v.left + (c.left - v.left) / 2)) / cam.scale, below ? (sy - (v.top + (c.top - v.top) / 2)) / cam.scale : 0);
+  // (To where the map may go: past its edge the frame's clamp moved it back, and it didn't end where it was sent.)
+  const [ox, oy] = [cam.x, cam.y];
+  cam.x += below ? 0 : (sx - (v.left + (c.left - v.left) / 2)) / cam.scale;
+  cam.y += below ? (sy - (v.top + (c.top - v.top) / 2)) / cam.scale : 0;
+  clampCamera();
+  const [dx, dy] = [cam.x - ox, cam.y - oy];
+  [cam.x, cam.y] = [ox, oy];
+  if (Math.abs(dx) < 1e-3 && Math.abs(dy) < 1e-3) return;
+  // (Kept, to give back when the card goes — added to a move it made for the lot before, if nothing moved it since.)
+  const was = shiftedFor && untouched(shiftedFor) ? shiftedFor : { dx: 0, dy: 0 };
+  shiftedFor = { dx: was.dx + dx, dy: was.dy + dy, x: ox + dx, y: oy + dy, scale: cam.scale };
+  glide(dx, dy);
+}
+
+/** How far keepInView moved the camera for the card, and where it left it. */
+let shiftedFor: { dx: number; dy: number; x: number; y: number; scale: number } | null = null;
+const untouched = (s: { x: number; y: number; scale?: number }) =>
+  Math.abs(cam.x - s.x) < 1e-3 && Math.abs(cam.y - s.y) < 1e-3 && (s.scale === undefined || cam.scale === s.scale);
+
+/**
+ * The card closing: the camera back where it was before the card moved it, unless the player has moved it since.
+ * (On a phone the sheet lifted the town into the top half, and closed it left it there over a black lower half.)
+ */
+export function giveBackView(): void {
+  const s = shiftedFor;
+  shiftedFor = null;
+  if (s && untouched(s)) glide(-s.dx, -s.dy);
 }
 
 /** Moves the camera by (dx, dy) tiles over 220ms, easing out. */

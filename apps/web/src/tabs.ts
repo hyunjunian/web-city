@@ -7,6 +7,7 @@ import { closeGoal, openFinance, paneClosed } from './manage';
 import { redraw, renderer, setSelected } from './state';
 import { closeTray } from './tools';
 import { cancelMySimAction } from './mysims';
+import { giveBackView } from './info';
 import { $, flash } from './util';
 
 /** 'budget': the pane's 재정·정책 (taxes, budgets, loans, ordinances and the books). */
@@ -98,6 +99,7 @@ export function closeInfo(): boolean {
   if ($('#info-card').hidden) return false;
   $('#info-card').hidden = true;
   $('#view').classList.remove('info-open');
+  giveBackView();
   setSelected(null);
   renderer.routes = null;
   redraw();
