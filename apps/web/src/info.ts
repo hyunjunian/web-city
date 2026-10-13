@@ -237,7 +237,7 @@ export function showInfo(x: number, y: number): void {
   // Bare ground says what lies on it: rubble, a disaster's scar, a wood (all read "빈 땅", and a volcano's cone, which
   // nothing can be built on until it is levelled, said nothing of it).
   const bare = !b && !q.structure && !where && q.terrain !== 'water';
-  const ground = !bare ? null : q.rubble ? ['잔해', '치우면 다시 지을 수 있습니다 · 철거 도구로 치움 (개발·수요 화면에서 모두 치우기)']
+  const ground = !bare ? null : q.rubble ? ['잔해', '치우면 다시 지을 수 있습니다 · 철거 도구로 치웁니다']
     : q.landform === 'cone' ? ['화산 원뿔', `평탄화 전에는 지을 수 없습니다 · 지형 › 화산 지형 정리 칸당 §${fmt(city.cfg.disasters.levelCost)}`]
     : q.landform === 'slope' ? ['용암 비탈', `저밀도 구역만 지을 수 있습니다 · 지형 › 화산 지형 정리 칸당 §${fmt(city.cfg.disasters.levelCost)}`]
     : q.landform === 'crater' ? ['운석 구덩이', ''] : q.landform === 'fault' ? ['단층', '']

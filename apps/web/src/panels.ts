@@ -4,7 +4,7 @@ import { DEV_TYPES, type DevType, GROWTH_CODES, STRUCTURES, ZONES, type PollTopi
 import { icon } from './icons';
 import { chooseSpeed, refreshTaxes, refreshViewSummary, showOverlay } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
-import { capped as atCap, deptEmpty, deptFunded, freshLandfill, newReadings, readStats, stormHolds } from './readings';
+import { adviceFor, capped as atCap, deptEmpty, deptFunded, freshLandfill, newReadings, readStats, stormHolds } from './readings';
 import { active, autoPause, markToolSite, openGoal, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
 import { buildOrdinances, ordinanceMonth, ordinanceSignature, refreshInfo, setOrdinanceMonth } from './info';
 import { ko } from './messages';
@@ -1169,7 +1169,9 @@ export function advice(): string {
   // (A damage report's rubble is cleared on 개발·수요, whose card leads with it: one link there, on the newest report that
   // left any. Each report carried the city-wide "잔해 치우기 §400" beside a smaller 복구비, read as two bills; and the
   // pane's resting state is for watching, the screens for doing.)
-  const rubbleNews = shown.find((n) => n.rubble);
+  // (Only while 개발·수요 has it to clear — rubble on its zones: a few tiles on the roads or bare land are the
+  // bulldozer's, and the link led to a screen that said nothing of them.)
+  const rubbleNews = adviceFor('growth').some((a) => a.code === 'rubble') ? shown.find((n) => n.rubble) : undefined;
   const rubble = rubbleNews ? city.clearRubble(true) : null;
   return shown.map((n) => `<p class="advice news ${n.warn ? 'bad' : n.info ? 'neutral' : 'good'}">${icon(n.warn ? 'alert' : n.info ? 'info' : 'award', 'adv-i')}<span class="news-when">${when(n.day ?? n.until - 90)}</span>${escapeHtml(n.text)}${n.at || n.goal || buildable(n) ? `<span class="advice-acts">${n.at ? `<button type="button" class="advice-view" data-at="${n.at.join(',')}" title="지도에서 그곳 보기">보기</button>` : ''}${n === rubbleNews && rubble?.ok ? `<button type="button" class="advice-goal" data-goal="growth" title="도시에 남은 잔해 ${fmt(rubble.tiles)}칸 · 개발·수요 화면에서 모두 치웁니다">잔해 ${fmt(rubble.tiles)}칸 · 개발·수요 ${icon('chevronRight')}</button>` : ''}${buildable(n) ? `<button type="button" class="advice-view" data-build="${n.build}" title="${STRUCTURE_NAME[n.build!]} 도구 들기">${icon('plus')}짓기</button>` : ''}${n.goal ? `<button type="button" class="advice-goal" data-goal="${n.goal}">${GOALS[n.goal].name} 화면 ${icon('chevronRight')}</button>` : ''}</span>` : ''}</p>`).join('') + more;
 }
