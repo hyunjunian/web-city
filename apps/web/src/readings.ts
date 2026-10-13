@@ -1,7 +1,7 @@
 // Reading the city for the goals: each goal's state, figures and forecasts, where its
 // trouble gathers on the map, and what would help (no DOM here: the screen is manage.ts).
 
-import { type Building, DEV_TYPES, isLocalNet, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind, ZONES, type ZoneKind, zoneInfo } from '@web-city/engine';
+import { type Building, DEV_TYPES, isLocalNet, Net, NETWORK_KINDS, type PollTopic, STRUCTURES, Terrain, type Structure, type StructureKind, type TripMeans, ZONES, type ZoneKind, zoneInfo } from '@web-city/engine';
 import { noRiders } from './info';
 import { ADVICE_TEXT, POLL_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME } from './names';
 import { capLeads, crimeKinds, currentAdvice, garbageFill } from './panels';
@@ -464,10 +464,33 @@ export function facilityLine(f: Structure): [string, Tone] {
   // (Its effect said when off the full: "효과 100% · 수감 28 / 50" was cut where the pane is narrow.)
   if (d.police) return [`${d.police.radius && Math.round(f.effectiveness * 100) !== 100 ? `효과 ${Math.round(f.effectiveness * 100)}% · ` : ''}수감 ${fmt(f.load)} / ${fmt(f.capacity)}${strike}`, f.strike ? 'bad' : f.capacity && f.load >= f.capacity ? 'warn' : ''];
   if (d.fire) return [`효과 ${Math.round(f.effectiveness * 100)}%${strike}`, f.strike ? 'bad' : ''];
-  // (No riders: why, in short, as its info card says it: alone of its kind, no road, or nowhere worth going.)
-  if (d.station) return f.load < 1 ? [`승차 0 · ${noRiders(f).split(/[.:]/)[0]}`, 'warn'] : [`승차 ${fmt(f.load)} / ${fmt(d.station.capacity)}`, ''];
+  // (No riders: why, in short, as its info card says it: alone of its kind, no road, or nowhere worth going. Unless its
+  // riders get off there: the stop by work, which none board.)
+  if (d.station) {
+    if (f.load >= 1) return [`승차 ${fmt(f.load)} / ${fmt(d.station.capacity)}`, ''];
+    const off = alighted(f);
+    return off >= 1 ? [`하차 ${fmt(off)} · 일터 쪽`, ''] : [`승차 0 · ${noRiders(f).split(/[.:]/)[0]}`, 'warn'];
+  }
   return [structureStat(f.kind), ''];
 }
+
+const MEANS_OF: Partial<Record<string, TripMeans>> = { bus: 'bus', subway: 'subway', rail: 'train', monorail: 'monorail', ferry: 'ferry', carFerry: 'ferry' };
+
+/**
+ * Riders who got off at a passenger stop last month, of one nobody boards: commuters board by their homes and get off
+ * by their work, so the pair's stop by work counted no one ("승차 0", flagged as a stop that carries nobody, while the
+ * pair's riders all came to it). Kept for the week.
+ */
+export function alighted(f: Structure): number {
+  const means = MEANS_OF[STRUCTURES[f.kind].station?.mode ?? ''];
+  if (!means) return 0;
+  const key = changeKey();
+  if (offMemo?.key !== key) offMemo = { key, by: new Map() };
+  let n = offMemo.by.get(f.id);
+  if (n === undefined) offMemo.by.set(f.id, (n = city.routeQuery(f.x, f.y).byMeans[means] ?? 0));
+  return n;
+}
+let offMemo: { key: string; by: Map<number, number> } | null = null;
 
 /** Kinds funded through their department as one (the engine ignores their own budget): stations, parks, garbage, water. */
 /** How long a landfill lasts, in words: months, years, or past any horizon (a landfill all but unused). */
@@ -657,7 +680,7 @@ export const capped = (t: (typeof DEV_TYPES)[number]) => {
 
 /** Road tiles past capacity (counted once a week of game time or after an edit). */
 let jamMemo: { key: string; n: number } | null = null;
-function jammedTiles(): number {
+export function jammedTiles(): number {
   const key = changeKey();
   if (jamMemo?.key === key) return jamMemo.n;
   const want = need('traffic')!;

@@ -2,7 +2,7 @@
 
 import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceId, ORDINANCES, serviceRadius, type Structure, type StructureKind, STRUCTURES, type TripMeans } from '@web-city/engine';
 import { icon } from './icons';
-import { type AirSource, airShareOf, airSourcesAt, budgetMends, facilityLine, goalStatus, waterSourcesOn, hasRoadNow, jamRun, widenTo, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
+import { type AirSource, airShareOf, airSourcesAt, alighted, budgetMends, facilityLine, goalStatus, waterSourcesOn, hasRoadNow, jamRun, widenTo, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
 import { ko } from './messages';
 import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -842,7 +842,10 @@ export function structureRows(st: Structure, withLoad = true): string {
       <tr><td>효과</td><td>${pct(st.effectiveness)}${st.strike ? ' <span class="neg">· 파업 중</span>' : ''}</td></tr>${aloneRow(st)}`;
   } else if (def.station) {
     rows += `<tr><td>지난달 승차</td><td class="${st.load > def.station.capacity ? 'neg' : ''}">${fmt(st.load)} / ${fmt(def.station.capacity)}</td></tr>`;
-    if (st.load < 1 && def.station.mode !== 'freight') rows += `<tr><td colspan="2" class="muted">${noRiders(st)}</td></tr>`;
+    // (The stop by work: its riders get off there, and none board.)
+    const off = st.load < 1 ? alighted(st) : 0;
+    if (off >= 1) rows += `<tr><td>지난달 하차</td><td>${fmt(off)}</td></tr><tr><td colspan="2" class="muted">집 근처에서 탄 주민이 여기서 내려 일터로 갑니다.</td></tr>`;
+    else if (st.load < 1 && def.station.mode !== 'freight') rows += `<tr><td colspan="2" class="muted">${noRiders(st)}</td></tr>`;
   } else if (def.airport) {
     rows += `<tr><td>닿는 오피스 일자리</td><td>${fmt(st.load)} / 용량 ${fmt(st.capacity)}</td></tr>`;
   } else if (def.seaport) {
