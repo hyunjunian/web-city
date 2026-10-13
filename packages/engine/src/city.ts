@@ -25,7 +25,7 @@ import { airportReach, assignTrafficSteps, computeTravelSteps, type VolumeKind }
 import { drain } from './sim/steps';
 import { checkUnlocks, missileMisfires, unlockChecks, updateRadiation, type UnlockCheck, type UnlockContext } from './sim/rewards';
 import { updatePotholes } from './sim/roads';
-import { collectBudget, collectBudgetSteps, structureUpkeep } from './sim/budget';
+import { collectBudget, collectBudgetSteps, departmentUpkeep, structureUpkeep } from './sim/budget';
 import { autoDispatchSteps, dispatchUnit, FIT_CREW, freeUnits, neutraliseSpills, stepUnits, type DispatchKind } from './sim/dispatch';
 import {
   dealMonthly, dealTotals, defaultNeighbours, drainRegionalGrowth, edgeConnections, evaluateDeal, exportDemand, makeNeighbour, regionalDemand, reliefConnections,
@@ -1845,6 +1845,14 @@ export class City {
   rngNow(): number {
     this.state.rngState = this.rng.state;
     return this.rng.state;
+  }
+
+  /**
+   * What a department's budget pays a month at `level` percent (its own level by default), all else as it stands: the
+   * part of the month's spending its slider moves (garbage pickup, paid by the ton, left out).
+   */
+  departmentUpkeep(dept: keyof CityState['departments'], level = this.state.departments[dept]): number {
+    return departmentUpkeep(this.state, this.cfg, dept, level);
   }
 
   /** A facility's monthly cost as the budget charges it (running, vehicles, a jail's overcrowding), or null. */

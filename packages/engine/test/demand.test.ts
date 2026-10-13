@@ -190,6 +190,33 @@ describe('budget preview', () => {
     expect(city.state.funds).toBe(funds);
     expect(city.state.lastBudget!.taxByType['R$']).toBeLessThan(after.taxByType['R$']);
   }, 60_000);
+
+  it("says what a department's slider moves: the preview's spending changes by its upkeep's change", () => {
+    const city = new City({ size: 48, seed: 3, water: false });
+    city.state.funds = 1_000_000;
+    city.buildNetwork(0, 20, 47, 20, 'road');
+    city.buildNetwork(0, 40, 47, 40, 'rail');
+    city.zone(1, 12, 46, 19, 'R-low');
+    city.zone(1, 21, 30, 28, 'I-medium');
+    city.zone(40, 30, 45, 35, 'landfill');
+    city.placeStructure('coalPlant', 1, 30);
+    city.placeStructure('busStop', 32, 21);
+    city.placeStructure('subwayStation', 34, 21);
+    city.buildSubway(34, 22, 34, 30);
+    city.placeStructure('cityJail', 36, 21);
+    city.buildPowerLine(5, 29, 5, 21);
+    city.step(60);
+    for (const dept of ['roads', 'transit', 'power', 'water', 'sanitation', 'parks', 'landmarks', 'corrections'] as const) {
+      city.setDepartmentFunding(dept, 100);
+      const spent = city.previewBudget().expenses;
+      const paid = city.departmentUpkeep(dept);
+      if (['roads', 'transit', 'power', 'sanitation', 'corrections'].includes(dept)) expect(paid).toBeGreaterThan(0);
+      city.setDepartmentFunding(dept, 50);
+      expect(city.previewBudget().expenses - spent).toBeCloseTo(city.departmentUpkeep(dept) - paid, 6);
+      expect(city.departmentUpkeep(dept, 100)).toBeCloseTo(paid, 6);
+      city.setDepartmentFunding(dept, 100);
+    }
+  }, 60_000);
 });
 
 describe('demand cap advice', () => {

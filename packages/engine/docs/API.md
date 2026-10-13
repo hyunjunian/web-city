@@ -199,6 +199,10 @@ Runs a series of edits with one refresh at the end instead of one per facility p
 
 The random generator's state as of now (what a save stores). Tools such as disaster() draw from it between days, after the state's copy was taken.
 
+### `departmentUpkeep(dept: keyof CityState['departments'], level = this.state.departments[dept]): number`
+
+What a department's budget pays a month at `level` percent (its own level by default), all else as it stands: the part of the month's spending its slider moves (garbage pickup, paid by the ton, left out).
+
 ### `structureUpkeep(id: number): { running: number; vehicles: number; overcapacity: number; total: number } | null`
 
 A facility's monthly cost as the budget charges it (running, vehicles, a jail's overcrowding), or null.

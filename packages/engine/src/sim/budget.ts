@@ -3,13 +3,14 @@
 
 import type { SimConfig } from '../config';
 import type { OrdinanceId } from '../data/ordinances';
+import type { StructureDef } from '../data/structures';
 import { interp } from '../data/services';
 import { perType } from '../types';
 import { capacityOf } from './development';
 import { LANDFILL_ZONE } from './garbage';
 import { ordinanceCost as ordinanceCostOf } from './mayor';
 import { settleDeals } from './region';
-import { DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, INTERCHANGE, Net, overNet, structureFunding, NETWORK_KINDS, type Building, type BudgetReport, type CityState, type DealResource, type NeighbourDeal, type Structure } from './state';
+import { DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, INTERCHANGE, isJail, Net, overNet, structureFunding, NETWORK_KINDS, type Building, type BudgetReport, type CityState, type DealResource, type NeighbourDeal, type Structure } from './state';
 import { drain } from './steps';
 
 export interface BudgetContext {
@@ -52,6 +53,52 @@ export function structureUpkeep(s: CityState, cfg: SimConfig, st: Structure): { 
   const vehicles = v ? v * ((st.vehicleFunding ?? 100) / 100) : 0;
   const overcapacity = def.police?.overcapacityCost ? Math.max(0, st.load - st.capacity) * def.police.overcapacityCost : 0;
   return { running, vehicles, overcapacity, total: running + vehicles + overcapacity };
+}
+
+/** The department that funds a civic building with the rest of its kind, if one does (see structureFunding). */
+function fundingDepartment(def: StructureDef): keyof CityState['departments'] | null {
+  return def.station ? 'transit' : def.category === 'park' ? 'parks' : def.category === 'garbage' ? 'sanitation' : def.category === 'water' ? 'water'
+    : def.category === 'landmark' ? 'landmarks' : isJail(def) ? 'corrections' : null;
+}
+
+/**
+ * What a department's budget pays a month at `level` percent, all else as it stands: its networks' upkeep (roads;
+ * rail, subway and elevated track; power lines; pipes; landfill) and the buildings it funds together — the part of the
+ * month's spending its slider moves, as the budget charges it. Garbage pickup, paid by the ton carried, is left out:
+ * funding moves it through what the trucks carry next month.
+ */
+export function departmentUpkeep(s: CityState, cfg: SimConfig, dept: keyof CityState['departments'], level: number): number {
+  const ec = cfg.economy;
+  let base = 0;
+  if (dept === 'roads' || dept === 'transit') {
+    for (let i = 0; i < s.net.length; i++) {
+      const code = s.net[i]!;
+      if (dept === 'roads') {
+        if (code === Net.RailCrossing) base += ec.networkCost.road.upkeep;
+        else if (code !== Net.None && code !== Net.Rail) base += ec.networkCost[NETWORK_KINDS[code]!].upkeep;
+        if (s.elevated[i] === ELEVATED.highway) base += ec.networkCost.elevatedHighway.upkeep;
+        if (s.tolls[i]) base += cfg.transport.toll.upkeep;
+        if (s.interchange[i] === INTERCHANGE.cloverleaf) base += cfg.transport.cloverleaf.upkeep;
+        const up = overNet(s, i);
+        if (up) base += ec.networkCost[NETWORK_KINDS[up]!].upkeep;
+      } else {
+        if (code === Net.RailCrossing || code === Net.Rail) base += ec.networkCost.rail.upkeep;
+        if (s.subway[i]) base += ec.networkCost.subway.upkeep;
+        if (s.elevated[i] && s.elevated[i] !== ELEVATED.highway) base += ec.networkCost[ELEVATED_KINDS[s.elevated[i]!]!].upkeep;
+      }
+    }
+    if (dept === 'transit') base += s.transitions.length * cfg.transport.subwayTransition.upkeep;
+  } else if (dept === 'power' || dept === 'water' || dept === 'sanitation') {
+    for (let i = 0; i < s.power.length; i++) {
+      if (dept === 'power' && s.power[i]) base += cfg.services.powerLineCost.upkeep;
+      else if (dept === 'water' && s.pipe[i]) base += cfg.services.pipeCost.upkeep;
+      else if (dept === 'sanitation' && s.zone[i] === LANDFILL_ZONE) base += cfg.garbage.landfill.upkeep;
+    }
+  }
+  let total = base * (level / 100);
+  const at = { ...s, departments: { ...s.departments, [dept]: level } };
+  for (const st of s.structures.values()) if (fundingDepartment(cfg.structures[st.kind]) === dept) total += structureUpkeep(at, cfg, st).total;
+  return total;
 }
 
 /** Settles the month and returns the report (funds and loans are updated in place). */
