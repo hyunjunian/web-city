@@ -295,7 +295,10 @@ export function showInfo(x: number, y: number): void {
       : `<span class="chip warn" title="쾌적도가 계속 낮으면 더 낮은 소득층이 들어오거나 버려집니다">${icon('trendDown')}쾌적도 낮음 ${b.distressMonths}/${city.cfg.development.distressMonths}개월</span>`) : '',
     b && !b.type ? `<span class="chip bad">버려짐${b.abandonReason ? `: ${ABANDON_NAME[b.abandonReason]}` : ''}</span>` : '',
     b?.historical ? '<span class="chip gold">역사 건물</span>' : '',
-    q.burning ? `<span class="chip bad">${icon('flame')}불타는 중</span>` : '',
+    // (With the truck to send, in one press: it said 불타는 중 and left the dispatch tool to be found.)
+    q.burning ? (city.freeUnits('fire') > 0
+      ? `<button type="button" class="chip bad" data-send-fire="${x},${y}" title="가까운 소방서에서 소방차를 보냅니다 · 출동 가능 ${fmt(city.freeUnits('fire'))}대">${icon('flame')}불타는 중 · 소방차 보내기</button>`
+      : `<span class="chip bad" title="소방서가 없거나 모든 차가 출동 중입니다">${icon('flame')}불타는 중 · 보낼 소방차 없음</span>`) : '',
     offRoad ? `<span class="chip bad" title="쓰레기를 거둘 수 없어 쌓입니다${def!.police || def!.fire || def!.health || def!.school ? '. 경찰차·소방차·구급차·통학버스도 나가지 못합니다' : ''}">${icon('road')}도로에 닿지 않음</span>` : '',
     // (The road to it, laid in one press: the chip above only said what was missing.)
     roadPath && roadCost !== null ? `<button type="button" class="chip" data-lay-path="${roadPath.map((p) => p.join(',')).join(';')}" data-lay-kind="road" data-lay-goal="${goalOfStructure(q.structure!.kind) ?? ''}" title="가장 가까운 도로까지 ${fmt(roadPath.length)}칸, 빈 땅으로 바로 잇기 (§${fmt(roadCost)})">${icon('road')}도로 ${fmt(roadPath.length)}칸 잇기</button>` : '',

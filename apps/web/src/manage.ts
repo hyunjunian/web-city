@@ -2273,6 +2273,19 @@ export function setupGoals(): void {
       renderGoal(true);
       return;
     }
+    // A burning building's 소방차 보내기: the nearest free truck sent there, as the dispatch tool would.
+    const send = (e.target as HTMLElement).closest<HTMLElement>('#info [data-send-fire]');
+    if (send) {
+      const [x, y] = send.dataset.sendFire!.split(',').map(Number) as [number, number];
+      const res = city.dispatch('fire', x, y);
+      const u = res.ok ? city.state.units.at(-1) : undefined;
+      if (u) flash(`${u.air ? '소방 헬기' : '소방차'} 출동 · ${u.travel > 0 ? `도착 약 ${Math.ceil(u.travel)}일` : '바로 도착'} · 남은 차량 ${fmt(city.freeUnits('fire'))}대`, 'info');
+      else flash(ko(res.message ?? 'no unit'), 'bad');
+      redraw();
+      redrawInfo();
+      updatePanels();
+      return;
+    }
     // The card's 도로·송전선 잇기 (a facility off the road, a building counting down): laid at once, logged under
     // its own goal's screen only.
     const layTo = (e.target as HTMLElement).closest<HTMLElement>('#info [data-lay-path]');
