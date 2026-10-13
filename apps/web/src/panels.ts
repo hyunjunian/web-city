@@ -776,20 +776,37 @@ export function renderDepartments(): void {
     }).join('')}
     <p class="legend" id="dept-hint">${deptHint || '예산을 움직이면 그 효과가 여기 나옵니다.'}</p>`;
   const hintFor = (k: string) => DEPTS.find(([d]) => d === k)?.[2] ?? '';
+  // The effect said right under the slider it is about, with what that budget cost last month and roughly what it will
+  // at the new level (it came 330px further down, cut off at the pane's foot, and no slider said what it cost).
+  let from = 0; // the level the drag began at
+  let fromCost = 0; // and what it cost a month then
+  const say = (input: HTMLInputElement, text: string, before: number, after: number) => {
+    const hint = $('#dept-hint');
+    hint.textContent = `${before > 0 ? `월 §${fmt(before)}${after !== before ? ` → 약 §${fmt(after)}` : ''} · ` : ''}${text}`;
+    const row = input.closest('label');
+    if (row && row.nextElementSibling !== hint) row.after(hint);
+  };
   el.querySelectorAll<HTMLInputElement>('input[data-dept]').forEach((input) => {
+    const dept = input.dataset.dept as keyof typeof city.state.departments;
+    // (Last month's books, at the level it had then: the new level's cost in proportion.)
+    const begin = () => (from = city.state.departments[dept]);
+    input.onpointerdown = begin;
+    input.onfocus = begin;
     input.oninput = () => {
-      const dept = input.dataset.dept as keyof typeof city.state.departments;
       deptHint = hintFor(dept);
-      $('#dept-hint').textContent = deptHint;
       choice('부서 예산', () => city.setDepartmentFunding(dept, Number(input.value)));
       // The engine caps some (city beautification at 100%): show what it took.
-      input.value = String(city.state.departments[dept]);
-      (input.nextElementSibling as HTMLElement).textContent = `${city.state.departments[dept]}%`;
+      const now = city.state.departments[dept];
+      input.value = String(now);
+      (input.nextElementSibling as HTMLElement).textContent = `${now}%`;
+      const cost = deptCost(dept);
+      say(input, deptHint, cost, from > 0 ? Math.round((cost * now) / from) : cost);
       departmentSignature = deptSig(city.state.departments); // already shown: no rebuild under the pointer
     };
     input.onpointerenter = () => {
-      deptHint = hintFor(input.dataset.dept!);
-      $('#dept-hint').textContent = deptHint;
+      deptHint = hintFor(dept);
+      from = city.state.departments[dept];
+      say(input, deptHint, deptCost(dept), deptCost(dept));
     };
     // The sliders already show what was set: refresh the rest without rebuilding them under the pointer or keys.
     input.onchange = () => updatePanels();
@@ -797,9 +814,12 @@ export function renderDepartments(): void {
   el.querySelectorAll<HTMLInputElement>('input[data-service]').forEach((input) => {
     const k = input.dataset.service as ServiceGroup;
     const [, , max, hint] = SERVICE_GROUPS.find(([g]) => g === k)!;
+    // (Their upkeep is worked out as it stands: what it was when the drag began, and what it is now.)
+    const begin = () => (fromCost = serviceCost(k));
+    input.onpointerdown = begin;
+    input.onfocus = begin;
     input.oninput = () => {
       deptHint = hint;
-      $('#dept-hint').textContent = deptHint;
       // Each moves by the same step from where it is (as on the goal screens: a school set apart keeps its difference).
       const step = Number(input.value) - (serviceFunding(k)?.[1] ?? Number(input.value));
       choice('시설 예산', () => {
@@ -807,15 +827,33 @@ export function renderDepartments(): void {
       });
       const f = serviceFunding(k);
       (input.nextElementSibling as HTMLElement).textContent = f ? `${f[1]}%` : '없음';
+      say(input, deptHint, fromCost, serviceCost(k));
       departmentSignature = deptSig(city.state.departments);
       refreshInfo();
     };
     input.onpointerenter = () => {
       deptHint = hint;
-      $('#dept-hint').textContent = deptHint;
+      fromCost = serviceCost(k);
+      say(input, deptHint, fromCost, fromCost);
     };
     input.onchange = () => updatePanels();
   });
+}
+
+/** What a department's budget came to last month (0 where the books don't keep it apart). */
+function deptCost(k: keyof typeof city.state.departments): number {
+  const b = city.state.lastBudget;
+  if (k === 'corrections') return Math.round([...city.state.structures.values()].filter((st) => STRUCTURES[st.kind].police?.radius === 0).reduce((a, st) => a + (city.structureUpkeep(st.id)?.total ?? 0), 0));
+  if (!b) return 0;
+  const by: Partial<Record<keyof typeof city.state.departments, number>> = { roads: b.roadUpkeep, transit: b.transitUpkeep, power: b.powerUpkeep, water: b.waterUpkeep, sanitation: b.garbageUpkeep, parks: b.parkUpkeep, landmarks: b.landmarkUpkeep };
+  return Math.round(by[k] ?? 0);
+}
+
+/** What a kind of civic building costs a month now, all of them together. */
+function serviceCost(k: ServiceGroup): number {
+  let n = 0;
+  for (const st of city.state.structures.values()) if (STRUCTURES[st.kind][k] && !deptFunded(st.kind)) n += city.structureUpkeep(st.id)?.total ?? 0;
+  return Math.round(n);
 }
 
 export let loanSignature = '';
