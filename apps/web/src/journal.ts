@@ -9,7 +9,7 @@ import { city } from './state';
 /** A line of 소식: bad news (warn), worth noting but neither good nor bad (info), else good. */
 export interface Notice { text: string; until: number; day?: number; warn?: boolean; info?: boolean; at?: [number, number]; goal?: GoalId; /** a reward or deal it offers, to take up from the news */ build?: StructureKind; /** a damage report: the rubble it left, cleared from the news */ rubble?: true }
 export interface Done { goal: GoalId; day: number; text: string; key?: string; base?: string; n?: number }
-export interface Pending { text: string; key?: string; count: number; day: number; label: string; value: string; n: number; better: number }
+export interface Pending { text: string; key?: string; count: number; day: number; label: string; value: string; n: number; better: number; /** a second figure told with it (transit's share beside the commute) */ also?: { label: string; value: string } }
 export interface Journal { notices: Notice[]; done: Done[]; pending: Partial<Record<GoalId, Pending>> }
 
 /** The open city's journal (made empty the first time it is asked for). */

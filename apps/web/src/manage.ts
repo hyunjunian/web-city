@@ -924,6 +924,13 @@ const KEY_FIGURE: Record<GoalId, string> = {
   finance: '지난달 수지', growth: '인구', power: '여유', water: '여유', garbage: '못 치움', police: '범죄 (지난달)', fire: '지난달 화재',
   health: '건강 지수 평균 (0–200)', education: '교육 지수 평균 (0–200)', traffic: '평균 통근', environment: '대기 오염', wealth: '부유층 주민',
 };
+/**
+ * A second figure told with the first, where an action works on it more than on the first: a bus pair moves riders
+ * onto transit and leaves the average commute much as it was (its result read only "1시간 07분 → 1시간 08분", in red).
+ */
+const ALSO_FIGURE: Partial<Record<GoalId, string>> = { traffic: '대중교통 비중' };
+/** A change in the key figure too small to call better or worse (a commute's minute either way). */
+const STEADY: Partial<Record<GoalId, number>> = { traffic: 1 };
 /** Days after an action its result is told (a quarter: demand, crime and schooling take that long to move). */
 const FOLLOW_DAYS = 90;
 /** Per goal, the latest action awaiting its result: what was done, when, and the key figure then. */
@@ -948,7 +955,8 @@ function followUp(id: GoalId, text: string, merge?: string): void {
   }
   const m = keyFigure(id);
   if (!m || m[3] === undefined) return;
-  pending[id] = { text, key: merge, count: 1, day: city.state.day, label: m[0], value: m[1], n: m[3], better: m[4] ?? 0 };
+  const also = ALSO_FIGURE[id] ? metrics(id).find((x) => x[0] === ALSO_FIGURE[id]) : undefined;
+  pending[id] = { text, key: merge, count: 1, day: city.state.day, label: m[0], value: m[1], n: m[3], better: m[4] ?? 0, ...(also ? { also: { label: also[0], value: also[1] } } : {}) };
 }
 
 /** Goals' tones at the last look (to notice one turning to 조치 필요), for this city. */
@@ -1040,10 +1048,13 @@ export function watchGoals(): void {
     delete j.pending[id];
     const m = keyFigure(id);
     if (!m || m[3] === undefined) continue;
-    // (By what is shown: a figure that reads the same hasn't moved.)
-    const d = m[1] === p.value ? 0 : Math.round(m[3]) - Math.round(p.n);
+    // (By what is shown: a figure that reads the same hasn't moved; nor one within its steady range.)
+    const d0 = m[1] === p.value ? 0 : Math.round(m[3]) - Math.round(p.n);
+    const d = Math.abs(d0) <= (STEADY[id] ?? 0) ? 0 : d0;
     const better = p.better ? Math.sign(d) === p.better : null;
-    const line = `${p.label.replace(/ \([^)]*\)$/, '')} ${p.value} → ${m[1]}`; // (its scale, "(0–200)", is for the tile)
+    const also = p.also ? metrics(id).find((x) => x[0] === p.also!.label) : undefined;
+    const alsoLine = also && p.also && also[1] !== p.also.value ? ` · ${p.also.label} ${p.also.value} → ${also[1]}` : '';
+    const line = `${p.label.replace(/ \([^)]*\)$/, '')} ${p.value} → ${m[1]}${alsoLine}`; // (its scale, "(0–200)", is for the tile)
     // Told on the goal's log too, under what was done.
     j.done.unshift({ goal: id, day, text: `└ 3개월 뒤: ${line}`, key: 'result' });
     pushNotice({ text: `${GOALS[id].name} · ${p.text}${p.count > 1 ? ` 외 ${p.count - 1}건` : ''} → 3개월 뒤 ${line}`, warn: better === false, goal: id, until: day + 360 });
