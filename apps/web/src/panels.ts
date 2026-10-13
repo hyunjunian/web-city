@@ -1064,7 +1064,12 @@ export function advice(): string {
   const unlocked = city.takeNewUnlocks();
   for (const k of unlocked) {
     const d = STRUCTURES[k];
-    const text = d.category === 'deal' ? `사업 거래 제안: ${STRUCTURE_NAME[k]} (월 §${fmt(d.income ?? 0)})` : `새 보상: ${STRUCTURE_NAME[k]}${josa(STRUCTURE_NAME[k], '을', '를')} 지을 수 있습니다.`;
+    // (A reward a bigger town allows more of: one more, not the same news again — "새 보상: 묘지를 지을 수 있습니다" twice.)
+    const placed = [...city.state.structures.values()].filter((st) => st.kind === k).length;
+    const total = placed + city.placementsLeft(k);
+    const text = d.category === 'deal' ? `사업 거래 제안: ${STRUCTURE_NAME[k]} (월 §${fmt(d.income ?? 0)})`
+      : d.unlockTiers && Number.isFinite(total) && total > 1 ? `보상: ${STRUCTURE_NAME[k]}${josa(STRUCTURE_NAME[k], '을', '를')} 1곳 더 지을 수 있습니다 (모두 ${fmt(total)}곳).`
+      : `새 보상: ${STRUCTURE_NAME[k]}${josa(STRUCTURE_NAME[k], '을', '를')} 지을 수 있습니다.`;
     pushNotice({ text, until: city.state.day + 90, build: k });
     // (Pressed, it hands over the building to place: a reward was told and then had to be looked for in the tray.)
     if (unlocked.length === 1) toast(text, 'good', undefined, () => {

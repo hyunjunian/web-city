@@ -139,8 +139,14 @@ export function setupMenu(): void {
   $('#btn-new').onclick = () => {
     $('#seed-random').click(); // a new map unless a seed is typed in
     dialog.showModal();
-    // A phone's keyboard would rise over the dialog for a name most keep.
+    // A phone's keyboard would rise over the dialog for a name most keep. Elsewhere the name is selected, typed over as
+    // the rename dialog's is ("강변" typed made "강변새 도시").
+    const name = dialog.querySelector<HTMLInputElement>('input[name="name"]');
     if (touchFirst()) (document.activeElement as HTMLElement | null)?.blur();
+    else if (name) {
+      name.focus();
+      name.select();
+    }
   };
   $('#btn-help').onclick = showHelp;
   $('#btn-focus').onclick = $('#btn-focus-menu').onclick = toggleFocus; // (the menu's, when the bar is short of room)
