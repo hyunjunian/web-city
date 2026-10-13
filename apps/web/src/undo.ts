@@ -5,7 +5,7 @@ import { updatePanels } from './panels';
 import { setSpeed } from './controls';
 import { city, setCity, speed } from './state';
 import { drive } from './udi';
-import { $, ask, flash, josa, keyForControl } from './util';
+import { $, ask, flash, fmt, josa, keyForControl } from './util';
 
 const LIMIT = 20;
 
@@ -100,9 +100,10 @@ export async function undo(): Promise<void> {
     return;
   }
   const days = city.state.day - entry.day;
+  const funds = city.state.funds;
   redoStack.push({ snap: saveCity(city), label: entry.label, day: city.state.day, owner: city });
   open(entry.snap);
-  flash(`되돌렸습니다: ${entry.label}${days > 0 ? ` (그 뒤 진행된 ${days}일도 함께 되돌렸습니다)` : ''}`);
+  flash(`되돌렸습니다: ${entry.label}${fundsBack(funds)}${days > 0 ? ` (그 뒤 진행된 ${days}일도 함께 되돌렸습니다)` : ''}`);
 }
 
 /** Puts back what the last undo took (Ctrl+Shift+Z, Ctrl+Y). */
@@ -115,9 +116,16 @@ export function redo(): void {
     refreshUndo();
     return;
   }
+  const funds = city.state.funds;
   stack.push({ snap: saveCity(city), label: entry.label, day: city.state.day, owner: city });
   open(entry.snap);
-  flash(`다시 했습니다: ${entry.label}`);
+  flash(`다시 했습니다: ${entry.label}${fundsBack(funds)}`);
+}
+
+/** What undoing or redoing did to the funds, as the build said its cost: " · +§1,070" (the road's price back), or ''. */
+function fundsBack(before: number): string {
+  const d = Math.round(city.state.funds - before);
+  return d ? ` · ${d > 0 ? '+' : '−'}§${fmt(Math.abs(d))}` : '';
 }
 
 /** Opens a snapshot in place of the city (undo, redo): the camera and save slot stay. */

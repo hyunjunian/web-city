@@ -474,7 +474,8 @@ export function buildTools(): void {
         continue;
       }
       const b = document.createElement('button');
-      b.className = MORE.has(t.id) ? 'tile more' : 'tile';
+      // (A single finer tool is a tile of its own: "더 보기 1개" hid it behind a tile the same size.)
+      b.className = MORE.has(t.id) && g.tools.filter((x) => MORE.has(x.id)).length > 1 ? 'tile more' : 'tile';
       b.dataset.tool = t.id;
       const key = Object.entries(TOOL_KEYS).find(([, id]) => id === t.id)?.[0];
       const price = toolPrice(t);
@@ -488,7 +489,7 @@ export function buildTools(): void {
     }
     // The finer tools behind one tile at the group's end.
     const extra = g.tools.filter((t) => MORE.has(t.id)).length;
-    if (extra) {
+    if (extra > 1) {
       const more = document.createElement('button');
       more.type = 'button';
       more.className = 'tile tile-more';
@@ -695,8 +696,16 @@ const VIEW_GOAL: Record<string, GoalId> = { traffic: 'traffic', power: 'power', 
 
 /** The groups' headings: a service's shortfall now (none: nothing said); a zone class's strongest demand, or that its cap holds it, or none. */
 function refreshZoneDemand(): void {
+  // (Once a tray: 도로 and 정류장·역 share the traffic view, and both read "막힌 길 139칸".)
+  const said = new Set<string>();
   document.querySelectorAll<HTMLElement>('#tools .tray-section[data-view]').forEach((sec) => {
     const el = sec.querySelector<HTMLElement>('.zone-demand')!;
+    if (said.has(sec.dataset.view!)) {
+      if (el.textContent) el.textContent = '';
+      el.className = 'zone-demand';
+      return;
+    }
+    said.add(sec.dataset.view!);
     // (Under its own heading the service needn't be named again: 경찰 · 닿지 않는 건물 147채.)
     const gap = viewProblem(sec.dataset.view!).replace(/^(경찰|소방|병원|학교)[이가] /, '').replace(/^용량을 넘어 /, '');
     // (Nothing out of reach: how full it runs, where that is the trouble — hospitals past their places, the grid near its output.)

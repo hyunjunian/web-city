@@ -101,7 +101,7 @@ export function setupMenu(): void {
   $('#btn-load').onclick = showSaves;
   $('#btn-export').onclick = () => {
     download(new Blob([JSON.stringify(saveCity(city))], { type: 'application/json' }), `${fileName()}.json`);
-    flash(`"${fileName()}.json" 파일로 내보냈습니다 · 파일에서 불러오기로 다시 엽니다`);
+    flash(`"${fileName()}.json" 파일로 내보냈습니다 · 메뉴의 파일 가져오기로 다시 엽니다`);
   };
   $('#btn-csv').onclick = () => {
     // Monthly history as CSV (UTF-8 with BOM so spreadsheet apps read Korean).

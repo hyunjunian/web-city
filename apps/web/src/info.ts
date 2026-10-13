@@ -12,7 +12,7 @@ import { cam, city, cityLineage, clampCamera, flightCount, moveCount, overlay, o
 import { closeInfo, showTab } from './tabs';
 import { $, escapeHtml, flash, fmt, glue, hours, josa, pct, touchFirst } from './util';
 import { refreshTaxes } from './controls';
-import { toolGlyph, TOOLS } from './tools';
+import { structureStat, toolGlyph, TOOLS } from './tools';
 import { choice, remember } from './undo';
 import { coverageRadius, overlayReading } from './views';
 import { GOAL_ORDER, type GoalId, goalOfStructure, GOALS, goalsOfOrdinance } from './goals';
@@ -245,7 +245,9 @@ export function showInfo(x: number, y: number): void {
     && (!('only' in t) || !t.only || !!STRUCTURES[q.structure!.kind][t.only])) : undefined;
   const sub = b
     ? `${b.type && q.name ? `${TYPE_NAME[b.type]} · ` : ''}${b.stage}단계 · ${b.w}×${b.h}${b.origType !== b.type ? ` · 원래 ${TYPE_NAME[b.origType]}` : ''}`
-    : q.structure ? `${q.name ? `${STRUCTURE_NAME[q.structure.kind]} · ` : ''}${q.structure.w}×${q.structure.h}${def?.upkeep && (def.category === 'park' || def.station) ? ` · 월 §${fmt(city.structureUpkeep(q.structure.id)?.total ?? 0)}` : ''}`
+    : q.structure ? `${q.name ? `${STRUCTURE_NAME[q.structure.kind]} · ` : ''}${q.structure.w}×${q.structure.h}${def?.upkeep && (def.category === 'park' || def.station) ? ` · 월 §${fmt(city.structureUpkeep(q.structure.id)?.total ?? 0)}` : ''}${
+      // (What it is for, as the tray says it: a park's card read "1×1 · 월 §5" and a reward's "2×3 · 월 §10".)
+      def && (def.category === 'park' || def.category === 'reward' || def.category === 'landmark') && structureStat(q.structure.kind) ? ` · ${structureStat(q.structure.kind)}` : ''}`
     : q.zone === 'landfill' ? '쓰레기 매립 구역'
     : ZONE_NAME[q.zone] ? (title === ZONE_NAME[q.zone] ? '빈 구역' : `${ZONE_NAME[q.zone]} 구역`) : '';
   // Roads and water: services and desirability don't apply, only the environment.

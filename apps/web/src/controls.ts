@@ -30,9 +30,10 @@ export function restoreNight(): void {
 export function toggleNight(): void {
   renderer.night = !renderer.night;
   const btn = $('#btn-night');
-  btn.innerHTML = `${icon(renderer.night ? 'sun' : 'moonStar')}<span class="menu-label">${renderer.night ? '낮 풍경' : '밤 풍경'}</span>`;
+  // (A state, as the menu's other switches say theirs: 밤 풍경 ↔ 낮 풍경 named the action and read as the state.)
+  btn.innerHTML = `${icon('moonStar')}<span class="menu-label">밤 풍경: ${renderer.night ? '켬' : '끔'}</span>`;
   btn.setAttribute('aria-pressed', String(renderer.night));
-  btn.title = renderer.night ? '낮 풍경으로 (N)' : '밤 풍경으로 (N)';
+  btn.title = '밤 풍경 켜기·끄기 (N)';
   $('#view').classList.toggle('night', renderer.night); // the minimap dims along
   // The margin around the map goes dark too (a night map sat on daylight grey).
   renderer.background = getComputedStyle($('#view')).getPropertyValue('--view-bg').trim() || renderer.background;
