@@ -647,7 +647,6 @@ kbd {
   #goal-strip:not([hidden]) { display: flex; top: 19px; left: 74px; right: 74px; gap: 6px; padding: 0; background: transparent; box-shadow: none; border: 0; -webkit-backdrop-filter: none; backdrop-filter: none; overflow-x: auto; scrollbar-width: none; }
   #app.pane-open #goal-strip, #view.holding #goal-strip, #view.sheet-open #goal-strip { visibility: hidden; }
   #view:has(#map-layer:not(.off)) #goal-strip { visibility: hidden; } /* (a view's legend opens under it) */
-  #view:has(#manage-chip:not([hidden])) #toasts { margin-top: 50px; } /* below the chip */
   /* The sheet's padding is taller here: the sticky head starts at its edge, and keeps clear of the close button. */
   .mg-head { top: -26px; margin-top: -26px; padding-top: 22px; padding-right: 52px; }
   /* Half the screen: the goal's map view stays in sight above it. */
@@ -1960,6 +1959,12 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #toasts { top: auto; bottom: 14px; left: auto; right: 14px; transform: none; width: min(360px, calc(100% - 28px)); align-content: end; }
   #view:has(#hint:not(:empty)) #toasts { bottom: 62px; } /* above the hint's line */
   #view.info-open #toasts { left: auto; right: calc(var(--info-w) + 28px); width: min(360px, calc(100% - var(--info-w) - 56px)); }
+  /* Stacked, the older ones fold to a line (three alerts stood 200px tall over the town); pointed at or focused, one
+     opens again. */
+  #toasts .toast:not(:last-child):not(:hover):not(:focus-within) { padding-block: 7px; }
+  #toasts .toast:not(:last-child):not(:hover):not(:focus-within) .toast-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #toasts .toast:not(:last-child):not(:hover):not(:focus-within) .toast-text b { display: inline; margin-right: 6px; }
+  #toasts .toast:not(:last-child):not(:hover):not(:focus-within) .toast-badge { width: 24px; height: 24px; border-radius: 8px; }
 }
 .toast {
   position: relative; overflow: hidden; gap: 11px; padding: 11px 12px 12px 14px; border-radius: 14px;
@@ -2593,12 +2598,10 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #view.info-open #map-controls { right: 8px; }
   #goal-strip:not([hidden]) { top: calc(70px + env(safe-area-inset-top)); left: calc(var(--dock-w) + 16px); right: 56px; }
   #manage-chip:not([hidden]) { top: calc(66px + env(safe-area-inset-top)); left: calc(var(--dock-w) + 16px); }
-  #toasts { top: calc(66px + env(safe-area-inset-top)); bottom: auto; align-content: start; left: calc(var(--dock-w) + 16px); right: 56px; width: auto; transform: none; animation: none; }
-  #view:has(#goal-strip:not([hidden])) #toasts { top: calc(116px + env(safe-area-inset-top)); }
-  #view:has(#manage-chip:not([hidden])) #toasts { margin-top: 50px; }
+  /* (Under whatever hangs from the top bar: toast.ts measures it, as the view's card is as tall as its count.) */
+  #toasts { top: var(--toasts-top, calc(66px + env(safe-area-inset-top))); bottom: auto; align-content: start; left: calc(var(--dock-w) + 16px); right: 56px; width: auto; transform: none; animation: none; }
   /* A goal's chip (its screen put away) under the top bar: the view's card below it. */
   #app:not(.pane-open) #view:has(#manage-chip:not([hidden])) #mapbar #map-layer:not(.picking) { top: calc(100% + 56px); }
-  #view:not(.holding):has(#map-layer:not(.off):not(.picking)) #toasts { top: calc(150px + env(safe-area-inset-top)); }
   .toast { animation-name: drop-in; }
   .toast.leaving { transform: translateY(-6px); }
   /* The tool in hand at the foot, the hint over it; its card drops under the top bar. */

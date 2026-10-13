@@ -29,6 +29,47 @@ export function dropGoalToasts(goal: string): void {
   }
 }
 
+/**
+ * Phones: the notices just under what hangs from the top bar — the goal's chip, the goals in trouble, the view's card,
+ * whose height goes with its count and 찾아가기. (At set heights, the card's count left while a tool is in hand ran
+ * under the notice, its 찾아가기 sticking out below.) Wide, they keep to their corner.
+ */
+function placeToasts(): void {
+  const box = document.getElementById('toasts');
+  const view = document.getElementById('view');
+  if (!box || !view) return;
+  if (!watching) {
+    watching = true;
+    const again = () => placeToasts();
+    const sizes = new ResizeObserver(again);
+    for (const id of ['mapbar', 'goal-strip', 'manage-chip', 'map-layer']) {
+      const part = document.getElementById(id);
+      if (part) sizes.observe(part);
+    }
+    // (What shows of them goes with the states set on these: a tool in hand, the pane or a sheet open.)
+    const states = new MutationObserver(again);
+    for (const part of [view, document.getElementById('app')]) if (part) states.observe(part, { attributes: true, attributeFilter: ['class'] });
+    window.addEventListener('resize', again);
+  }
+  if (!matchMedia('(max-width: 860px)').matches) return void box.style.removeProperty('--toasts-top');
+  const v = view.getBoundingClientRect();
+  const b = box.getBoundingClientRect();
+  let low = 0;
+  for (const id of ['mapbar', 'goal-strip', 'manage-chip', 'map-layer']) {
+    const part = document.getElementById(id);
+    if (!part || part.hidden) continue;
+    const cs = getComputedStyle(part);
+    if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+    const r = part.getBoundingClientRect();
+    // (Above the map's middle, over the notices' column: not the strip beside it.)
+    if (!r.width || !r.height || r.top - v.top > v.height / 2 || r.right <= b.left || r.left >= b.right) continue;
+    low = Math.max(low, r.bottom - v.top);
+  }
+  const top = `${Math.round(low + 8)}px`;
+  if (box.style.getPropertyValue('--toasts-top') !== top) box.style.setProperty('--toasts-top', top);
+}
+let watching = false;
+
 /** `at`: a tile the notice is about; clicking the notice then shows it. `goal`: the screen it opens, to put it away when that opens. */
 export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'good', at?: [number, number], open?: () => void, sticky = false, label?: string, goal?: string, unread = true): void {
   const box = document.querySelector('#toasts');
@@ -135,6 +176,7 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
     close();
   };
   box.append(el);
+  placeToasts();
   // (Not one the clock stopped for: on a phone, where one fits, a refusal pushed out the alarm being read.)
   const spare = () => [...box.children].find((c) => c !== el && !c.classList.contains('sticky'));
   while (box.children.length > max() && spare()) spare()!.remove();
