@@ -672,6 +672,22 @@ export const capped = (t: (typeof DEV_TYPES)[number]) => {
   return Number.isFinite(d.cap[t]) && d.capPopulation[t] >= d.cap[t] * 0.98 && d.demand[t] < 1;
 };
 
+/**
+ * A disaster on the move (a tornado, meteors, a robot, a monster, a UFO) that the alarms wait for, for its first 30
+ * days at most: it runs on the real clock, and at full speed one monster's walk spanned years of days in which nothing,
+ * not even the treasury running dry, was told.
+ */
+export function stormHolds(): boolean {
+  if (!city.state.liveDisasters.length) {
+    stormFrom = null;
+    return false;
+  }
+  const day = city.state.day;
+  if (!stormFrom || stormFrom.lineage !== cityLineage || day < stormFrom.day) stormFrom = { lineage: cityLineage, day };
+  return day - stormFrom.day < 30;
+}
+let stormFrom: { lineage: number; day: number } | null = null;
+
 /** Road tiles past capacity (counted once a week of game time or after an edit). */
 let jamMemo: { key: string; n: number } | null = null;
 export function jammedTiles(): number {

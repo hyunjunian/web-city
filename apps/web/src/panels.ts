@@ -4,7 +4,7 @@ import { DEV_TYPES, type DevType, GROWTH_CODES, STRUCTURES, ZONES, type PollTopi
 import { icon } from './icons';
 import { chooseSpeed, refreshTaxes, refreshViewSummary, showOverlay } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
-import { capped as atCap, deptEmpty, deptFunded, freshLandfill, newReadings, readStats } from './readings';
+import { capped as atCap, deptEmpty, deptFunded, freshLandfill, newReadings, readStats, stormHolds } from './readings';
 import { active, autoPause, markToolSite, openGoal, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
 import { buildOrdinances, ordinanceMonth, ordinanceSignature, refreshInfo, setOrdinanceMonth } from './info';
 import { ko } from './messages';
@@ -1132,9 +1132,9 @@ export function advice(): string {
   // Not in a new city's first month, nor before anyone lives here: its problems are the checklist's
   // next steps (a toast that no power means no growth came the moment the first zone was laid).
   const settling = city.state.day < 30 || !readStats().population;
-  // (A tornado or quake under way: its alarms wait for it to pass — rubble was told at 4 tiles of the 333 it left, and
-  // a cap already red came up mid-storm.)
-  const storm = alarmed.owner === city && city.state.liveDisasters.length > 0;
+  // (A tornado, a monster or meteors under way: its alarms wait for it to pass, 30 days at most — rubble was told at 4
+  // tiles of the 333 it left, and a cap already red came up mid-storm.)
+  const storm = alarmed.owner === city && stormHolds();
   if (alarmed.owner === city && !settling && !storm) {
     for (const a of sorted) {
       if (a.level !== 'bad' || alarmed.codes.has(a.code)) continue;
