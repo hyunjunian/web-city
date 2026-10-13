@@ -356,14 +356,7 @@ export function buildOverlay(): void {
       landValue: '진할수록 비쌈(물가, 주변 구역보다 높은 땅). 부유층은 비싼 땅을 찾습니다.',
     } as Record<string, string>)[kind.value] ?? '';
     // A view of something the city doesn't have would show a blank map: say so.
-    const network = kind.value.startsWith('volume:') ? kind.value.slice(7) as VolumeNetwork : null;
-    const anyTile = (test: (i: number) => boolean) => {
-      for (let i = 0; i < city.size * city.size; i++) if (test(i)) return true;
-      return false;
-    };
-    const none = network ? !anyTile((i) => volumeAt(city.state, city.fields, network, i) >= 0)
-      : kind.value === 'subway' ? !city.state.subway.some((v) => v > 0)
-      : kind.value === 'radiation' ? !city.state.radiation.some((v) => v > 0) : false;
+    const none = kind.value !== 'landValue' && viewEmpty(kind.value);
     if (none) $('#overlay-legend').textContent += kind.value === 'radiation' ? ' 지금은 방사능이 남은 땅이 없습니다.' : ' 이 도시에는 아직 이 교통망이 없습니다.';
     // Land value comes from water and height alone: a flat, dry town shows nothing, so say why.
     const flat = kind.value === 'landValue' && !city.fields.landValue.some((v) => v >= 1);
@@ -452,7 +445,10 @@ export function buildOverlay(): void {
       el.querySelectorAll<HTMLButtonElement>('.vchip').forEach((c) => {
         const g = hint.get(c.dataset.v!);
         c.classList.toggle('hint', !!g);
-        c.title = g ? `${g}: 지금 살펴볼 만한 보기` : '';
+        // (Those with nothing to show yet, dimmed: six transit views opened on a blank map and "아직 없습니다".)
+        const empty = !g && viewEmpty(c.dataset.v!);
+        c.classList.toggle('empty', empty);
+        c.title = g ? `${g}: 지금 살펴볼 만한 보기` : empty ? ({ radiation: '지금은 방사능이 남은 땅이 없습니다', landValue: '물가나 주변보다 높은 땅이 없어 어디나 0입니다' } as Record<string, string>)[c.dataset.v!] ?? '이 도시에는 아직 이 교통망이 없습니다' : '';
       });
       let note = el.querySelector<HTMLElement>('.vg-note');
       if (!note) {
@@ -657,6 +653,17 @@ export function showOverlay(value: string): void {
   if (![...kind.options].some((o) => o.value === value)) return;
   kind.value = value;
   kind.dispatchEvent(new Event('change'));
+}
+
+/** A view with nothing on the map to show: a network the city hasn't built, or radiation where there is none. */
+function viewEmpty(v: string): boolean {
+  const network = v.startsWith('volume:') ? v.slice(7) as VolumeNetwork : null;
+  if (network) {
+    for (let i = 0; i < city.size * city.size; i++) if (volumeAt(city.state, city.fields, network, i) >= 0) return false;
+    return true;
+  }
+  return v === 'subway' ? !city.state.subway.some((x) => x > 0) : v === 'radiation' ? !city.state.radiation.some((x) => x > 0)
+    : v === 'landValue' ? !city.fields.landValue.some((x) => x >= 1) : false;
 }
 
 /** The data view O brings back (the last one shown). */

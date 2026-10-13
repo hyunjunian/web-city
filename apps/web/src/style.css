@@ -823,6 +823,8 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 .vg-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .vchip { min-height: 34px; padding: 0 12px; border-radius: 999px; background: var(--surface-2); color: var(--text); font-size: 13px; font-weight: 550; }
 .vchip[aria-pressed='true'] { background: var(--accent-soft); color: var(--active-ink); box-shadow: inset 0 0 0 1.5px var(--accent); }
+/* Nothing on the map for it yet (a network not built): there, but quieter. */
+.vchip.empty:not([aria-pressed='true']) { background: transparent; color: var(--faint); box-shadow: inset 0 0 0 1px var(--line); }
 #overlay .legend { margin: 0; }
 #overlay .legend:empty { display: none; }
 #overlay-legend .swatch-item { display: inline-flex; align-items: center; gap: 5px; margin: 0 10px 3px 0; white-space: nowrap; }
