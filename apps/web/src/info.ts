@@ -8,7 +8,7 @@ import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { updatePanels } from './panels';
 import { ROUTE_COLOR, structureColor, TYPE_COLOR, zoneTint } from './render';
-import { cam, city, cityGeneration, clampCamera, flightCount, moveCount, overlay, overlayType, redraw, renderer, setSelected, stopFlight } from './state';
+import { cam, city, cityLineage, clampCamera, flightCount, moveCount, overlay, overlayType, redraw, renderer, setSelected, stopFlight } from './state';
 import { closeInfo, showTab } from './tabs';
 import { $, escapeHtml, flash, fmt, glue, hours, josa, pct, touchFirst } from './util';
 import { refreshTaxes } from './controls';
@@ -110,15 +110,16 @@ export function keepInView(r: { x: number; y: number; w: number; h: number }): v
   // it since: a second lot pressed mid-glide summed to the wrong place.)
   const home = shiftedFor && untouched(shiftedFor) ? shiftedFor.home : { x: ox, y: oy };
   glide(dx, dy);
-  shiftedFor = { home, x: ox + dx, y: oy + dy, scale: cam.scale, moves: moveCount(), city: cityGeneration };
+  shiftedFor = { home, x: ox + dx, y: oy + dy, scale: cam.scale, moves: moveCount(), city: cityLineage };
 }
 
-/** Where the camera was before the card moved it, where it left it, and the game's camera moves and city then. */
+/** Where the camera was before the card moved it, where it left it, and the game's camera moves and city then (its
+ * lineage, kept through undo and redo, which reopen the same city and close the card on the way). */
 let shiftedFor: { home: { x: number; y: number }; x: number; y: number; scale: number; moves: number; city: number } | null = null;
 /** Left where the card put it (or on its way there): not moved since by the player, nor by a flight or framing begun since. */
 const untouched = (s: { x: number; y: number; scale: number; moves: number; city: number }) => {
   const at = gliding ?? cam;
-  return s.moves === moveCount() && s.city === cityGeneration && Math.abs(at.x - s.x) < 1e-3 && Math.abs(at.y - s.y) < 1e-3 && cam.scale === s.scale;
+  return s.moves === moveCount() && s.city === cityLineage && Math.abs(at.x - s.x) < 1e-3 && Math.abs(at.y - s.y) < 1e-3 && cam.scale === s.scale;
 };
 
 /**
