@@ -1663,7 +1663,10 @@ function refreshMarks(id: GoalId, list: Structure[]): void {
     : spot?.plants ? '소방이 닿지 않는 발전소' : SPOT_WORD[id];
   // The guide's own site too, so 추천 자리에 짓기 shows where before it builds (beside a full hospital it takes
   // the place of the mark it was found near).
-  const own = guideSite?.id === id ? guideSite : null;
+  // (Not while another kind of facility is in hand: the bus stops' rings stayed over the map as a subway station was
+  // being placed, where they marked nothing it could use.)
+  const holding = tool.kind === 'structure' ? chosen[tool.id] : undefined;
+  const own = guideSite?.id === id && !(holding && guideSite.build && holding !== guideSite.build) ? guideSite : null;
   // (On the site its 여기에 짓기 builds, where that is off the spot: what lights up is where it goes.)
   const at: [number, number] | null = spot ? (spotFit?.id === id ? spotFit.at : [spot.x, spot.y]) : null;
   // (Nor where a site of the guide's is within 4 tiles of it: the two labels ran into each other.)
@@ -1799,11 +1802,15 @@ let saidFor = '';
 
 function placeToolMark(): void {
   toolSiteDue = 0;
-  if (active) return; // (a screen marks its own)
   // (Not while a day is part-way: its service cover is being redone, and a spot found in a gap that wasn't one was
   // kept until the next edit.)
   if (city.stepping) {
     toolSiteDue = window.setTimeout(placeToolMark, 50);
+    return;
+  }
+  // (A screen marks its own: again now, so its guide's rings go while another kind of facility is in hand.)
+  if (active) {
+    refreshMarks(active, facilities(GOALS[active]));
     return;
   }
   // A power line or a pipe in hand: the guide's route where one is wanted — from the grid to the nearest dark zone (with
