@@ -572,12 +572,16 @@ export function growthBlockers(
   if (industrial ? !f.industrialAccess[i] : f.access[i]! < 0) out.push({ code: 'noRoad' });
   else if (z.cls === 'R' && !f.componentHasJobs[f.component[f.access[i]!]!]) out.push({ code: 'noJobs' });
   const types = DEV_TYPES.filter((t) => zoneClassFor(t) === z.cls);
-  const wanted = types.filter((t) => demand.demand[t] > 0);
+  // Sims who would come but for the cap (the farm cap counts other jobs, so it isn't one to lift here).
+  const atCap = (t: DevType) => t !== 'IA' && demand.raw[t] > 0 && Number.isFinite(demand.cap[t]) && demand.capPopulation[t] >= 0.95 * demand.cap[t];
+  // (Nor less than one, which the demand figures show as 0; and a trickle left at the cap is the cap's, not room: empty
+  // homes read "곧 개발됩니다" on R$$$'s 0.46 and R$'s 1.4 at its cap — 21,532 of the 21,560 allowed — while a year
+  // filled 19 of 909 tiles, and the lots flipped between that and the cap month to month.)
+  const wanted = types.filter((t) => demand.demand[t] >= 1 && !(atCap(t) && demand.demand[t] < 10));
   // (Or every wanted wealth's jobs are beyond the trip limit: see hasAccess.)
   if (z.cls === 'R' && f.access[i]! >= 0 && f.componentHasJobs[f.component[f.access[i]!]!] && f.travel?.fastest.hasSources && wanted.length
     && wanted.every((t) => !(f.commuteByWealth[cfg.demand.wealthOf[t]]![f.access[i]!]! <= cfg.transport.tripLimit))) out.push({ code: 'noJobs' });
-  // Sims who would come but for the cap (the farm cap counts other jobs, so it isn't one to lift here).
-  const capped = types.find((t) => t !== 'IA' && demand.raw[t] > 0 && Number.isFinite(demand.cap[t]) && demand.capPopulation[t] >= 0.95 * demand.cap[t]);
+  const capped = types.find(atCap);
   if (!wanted.length) out.push(capped ? { code: 'capped', type: capped, value: demand.cap[capped] } : { code: 'noDemand' });
   // (The developer holds back businesses that couldn't find staff: see workersBlocked.)
   else if (wanted.every((t) => workersBlocked(ctx, t))) out.push({ code: 'noWorkers' });

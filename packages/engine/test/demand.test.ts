@@ -251,6 +251,9 @@ describe('demand cap advice', () => {
     const codes = () => city.growthBlockers(3, 11)!.map((b) => b.code);
     expect(city.growthBlockers(3, 11)).toContainEqual({ code: 'capped', type: 'R$', value: 20_000 });
     expect(codes()).not.toContain('noDemand');
+    Object.assign(d.demand, { 'R$': 1 }); // a trickle left at the cap is still the cap
+    expect(city.growthBlockers(3, 11)).toContainEqual({ code: 'capped', type: 'R$', value: 20_000 });
+    Object.assign(d.demand, { 'R$': 0 });
     Object.assign(d.capPopulation, { 'R$': 10_000 }); // far from the cap: plainly no demand
     expect(codes()).toContain('noDemand');
     expect(codes()).not.toContain('capped');

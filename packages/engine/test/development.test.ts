@@ -12,7 +12,7 @@ describe('homes need jobs to go to', () => {
     const before = city.stats().population;
     city.bulldoze(b.x, b.y, b.x, b.y);
     expect(city.stats().population).toBeLessThan(before);
-  });
+  }, 60_000); // (the sample city takes about 5 s to grow: at the default limit it timed out beside another file)
 
   it('names a lack of workers as the blocker where businesses can\'t be staffed', () => {
     const city = new City({ size: 32, water: false, config: { development: { requirePower: false } } });
