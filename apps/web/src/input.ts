@@ -514,6 +514,9 @@ export function updatePreview(): void {
     if (tool.kind === 'bulldoze' && !touchFirst() && (city.state.occupant[hy * city.size + hx] || city.state.net[hy * city.size + hx])) {
       const plan = city.previewBulldoze(hx, hy, hx, hy);
       if (!plan.message && plan.cost > 0) {
+        // (Outlined whole, in the drag's amber: the tile alone lit up blue, as a build tool's does, while the price
+        // was the whole building's.)
+        preview = { tiles: [[hx, hy]], ok: true, remove: plan.lots, color: 'rgba(240,160,40,0.45)' };
         const occ = city.state.occupant[hy * city.size + hx]!;
         const b = plan.buildings ? city.state.buildings.get(occ) : undefined;
         // (A station some buildings have only it to reach them: how many it leaves out, before the press.)
