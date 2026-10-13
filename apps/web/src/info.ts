@@ -465,7 +465,7 @@ ${paths}${voice}
         q.powerLine ? `<span class="${q.lineWear >= 50 ? 'neg' : ''}">송전선 ${q.lineWear}</span>` : '',
         q.pipe ? `<span class="${q.pipeWear >= 50 ? 'neg' : ''}">수도관 ${q.pipeWear}</span>` : '',
         q.railDamaged ? '<span class="neg">망가진 철로</span>' : ''].filter(Boolean).join(' · ')}</td></tr>` : ''}
-      ${land && !q.structure ? tripRow(q.zone, q.commute, q.freight) : ''}
+      ${land && !q.structure && !b ? tripRow(q.zone, q.commute, q.freight) : ''}
     </table>
     ${mayorRows(x, y)}
     ${land && !q.structure && q.zone !== 'landfill' ? `<h3 class="sub">${TYPE_NAME[type]} 쾌적도 <b class="score">${d.total.toFixed(0)}</b> <span class="muted">(기본 ${d.baseline})</span></h3>
