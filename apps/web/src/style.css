@@ -2396,7 +2396,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 /* One width whatever the view (its name cut short if need be, whole in its tooltip); with none on, the button
    takes the ×'s room too: turning a view on or off doesn't move the clock beside it. */
 #mb-view #view-pick { flex: none; width: 164px; min-height: 40px; border-radius: 12px; }
-#mapbar:not(.fit3):has(#map-layer.off) #mb-view #view-pick { width: 206px; } /* (164, the gap, the × and its margin) */
+#mapbar:not(.fit4):has(#map-layer.off) #mb-view #view-pick { width: 206px; } /* (164, the gap, the × and its margin) */
 #mb-view #view-off { width: 34px; height: 34px; min-height: 0; padding: 0; margin-right: 2px; border-radius: 10px; }
 #mb-view #view-off .i { width: 16px; height: 16px; }
 /* The menu from the bar's end, down the map. */
@@ -2404,7 +2404,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .menu-phone, .menu-fit2 { display: none !important; }
 .layer-off { display: none; } /* (the view's × is in the bar; short of room, in its card) */
 
-/* Short of room the bar gives up, in turn (fitMapbar; a phone takes all three):
+/* Short of room the bar gives up, in turn (fitMapbar; a phone takes all four):
    1. its words: 주민 and the wind as their icons, the speeds narrower; */
 #mapbar.fit1 :is(.mb-label, .sb-wind > span) { display: none; }
 #mapbar.fit1 .mb-btn { width: 40px; padding: 0; justify-content: center; }
@@ -2413,40 +2413,44 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 /* 2. help and the map alone, both found in the menu; */
 #mapbar.fit2 :is(#btn-help, #btn-focus) { display: none; }
 #mapbar.fit2 .menu-fit2 { display: flex !important; }
-/* 3. the view's name (its card says it, and has the ×), the date stacked, 주민 and 지역 to the menu. */
-#mapbar.fit3 #mb-view #view-pick { width: 40px; padding: 0; justify-content: center; }
-#mapbar.fit3 #mb-view #view-pick > :not(.i:first-child) { display: none; }
-#mapbar.fit3 :is(#view-off, #btn-sims) { display: none; }
+/* 3. the date stacked, 주민 to the menu, the view's button narrower (at 1024px the bar kept the view's name so); */
+#mapbar.fit3 #btn-sims { display: none; }
 #mapbar.fit3 .menu-phone { display: flex !important; }
 #mapbar.fit3 hr.menu-phone { display: block !important; }
 #mapbar.fit3 .sb-date { display: grid; justify-items: center; min-width: 0; line-height: 1.12; text-align: center; }
 #mapbar.fit3 .sb-date .d-y { font-size: 10.5px; font-weight: 600; color: var(--muted); }
 #mapbar.fit3 .sb-date .d-m { font-size: 14.5px; font-weight: 700; }
 #mapbar.fit3 #sb-date::after { bottom: -3px; }
+#mapbar.fit3:not(.fit4) #mb-view #view-pick { width: 150px; }
+#mapbar.fit3:not(.fit4):has(#map-layer.off) #mb-view #view-pick { width: 192px; }
+/* 4. the view's name (its card says it, and has the ×). */
+#mapbar.fit4 #mb-view #view-pick { width: 40px; padding: 0; justify-content: center; }
+#mapbar.fit4 #mb-view #view-pick > :not(.i:first-child) { display: none; }
+#mapbar.fit4 #view-off { display: none; }
 /* (The card then heads with the name, its fold and the ×; the legend unfolds under it.) */
-#mapbar.fit3 #map-layer { display: flex; flex-wrap: wrap; align-items: center; }
-#view #mapbar.fit3 #map-layer:not(.picking) { padding: 3px 3px 8px; }
-@media (min-width: 861px) { #view #mapbar.fit3 #map-layer:not(.picking) { width: 260px; } } /* (clear of the minimap on the narrowest map) */
-#view #mapbar.fit3 #map-layer.open:not(.off):not(.picking) { padding-bottom: 12px; }
-#mapbar.fit3 #map-layer:not(.off):not(.picking) .layer-title {
+#mapbar.fit4 #map-layer { display: flex; flex-wrap: wrap; align-items: center; }
+#view #mapbar.fit4 #map-layer:not(.picking) { padding: 3px 3px 8px; }
+@media (min-width: 861px) { #view #mapbar.fit4 #map-layer:not(.picking) { width: 260px; } } /* (clear of the minimap on the narrowest map) */
+#view #mapbar.fit4 #map-layer.open:not(.off):not(.picking) { padding-bottom: 12px; }
+#mapbar.fit4 #map-layer:not(.off):not(.picking) .layer-title {
   display: flex; order: 0; flex: 1 1 0; min-width: 0; height: 36px; margin: 0; padding: 0 6px 0 9px; gap: 5px;
   border-radius: 11px; color: var(--text); font-size: 13.5px; font-weight: 650; cursor: pointer;
 }
-#mapbar.fit3 #map-layer .layer-title > .i:first-child { display: none; }
+#mapbar.fit4 #map-layer .layer-title > .i:first-child { display: none; }
 #layer-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#mapbar.fit3 #map-layer .legend-toggle { display: inline-flex; margin-left: 0; color: var(--muted); transition: transform 0.2s var(--ease); }
-#mapbar.fit3 #map-layer.open .legend-toggle { transform: rotate(180deg); }
-#mapbar.fit3 #map-layer:not(.off):not(.picking) .layer-off { display: inline-flex; order: 0; flex: none; width: 36px; height: 36px; }
+#mapbar.fit4 #map-layer .legend-toggle { display: inline-flex; margin-left: 0; color: var(--muted); transition: transform 0.2s var(--ease); }
+#mapbar.fit4 #map-layer.open .legend-toggle { transform: rotate(180deg); }
+#mapbar.fit4 #map-layer:not(.off):not(.picking) .layer-off { display: inline-flex; order: 0; flex: none; width: 36px; height: 36px; }
 /* (A goal's chip in sight has its own ×: two alike that did different things. In sight on a wide screen only map-only
    (F); on a phone while its sheet is down.) */
-@media (min-width: 861px) { #app.focus #view:has(#manage-chip:not([hidden])) #mapbar.fit3 #map-layer .layer-off { display: none; } }
-@media (max-width: 860px) { #app:not(.pane-open) #view:has(#manage-chip:not([hidden])) #mapbar.fit3 #map-layer .layer-off { display: none; } }
-#mapbar.fit3 #overlay { order: 1; flex: 1 0 100%; min-width: 0; }
-#mapbar.fit3 #map-layer:not(.off):not(.picking) #overlay { gap: 6px; }
-#mapbar.fit3 #map-layer:not(.open) :is(#overlay-legend, #overlay-scale) { display: none !important; }
+@media (min-width: 861px) { #app.focus #view:has(#manage-chip:not([hidden])) #mapbar.fit4 #map-layer .layer-off { display: none; } }
+@media (max-width: 860px) { #app:not(.pane-open) #view:has(#manage-chip:not([hidden])) #mapbar.fit4 #map-layer .layer-off { display: none; } }
+#mapbar.fit4 #overlay { order: 1; flex: 1 0 100%; min-width: 0; }
+#mapbar.fit4 #map-layer:not(.off):not(.picking) #overlay { gap: 6px; }
+#mapbar.fit4 #map-layer:not(.open) :is(#overlay-legend, #overlay-scale) { display: none !important; }
 /* (With a tool in hand the legend steps aside: no unfolding then.) */
-#view.holding #mapbar.fit3 #map-layer .legend-toggle { display: none; }
-#view.holding #mapbar.fit3 #map-layer .layer-title { pointer-events: none; }
+#view.holding #mapbar.fit4 #map-layer .legend-toggle { display: none; }
+#view.holding #mapbar.fit4 #map-layer .layer-title { pointer-events: none; }
 
 /* ---- the view's card, hanging from the bar's left end: the list of views while picking, else the legend and the count */
 #view #mapbar #map-layer {
@@ -2641,7 +2645,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 @media (max-width: 359px) {
   #mapbar.fit1 .gear-compact button { min-width: 22px; }
   #mapbar .icon-btn, #mapbar .dropdown > summary { width: 34px; }
-  #mapbar.fit3 #mb-view #view-pick { width: 36px; }
+  #mapbar.fit4 #mb-view #view-pick { width: 36px; }
 }
 
 /* ---- touch: a finger's size for what the map's chrome took down to a mouse's (later rules had won over the touch

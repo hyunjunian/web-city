@@ -620,20 +620,21 @@ export function toggleFocus(): void {
 
 /** The map's top bar keeps to one row between the build bar and 전체 보기. Short of room (a narrow window, a long
  *  view name, undo and redo, the wind) it gives up, in turn: its words (주민's, the wind's); then help and the map
- *  alone (both in the menu); then the view's name (its card says it, with the ×), the date stacked and 주민 and
- *  지역 to the menu. A phone always takes the last step. */
+ *  alone (both in the menu); then the date stacked, 주민 to the menu and the view's button narrower; last the view's
+ *  name (its card says it, with the ×). A phone always takes the last step. (The view's name went with the date
+ *  at one step: from 861 to 1180px the bar showed the view as a bare icon with room to spare.) */
 export function fitMapbar(): void {
   const bar = document.getElementById('mapbar');
   const view = document.getElementById('view');
   if (!bar || !view) return;
   const set = (level: number) => {
-    for (let i = 1; i <= 3; i++) bar.classList.toggle(`fit${i}`, level >= i);
+    for (let i = 1; i <= 4; i++) bar.classList.toggle(`fit${i}`, level >= i);
   };
-  if (matchMedia('(max-width: 860px)').matches) return set(3);
+  if (matchMedia('(max-width: 860px)').matches) return set(4);
   const cs = getComputedStyle(bar);
   const room = view.clientWidth - parseFloat(cs.left) - parseFloat(cs.right);
   let level = 0;
-  for (; level < 3; level++) {
+  for (; level < 4; level++) {
     set(level);
     bar.classList.add('measuring'); // (at its whole width, as it would be with room)
     const wide = bar.offsetWidth;
