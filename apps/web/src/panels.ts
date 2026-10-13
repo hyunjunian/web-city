@@ -968,7 +968,9 @@ export const capWaiting = (): number => {
  * any zone (they offered a farm block while 4,579 people waited on a §130 tennis court).
  */
 export function capLeads(): boolean {
-  if (!currentAdvice().some((a) => a.code === 'capRes' && a.level !== 'good') || capWaiting() < 100) return false;
+  // (Not while homes are about to be left: the growth screen leads with saving them, and its row and 진단 say that.)
+  const advice = currentAdvice();
+  if (!advice.some((a) => a.code === 'capRes' && a.level !== 'good') || advice.some((a) => a.code === 'atRisk' && a.level === 'bad') || capWaiting() < 100) return false;
   const park = capBest();
   return !!park && STRUCTURES[park].cost <= city.state.funds;
 }
