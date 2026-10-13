@@ -1189,6 +1189,13 @@ export function suggestedKinds(): Map<string, StructureKind> {
 }
 
 /** The goal's build actions: each kind of facility it may place, and its other tools. */
+/** The facility a goal's build list marks 추천 (the one its guide recommends building), for the getting-started list. */
+export function bestBuild(id: GoalId): StructureKind | null {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = buildActions(GOALS[id]);
+  return (tpl.content.querySelector<HTMLElement>('.act.best[data-kind]')?.dataset.kind as StructureKind | undefined) ?? null;
+}
+
 function buildActions(g: Goal): string {
   const items: string[] = [];
   const dem = city.demand.demand;

@@ -759,7 +759,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 .steps li.next .step-dot { box-shadow: inset 0 0 0 2px var(--accent); }
 .steps li.next .step-go { color: var(--accent-hi); }
 /* A step's one-press shortcut, under its words (the first road: laid along the dashed route). */
-.steps .step-lay { display: block; margin: 2px 0 6px 36px; font-size: 12.5px; }
+.steps .step-lay { display: block; margin: 2px 0 6px 36px; font-size: 12.5px; text-align: left; } /* (a long one, 추천 자리에 천연가스 발전소 바로 짓기, wraps under its start, not centred) */
 /* (Under a finger, a taller target that keeps the line where it was.) */
 /* (A finger's margin around the link reached up into the step's own row: a tap meant to pick the step's tool laid
    the road and spent the money. The link is its own 40px-high target instead, clear of the row above.) */
