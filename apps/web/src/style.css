@@ -862,7 +862,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #tool-alts button:hover { background: var(--surface-2); color: var(--text); }
 #tool-alts button.active { background: var(--accent-soft, var(--surface-3)); color: var(--accent-hi); font-weight: 650; }
 #tool-alts .i { width: 15px; height: 15px; }
-#tool-alts .swatch, #tool-alts .pick-swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; flex: none; }
+#tool-alts .swatch, #tool-alts .pick-swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; flex: none; font-size: 0; } /* (its colour alone at that size) */
 #view:has(#confirm-bar:not([hidden])) #tool-alts, #view:has(#tool-chip[hidden]) #tool-alts { display: none; }
 /* The open tool card already shows the same tools: the row comes back when it closes. */
 #view:has(#tray:not([hidden])) #tool-alts { display: none; }
@@ -1049,7 +1049,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 }
 #tray-recent button.active { background: var(--accent-soft); color: var(--accent-hi); box-shadow: inset 0 0 0 1.5px var(--accent); }
 #tray-recent .i { width: 15px; height: 15px; }
-#tray-recent .swatch, #tray-recent .pick-swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; flex: none; }
+#tray-recent .swatch, #tray-recent .pick-swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; flex: none; font-size: 0; }
 #tray-results { padding: 0 18px 16px; overflow-y: auto; align-content: start; grid-auto-rows: max-content; } /* (rows their own height and the list scrolls: 76 hits for 보상 were squeezed to fit, each item's second line over the next) */
 #tray-results[hidden], #tools[hidden] { display: none; }
 #tray-results .pick.first { box-shadow: inset 0 0 0 1.5px var(--accent); } /* Enter picks it */
@@ -1093,7 +1093,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 .pick.active { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
 .pick-name { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; line-height: 1.25; word-break: keep-all; }
 .pick-name .i { width: 14px; height: 14px; }
-.pick-swatch { flex: none; width: 12px; height: 12px; border-radius: 3px; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.22); } /* its colour on the map: cards scan like the tiles beside them */
+.pick-swatch { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.2); font-size: 10px; font-weight: 800; line-height: 1; overflow: hidden; } /* its colour and sign on the map (★ police, + a hospital, B a bus stop): cards scan like the map they build on */
 .pick-sub {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
   color: var(--muted); font-size: 11.5px; font-weight: 500; line-height: 1.35; word-break: keep-all;
@@ -1880,13 +1880,14 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 }
 /* A long name ("엠파이어 스테이트 빌딩") takes a second line rather than an ellipsis; the price stays on the first. */
 .pick-name { align-items: flex-start; }
-.pick-name > :is(.pick-swatch, .i) { flex: none; margin-top: 2.5px; }
+.pick-name > .i { flex: none; margin-top: 2.5px; }
+.pick-name > .pick-swatch { margin-top: 0.5px; }
 .pick-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .pick-cost { flex: none; }
 /* A facility's catches, a line each (then what it does). */
 #cursor-tag span { white-space: pre-line; -webkit-line-clamp: 8; }
 /* A pale facility colour (a hospital's white) keeps its square on a pale card: a hairline round it. */
-.pick-swatch { box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.22), 0 0 0 1px var(--line-strong); }
+.pick-swatch { box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.2), 0 0 0 1px var(--line-strong); }
 
 /* Who comes and goes (the map's lines, in their colours) and what the residents think: a line each, no toggle. */
 .info-paths, .info-voice { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
@@ -2200,7 +2201,8 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .g-act p { margin: 0; }
 .g-act-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 7px; font-size: 14px; line-height: 1.3; }
 .g-act-head > :is(.i, .swatch, .pick-swatch) { flex: none; width: 16px; height: 16px; }
-.g-act-head > .swatch, .g-act-head > .pick-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.g-act-head > .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.g-act-head > .pick-swatch { width: 18px; height: 18px; border-radius: 5px; font-size: 11px; }
 .g-act-head b { font-weight: 700; }
 .g-act-head small { flex-basis: 100%; color: var(--muted); font-size: 12px; font-weight: 400; }
 .g-act-head small.neg { color: var(--danger-ink); }

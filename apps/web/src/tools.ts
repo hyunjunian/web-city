@@ -8,7 +8,7 @@ import { goalTools, markToolSite, nextStep, openGoal, suggestedKinds } from './m
 import { firstStepTool } from './onboarding';
 import { DISASTER_NAME, plainCodes, STRUCTURE_NAME } from './names';
 import { holdForBuilding, isHeld, releaseHold, showHelp, showOverlay, viewProblem } from './controls';
-import { structureColor } from './render';
+import { structureMark } from './render';
 import { city, overlay, redraw, renderer, setDrag } from './state';
 import { closeInfo, closePane, closeSheet, showTab } from './tabs';
 import { cancelMySimAction } from './mysims';
@@ -262,6 +262,12 @@ export const chosen: Record<string, StructureKind> = {
   power: 'coalPlant', water: 'waterPump', garbage: 'wasteToEnergyPlant', police: 'smallPoliceStation', fire: 'smallFireStation', health: 'medicalClinic', education: 'elementarySchool',
   park: 'smallParkGreen', transport: 'busStop', reward: 'mayorsHouse', deal: 'casino', landmark: 'bigBen',
 };
+
+/** A facility's swatch in a list: its colour on the map with the sign it carries there (★, +, B …). */
+function swatchOf(k: StructureKind, title = ''): string {
+  const m = structureMark(k);
+  return `<span class="pick-swatch" style="background:${m.fill};color:${m.mark}"${title ? ` title="${title}"` : ''} aria-hidden="true">${m.glyph}</span>`;
+}
 
 /** An icon for each tool (zones use their colour swatch instead). */
 const TOOL_ICON: Record<string, IconName> = {
@@ -775,7 +781,7 @@ export function refreshStructureLists(): void {
         const folded = open && !!LEAD_KINDS[id] && !LEAD_KINDS[id]!.includes(k);
         return `<button class="pick${!open ? ' locked' : placed ? ' placed' : ''}${folded ? ' more' : ''}" role="option" data-kind="${k}" ${!open || placed ? 'disabled' : ''}
           title="${attr(`${STRUCTURE_NAME[k]} · ${def.w}×${def.h}칸 · 건설 §${fmt(def.cost)} · 유지 월 §${fmt(def.upkeep)}${!open ? ` — ${why}` : ''}`)}">
-          <span class="pick-name">${!open ? icon('lock') : placed ? icon('check') : `<span class="pick-swatch" style="background:${structureColor(k)}" title="${def.w}×${def.h}칸"></span>`}<span class="pick-title">${STRUCTURE_NAME[k]}</span>${open && !placed ? `<span class="pick-cost${short ? ' short' : ''}"${short ? ' title="자금이 모자랍니다"' : ''}>${def.cost ? `§${fmt(def.cost)}` : '무료'}</span>` : ''}</span>${open && !placed ? (stat ? `<span class="pick-stat">${stat}</span>` : '') : `<span class="pick-sub">${sub}</span>`}</button>`;
+          <span class="pick-name">${!open ? icon('lock') : placed ? icon('check') : swatchOf(k, `${def.w}×${def.h}칸`)}<span class="pick-title">${STRUCTURE_NAME[k]}</span>${open && !placed ? `<span class="pick-cost${short ? ' short' : ''}"${short ? ' title="자금이 모자랍니다"' : ''}>${def.cost ? `§${fmt(def.cost)}` : '무료'}</span>` : ''}</span>${open && !placed ? (stat ? `<span class="pick-stat">${stat}</span>` : '') : `<span class="pick-sub">${sub}</span>`}</button>`;
   // (Its price on the name's line, its use under it; the upkeep is in its tooltip and where it is placed.)
       }).join('')
         // The less usual kinds fold behind 더 보기; locked ones behind one button of their own (many for rewards and landmarks).
@@ -883,7 +889,7 @@ function refreshToolAlts(): void {
     const lineTool = line ? TOOLS.find((x) => x.id === line) : undefined;
     if (kinds.length > 1 || lineTool) {
       html = kinds.map((k) => `<button type="button" class="${chosen[t.id] === k ? 'active' : ''}" data-alt-kind="${k}" aria-pressed="${chosen[t.id] === k}"
-        title="${attr(`${STRUCTURES[k].w}×${STRUCTURES[k].h}칸 · §${fmt(STRUCTURES[k].cost)} · 월 §${fmt(STRUCTURES[k].upkeep)}`)}"><span class="pick-swatch" style="background:${structureColor(k)}"></span>${STRUCTURE_NAME[k]}</button>`).join('')
+        title="${attr(`${STRUCTURES[k].w}×${STRUCTURES[k].h}칸 · §${fmt(STRUCTURES[k].cost)} · 월 §${fmt(STRUCTURES[k].upkeep)}`)}">${swatchOf(k)}${STRUCTURE_NAME[k]}</button>`).join('')
         + (lineTool ? `<button type="button" data-alt-tool="${lineTool.id}" title="${attr(`${toolName(lineTool)} · ${toolPrice(lineTool)}`)}">${toolGlyph(lineTool)}${lineTool.label}</button>` : '');
     }
   } else if (tool.id !== 'query') {
@@ -902,7 +908,7 @@ function refreshToolAlts(): void {
     if (back && city.isUnlocked(chosen[back]!)) {
       const k = chosen[back]!;
       html = (html || `<button type="button" class="active" data-alt-tool="${tool.id}" aria-pressed="true">${toolGlyph(tool)}${tool.label}</button>`)
-        + `<button type="button" data-alt-tool="${back}" title="${attr(`${STRUCTURE_NAME[k]} · §${fmt(STRUCTURES[k].cost)}`)}"><span class="pick-swatch" style="background:${structureColor(k)}"></span>${STRUCTURE_NAME[k]}</button>`;
+        + `<button type="button" data-alt-tool="${back}" title="${attr(`${STRUCTURE_NAME[k]} · §${fmt(STRUCTURES[k].cost)}`)}">${swatchOf(k)}${STRUCTURE_NAME[k]}</button>`;
     }
   }
   if (row.dataset.html !== html) {
@@ -1058,7 +1064,7 @@ function findables(): Found[] {
           const why = plainCodes(d.unlock?.description ?? d.unlockTiers?.[earned]?.description ?? d.offer?.description ?? '잠김');
           out.push({
             key: `${t.id}:${k}`, name: STRUCTURE_NAME[k], where: `${cat.label} · ${g.title}`,
-            glyph: `<span class="pick-swatch" style="background:${structureColor(k)}"></span>`,
+            glyph: swatchOf(k),
             sub: d.cost || d.upkeep ? `§${fmt(d.cost)} · 월 §${fmt(d.upkeep)}` : '무료',
             locked: !open ? why : placed ? '이미 지음' : '',
             pick: () => {

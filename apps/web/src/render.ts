@@ -141,6 +141,21 @@ export function structureColor(kind: keyof typeof STRUCTURES): string {
   return def.category === 'park' ? (kind === 'beach' ? '#e6d49a' : '#4e9a45') : CIVIC_STYLE[style as keyof typeof CIVIC_STYLE].fill;
 }
 
+/** The sign a facility carries on the map over its colour (★ police, + a hospital, B a bus stop, P parking …). */
+function civicGlyph(def: (typeof STRUCTURES)[keyof typeof STRUCTURES], style: keyof typeof CIVIC_STYLE): string {
+  const station = 'station' in def ? def.station : undefined;
+  return station ? STATION_GLYPH[station.mode] : def.parking ? 'P' : def.airport ? '✈' : def.seaport ? '⚓' : CIVIC_STYLE[style].glyph;
+}
+
+/** A facility as the map marks it — its colour, the sign on it and the sign's colour — for its swatch in a list,
+ *  so a card's row looks like the building it puts down (a park has its green alone). */
+export function structureMark(kind: keyof typeof STRUCTURES): { fill: string; mark: string; glyph: string } {
+  const def = STRUCTURES[kind];
+  if (def.category === 'park') return { fill: structureColor(kind), mark: '', glyph: '' };
+  const style = (def.category === 'safety' ? (def.fire ? 'fire' : 'police') : def.category) as keyof typeof CIVIC_STYLE;
+  return { fill: CIVIC_STYLE[style].fill, mark: CIVIC_STYLE[style].mark, glyph: civicGlyph(def, style) };
+}
+
 /** Civic buildings' drawn height in tiles (see buildingRise). */
 const CIVIC_RISE: Record<keyof typeof CIVIC_STYLE, number> = {
   power: 0.35, water: 0.2, garbage: 0.2, police: 0.35, fire: 0.35, health: 0.45, education: 0.35,
@@ -1014,9 +1029,7 @@ export class Renderer {
       const def = STRUCTURES[st.kind];
       if (def.category !== 'park') {
         const style = def.category === 'safety' ? (def.fire ? 'fire' : 'police') : def.category;
-        const station = 'station' in def ? def.station : undefined;
-        const glyph = station ? STATION_GLYPH[station.mode] : def.parking ? 'P' : def.airport ? '✈' : def.seaport ? '⚓' : undefined;
-        drawCivic(ctx, st, style, sc, st.life >= 90, glyph);
+        drawCivic(ctx, st, style, sc, st.life >= 90, civicGlyph(def, style));
         continue;
       }
       // Below 60% city beautification funding parks look distressed.
