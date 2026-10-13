@@ -129,7 +129,9 @@ export function showSaves(): void {
   const list = readIndex().sort((a, b) => b.savedAt - a.savedAt);
   const body = $('#saves-body');
   if (!list.length) {
-    body.innerHTML = '<p class="muted">저장된 도시가 없습니다. 메뉴의 "저장"으로 지금 도시를 저장하세요.</p>';
+    // (With the way to make one: the list said to use the menu's 저장, and offered only 닫기.)
+    body.innerHTML = `<p class="muted">저장된 도시가 없습니다. 지금 도시를 이 브라우저에 저장해 두면 여기서 다시 열 수 있습니다.</p>
+      <p class="saves-empty-act"><button type="button" class="primary" id="saves-save-now">${icon('save')}지금 도시 저장하기</button></p>`;
   } else {
     body.innerHTML = `<ul class="saves">${list.map((s) => `
       <li>
@@ -143,6 +145,11 @@ export function showSaves(): void {
       </li>`).join('')}</ul>`;
   }
   const dialog = $<HTMLDialogElement>('#saves-dialog');
+  const now = body.querySelector<HTMLButtonElement>('#saves-save-now');
+  if (now) now.onclick = () => {
+    $<HTMLButtonElement>('#btn-save').click(); // (as the menu's 저장: a region saves all its cities)
+    showSaves();
+  };
   body.querySelectorAll<HTMLButtonElement>('[data-load]').forEach((btn) => {
     btn.onclick = async () => {
       // The city on screen gives way: ask when something of it would be lost (as 새 도시 does).

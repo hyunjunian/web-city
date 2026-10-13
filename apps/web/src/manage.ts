@@ -1611,12 +1611,12 @@ function spotLine(id: GoalId): string {
   // (Power and water: a site to build on, near where it is missing; the others: where the trouble gathers.)
   if (spot.crowded) {
     const what = id === 'education' ? '학교' : '병원';
-    return `<p class="mg-spot">${icon('target')}<span><b>넘치는 ${what} 옆</b> 빈 땅: 새 ${what}${josa(what, '이', '가')} 그곳의 ${id === 'education' ? '학생을' : '환자를'} 나눠 받습니다 (지도의 과녁)</span>
+    return `<p class="mg-spot">${icon('target')}<span><b>넘치는 ${what} 옆</b> 빈 땅: 새 ${what}${josa(what, '이', '가')} 그곳의 ${id === 'education' ? '학생을' : '환자를'} 나눠 받습니다</span>
     <button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button></p>`;
   }
   // (Water short only for want of pipes between networks: where the dry ones are, to pipe to.)
   if (id === 'water' && waterApart()) {
-    return `<p class="mg-spot">${icon('target')}<span><b>물이 끊긴 건물</b>이 가장 많이 모인 곳 · ${spot.blds ? `${fmt(spot.blds)}채` : `${fmt(spot.tiles)}칸`}: 물이 남는 수도망에서 수도관을 이어 오세요 (지도의 과녁)</span>
+    return `<p class="mg-spot">${icon('target')}<span><b>물이 끊긴 건물</b>이 가장 많이 모인 곳 · ${spot.blds ? `${fmt(spot.blds)}채` : `${fmt(spot.tiles)}칸`}: 물이 남는 수도망에서 수도관을 이어 오세요</span>
     <button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button></p>`;
   }
   // (Traffic: the worst-jammed stretch, widened to an avenue in one press, beside 보기.)
@@ -1629,7 +1629,7 @@ function spotLine(id: GoalId): string {
     const tiles = run ? Math.abs(run[2] - run[0]) + Math.abs(run[3] - run[1]) + 1 : 0;
     const widen = run && p && (p.ok || p.message === 'not enough funds')
       ? `<button type="button" class="advice-view spot-build" data-widen="${run.join(',')}" data-widen-kind="${to}" title="가장 막힌 구간 ${fmt(tiles)}칸을 ${word}로 바로 넓히기 · §${fmt(p.cost)}">${icon('plus')}가장 막힌 구간 ${word}로 · ${fmt(tiles)}칸 §${fmt(p.cost)}${p.ok ? '' : ' · 자금 부족'}</button>` : '';
-    return `<p class="mg-spot">${icon('target')}<span><b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${fmt(spot.tiles)}칸 (지도의 과녁)</span>
+    return `<p class="mg-spot">${icon('target')}<span><b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${fmt(spot.tiles)}칸</span>
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button>${widen}</span></p>`;
   }
   const site = id === 'power' || id === 'water';
@@ -1651,10 +1651,10 @@ function spotLine(id: GoalId): string {
   const build = (SERVICE_SITE.has(id) || site) && fit && kind
     ? `<button type="button" class="advice-view spot-build" data-spot-build="${fit.join(',')}" data-build-kind="${kind}" title="${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 이 자리에 짓기">${icon('plus')}여기에 짓기</button>` : '';
   return `<p class="mg-spot">${icon('target')}<span>${site
-    ? `<b>${SPOT_WORD[id]}</b>: ${id === 'power' ? '전기 없는 구역' : '물이 없는 건물'} ${id === 'water' && spot.blds ? `${fmt(spot.blds)}채` : `${fmt(lit || spot.tiles)}칸`}${far ? (kind && smokyPlant(kind) ? '에서 연기가 주거에 닿지 않을 만큼 떨어진' : '에서 가장 가까운') : lit ? '에 한 번에 닿는,' : ' 가까이,'} 도로 옆${!far && id === 'power' && kind && smokyPlant(kind) ? ' · 주거에서 떨어진' : ''} 빈 땅 (지도의 과녁)`
+    ? `<b>${SPOT_WORD[id]}</b>: ${id === 'power' ? '전기 없는 구역' : '물이 없는 건물'} ${id === 'water' && spot.blds ? `${fmt(spot.blds)}채` : `${fmt(lit || spot.tiles)}칸`}${far ? (kind && smokyPlant(kind) ? '에서 연기가 주거에 닿지 않을 만큼 떨어진' : '에서 가장 가까운') : lit ? '에 한 번에 닿는,' : ' 가까이,'} 도로 옆${!far && id === 'power' && kind && smokyPlant(kind) ? ' · 주거에서 떨어진' : ''} 빈 땅`
     // (A plant out of fire cover, which the spot is weighed for, named as one: "건물 1채" was the plant.)
-    : spot.plants ? `<b>소방이 닿지 않는 발전소</b> ${fmt(spot.plants)}곳${spot.blds ? ` · 건물 ${fmt(spot.blds)}채가` : '이'} 있는 곳 · 불타면 폭발합니다 (지도의 과녁)`
-    : `<b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${spot.blds ? `${fmt(spot.blds)}채` : `${fmt(spot.tiles)}칸`} (지도의 과녁)`}</span>
+    : spot.plants ? `<b>소방이 닿지 않는 발전소</b> ${fmt(spot.plants)}곳${spot.blds ? ` · 건물 ${fmt(spot.blds)}채가` : '이'} 있는 곳 · 불타면 폭발합니다`
+    : `<b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${spot.blds ? `${fmt(spot.blds)}채` : `${fmt(spot.tiles)}칸`}`}</span>
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button>${build}</span></p>`;
 }
 

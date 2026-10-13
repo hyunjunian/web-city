@@ -1316,6 +1316,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .new-more { display: grid; gap: 12px; }
 .new-more > summary { cursor: pointer; color: var(--muted); font-size: 13px; padding: 2px 0; }
 .new-more[open] > summary { margin-bottom: 2px; }
+.saves-empty-act { margin: 14px 0 2px; }
+.saves-empty-act .primary { display: inline-flex; align-items: center; gap: 7px; }
 .saves { display: grid; gap: 8px; max-height: 60vh; margin: 0; padding: 0; overflow: auto; list-style: none; }
 .saves li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--surface-2); border-radius: var(--r-md); }
 .saves li > div { display: grid; flex: 1; min-width: 0; }
