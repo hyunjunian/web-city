@@ -180,7 +180,7 @@ const NO_STEP: Step = { goal: null, problem: false, html: '' };
 let stepMemo: { key: string; step: Step } | null = null;
 export function nextStep(): Step {
   const tones = GOAL_ORDER.map((id) => goalStatus(id).tone);
-  const key = `${changeKey()}|${tones.join()}|${active}|${incidents().map((x) => x.title).join()}|${city.freeUnits('fire')}|${city.freeUnits('police')}`;
+  const key = `${changeKey()}|${tones.join()}|${active}|${incidents().map((x) => `${x.title}${x.urgent ? '!' : ''}`).join()}|${city.freeUnits('fire')}|${city.freeUnits('police')}`;
   if (stepMemo?.key === key) return stepMemo.step;
   const step = nextHtml(tones);
   stepMemo = { key, step };

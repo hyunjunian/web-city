@@ -2086,7 +2086,7 @@ export type Incident = { goal: 'fire' | 'police'; title: string; at: [number, nu
 let incidentMemo: { key: string; list: Incident[] } | null = null;
 export function incidents(): Incident[] {
   const s = city.state;
-  const key = `${changeKey()}|${s.day}|${s.fires.length}|${s.treeFires.length}|${s.mobs.length}|${s.arsonists.length}`;
+  const key = `${changeKey()}|${s.day}|${s.fires.length}|${s.treeFires.length}|${s.mobs.length}|${s.arsonists.length}|${s.units.length}`;
   if (incidentMemo?.key === key) return incidentMemo.list;
   const list: Incident[] = [];
   const fire: [number, number][] = [];
@@ -2098,11 +2098,32 @@ export function incidents(): Incident[] {
   // Urgent (stop the clock, lead 지금 할 일): several fires, or one beyond the fire stations' reach,
   // or on a plant; a lone fire inside cover is the stations' to put out (it took over the card for years).
   const cover = city.fields.fireCover;
+  const n = s.size;
   const onPlant = s.fires.some((f) => f.target < 0 && !!STRUCTURES[s.structures.get(-f.target)?.kind ?? 'park' as StructureKind]?.plant);
-  const outside = fire.some(([x, y]) => (cover[y * s.size + x] ?? 0) <= 0);
-  const fireUrgent = fire.length >= 3 || onPlant || outside;
+  const outside = fire.some(([x, y]) => (cover[y * n + x] ?? 0) <= 0);
+  // Being put out: the cover over it beats its stage (it burns down a stage a day), or a crew is there or on its way;
+  // on its first day, a free crew will be sent tomorrow. Else nobody is coming — an underfunded or striking station,
+  // every truck out, woods (no crew is sent to trees) — and it was "소방서가 끄는 중" while the farm burned down.
+  const pps = city.cfg.safety.protectionPerStage;
+  const reach = city.cfg.safety.dispatch.fire.radius;
+  const crewAt = (x: number, y: number) => s.units.some((u) => u.kind === 'fire' && Math.hypot(u.x - x, u.y - y) <= reach);
+  const free = city.freeUnits('fire') > 0;
+  let unfought = false;
+  let pending = false;
+  for (const f of s.fires) {
+    const r = f.target > 0 ? s.buildings.get(f.target) : s.structures.get(-f.target);
+    if (!r) continue;
+    let best = 0;
+    for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) best = Math.max(best, cover[y * n + x] ?? 0);
+    if (best >= pps * f.stage || crewAt(r.x + r.w / 2, r.y + r.h / 2)) continue;
+    if (f.days < 1 && free) pending = true;
+    else unfought = true;
+  }
+  unfought ||= s.treeFires.some((t) => (cover[t.i] ?? 0) < pps && !crewAt((t.i % n) + 0.5, Math.floor(t.i / n) + 0.5));
+  const fireUrgent = fire.length >= 3 || onPlant || outside || unfought;
   // (Said as what it costs if left, as the rows say it: what to do is the card's above them.)
-  const why = onPlant ? '발전소가 타는 중 · 폭발할 수 있음' : outside ? '소방서 반경 밖 · 번질 수 있음' : fireUrgent ? '번지는 중' : '소방서가 끄는 중';
+  const why = onPlant ? '발전소가 타는 중 · 폭발할 수 있음' : outside ? '소방서 반경 밖 · 번질 수 있음' : unfought ? '끄러 가는 소방차가 없음 · 번질 수 있음'
+    : fireUrgent ? '번지는 중' : pending ? '소방서가 곧 출동' : '소방서가 끄는 중';
   // Where it is worst, first (where 보기 and 바로 보내기 go): a plant alight, then a fire beyond reach.
   const plantLot = s.fires.map((f) => (f.target < 0 ? s.structures.get(-f.target) : undefined)).find((st) => !!st && !!STRUCTURES[st.kind].plant);
   const worst: [number, number] | undefined = plantLot ? [plantLot.x, plantLot.y] : fire.find(([x, y]) => (cover[y * s.size + x] ?? 0) <= 0);
