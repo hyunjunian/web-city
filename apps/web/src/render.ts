@@ -96,7 +96,6 @@ const CHUNK = 16;
 const BUILD_DAYS = 8;
 const CAR_COLORS = ['#e8e8e8', '#d9534f', '#3b6fd1', '#f0c419', '#2b2b2b', '#8fa3b8'];
 // Water in close tones (three far-apart ones banded like a staircase).
-const WATER = '#6597cc';
 const WATER_SHALLOW = '#73a3d4';
 const WATER_DEEP = '#5689c2';
 const SAND = '#e8dcae';
@@ -650,6 +649,52 @@ export class Renderer {
   }
 
   /**
+   * The water's colour per tile by how far it lies from the shore, shallow to deep (land pixels take the shallows'
+   * colour, so the blend along a shore stays shallow), remade when the shore moves.
+   */
+  private water: { city: City['state']; key: number; image: HTMLCanvasElement } | null = null;
+  private waterImage(s: City['state']): HTMLCanvasElement {
+    const n = s.size;
+    let key = n;
+    for (let i = 0; i < n * n; i++) key = (key * 31 + s.terrain[i]! + 1) | 0;
+    if (this.water?.city === s && this.water.key === key) return this.water.image;
+    const image = this.water?.city === s ? this.water.image : document.createElement('canvas');
+    image.width = n;
+    image.height = n;
+    // Tiles to the nearest land, out to 4.
+    const far = new Uint8Array(n * n).fill(255);
+    let edge: number[] = [];
+    for (let i = 0; i < n * n; i++) if (s.terrain[i] !== Terrain.Water) {
+      far[i] = 0;
+      edge.push(i);
+    }
+    for (let d = 1; d <= 4 && edge.length; d++) {
+      const next: number[] = [];
+      for (const i of edge) {
+        const x = i % n;
+        for (const j of [x > 0 ? i - 1 : -1, x < n - 1 ? i + 1 : -1, i - n, i + n]) {
+          if (j < 0 || j >= n * n || far[j] !== 255) continue;
+          far[j] = d;
+          next.push(j);
+        }
+      }
+      edge = next;
+    }
+    const rgb = (c: string) => [1, 3, 5].map((k) => parseInt(c.slice(k, k + 2), 16));
+    const [a, b] = [rgb(WATER_SHALLOW), rgb(WATER_DEEP)];
+    const g = image.getContext('2d')!;
+    const data = g.createImageData(n, n);
+    for (let i = 0; i < n * n; i++) {
+      const t = far[i] === 0 ? 0 : Math.min(1, (Math.min(far[i]!, 4) - 1) / 3);
+      for (let k = 0; k < 3; k++) data.data[4 * i + k] = Math.round(a[k]! + (b[k]! - a[k]!) * t);
+      data.data[4 * i + 3] = 255;
+    }
+    g.putImageData(data, 0, 0);
+    this.water = { city: s, key, image };
+    return image;
+  }
+
+  /**
    * Terrain, zones and networks over tiles [x0, x1) × [y0, y1) at scale `sc`.
    * Land is tinted by height and lit from the north-west so hills read at a glance.
    */
@@ -669,7 +714,30 @@ export class Renderer {
     ctx.clip();
     ctx.imageSmoothingEnabled = true;
     ctx.drawImage(land, ax, ay, bx - ax, by - ay, ax, ay, bx - ax, by - ay);
+    // The water likewise, its depth blended within it and its shore kept sharp (three flat shades by distance to the
+    // shore, tile by tile, left stray dark squares in the rivers).
+    ctx.beginPath();
+    let wet = false;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) if (s.terrain[y * n + x] === Terrain.Water) {
+      ctx.rect(x, y, 1, 1);
+      wet = true;
+    }
+    if (wet) {
+      ctx.clip();
+      ctx.drawImage(this.waterImage(s), ax, ay, bx - ax, by - ay, ax, ay, bx - ax, by - ay);
+    }
     ctx.restore();
+    // A shore's corners rounded off up close (it ran in square steps): the corner of a tile outside the quarter circle
+    // about its middle, filled — land cut back by water where water lies on two sides of it, a bay's corner filled with
+    // sand where land does.
+    const corner = (x: number, y: number, cx: 0 | 1, cy: 0 | 1) => {
+      ctx.beginPath();
+      ctx.moveTo(x + cx, y + cy);
+      ctx.lineTo(x + cx, y + 0.5);
+      ctx.arc(x + 0.5, y + 0.5, 0.5, cx ? 0 : Math.PI, cy ? Math.PI / 2 : -Math.PI / 2, cx !== cy);
+      ctx.closePath();
+      ctx.fill();
+    };
     for (let y = y0; y < y1; y++) {
       for (let x = x0; x < x1; x++) {
         const i = y * n + x;
@@ -677,20 +745,14 @@ export class Renderer {
         const net = s.net[i]!;
         const isWater = (ax: number, ay: number) => ax < 0 || ay < 0 || ax >= n || ay >= n || s.terrain[ay * n + ax] === Terrain.Water;
         if (water) {
-          // Shallow near the shore, deeper further out.
-          let shore = 3;
-          for (let d = 1; d <= 2 && shore === 3; d++) {
-            for (let dy = -d; dy <= d && shore === 3; dy++) {
-              for (let dx = -d; dx <= d; dx++) {
-                if (!isWater(x + dx, y + dy)) {
-                  shore = d;
-                  break;
-                }
-              }
+          // (Its colour is waterImage's, drawn above.) A bay's corners rounded with sand, up close.
+          if (sc >= 3 && net === Net.None) {
+            ctx.fillStyle = SAND;
+            for (const [cx, cy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) {
+              const land = (dx: number, dy: number) => x + dx >= 0 && y + dy >= 0 && x + dx < n && y + dy < n && !isWater(x + dx, y + dy);
+              if (land(cx ? 1 : -1, 0) && land(0, cy ? 1 : -1)) corner(x, y, cx, cy);
             }
           }
-          ctx.fillStyle = shore === 1 ? WATER_SHALLOW : shore === 2 ? WATER : WATER_DEEP;
-          ctx.fillRect(x, y, e, e);
         } else {
           // (The land's own colour is landImage's, drawn above.)
           if (sc >= 3 && net === Net.None) {
@@ -700,6 +762,20 @@ export class Renderer {
             if (y + 1 < n && isWater(x, y + 1)) ctx.fillRect(x, y + 0.78, e, 0.22);
             if (x > 0 && isWater(x - 1, y)) ctx.fillRect(x, y, 0.22, e);
             if (x + 1 < n && isWater(x + 1, y)) ctx.fillRect(x + 0.78, y, 0.22, e);
+            // A point of land between water on two sides (and across the corner): rounded off, its sand along the curve.
+            for (const [cx, cy] of [[0, 0], [1, 0], [0, 1], [1, 1]] as const) {
+              const [dx, dy] = [cx ? 1 : -1, cy ? 1 : -1];
+              const wetAt = (ax: number, ay: number) => ax >= 0 && ay >= 0 && ax < n && ay < n && isWater(ax, ay);
+              if (!wetAt(x + dx, y) || !wetAt(x, y + dy) || !wetAt(x + dx, y + dy) || s.occupant[i] !== 0) continue;
+              ctx.fillStyle = WATER_SHALLOW;
+              corner(x, y, cx, cy);
+              ctx.strokeStyle = SAND;
+              ctx.lineWidth = 0.22;
+              ctx.beginPath();
+              ctx.arc(x + 0.5, y + 0.5, 0.39, cx ? 0 : Math.PI, cy ? Math.PI / 2 : -Math.PI / 2, cx !== cy);
+              ctx.stroke();
+              ctx.fillStyle = SAND;
+            }
           }
         }
         // Tunnels: the hill shows; the line under it is drawn later.
