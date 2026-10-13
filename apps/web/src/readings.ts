@@ -319,7 +319,9 @@ function pollMetric(id: GoalId): Metric[] {
   const why = topic === 'environment' && mr ? ` · 오염이 ${fmt(mr)}을 넘어야 불만이 되지만, 40만 넘어도 쾌적도와 건강은 떨어집니다` : '';
   // (Said as what it counts, those living here with no complaint: "주민 만족 (세금) 100%" under "세율이 높아 수요가 71%
   // 깎이고" read as a contradiction — those it keeps out aren't asked.)
-  return [[`${POLL_NAME[topic]}에 불만 없는 주민`, `${p}%`, p < 25 ? 'bad' : p < 50 ? 'warn' : '', p, 1, `지금 사는 주민 가운데 ${POLL_NAME[topic]}에 불만이 없는 비율 (여론 조사: 시장 평점을 움직입니다 · 들어오지 못한 사람은 셈에 없음)${why}`]];
+  // (Nobody minding yet, said as that: "불만 없는 주민 100%" stood beside the screen's 주의 like a contradiction.)
+  const none = p >= 95;
+  return [[none ? `${POLL_NAME[topic]}에 대한 주민 불만` : `${POLL_NAME[topic]}에 불만 없는 주민`, none ? '아직 없음' : `${p}%`, p < 25 ? 'bad' : p < 50 ? 'warn' : '', p, 1, `지금 사는 주민 가운데 ${POLL_NAME[topic]}에 불만이 없는 비율 ${p}% (여론 조사: 시장 평점을 움직입니다 · 들어오지 못한 사람은 셈에 없음)${why}`]];
 }
 
 export function metrics(id: GoalId): Metric[] {
@@ -435,7 +437,7 @@ function goalMetrics(id: GoalId): Metric[] {
       const dem = city.demand.demand;
       const d = (t: 'R$$$' | 'Cs$$$' | 'Co$$$'): Metric => [`${RICH_WORD[t]} 수요`, dem[t] >= 1 ? `+${fmt(dem[t])}` : dem[t] <= -1 ? `−${fmt(-dem[t])}` : '0', dem[t] >= 100 ? 'good' : dem[t] < 0 ? 'warn' : ''];
       return [['부유층 주민', `${fmt(st.residents[2])}명 · ${Math.round((st.residents[2] / total) * 100)}%`, '', st.residents[2], 1],
-        ['중산층 주민', `${fmt(st.residents[1])}명`, '', st.residents[1], 1], ['평균 땅값', landValue() >= 0.5 ? landValue().toFixed(1) : '차이 없음', '', Math.round(landValue()), 1, '건물이 선 칸의 평균: 물가와 주변보다 높은 땅이 올립니다 (모두 평평한 내륙이면 0)'],
+        ['중산층 주민', `${fmt(st.residents[1])}명`, '', st.residents[1], 1], ['평균 땅값', landValue() >= 0.5 ? landValue().toFixed(1) : '평지라 차이 없음', '', Math.round(landValue()), 1, '건물이 선 칸의 평균: 물가와 주변보다 높은 땅이 올립니다 (모두 평평한 내륙이면 0)'],
         d('R$$$'), d('Cs$$$'), d('Co$$$'), ['교육 지수 평균 (0–200)', avg(st.eq, st.residents).toFixed(0), '', Math.round(avg(st.eq, st.residents)), 1]];
     }
     case 'environment': {
