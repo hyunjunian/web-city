@@ -64,23 +64,42 @@ export function renderOnboarding(): void {
   const jobZone = Math.max(city.demand.demand.ID, city.demand.demand.IM, city.demand.demand.IHT) > 0 || city.demand.demand['Cs$'] <= 0 ? 'I-medium' : 'C-low';
   const d = city.demand.demand;
   const jobWant = jobZone === 'I-medium' ? Math.max(d.ID, d.IM, d.IHT) : Math.max(d['Cs$'], d['Cs$$'], d['Co$$'], d['Co$$$']);
-  // [done, text, the tool that does it]
-  const steps: [boolean, string, string | null][] = [
+  // A zone counts once one of its tiles touches a road (a block painted off the roads was ticked as done, and nothing
+  // ever grew on it).
+  const n = city.size;
+  const zonedByRoad = (pred: (code: number) => boolean) => s.zone.some((z, i) => pred(z) && city.roadBeside(i % n, Math.floor(i / n), 1, 1));
+  const homeZone = (z: number) => z >= 1 && z <= 3;
+  const jobZoneCode = (z: number) => z >= 4 && z <= 8;
+  const offRoadZone = (pred: (code: number) => boolean) => (zoned(pred) && !zonedByRoad(pred) ? ' · ⚠ 도로와 닿지 않음' : '');
+  // Homes all built with people wanting in: growth waits on more homes (the list sat at 216 residents for years,
+  // pointing at the books, which only residents could mend).
+  let emptyHomes = 0;
+  for (let i = 0; i < s.zone.length && emptyHomes < 4; i++) if (homeZone(s.zone[i]!) && !s.occupant[i]) emptyHomes++;
+  const homesFull = st.population > 0 && emptyHomes < 4 && Math.max(d['R$'], d['R$$'], d['R$$$']) > 0;
+  // A deficit with years of money in hand mends as residents come: last in the list, and never "다음은".
+  const deficit = s.lastBudget ? s.lastBudget.expenses - s.lastBudget.income : 0;
+  const patient = deficit > 0 && s.funds / deficit / 12 >= 5;
+  // [done, text, the tool that does it, (put after the rest: it waits on growth)]
+  const steps: [boolean, string, string | null, boolean?][] = [
     [roadLinked(), '이웃 도시로 가는 도로 (지도 가장자리까지)', 'road'],
-    [zoned((z) => z >= 1 && z <= 3), '주거 구역 (도로 옆에)', 'R-low'],
+    [zonedByRoad(homeZone), `주거 구역 (도로 옆에)${offRoadZone(homeZone)}`, 'R-low'],
     // The tool for whichever kind of job is wanted (an industrial zone with only farm demand stays empty).
     // (Which of the two the button picks, said: the step read as either.)
-    [zoned((z) => z >= 4 && z <= 8), `상업·산업 구역 (일자리)${jobWant > 0 ? ` · 지금은 ${jobZone === 'I-medium' ? '산업' : '상업'} 수요가 큼` : ''}`, jobZone],
+    [zonedByRoad(jobZoneCode), `상업·산업 구역 (일자리)${jobWant > 0 ? ` · 지금은 ${jobZone === 'I-medium' ? '산업' : '상업'} 수요가 큼` : ''}${offRoadZone(jobZoneCode)}`, jobZone],
     // Done when the zones have power, not when a plant stands (one across a road from them powered nothing).
     [kinds.some((d) => d.plant) && !darkZones(), `발전소 (도로 옆, 구역에서 4칸 안 · 석탄·석유는 주거에서 ${smokeClear('coalPlant')}칸 넘게)${kinds.some((d) => d.plant) && darkZones() ? ` · ⚠ 전기 없는 구역 ${fmt(unpoweredZones().off)}칸: 송전선으로 이으세요` : ''}`, 'goal:power'],
     // A young town's monthly fire nearly always picks the plant, and a burned plant explodes.
     [served.some((d) => d.fire), '소방서 (발전소가 반경 안에 — 불타면 폭발합니다)' + offRoad('fire'), 'goal:fire'],
-    [st.population > 0, zoned((z) => z >= 1 && z <= 3) && city.state.day > 60 ? '첫 주민 입주 · 안 들어오면 개발 막힘 보기로 원인 확인' : '첫 주민 입주 (시간이 멈춰 있으면 위쪽 ▶)', zoned((z) => z >= 1 && z <= 3) ? 'view:growth' : null],
+    // The first residents, then the town to a thousand (where the services start to be worth their upkeep), with more
+    // homes once those there are all built.
+    st.population === 0
+      ? [false, zoned(homeZone) && city.state.day > 60 ? '첫 주민 입주 · 안 들어오면 개발 막힘 보기로 원인 확인' : '첫 주민 입주 (시간이 멈춰 있으면 위쪽 ▶)', zoned(homeZone) ? 'view:growth' : null]
+      : [st.population >= 1000, `주민 1,000명 (지금 ${fmt(st.population)}명)${homesFull ? ' · 주거 구역이 다 찼습니다: 더 칠하면 늘어납니다' : ''}`, homesFull ? 'R-low' : 'view:growth'],
     // Spending runs ahead of a young town's taxes: the step that keeps the books in the black.
     // (Always listed, so the count doesn't change under the player; ticked by a month in the black.)
     // (Ticked once a month closes in the black: it doesn't flip back and forth with the months.)
     // (With years of money in hand the deficit is a young town's roads before its taxes: no hurry, it says so.)
-    [inBlack, inBlack || !s.lastBudget ? '재정 흑자 유지 (첫 결산부터)' : deficitStep(s.lastBudget.expenses - s.lastBudget.income, s.funds), 'goal:finance'],
+    [inBlack, inBlack || !s.lastBudget ? '재정 흑자 유지 (첫 결산부터)' : deficitStep(s.lastBudget.expenses - s.lastBudget.income, s.funds), 'goal:finance', !inBlack && patient],
     // Garbage piles up from the first month (the rating falls with it), so the landfill comes early.
     // (A landfill counts once trucks can reach it: a road beside one of its tiles.)
     [landfillReached() || kinds.some((d) => d.incinerator),
@@ -114,7 +133,8 @@ export function renderOnboarding(): void {
   // (The road to the neighbours, laid in one press from the first step: its route and price.)
   const way = steps[0] && !steps[0][0] ? edgeRoad('road') : null;
   // (And the zone steps' blocks, where the guide's 추천 자리 would put them: by the road, homes and factories apart.)
-  const blocks = new Map(steps.slice(1, 3).flatMap(([ok, , tool]) => {
+  // (The residents' step too, once the homes there are full: one more block of them.)
+  const blocks = new Map([...steps.slice(1, 3), steps[5]!].flatMap(([ok, , tool]) => {
     const at = !ok && (tool === 'R-low' || tool === 'C-low' || tool === 'I-medium') ? zoneSite(tool) : null;
     const cost = at ? city.previewZone(at.x0, at.y0, at.x1, at.y1, tool as ZoneKind).cost : 0;
     return at && cost <= s.funds ? [[tool!, { ...at, cost }] as const] : [];
@@ -140,8 +160,9 @@ export function renderOnboarding(): void {
   // Phones: the checklist sits in the city pane, so its dock button gets a dot until opened.
   if (!el.dataset.sig && !paneShown()) document.querySelector('.dock-city')?.classList.add('unread');
   el.dataset.sig = sig;
-  // The next three steps; the rest fold away (the whole list pushed the RCI meter off the pane).
-  const todo = steps.filter(([ok]) => !ok);
+  // The next three steps; the rest fold away (the whole list pushed the RCI meter off the pane). One that waits on growth
+  // goes last.
+  const todo = [...steps.filter(([ok, , , last]) => !ok && !last), ...steps.filter(([ok, , , last]) => !ok && last)];
   // A row per step: done ones ticked, the rest pick the tool that does them.
   // (The first step to do stands out until the first residents come: from then the city's state below leads the
   // pane. It went out with the first road, and nothing said what came next.)
@@ -289,7 +310,7 @@ function takeStep(step: string): void {
  * behind the 도시 button while a tool is in hand, and the next step went unseen. The whole list done, a cheer.
  */
 let ticked: { owner: typeof city | null; told: Set<number> } = { owner: null, told: new Set() };
-function cheer(steps: [boolean, string, string | null][]): void {
+function cheer(steps: [boolean, string, string | null, boolean?][]): void {
   const now = new Set(steps.flatMap(([ok], i) => (ok ? [i] : [])));
   // (Each step once a city: one that comes and goes — power cut from a new zone, then back — is told the first time.)
   const fresh = ticked.owner === city ? [...now].filter((i) => !ticked.told.has(i)) : [];
@@ -297,7 +318,8 @@ function cheer(steps: [boolean, string, string | null][]): void {
   if (!fresh.length) return; // (a city just opened says nothing)
   dropToasts('시작하기'); // (the last one's 다음은 … is done now: two stacked, the older one wrong)
   const short = (t: string) => t.split(/ \(| — | · /)[0]!;
-  const next = steps.find(([ok]) => !ok);
+  // (Not one that waits on growth: "다음은 재정 흑자 만들기" at 216 residents led nowhere.)
+  const next = steps.find(([ok, , , last]) => !ok && !last) ?? steps.find(([ok]) => !ok);
   if (!next) {
     toast(`시작하기를 모두 마쳤습니다! 이제 도시 상태를 보며 도시를 키워 보세요.`);
     return;
