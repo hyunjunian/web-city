@@ -63,8 +63,8 @@ export function sampleCity(opts: { seed?: number; days?: number; name?: string }
     city.buildPowerLine(c + 37, c + 22, c + 43, c + 22);
     // A service road so the plants' garbage gets collected.
     city.buildNetwork(c + 37, c + 16, c + 43, c + 16, 'road');
-    city.buildNetwork(c + 43, c + 17, c + 43, c + 21, 'road');
-    city.buildNetwork(c + 43, c + 23, c + 43, c + 35, 'road');
+    // The service road continues across the power-line tile; all three plants share the city's collection network.
+    city.buildNetwork(c + 43, c + 17, c + 43, c + 35, 'road');
     // The pumps sit west of town: a line takes power out to them.
     city.buildPowerLine(c - 39, c - 21, c - 39, c - 7);
     city.buildPowerLine(c - 38, c - 14, c - 36, c - 14);

@@ -100,6 +100,18 @@ describe('capital maintenance', () => {
     city.cfg.services.plantDecayByFunding = [[0, 0], [120, 0]];
     expect(city.assetOutlook(plant.id)!.monthsLeft).toBeNull();
   });
+
+  it('ages reserve equipment with elapsed time and permits throughput-only wear as a tuning option', () => {
+    const city = new City({ size: 16, water: false, config: calm });
+    city.state.funds = 1_000_000;
+    city.placeStructure('windPlant', 2, 2);
+    const wind = [...city.state.structures.values()][0]!;
+    const calendar = city.assetOutlook(wind.id)!;
+    expect(calendar.monthsLeft).toBeLessThan(100 * 12 * 2);
+    city.cfg.infrastructure.calendarWearShare = 0;
+    const throughputOnly = city.assetOutlook(wind.id)!;
+    expect(throughputOnly.monthsLeft).toBeGreaterThan(calendar.monthsLeft! * 5);
+  });
 });
 
 describe('planned utility outages', () => {
@@ -154,6 +166,7 @@ describe('planned utility outages', () => {
     city.placeStructure('coalPlant', 2, 2);
     city.buildPowerLine(6, 3, 40, 3);
     expect(city.placeStructure('wasteToEnergyPlant', 10, 5).ok).toBe(true);
+    expect(city.buildNetwork(10, 4, 13, 4, 'road').ok).toBe(true);
     const waste = [...city.state.structures.values()].find((st) => st.kind === 'wasteToEnergyPlant')!;
     waste.life = 80;
     waste.load = 100;

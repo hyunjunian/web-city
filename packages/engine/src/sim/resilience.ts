@@ -2,7 +2,8 @@ import type { SimConfig } from '../config';
 import type { Fields } from './fields';
 import type { PowerReport, WaterReport } from './services';
 import { activeDeals, edgeTile } from './region';
-import { structureOnline, type CityState } from './state';
+import type { CityState, Structure } from './state';
+import { incineratorPower } from './garbage';
 import { assetOutlook, networkRepairCost, REPAIR_DEPARTMENTS, type AssetOutlook, type RepairDepartment } from './infrastructure';
 
 export interface UtilitySource {
@@ -50,6 +51,28 @@ export interface InfrastructureReport {
   water: UtilityRisk[];
 }
 
+export interface MaintenanceInterruption {
+  resource: 'power' | 'water';
+  networkId: number;
+  demand: number;
+  supplyBefore: number;
+  capacityRemoved: number;
+  supplyDuring: number;
+  shortfall: number;
+  /** Consumers assigned to the affected network, not a prediction that every consumer loses service. */
+  buildings: number;
+  residents: number;
+  /** Working pumps on a power network with insufficient remaining supply; their exact blackout order is not predicted. */
+  waterPumpsAtRisk: number;
+  waterCapacityAtRisk: number;
+}
+
+export interface MaintenanceImpact {
+  id: number;
+  downtimeDays: number;
+  interruptions: MaintenanceInterruption[];
+}
+
 function assess(network: UtilityNetwork, reserveTarget: number): UtilityRisk {
   const sources = network.sources.map((source) => ({ ...source }));
   let largest: UtilitySource | null = null;
@@ -66,9 +89,8 @@ function assess(network: UtilityNetwork, reserveTarget: number): UtilityRisk {
   };
 }
 
-/** Capital planning and per-network capacity resilience. Computed only when requested, never during normal stepping. */
-export function infrastructureReport(s: CityState, cfg: SimConfig, f: Fields, power: PowerReport, water: WaterReport): InfrastructureReport {
-  const assets: AssetOutlook[] = [];
+/** Current power consumers and sources, without scanning map wear or pricing capital work. */
+function powerNetworks(s: CityState, cfg: SimConfig, f: Fields, power: PowerReport): UtilityNetwork[] {
   const networks = new Map<number, UtilityNetwork>();
   power.grids.forEach((grid, id) => {
     if (grid.supply > 0 || grid.demand > 0) networks.set(id, {
@@ -77,10 +99,8 @@ export function infrastructureReport(s: CityState, cfg: SimConfig, f: Fields, po
     });
   });
   for (const st of s.structures.values()) {
-    const outlook = assetOutlook(s, cfg, st);
-    if (outlook) assets.push(outlook);
     const def = cfg.structures[st.kind];
-    const capacity = def.plant ? st.capacity : def.incinerator && structureOnline(s, st) ? st.load * def.incinerator.powerPerTon : 0;
+    const capacity = def.plant ? st.capacity : def.incinerator ? incineratorPower(s, cfg, st) : 0;
     const network = networks.get(f.powerGrid[st.y * s.size + st.x]!);
     if (capacity > 0 && network) {
       network.sources.push({ kind: def.plant ? 'plant' : 'incinerator', id: st.id, capacity, x: st.x, y: st.y });
@@ -105,6 +125,44 @@ export function infrastructureReport(s: CityState, cfg: SimConfig, f: Fields, po
     network.sources.push(source);
     if (network.sources.length === 1) { network.x = source.x; network.y = source.y; }
   }
+  return [...networks.values()];
+}
+
+/** A capacity-only preflight for one overhaul at today's consumer assignments and contracts. No simulation or random draws. */
+export function maintenanceImpact(s: CityState, cfg: SimConfig, f: Fields, power: PowerReport, water: WaterReport, st: Structure): MaintenanceImpact | null {
+  const asset = assetOutlook(s, cfg, st);
+  if (!asset) return null;
+  const downtimeDays = asset.offlineUntilDay === null ? asset.refurbishment.downtimeDays : Math.max(0, asset.offlineUntilDay - s.day);
+  const interruptions: MaintenanceInterruption[] = [];
+  if (downtimeDays === 0) return { id: st.id, downtimeDays, interruptions };
+  const def = cfg.structures[st.kind];
+  const affected = [...(def.plant || def.incinerator ? powerNetworks(s, cfg, f, power) : []), ...(def.pump ? water.networks : [])];
+  for (const network of affected) {
+    const capacityRemoved = network.sources.reduce((sum, source) => sum + (source.kind !== 'import' && source.id === st.id ? source.capacity : 0), 0);
+    if (!(capacityRemoved > 0)) continue;
+    const supplyDuring = Math.max(0, network.supply - capacityRemoved);
+    const shortfall = Math.max(0, network.demand - supplyDuring);
+    let waterPumpsAtRisk = 0, waterCapacityAtRisk = 0;
+    if (network.resource === 'power' && shortfall > 0) for (const pump of s.structures.values()) {
+      if (cfg.structures[pump.kind].pump && pump.capacity > 0 && f.powerGrid[pump.y * s.size + pump.x] === network.id) {
+        waterPumpsAtRisk++;
+        waterCapacityAtRisk += pump.capacity;
+      }
+    }
+    interruptions.push({ resource: network.resource, networkId: network.id, demand: network.demand,
+      supplyBefore: network.supply, capacityRemoved, supplyDuring, shortfall, buildings: network.buildings,
+      residents: network.residents, waterPumpsAtRisk, waterCapacityAtRisk });
+  }
+  return { id: st.id, downtimeDays, interruptions };
+}
+
+/** Capital planning and per-network capacity resilience. Computed only when requested, never during normal stepping. */
+export function infrastructureReport(s: CityState, cfg: SimConfig, f: Fields, power: PowerReport, water: WaterReport): InfrastructureReport {
+  const assets: AssetOutlook[] = [];
+  for (const st of s.structures.values()) {
+    const outlook = assetOutlook(s, cfg, st);
+    if (outlook) assets.push(outlook);
+  }
   assets.sort((a, b) => (a.monthsLeft ?? Infinity) - (b.monthsLeft ?? Infinity) || a.id - b.id);
   const due = assets.filter((asset) => asset.refurbishment.eligible && asset.monthsLeft !== null && asset.monthsLeft <= cfg.infrastructure.planning.lookAheadMonths);
   const repairs = Object.fromEntries(REPAIR_DEPARTMENTS.map((dept) => [dept, { tiles: 0, cost: 0 }])) as InfrastructureReport['repairs'];
@@ -126,7 +184,7 @@ export function infrastructureReport(s: CityState, cfg: SimConfig, f: Fields, po
   const target = cfg.infrastructure.planning.reserveRatio;
   return {
     assets, dueAssets: due.length, capitalNeeded: due.reduce((sum, asset) => sum + asset.refurbishment.cost, 0), repairs,
-    power: [...networks.values()].map((network) => assess(network, target)),
+    power: powerNetworks(s, cfg, f, power).map((network) => assess(network, target)),
     water: water.networks.map((network) => assess(network, target)),
   };
 }

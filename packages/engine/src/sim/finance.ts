@@ -91,7 +91,7 @@ export function budgetForecast(s: CityState, cfg: SimConfig, ctx: BudgetContext,
       // collectBudget already settled the first month at the unmodified tax base and costs.
       at.funds = result.fundsAfterCapital;
     } else {
-      const deals = settleDeals(at, cfg, ctx.delivered, connected);
+      const deals = settleDeals(at, cfg, ctx.delivered, connected, ctx.deliveredByDeal);
       neighbourIncome = deals.income;
       neighbourExpense = deals.expense;
       result.endedDeals.push(...deals.ended.map((deal) => deal.id));

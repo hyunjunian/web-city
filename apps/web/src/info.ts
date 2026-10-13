@@ -308,7 +308,12 @@ export function showInfo(x: number, y: number): void {
       if (!asset.refurbishment.eligible) return [];
       const quote = city.refurbishStructure(q.structure.id, true);
       const why = quote.message ? ko(quote.message) : `${asset.refurbishment.downtimeDays}일간 공급·처리를 멈춘 뒤 재가동합니다 · 수명 사용률 ${Math.round(asset.life)}% → ${Math.round(asset.refurbishment.lifeAfter)}%`;
-      return [`<button type="button" class="chip" data-overhaul="${q.structure.id}" title="${escapeHtml(why)}"${quote.ok ? '' : ' disabled'}>개보수 · ${asset.refurbishment.downtimeDays}일 중단 · §${fmt(quote.cost)}</button>`];
+      const impact = city.maintenanceImpact(q.structure.id);
+      const warnings = impact?.interruptions.filter((part) => part.shortfall > 0).map((part) => {
+        const resource = part.resource === 'power' ? '전력' : '수도';
+        return `<span class="chip warn" title="현재 수요와 연결을 유지할 때의 용량 부족입니다. 같은 망 주민 ${fmt(part.residents)}명${part.waterPumpsAtRisk ? ` · 펌프 ${part.waterPumpsAtRisk}곳의 급수 ${fmt(part.waterCapacityAtRisk)}m³도 위험` : ''}">정비 중 ${resource} ${fmt(part.shortfall)}${part.resource === 'power' ? 'MWh' : 'm³'} 부족</span>`;
+      }) ?? [];
+      return [`<button type="button" class="chip" data-overhaul="${q.structure.id}" title="${escapeHtml(why)}"${quote.ok ? '' : ' disabled'}>개보수 · ${asset.refurbishment.downtimeDays}일 중단 · §${fmt(quote.cost)}</button>`, ...warnings];
     })(),
     b && !b.powered ? `<button type="button" class="chip bad"${go('power')} title="${city.cfg.services.noPowerMonths}개월이 되면 버려집니다 · 눌러서 전력 화면">${icon('zap')}전기 끊김 ${b.noPowerMonths}/${city.cfg.services.noPowerMonths}개월</button>` : '',
     b?.type && !b.watered && waterNeeded ? `<button type="button" class="chip bad"${go('water')} title="${city.cfg.services.noWaterMonths}개월이 되면 버려집니다 · 눌러서 수도 화면">${icon('droplet')}물 끊김 ${b.noWaterMonths}/${city.cfg.services.noWaterMonths}개월</button>` : '',
@@ -838,7 +843,7 @@ export function structureRows(st: Structure, withLoad = true): string {
   if (def.incinerator) {
     rows += `
       ${withLoad ? `<tr><td>소각량</td><td>${fmt(st.load)} / ${fmt(st.capacity)} t</td></tr>` : ''}
-      <tr><td title="태운 쓰레기만큼 전력망에 내놓는 전력">발전 능력</td><td>${fmt(st.load * def.incinerator.powerPerTon)} MWh</td></tr>
+      <tr><td title="최근 소각량과 현재 처리 용량 안에서 전력망에 내놓는 전력">발전 능력</td><td>${fmt(Math.max(0, Math.min(st.load, st.capacity)) * def.incinerator.powerPerTon)} MWh</td></tr>
       <tr><td>상태 (수명)</td><td>${Math.max(0, Math.round((1 - st.life / 110) * 100))}%</td></tr>`;
   } else if (def.recycling) {
     rows += `<tr><td>전력</td><td class="${st.powered ? '' : 'neg'}">${st.powered ? '공급 중' : '없음 (작동 안 함)'}</td></tr>`;

@@ -113,6 +113,7 @@ export function* adviseSteps(s: CityState, cfg: SimConfig, f: Fields, st: Adviso
   }
   if (st.population > 3000 && st.water.supply === 0 && !(st.water.pumpsOff ?? 0)) say('utilities', 'bad', 'noWater');
   const g = st.garbage;
+  if ((g.routeCutOff ?? 0) > 1) say('utilities', 'bad', 'garbageNoRoute', Math.round(g.routeCutOff!));
   // Facilities with no road beside them: trucks can't take their garbage (and fire
   // engines can't leave, buses can't stop). That, not disposal, is then the trouble.
   const offRoad = [...s.structures.values()].filter((x) => def(x.kind).garbage > 0 && !frontage(s, x).length);

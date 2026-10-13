@@ -219,6 +219,15 @@ for (let month = 0; month < years * 12; month++) {
   }
   const forecast = city.budgetForecast(12, { capitalSpend: 1_000 });
   if (forecast.points.some((point) => !Number.isFinite(point.funds) || !Number.isFinite(point.debt) || point.debt < 0)) fail('invalid financial projection');
+  if (month % 6 === 0) {
+    const garbage = city.previewGarbage();
+    for (const value of Object.values(garbage)) if (typeof value === 'number' && (!Number.isFinite(value) || value < -1e-6)) fail('invalid collection preview');
+    const asset = infrastructure.assets[0];
+    if (asset) {
+      const maintenance = city.maintenanceImpact(asset.id)!;
+      if (maintenance.interruptions.some((part) => part.supplyDuring < 0 || part.shortfall < 0 || part.capacityRemoved > part.supplyBefore + 1e-6)) fail('invalid maintenance interruption');
+    }
+  }
   if (JSON.stringify(saveCity(city)) !== readBefore) fail('operating reports changed the saved city');
   // The month's only money is its budget: funds move by exactly income − expenses.
   const lb = city.state.lastBudget;

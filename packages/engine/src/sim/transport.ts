@@ -6,6 +6,7 @@
 // backwards from destinations, so one pass gives every origin its fastest trip.
 
 import { drain } from './steps';
+import { MinHeap as Heap } from './heap';
 import type { SimConfig } from '../config';
 import { interp } from '../data/services';
 import { ordinanceEffects } from './mayor';
@@ -484,6 +485,69 @@ function deckWay(s: CityState, t: number, u: number): boolean {
   return (u % n) - (t % n) === dx && Math.floor(u / n) - Math.floor(t / n) === dy;
 }
 
+export interface TruckNetworks { ground: Int32Array; high: Int32Array }
+const TRUCK_NETWORKS = new WeakMap<TravelFields, TruckNetworks>();
+
+/** Road connectivity for collection trucks, including upper decks and actual ramps. Directions and travel times are ignored. */
+export function* truckNetworksSteps(s: CityState, f: Fields): Generator<void, TruckNetworks> {
+  const travel = f.travel;
+  if (!travel) return { ground: f.component, high: new Int32Array(0) };
+  const cached = TRUCK_NETWORKS.get(travel);
+  if (cached) return cached;
+  const upper = travel.cross[Mode.HighCar]!;
+  if (!upper.some((cost) => cost > 0)) {
+    const result = { ground: f.component, high: new Int32Array(0) };
+    TRUCK_NETWORKS.set(travel, result);
+    return result;
+  }
+  const n = s.size, N = n * n;
+  const ground = new Int32Array(N).fill(-1), high = new Int32Array(N).fill(-1);
+  const layers = [ground, high], crossings = [travel.cross[Mode.Car]!, upper];
+  const joins = new Map<number, number[]>();
+  const join = (a: number, b: number) => {
+    const list = joins.get(a);
+    if (list) list.push(b); else joins.set(a, [b]);
+  };
+  for (const [to, transfers] of travel.carTransfers) for (const [from] of transfers) {
+    const a = Math.floor(from / N), b = Math.floor(to / N);
+    if (!(a === Mode.Car && b === Mode.HighCar || a === Mode.HighCar && b === Mode.Car)) continue;
+    const va = (a === Mode.Car ? 0 : N) + from % N, vb = (b === Mode.Car ? 0 : N) + to % N;
+    join(va, vb); join(vb, va);
+  }
+  let count = 0, work = 0;
+  for (let layer = 0; layer < 2; layer++) for (let start = 0; start < N; start++) {
+    if ((++work & 0x7ff) === 0) yield;
+    if (!(crossings[layer]![start]! > 0) || layers[layer]![start]! >= 0) continue;
+    const queue = [layer * N + start];
+    layers[layer]![start] = count;
+    const visit = (v: number) => {
+      const z = v >= N ? 1 : 0, tile = v % N;
+      if (layers[z]![tile]! >= 0 || !(crossings[z]![tile]! > 0)) return;
+      layers[z]![tile] = count;
+      queue.push(v);
+    };
+    for (let head = 0; head < queue.length; head++) {
+      if ((++work & 0x7ff) === 0) yield;
+      const v = queue[head]!, z = v >= N ? 1 : 0, tile = v % N;
+      const x = tile % n, y = (tile - x) / n;
+      for (let direction = 0; direction < 4; direction++) {
+        const nx = x + DX[direction]!, ny = y + DY[direction]!;
+        if (nx < 0 || nx >= n || ny < 0 || ny >= n) continue;
+        const adjacent = ny * n + nx;
+        if (!(crossings[z]![adjacent]! > 0)) continue;
+        if (z === 0 ? carMove(s, tile, adjacent) || carMove(s, adjacent, tile)
+          : highMove(s, tile, adjacent) || highMove(s, adjacent, tile)) visit(z * N + adjacent);
+      }
+      const transfers = joins.get(v);
+      if (transfers) for (const to of transfers) visit(to);
+    }
+    count++;
+  }
+  const result = { ground, high };
+  TRUCK_NETWORKS.set(travel, result);
+  return result;
+}
+
 /** A workplace (or a neighbour city's connection) in a capacitated job search. */
 interface JobTarget {
   /** Its states (front tiles on foot and by car, or the connection) and the cost of starting there. */
@@ -813,57 +877,6 @@ class ReturnTrip {
     this.detours.set(key, way);
     return way;
   }
-}
-
-/** Minimal binary heap of (key, value) pairs. */
-class Heap {
-  private keys: number[] = [];
-  private vals: number[] = [];
-  get size(): number {
-    return this.keys.length;
-  }
-  push(k: number, v: number): void {
-    const keys = this.keys;
-    const vals = this.vals;
-    let i = keys.length;
-    keys.push(k);
-    vals.push(v);
-    while (i > 0) {
-      const p = (i - 1) >> 1;
-      if (keys[p]! <= k) break;
-      keys[i] = keys[p]!;
-      vals[i] = vals[p]!;
-      i = p;
-    }
-    keys[i] = k;
-    vals[i] = v;
-  }
-  /** Removes the smallest; returns its value (read `lastKey` for the key). */
-  pop(): number {
-    const keys = this.keys;
-    const vals = this.vals;
-    const top = vals[0]!;
-    this.lastKey = keys[0]!;
-    const k = keys.pop()!;
-    const v = vals.pop()!;
-    const len = keys.length;
-    if (len) {
-      let i = 0;
-      for (;;) {
-        let c = 2 * i + 1;
-        if (c >= len) break;
-        if (c + 1 < len && keys[c + 1]! < keys[c]!) c++;
-        if (keys[c]! >= k) break;
-        keys[i] = keys[c]!;
-        vals[i] = vals[c]!;
-        i = c;
-      }
-      keys[i] = k;
-      vals[i] = v;
-    }
-    return top;
-  }
-  lastKey = 0;
 }
 
 interface SearchOptions {

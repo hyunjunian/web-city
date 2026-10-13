@@ -15,7 +15,7 @@ import {
 import { developOnce, exodus, GROWTH_CODES, growthBlockers, INFO_ONLY, trackDemand, understaffed, updateBuildingsSteps, warmTractsSteps, type DevContext, type GrowthBlocker } from './sim/development';
 import { computeEffectFieldsSteps, computeJobComponentsSteps, computeNetworkFieldsSteps, createFields, footprint, frontage, INF, type Fields } from './sim/fields';
 import {
-  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isLocalNet, isRail, Net, NETWORK_KINDS, ONEWAY_DIRS, isJail, structureFunding, Terrain, zoneCode, zoneInfo, ZONES,
+  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isLocalNet, isRail, Net, NETWORK_KINDS, ONEWAY_DIRS, isJail, Terrain, zoneCode, zoneInfo, ZONES,
   type BudgetReport, type Building, type CityState, type DealResource, type GarbageStats, type HistoryPoint, type Rect, type MySim, type NeighbourDeal, type NetworkKind,
   type Structure, type ZoneKind,
   type Neighbour,
@@ -29,7 +29,7 @@ import { collectBudget, collectBudgetSteps, departmentUpkeep, loanPrincipal, str
 import { autoDispatchSteps, dispatchUnit, FIT_CREW, freeUnits, neutraliseSpills, stepUnits, type DispatchKind } from './sim/dispatch';
 import {
   dealMonthly, dealTotals, defaultNeighbours, drainRegionalGrowth, edgeConnections, evaluateDeal, exportDemand, makeNeighbour, regionalDemand, reliefConnections,
-  edgeReach, hasDealConnection, neighbourFromSnapshot, repriceDeals, type CitySnapshot, type DealOffer, type Utility,
+  edgeReach, edgeTile, hasDealConnection, neighbourFromSnapshot, repriceDeals, type CitySnapshot, type DealOffer, type Utility,
 } from './sim/region';
 import type { NeighbourKind } from './data/region';
 import {
@@ -44,7 +44,7 @@ import {
 import {
   changeWind, computeSafetyFieldsSteps, ignite, igniteTree, monthlyIgnition, runCrimeSteps, stepFires, stepTreeFires, updateSafetyStrikes, type FireContext,
 } from './sim/safety';
-import { hasOperatingLandfill, hasOperatingLandfillSteps, LANDFILL_ZONE, runGarbageSteps } from './sim/garbage';
+import { hasOperatingLandfill, hasOperatingLandfillSteps, incineratorPower, LANDFILL_ZONE, runGarbage, runGarbageSteps } from './sim/garbage';
 import {
   civicEvent, computeMayor, mayorAt, ordinanceAvailable, ordinanceCost as ordinanceCostOf, ordinanceEffects,
   opinionPolls, riotCheck, stepMobs, taxMoodFor, updateTaxMood, type MayorFactors, type PollTopic,
@@ -61,7 +61,7 @@ import { DEZONING_COST, ZONING_COST_HIGH_COMMERCIAL } from './data/economy';
 import { DEV_TYPES, perType, type DevType, type PerType } from './types';
 import { assetOutlook, networkRepairCost, REPAIR_DEPARTMENTS, type AssetOutlook, type RepairDepartment, type RepairPreview } from './sim/infrastructure';
 import { energyReport, POWER_DISPATCHES, type EnergyReport, type PowerDispatch } from './sim/energy';
-import { infrastructureReport, type InfrastructureReport } from './sim/resilience';
+import { infrastructureReport, maintenanceImpact, type InfrastructureReport, type MaintenanceImpact } from './sim/resilience';
 import { budgetForecast, type BudgetForecast, type BudgetForecastOptions } from './sim/finance';
 
 export interface CityOptions {
@@ -1899,6 +1899,22 @@ export class City {
     return infrastructureReport(this.state, this.cfg, this.fields, this.power, this.water);
   }
 
+  /** Capacity lost while one utility is overhauled, with the affected network's current consumers and any working pumps exposed to a power shortfall. Holds demand, contracts and consumer assignments constant; does not predict blackout order, pollution feedback or alternative pipe coverage. Null for non-utility facilities. */
+  maintenanceImpact(id: number): MaintenanceImpact | null {
+    this.refreshIfDirty();
+    const st = this.state.structures.get(id);
+    return st ? maintenanceImpact(this.state, this.cfg, this.fields, this.power, this.water, st) : null;
+  }
+
+  /** Collection and disposal if the monthly tally ran under today's population, roads, funding, equipment and piles. Includes current contracts and overhaul availability; future growth and completion of work are not advanced. Does not change garbage, landfill contents, facility loads or random state. */
+  previewGarbage(): CityState['garbageStats'] {
+    this.refreshIfDirty();
+    const state = { ...this.state, garbage: this.state.garbage.slice(), landfill: this.state.landfill.slice(),
+      structures: new Map([...this.state.structures].map(([id, st]) => [id, { ...st }])) };
+    const residents = this.census.residents[0] + this.census.residents[1] + this.census.residents[2];
+    return runGarbage(state, this.fields, this.cfg, new Rng(this.rng.state), residents);
+  }
+
   /** Sets power dispatch within each grid: balanced shares the load, economical uses the lowest generation cost first, clean the lowest air/water emission burden. Imports and waste energy are used first. */
   setPowerDispatch(strategy: PowerDispatch): ToolResult {
     this.settle();
@@ -2337,9 +2353,32 @@ export class City {
 
   private budgetContext(s: CityState, days = false): BudgetContext {
     const c = this.census;
+    const deliveredByDeal = new Map<number, boolean>();
+    const graceRoom = new Map<string, number>();
+    // Active sales already count in network demand. Grace-period sales need spare
+    // capacity reserved once, in id order, before they can return on probation.
+    const sales = s.neighbourDeals.filter((deal) => deal.direction === 'sell' && deal.resource !== 'garbage')
+      .sort((a, b) => Number(a.status === 'grace') - Number(b.status === 'grace') || a.id - b.id);
+    for (const deal of sales) {
+      const power = deal.resource === 'power';
+      const port = edgeTile(s, deal.edge, (i) => power ? s.power[i] === 1 && this.fields.powerGrid[i]! >= 0
+        : s.pipe[i] === 1 && this.fields.pipeGrid[i]! >= 0, deal.resource);
+      const id = port < 0 ? -1 : power ? this.fields.powerGrid[port]! : this.fields.pipeGrid[port]!;
+      const network = power ? this.power.grids[id] : this.water.networks.find((network) => network.id === id);
+      if (!network) { deliveredByDeal.set(deal.id, false); continue; }
+      const key = `${deal.resource}:${id}`;
+      let ok = network.supply + 1e-9 >= network.demand;
+      if (deal.status === 'grace') {
+        const reserve = graceRoom.get(key) ?? network.supply - network.demand;
+        ok = reserve + 1e-9 >= deal.amount;
+        if (ok) graceRoom.set(key, Math.max(0, reserve - deal.amount));
+      }
+      deliveredByDeal.set(deal.id, ok);
+    }
     return {
       residents: c.residents[0] + c.residents[1] + c.residents[2],
       fares: this.fares,
+      deliveredByDeal,
       delivered: {
         power: this.power.supply >= this.power.demand,
         // A pipe stub without a pump isn't a failure to supply the deal.
@@ -2359,7 +2398,7 @@ export class City {
     s.lastBudget = report;
     for (const d of ended) this.endedDeals.push(d);
     yield;
-    this.repricedDeals.push(...repriceDeals(s, this.cfg, (r) => this.utility(r)));
+    this.repricedDeals.push(...repriceDeals(s, this.cfg, (r) => this.utilitySnapshot(r)));
     yield;
     this.checkMySims();
   }
@@ -3302,6 +3341,12 @@ export class City {
 
   /** The city's own capacity, use and average cost of power, water or garbage disposal. */
   utility(resource: DealResource): Utility {
+    this.refreshIfDirty();
+    return this.utilitySnapshot(resource);
+  }
+
+  /** Utility values from the fields already settled by the monthly simulation. */
+  private utilitySnapshot(resource: DealResource): Utility {
     const s = this.state;
     const cfg = this.cfg;
     let capacity = 0;
@@ -3309,13 +3354,13 @@ export class City {
     for (const st of s.structures.values()) {
       const def = cfg.structures[st.kind];
       if (resource === 'power' && (def.plant || def.incinerator)) {
-        capacity += def.plant ? st.capacity : st.load * def.incinerator!.powerPerTon;
-        if (def.plant) cost += def.upkeep * (st.funding / 100);
+        capacity += def.plant ? st.capacity : incineratorPower(s, cfg, st);
+        if (def.plant) cost += structureUpkeep(s, cfg, st).total;
       } else if (resource === 'water' && def.pump) {
         capacity += st.capacity;
-        cost += def.upkeep * (structureFunding(s, def, st) / 100); // (pumps go by the Water Department's funding)
+        cost += structureUpkeep(s, cfg, st).total;
       } else if (resource === 'garbage' && def.incinerator) {
-        cost += def.upkeep * (s.departments.sanitation / 100);
+        cost += structureUpkeep(s, cfg, st).total;
         capacity += st.capacity;
       }
     }
@@ -3328,7 +3373,7 @@ export class City {
       // Tons a month, like the usage it is set against: incinerators' monthly capacity, and the free landfill
       // spread over five years (all of it, a stock, made any landfill a vast monthly surplus to sell).
       capacity += Math.max(0, g.landfillSpace ?? 0) / GARBAGE_DEAL_MONTHS;
-      usage = g.produced - g.recycled;
+      usage = g.kept ?? g.produced - g.recycled;
       let tiles = 0;
       for (let i = 0; i < s.zone.length; i++) if (s.zone[i] === LANDFILL_ZONE) tiles++;
       cost += tiles * cfg.garbage.landfill.upkeep * (s.departments.sanitation / 100) + usage * cfg.garbage.pickupCost;
@@ -3340,9 +3385,10 @@ export class City {
   /** Every Neighbor Deal the city could strike now, with its maximum amount and price, or why not. */
   dealOffers(): DealOffer[] {
     const out: DealOffer[] = [];
+    const utilities = { power: this.utility('power'), water: this.utility('water'), garbage: this.utility('garbage') };
     for (const edge of [0, 1, 2, 3] as const) {
       for (const resource of ['power', 'water', 'garbage'] as const) {
-        const own = this.utility(resource);
+        const own = utilities[resource];
         for (const direction of ['buy', 'sell'] as const) out.push(evaluateDeal(this.state, this.cfg, own, edge, resource, direction));
       }
     }

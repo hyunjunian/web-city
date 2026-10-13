@@ -13,6 +13,7 @@
     "test": "npm test --workspaces",
     "smoke": "npm run smoke -w @web-city/engine --",
     "fuzz": "npm run fuzz -w @web-city/engine --",
+    "benchmark": "npm run benchmark -w @web-city/engine --",
     "docs": "npm run docs -w @web-city/engine"
   },
   "devDependencies": {

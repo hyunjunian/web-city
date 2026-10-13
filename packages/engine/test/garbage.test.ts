@@ -18,6 +18,207 @@ function town(): City {
 }
 
 describe('garbage', () => {
+  const islands = () => {
+    const city = new City({ size: 48, water: false });
+    city.state.funds = 1_000_000;
+    city.batch(() => {
+      city.buildNetwork(0, 8, 20, 8, 'road');
+      city.buildNetwork(25, 30, 47, 30, 'road');
+      city.placeStructure('gasPlant', 2, 9);
+      city.placeStructure('gasPlant', 28, 31);
+    });
+    return city;
+  };
+
+  it('leaves garbage on a disconnected collection island despite spare incinerator capacity elsewhere', () => {
+    const city = islands();
+    city.placeStructure('wasteToEnergyPlant', 8, 9);
+    city.refresh();
+    const report = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(report.incinerated).toBe(20);
+    expect(report.uncollected).toBe(20);
+    expect(report.capacity).toBe(500);
+    expect(report.routeCutOff).toBe(20);
+    city.state.garbageStats = report;
+    expect(city.advisors()).toContainEqual(expect.objectContaining({ code: 'garbageNoRoute', value: 20 }));
+    expect(loadCity(saveCity(city)).state.garbageStats.routeCutOff).toBe(20);
+    expect(city.state.garbage[9 * 48 + 2]).toBe(0);
+    expect(city.state.garbage[31 * 48 + 28]).toBeGreaterThan(0);
+  });
+
+  it('restricts landfill intake and backlog pickup to its roads, then resumes collection when joined', () => {
+    const city = islands();
+    city.zone(14, 9, 18, 12, 'landfill');
+    city.refresh();
+    const first = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(first.landfilled).toBe(20);
+    expect(first.uncollected).toBe(20);
+    city.batch(() => {
+      city.buildNetwork(0, 8, 0, 30, 'road');
+      city.buildNetwork(0, 30, 25, 30, 'road');
+    });
+    const joined = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(joined.uncollected).toBe(0);
+    expect(joined.routeCutOff).toBe(0);
+    expect(joined.landfilled).toBeCloseTo(50);
+    expect(joined.piled).toBeCloseTo(10);
+  });
+
+  it('cannot receive waste or supply waste electricity when no road reaches the incinerator', () => {
+    const city = islands();
+    city.placeStructure('wasteToEnergyPlant', 38, 40);
+    const burner = [...city.state.structures.values()].find((st) => st.kind === 'wasteToEnergyPlant')!;
+    burner.load = 100;
+    city.refresh();
+    expect(city.energyReport()!.wasteGeneration).toBe(0);
+    const report = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(report.incinerated).toBe(0);
+    expect(report.capacity).toBe(0);
+    expect(report.uncollected).toBe(40);
+  });
+
+  it('exports only from the contracted border road and requires funded collection trucks', () => {
+    const city = islands();
+    city.state.neighbourDeals.push({ id: 1, edge: 0, resource: 'garbage', direction: 'buy', amount: 100, price: 1,
+      startDay: 0, status: 'active', monthsLeft: 0 });
+    const report = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(report.exported).toBe(20);
+    expect(report.uncollected).toBe(20);
+    city.setDepartmentFunding('sanitation', 0);
+    city.refreshIfDirty();
+    const unfunded = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(unfunded.exported).toBe(0);
+    expect(unfunded.uncollected).toBe(40);
+  });
+
+  it('receives imported garbage at the contracted road instead of a disconnected disposal plant', () => {
+    const city = islands();
+    city.placeStructure('wasteToEnergyPlant', 36, 31);
+    city.state.neighbourDeals.push({ id: 1, edge: 0, resource: 'garbage', direction: 'sell', amount: 100, price: 1,
+      startDay: 0, status: 'active', monthsLeft: 0 });
+    city.refresh();
+    const report = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(report.imported).toBe(0);
+    expect(report.importShort).toBe(100);
+    expect(report.incinerated).toBe(20);
+    city.batch(() => {
+      city.buildNetwork(0, 8, 0, 30, 'road');
+      city.buildNetwork(0, 30, 25, 30, 'road');
+    });
+    const joined = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(joined.imported).toBe(100);
+    expect(joined.importShort).toBe(0);
+    expect(joined.incinerated).toBeCloseTo(150);
+  });
+
+  it('keeps multi-network collection deterministic through sliced steps and save/load', () => {
+    const city = islands();
+    city.placeStructure('wasteToEnergyPlant', 8, 9);
+    city.zone(36, 31, 39, 34, 'landfill');
+    const options = { config: { safety: { fires: false }, disasters: { simulated: false }, mayor: { riots: false } } };
+    const saved = saveCity(city);
+    const full = loadCity(saved, options), sliced = loadCity(saved, options);
+    full.step(120);
+    sliced.beginSteps(120);
+    while (sliced.resume());
+    expect(saveCity(sliced)).toEqual(saveCity(full));
+    const reloaded = loadCity(saveCity(full), options);
+    expect(reloaded.stats()).toEqual(full.stats());
+    expect(reloaded.stats().garbage.routeCutOff).toBe(0);
+  });
+
+  it('previews new connections without changing stored piles, machinery, landfill contents or randomness', () => {
+    const city = islands();
+    city.placeStructure('wasteToEnergyPlant', 8, 9);
+    city.state.garbage[31 * 48 + 28] = 20;
+    const before = saveCity(city);
+    const disconnected = city.previewGarbage();
+    expect(disconnected.routeCutOff).toBe(20);
+    expect(disconnected.incinerated).toBe(20);
+    expect(saveCity(city)).toEqual(before);
+    city.batch(() => {
+      city.buildNetwork(0, 8, 0, 30, 'road');
+      city.buildNetwork(0, 30, 25, 30, 'road');
+    });
+    const joined = saveCity(city);
+    const plan = city.previewGarbage();
+    expect(plan.routeCutOff).toBe(0);
+    expect(plan.uncollected).toBe(0);
+    expect(plan.incinerated).toBe(50);
+    plan.incinerated = 0;
+    expect(city.previewGarbage().incinerated).toBe(50);
+    expect(saveCity(city)).toEqual(joined);
+  });
+
+  it('carries garbage over elevated highways through ramps and to an elevated export border', () => {
+    const city = new City({ size: 64, water: false });
+    city.state.funds = 1_000_000;
+    city.batch(() => {
+      city.buildNetwork(4, 12, 4, 29, 'road');
+      city.buildNetwork(59, 12, 59, 29, 'road');
+      city.buildElevated(0, 10, 63, 10, 'highway');
+      city.buildNetwork(4, 11, 4, 11, 'onramp');
+      city.buildNetwork(59, 11, 59, 11, 'onramp');
+      city.placeStructure('gasPlant', 5, 20);
+      city.placeStructure('wasteToEnergyPlant', 55, 20);
+    });
+    const joined = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(joined.incinerated).toBe(20);
+    expect(joined.uncollected).toBe(0);
+    city.state.neighbourDeals.push({ id: 1, edge: 1, resource: 'garbage', direction: 'buy', amount: 100, price: 1,
+      startDay: 0, status: 'active', monthsLeft: 0 });
+    const exporting = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(exporting.exported).toBe(20);
+    expect(exporting.incinerated).toBe(0);
+    city.bulldoze(4, 11, 4, 11);
+    city.refresh();
+    const disconnected = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(disconnected.exported).toBe(0);
+    expect(disconnected.incinerated).toBe(0);
+    expect(disconnected.routeCutOff).toBe(20);
+  });
+
+  it('crosses a road deck but cannot turn onto the highway underneath without a ramp', () => {
+    const city = new City({ size: 40, water: false });
+    city.state.funds = 1_000_000;
+    city.batch(() => {
+      city.buildNetwork(0, 20, 39, 20, 'highway');
+      city.buildNetwork(10, 5, 10, 35, 'road');
+      city.placeStructure('gasPlant', 11, 6);
+      city.placeStructure('wasteToEnergyPlant', 11, 30);
+    });
+    const crossing = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(crossing.incinerated).toBe(20);
+    city.state.neighbourDeals.push({ id: 1, edge: 0, resource: 'garbage', direction: 'sell', amount: 100, price: 1,
+      startDay: 0, status: 'active', monthsLeft: 0 });
+    expect(runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0).importShort).toBe(100);
+    city.batch(() => {
+      city.buildNetwork(11, 21, 13, 21, 'road');
+      city.buildNetwork(13, 21, 13, 21, 'onramp');
+    });
+    const ramped = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(ramped.imported).toBe(100);
+    expect(ramped.importShort).toBe(0);
+    expect(ramped.incinerated).toBe(120);
+  });
+
+  it('shares one contract capacity across disconnected ports and avoids an unusable earlier port', () => {
+    const city = islands();
+    city.buildNetwork(0, 30, 25, 30, 'road');
+    city.placeStructure('wasteToEnergyPlant', 36, 31);
+    city.state.neighbourDeals.push({ id: 1, edge: 0, resource: 'garbage', direction: 'sell', amount: 100, price: 1,
+      startDay: 0, status: 'active', monthsLeft: 0 });
+    city.refresh();
+    const importing = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(importing.imported).toBe(100);
+    expect(importing.importShort).toBe(0);
+    city.state.neighbourDeals[0]!.direction = 'buy';
+    city.state.neighbourDeals[0]!.amount = 25;
+    const exporting = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
+    expect(exporting.exported).toBe(25);
+    expect(exporting.incinerated).toBe(15);
+  });
+
   it('trucks cannot enter a landfill from a tunnel, but can from a low bridge', () => {
     const city = new City({ size: 32, water: false });
     city.state.funds = 1_000_000;
@@ -56,6 +257,7 @@ describe('garbage', () => {
     expect(g.piled).toBeCloseTo(30);
     // Reconnecting the lot makes its old pile collectable next month.
     city.buildNetwork(0, 10, 0, 23, 'road');
+    city.refresh();
     const next = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
     expect(city.state.garbage[stranded]).toBeCloseTo(10);
     expect(next.piled).toBeCloseTo(15);

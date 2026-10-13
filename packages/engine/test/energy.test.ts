@@ -7,6 +7,7 @@ function grid(): City {
   city.state.funds = 1_000_000;
   city.cfg.structures.coalPlant.powerUse = 1_000;
   city.batch(() => {
+    city.buildNetwork(1, 1, 20, 1, 'road');
     city.placeStructure('coalPlant', 2, 2);
     city.placeStructure('gasPlant', 8, 2);
   });
@@ -102,6 +103,24 @@ describe('power operation', () => {
     expect(unfunded.maintenanceCost).toBe(0);
     expect(unfunded.generationCost).toBe(43.75);
     expect(city.structureUpkeep(plant.id)!.running).toBe(43.75);
+    expect(city.utility('power').cost).toBeCloseTo(43.75 / plant.capacity, 10);
+  });
+
+  it('uses actual generation and age-related upkeep when quoting local utility costs', () => {
+    const city = grid();
+    const cost = () => {
+      const energy = city.energyReport()!;
+      return (energy.maintenanceCost + energy.generationCost) / city.utility('power').capacity;
+    };
+    expect(city.utility('power').cost).toBeCloseTo(cost(), 10);
+    const balanced = city.utility('power').cost;
+    city.setPowerDispatch('clean');
+    expect(city.utility('power').cost).toBeCloseTo(cost(), 10);
+    expect(city.utility('power').cost).toBeGreaterThan(balanced);
+    const coal = [...city.state.structures.values()].find((st) => st.kind === 'coalPlant')!;
+    coal.life = 80;
+    city.refresh();
+    expect(city.utility('power').cost).toBeCloseTo(cost(), 10);
   });
 
   it('prioritises renewable generation with zero generation cost and deterministic equal-cost ties', () => {
@@ -124,8 +143,26 @@ describe('power operation', () => {
     city.step(360);
     const coal = [...city.state.structures.values()].find((st) => st.kind === 'coalPlant')!;
     const gas = [...city.state.structures.values()].find((st) => st.kind === 'gasPlant')!;
-    expect(gas.life).toBeGreaterThan(coal.life * 2);
+    expect(gas.life).toBeGreaterThan(coal.life);
     expect(coal.life).toBeGreaterThan(0); // standby still ages
+  });
+
+  it('bounds waste electricity by funded processing capacity immediately, including a zero-budget shutdown', () => {
+    const city = grid();
+    city.placeStructure('wasteToEnergyPlant', 14, 2);
+    const waste = [...city.state.structures.values()].find((st) => st.kind === 'wasteToEnergyPlant')!;
+    waste.load = 500;
+    city.refresh();
+    expect(city.energyReport()!.wasteGeneration).toBe(5_000);
+    city.setDepartmentFunding('sanitation', 50);
+    city.refreshIfDirty();
+    expect(city.energyReport()!.wasteGeneration).toBe(2_500);
+    expect(city.utility('power').capacity).toBe(11_500);
+    city.setDepartmentFunding('sanitation', 0);
+    city.refreshIfDirty();
+    expect(city.energyReport()!.wasteGeneration).toBe(0);
+    expect(city.utility('power').capacity).toBe(9_000);
+    expect(city.infrastructureReport().power[0]!.sources.some((source) => source.kind === 'incinerator')).toBe(false);
   });
 
   it('preserves policies and deterministic outcomes across save/load and defaults old saves to balanced', () => {

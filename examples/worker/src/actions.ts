@@ -14,7 +14,7 @@ export const ACTIONS = [
   'repayLoan', 'loanPayment', 'loanBalance', 'powerReach', 'ordinanceAvailable', 'ordinanceCost', 'isUnlocked', 'placementsLeft',
   'structureUpkeep', 'understaffed', 'mySimCommute', 'canDrive', 'connectionsPerEdge', 'powerDemand', 'waterDemand',
   'assetOutlook', 'refurbishStructure', 'previewRepairNetworks', 'repairNetworks', 'setPowerDispatch', 'energyReport',
-  'infrastructureReport',
+  'infrastructureReport', 'maintenanceImpact', 'previewGarbage',
   'budgetForecast',
 ] as const;
 export type Action = (typeof ACTIONS)[number];

@@ -6,6 +6,107 @@ import { perType } from '../src/types';
 
 const CALM = { safety: { fires: false }, mayor: { riots: false } } as const;
 
+describe('connected-network sale delivery', () => {
+  const sale = (id: number, edge: 0 | 1 | 2 | 3, resource: 'power' | 'water', amount: number) => ({
+    id, edge, resource, direction: 'sell' as const, amount, price: 1, startDay: 0, status: 'active' as const, monthsLeft: 0,
+  });
+
+  it('keeps a healthy sale paid while a disconnected undersized generator enters grace', () => {
+    const city = new City({ size: 48, water: false, config: { ...CALM, disasters: { simulated: false } } });
+    city.state.funds = 1_000_000;
+    city.batch(() => {
+      city.placeStructure('coalPlant', 2, 2);
+      city.placeStructure('windPlant', 35, 35);
+      city.buildPowerLine(0, 3, 1, 3);
+      expect(city.buildPowerLine(37, 35, 47, 35).ok).toBe(true);
+      city.setNeighbour(0, 'developed', 10);
+      city.setNeighbour(1, 'developed', 10);
+    });
+    city.state.neighbourDeals.push(sale(1, 0, 'power', 1_000), sale(2, 1, 'power', 1_000));
+    city.state.nextDealId = 3;
+    city.refresh();
+    expect(city.power.supply).toBeGreaterThan(city.power.demand); // city totals conceal the eastern shortfall
+    expect(city.power.demand).toBe(2_000);
+    const before = saveCity(city);
+    const forecast = city.budgetForecast(8);
+    expect(forecast.points[0]!.neighbourIncome).toBe(1_000);
+    expect(forecast.endedDeals).toEqual([2]);
+    expect(saveCity(city)).toEqual(before);
+    city.step(30);
+    expect(city.state.neighbourDeals.map((deal) => deal.status)).toEqual(['active', 'grace']);
+    expect(city.state.lastBudget!.neighbourIncome).toBe(1_000);
+    city.step(30);
+    expect(city.state.neighbourDeals[1]!.status).toBe('grace');
+    expect(city.state.neighbourDeals[1]!.monthsLeft).toBe(5);
+    expect(city.placeStructure('gasPlant', 35, 38).ok).toBe(true);
+    city.step(30);
+    expect(city.state.neighbourDeals[1]!.status).toBe('probation');
+  });
+
+  it('checks the physical selling pipe rather than overlapping coverage from an unrelated supplied pipe', () => {
+    const city = new City({ size: 32, water: false, config: { ...CALM, disasters: { simulated: false } } });
+    city.state.funds = 1_000_000;
+    city.batch(() => {
+      city.placeStructure('gasPlant', 10, 4);
+      city.placeStructure('waterPump', 10, 10);
+      city.buildPipe(2, 10, 31, 10);
+      city.buildPipe(0, 12, 6, 12);
+      city.setNeighbour(0, 'developed', 10);
+      city.setNeighbour(1, 'developed', 10);
+    });
+    city.state.neighbourDeals.push(sale(1, 0, 'water', 5_000), sale(2, 1, 'water', 1_000));
+    city.state.nextDealId = 3;
+    city.refresh();
+    const port = 12 * 32;
+    expect(city.fields.pipeGrid[port]).not.toBe(city.water.networks.find((network) => network.sources.some((source) => source.kind === 'pump'))!.id);
+    expect(city.water.demand).toBeGreaterThanOrEqual(6_000);
+    expect(city.water.supply).toBeGreaterThan(city.water.demand);
+    expect(city.budgetForecast(1).points[0]!.neighbourIncome).toBe(1_000);
+    city.step(30);
+    expect(city.state.neighbourDeals.map((deal) => deal.status)).toEqual(['grace', 'active']);
+    expect(city.state.lastBudget!.neighbourIncome).toBe(1_000);
+    expect(loadCity(saveCity(city)).budgetForecast(1).points[0]!.neighbourIncome).toBe(1_000);
+  });
+
+  it('reserves shared spare capacity once when several suspended sales ask to return', () => {
+    const city = new City({ size: 32, water: false, config: { ...CALM, disasters: { simulated: false } } });
+    city.state.funds = 1_000_000;
+    city.batch(() => {
+      city.placeStructure('windPlant', 15, 10);
+      expect(city.buildPowerLine(0, 9, 31, 9).ok).toBe(true);
+      city.setNeighbour(0, 'developed', 10);
+      city.setNeighbour(1, 'developed', 10);
+    });
+    city.state.neighbourDeals.push(sale(1, 0, 'power', 120), sale(2, 1, 'power', 120));
+    city.state.nextDealId = 3;
+    city.refresh();
+    city.step(30);
+    expect(city.state.neighbourDeals.map((deal) => deal.status)).toEqual(['grace', 'grace']);
+    city.step(30);
+    expect(city.state.neighbourDeals.map((deal) => deal.status)).toEqual(['probation', 'grace']);
+    expect(city.state.lastBudget!.neighbourIncome).toBe(120);
+  });
+
+  it('keeps annual trade repricing identical in synchronous and sliced simulation', () => {
+    const config = { ...CALM, disasters: { simulated: false } };
+    const city = new City({ size: 32, water: false, config });
+    city.state.funds = 1_000_000;
+    city.batch(() => {
+      city.placeStructure('coalPlant', 2, 2);
+      city.buildPowerLine(0, 3, 1, 3);
+      city.setNeighbour(0, 'developed', 10);
+    });
+    city.state.neighbourDeals.push(sale(1, 0, 'power', 1_000));
+    city.state.nextDealId = 2;
+    const saved = saveCity(city), full = loadCity(saved, { config }), sliced = loadCity(saved, { config });
+    full.step(390);
+    sliced.beginSteps(390);
+    while (sliced.resume());
+    expect(saveCity(sliced)).toEqual(saveCity(full));
+    expect(full.state.neighbourDeals[0]!.price).not.toBe(1);
+  });
+});
+
 describe('neighbour connections', () => {
   it('feeds imported power and water through the shared border section rather than an earlier disconnected stub', () => {
     const peer = new City({ size: 32, water: false, config: { ...CALM, disasters: { simulated: false } } });

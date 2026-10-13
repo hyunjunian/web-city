@@ -27,6 +27,7 @@ export const DEFAULT_CONFIG = {
     refurbishment: infrastructure.REFURBISHMENT,
     networkRepair: infrastructure.NETWORK_REPAIR,
     planning: infrastructure.INFRASTRUCTURE_PLANNING,
+    calendarWearShare: infrastructure.CALENDAR_WEAR_SHARE,
   },
   energy: {
     generationCostShare: energy.GENERATION_COST_SHARE,

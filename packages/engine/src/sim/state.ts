@@ -658,6 +658,8 @@ export interface GarbageStats {
   importShort?: number;
   /** Of the uncollected tons, those from lots no road reaches (no truck could take them). */
   stranded?: number;
+  /** Road-accessible local waste whose collection network reaches no disposal facility or contracted export port. */
+  routeCutOff?: number;
 }
 
 export interface SafetyStats {

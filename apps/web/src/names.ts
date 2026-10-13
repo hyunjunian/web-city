@@ -148,6 +148,7 @@ export const ADVISOR_NAME: Record<AdvisorId, string> = {
 export const ADVICE_TOOL: Record<string, [string, string]> = {
   noPower: ['power', '발전소'], powerShort: ['power', '발전소'], powerCutOff: ['powerline', '송전선'], plantOld: ['power', '발전소'], noWater: ['water', '수도 시설'], pumpOld: ['water', '수도 시설'], waterShort: ['water', '수도 시설'], pipesNoSource: ['pipe', '수도관'],
   landfillFull: ['landfill', '매립지'], landfillSoon: ['landfill', '매립지'], garbagePiling: ['landfill', '매립지'], landfillNoRoad: ['landfill', '매립지'], landfillNewNoRoad: ['road', '도로'], facilityNoRoad: ['road', '도로'], understaffed: ['R-medium', '주거 구역'],
+  garbageNoRoute: ['road', '도로'],
   noPolice: ['police', '경찰서'], policeReach: ['police', '경찰서'], cellsFull: ['police:cityJail', '교도소'], noFire: ['fire', '소방서'], plantUnprotected: ['fire', '소방서'], noHospital: ['health', '병원'], noSchool: ['education', '학교'],
   schoolFull: ['education', '학교'], hospitalFull: ['health', '병원'], eqLow: ['education', '학교'], hqLow: ['health', '병원'], schoolStrike: ['education', '학교'], hospitalStrike: ['health', '병원'],
   capRes: ['park', '공원·광장'], noParks: ['park', '공원'], zoneR: ['R-low', '주거 구역'], zoneC: ['C-low', '상업 구역'], zoneI: ['I-medium', '산업 구역'], zoneA: ['A', '농업 구역'],
@@ -186,6 +187,7 @@ export const ADVICE_TEXT: Record<string, (v: number, type?: DevType) => string> 
   capOffice: () => '오피스 수요가 상한에 막혔습니다. 이웃 도시로 나가는 도로·철도·고속도로 연결과 공항이 상한을 올립니다.',
   capIndustry: () => '산업 수요가 상한에 막혔습니다. 화물이 이웃으로 나가는 철도·고속도로 연결과 항구가 상한을 올립니다.',
   landfillNoRoad: (v) => `도로가 닿지 않은 매립지에 수거차가 갈 수 없습니다. 빈 자리 약 ${fmt(v)}톤이 놀고 있으니 매립지 옆까지 도로를 이으세요.`,
+  garbageNoRoute: (v) => `쓰레기 ${fmt(v)}톤의 수거망이 처리장이나 반출 도로에 닿지 않습니다. 도로망을 잇거나 같은 망에 처리장을 마련하세요.`,
   landfillSoon: (v) => `이대로면 매립지가 약 ${v}개월 뒤 가득 찹니다. 매립지 구역을 늘리거나 소각 발전소를 준비하세요.`,
   fires: (v) => `불이 ${v}곳에서 타고 있습니다. 소방서 반경 밖이면 번질 수 있습니다.`,
   riot: (v) => `폭동이 ${v}곳에서 일어났습니다. 경찰을 보내세요.`,

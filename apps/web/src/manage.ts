@@ -2161,10 +2161,20 @@ let operationsMemo: { key: string; goal: GoalId; html: string } | null = null;
 
 /** Operating decisions are read only for the open management screen and cached between city changes. */
 function operationsHtml(id: GoalId): string {
-  if (!['power', 'water', 'traffic', 'finance'].includes(id)) return '';
+  if (!['power', 'water', 'traffic', 'finance', 'garbage'].includes(id)) return '';
   if (city.stepping) return operationsMemo?.goal === id ? operationsMemo.html : '';
   const key = `${changeKey()}|${id}|${city.state.funds}|${city.state.powerDispatch}`;
   if (operationsMemo?.key === key) return operationsMemo.html;
+  if (id === 'garbage') {
+    const preview = city.previewGarbage();
+    const html = `<section class="mg-sec"><h3>${icon('trash')}지금 조건의 수거 전망</h3>
+      <p>소각 ${fmt(preview.incinerated)} t · 매립 ${fmt(preview.landfilled)} t · 반출 ${fmt(preview.exported ?? 0)} t</p>
+      <p class="${preview.uncollected > 1 ? 'neg' : 'pos'}">못 치울 새 쓰레기 ${fmt(preview.uncollected)} t · 수거 후 쌓인 양 ${fmt(preview.piled)} t</p>
+      ${(preview.routeCutOff ?? 0) > 1 ? `<p class="muted">${fmt(preview.routeCutOff!)} t의 수거망이 처리장·반출 도로와 끊겨 있습니다. 같은 망에 처리장을 마련하거나 도로를 이으세요.</p>` : ''}
+      <small class="muted">현재 인구와 설비 상태 기준입니다. 공사가 끝나거나 도시가 자라면 바뀝니다.</small></section>`;
+    operationsMemo = { key, goal: id, html };
+    return html;
+  }
   const infrastructure = city.infrastructureReport();
   let html = '';
   if (id === 'power' && infrastructure.power.some((network) => network.sources.length)) {

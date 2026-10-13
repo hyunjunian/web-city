@@ -97,6 +97,8 @@ export interface Fields {
   events: Float32Array;
   /** Water network covering each tile (-1 none) and 1 where that network has supply. */
   waterNet: Int32Array;
+  /** Physical pipe-network id at each pipe/pump node, before competing coverage areas are assigned to consumers. */
+  pipeGrid: Int32Array;
   watered: Uint8Array;
   /** Healthcare: HQ boost points and best coverage quality (0–1) per tile. */
   hqBoost: Float32Array;
@@ -160,6 +162,7 @@ export function createFields(n: number): Fields {
     flammability: new Float32Array(N),
     events: new Float32Array(N),
     waterNet: new Int32Array(N).fill(-1),
+    pipeGrid: new Int32Array(N).fill(-1),
     watered: new Uint8Array(N),
     hqBoost: new Float32Array(N),
     healthQuality: new Float32Array(N),

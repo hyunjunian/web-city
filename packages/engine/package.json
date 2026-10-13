@@ -13,6 +13,7 @@
     "build": "vite build",
     "smoke": "tsx scripts/smoke.ts",
     "fuzz": "tsx scripts/fuzz.ts",
+    "benchmark": "tsx scripts/benchmark.ts",
     "docs": "tsx scripts/api-doc.ts"
   }
 }

@@ -23,3 +23,6 @@ export const NETWORK_REPAIR = {
 
 /** A tenth of current load in reserve and a year to prepare major overhauls are planning targets, not enforced build limits. */
 export const INFRASTRUCTURE_PLANNING = { reserveRatio: 0.1, lookAheadMonths: 12 } as const;
+
+/** Half of equipment wear comes from elapsed time, half from throughput. Stored reserve equipment still weathers and needs replacement. */
+export const CALENDAR_WEAR_SHARE = 0.5;

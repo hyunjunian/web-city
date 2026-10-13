@@ -274,19 +274,24 @@ export { edgeOf };
 
 /** First tile on an edge passing `test` (−1 if none). */
 export function edgeTile(s: CityState, edge: number, test: (i: number) => boolean, resource?: DealResource): number {
+  for (const i of edgeTiles(s, edge, test, resource)) return i;
+  return -1;
+}
+
+/** Matching border tiles, limited to the actual shared and resource-connected parts of the neighbour. */
+export function* edgeTiles(s: CityState, edge: number, test: (i: number) => boolean, resource?: DealResource): Generator<number> {
   const n = s.size;
-  if (edge !== 0 && edge !== 1 && edge !== 2 && edge !== 3) return -1;
+  if (edge !== 0 && edge !== 1 && edge !== 2 && edge !== 3) return;
   const neighbour = s.neighbours[edge];
-  if (resource && neighbour?.connected?.[resource] === false) return -1;
+  if (resource && neighbour?.connected?.[resource] === false) return;
   const shared = resource ? neighbour?.shared : undefined;
   for (let k = 0; k < n; k++) {
     // A played neighbour may touch only part of this edge. Feed the deal
     // through a connection in that part, rather than an earlier isolated stub.
     if (shared && !shared.some(([from, to, theirs]) => k >= from && k < to && theirs?.[resource!] !== false)) continue;
     const i = edge === 0 ? k * n : edge === 1 ? k * n + n - 1 : edge === 2 ? k : (n - 1) * n + k;
-    if (test(i)) return i;
+    if (test(i)) yield i;
   }
-  return -1;
 }
 
 /** Active deals of a resource with the tile where each meets our network. */
@@ -444,6 +449,7 @@ export function evaluateDeal(
 export function settleDeals(
   s: CityState, cfg: SimConfig, delivered: Record<DealResource, boolean>,
   connected?: (edge: number, resource: DealResource) => boolean,
+  deliveredByDeal?: ReadonlyMap<number, boolean>,
 ): { income: number; expense: number; ended: NeighbourDeal[] } {
   const D = cfg.region.deals;
   let income = 0;
@@ -453,7 +459,7 @@ export function settleDeals(
     const monthly = dealMonthly(s, d);
     const nb = s.neighbours[d.edge];
     const ok = (connected ? connected(d.edge, d.resource) : hasDealConnection(s, d.edge, d.resource)) && nb?.kind === 'developed' && nb.connected?.[d.resource] !== false
-      && (d.direction === 'buy' ? s.funds >= monthly : delivered[d.resource]);
+      && (d.direction === 'buy' ? s.funds >= monthly : deliveredByDeal?.get(d.id) ?? delivered[d.resource]);
     if (!ok) {
       if (d.status === 'probation') {
         ended.push(d);

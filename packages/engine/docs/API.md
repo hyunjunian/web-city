@@ -215,6 +215,14 @@ A utility facility's remaining life, ageing rate, output and overhaul price at c
 
 Capital maintenance needs and power/water resilience per connected network, including loss of its largest single supply source. Empty pipe stubs are omitted; current load and funding are held constant.
 
+### `maintenanceImpact(id: number): MaintenanceImpact | null`
+
+Capacity lost while one utility is overhauled, with the affected network's current consumers and any working pumps exposed to a power shortfall. Holds demand, contracts and consumer assignments constant; does not predict blackout order, pollution feedback or alternative pipe coverage. Null for non-utility facilities.
+
+### `previewGarbage(): CityState['garbageStats']`
+
+Collection and disposal if the monthly tally ran under today's population, roads, funding, equipment and piles. Includes current contracts and overhaul availability; future growth and completion of work are not advanced. Does not change garbage, landfill contents, facility loads or random state.
+
 ### `setPowerDispatch(strategy: PowerDispatch): ToolResult`
 
 Sets power dispatch within each grid: balanced shares the load, economical uses the lowest generation cost first, clean the lowest air/water emission burden. Imports and waste energy are used first.

@@ -20,6 +20,8 @@ export interface BudgetContext {
   fares: number;
   /** Could the city deliver what it sold to neighbours this month? */
   delivered: Record<DealResource, boolean>;
+  /** Per-contract utility delivery, so surplus on an unrelated grid cannot conceal failure at the selling port. */
+  deliveredByDeal?: ReadonlyMap<number, boolean>;
   month: number;
   /** Days each ordinance was in effect this month; without it (a preview) those in effect now count the full month. */
   ordinanceDays?: Partial<Record<OrdinanceId, number>>;
@@ -205,7 +207,7 @@ export function* collectBudgetSteps(s: CityState, cfg: SimConfig, ctx: BudgetCon
   upkeep.reward += upkeep.deal;
   const fares = ctx.fares;
   // Neighbor Deals settle on the month's last day.
-  const deals = settleDeals(s, cfg, ctx.delivered, ctx.connected);
+  const deals = settleDeals(s, cfg, ctx.delivered, ctx.connected, ctx.deliveredByDeal);
   const income = Object.values(taxByType).reduce((a, b) => a + b, 0) + ordinanceIncome + fares + dealIncome + deals.income;
   const loanPayments = settleLoans(s);
   const expenses = roadUpkeep + upkeep.park + upkeep.power + upkeep.water + upkeep.garbage + upkeep.health

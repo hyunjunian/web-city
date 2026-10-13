@@ -12,7 +12,7 @@ import { structureFunding, structureOnline, type Building, type CityState, type 
 import { activeDeals, edgeTile } from './region';
 import { powerDispatchLoads } from './energy';
 import type { UtilityNetwork, UtilitySource } from './resilience';
-import { incineratorCapacity } from './garbage';
+import { incineratorCapacity, incineratorPower } from './garbage';
 
 export const EDU_CURVES = ['elementary', 'highSchool', 'college', 'university', 'library', 'mainLibrary', 'museum', 'artMuseum', 'privateSchool', 'opera'] as const;
 /** Higher education: the fuller school system on top of a basic school, library or museum. */
@@ -186,7 +186,7 @@ export function* computePowerSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
     }
     // Waste to Energy: power in proportion to last month's garbage burned.
     if (def.incinerator) {
-      const power = structureOnline(s, st) ? st.load * def.incinerator.powerPerTon : 0;
+      const power = incineratorPower(s, cfg, st);
       grids[g]!.supply += power;
       grids[g]!.wastePower += power;
     }
@@ -544,8 +544,10 @@ export function utilityWear(s: CityState, cfg: SimConfig, st: Structure, plantWe
   if (!life) return 0;
   // Recycling centers and treatment plants have no throughput; treat them as fully used.
   const usage = !structureOnline(s, st) ? 0 : def.recycling || def.treatment ? 100 : Math.min(120, st.effectiveness * 100);
+  const calendar = Math.max(0, Math.min(1, cfg.infrastructure.calendarWearShare));
+  const wearByUsage = calendar + (1 - calendar) * interp(cfg.services.plantDecayByUsage, usage);
   return (100 / (life * 12)) * interp(cfg.services.plantDecayByFunding, structureFunding(s, def, st))
-    * interp(cfg.services.plantDecayByUsage, usage) * (def.plant ? plantWear : 1);
+    * wearByUsage * (def.plant ? plantWear : 1);
 }
 
 /** Monthly equipment wear; power plants expire at 100%, other utilities stop at 110%. */
@@ -680,7 +682,8 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   }
 
   // Networks: 4-connected node tiles.
-  const net = new Int32Array(N).fill(-1);
+  const net = f.pipeGrid;
+  net.fill(-1);
   let count = 0;
   const stack: number[] = [];
   yield;
