@@ -286,6 +286,7 @@ export function showInfo(x: number, y: number): void {
     : !b.powered && powerToSpare() ? (() => { const path = lineToStructure(b, 'b'); return path ? { kind: 'powerline' as const, path, goal: 'power' as const } : null; })() : null;
   const layPrice = lay ? layCost(lay.kind, lay.path) : null;
   const riot = riotNear(x, y);
+  const arson = city.state.arsonists.find((a) => Math.max(Math.abs(a.x - x), Math.abs(a.y - y)) <= 1);
   const chips = [
     b && !b.powered ? `<button type="button" class="chip bad"${go('power')} title="${city.cfg.services.noPowerMonths}개월이 되면 버려집니다 · 눌러서 전력 화면">${icon('zap')}전기 끊김 ${b.noPowerMonths}/${city.cfg.services.noPowerMonths}개월</button>` : '',
     b?.type && !b.watered && waterNeeded ? `<button type="button" class="chip bad"${go('water')} title="${city.cfg.services.noWaterMonths}개월이 되면 버려집니다 · 눌러서 수도 화면">${icon('droplet')}물 끊김 ${b.noWaterMonths}/${city.cfg.services.noWaterMonths}개월</button>` : '',
@@ -304,6 +305,10 @@ export function showInfo(x: number, y: number): void {
     riot ? (city.freeUnits('police') > 0
       ? `<button type="button" class="chip bad" data-send="police" data-send-at="${riot.x},${riot.y}" title="가까운 경찰서에서 경찰차를 보냅니다 · ${riot.need}대가 모여야 진압됩니다 · 출동 가능 ${fmt(city.freeUnits('police'))}대">${icon('megaphone')}폭동 · 경찰차 보내기 ${riot.cars}/${riot.need}대</button>`
       : `<span class="chip bad" title="경찰서가 없거나 모든 차가 출동 중입니다">${icon('megaphone')}폭동 · 보낼 경찰차 없음</span>`) : '',
+    // An arsonist about to strike here: the police that lock them up if they get there first.
+    arson ? (city.freeUnits('police') > 0
+      ? `<button type="button" class="chip bad" data-send="police" data-send-at="${arson.x},${arson.y}" title="경찰차가 먼저 닿으면 방화범을 잡습니다 · 출동 가능 ${fmt(city.freeUnits('police'))}대">${icon('alert')}방화범 · ${fmt(arson.days)}일 안에 경찰차 보내기</button>`
+      : `<span class="chip bad" title="경찰서가 없거나 모든 차가 출동 중입니다">${icon('alert')}방화범 · 보낼 경찰차 없음</span>`) : '',
     offRoad ? `<span class="chip bad" title="쓰레기를 거둘 수 없어 쌓입니다${def!.police || def!.fire || def!.health || def!.school ? '. 경찰차·소방차·구급차·통학버스도 나가지 못합니다' : ''}">${icon('road')}도로에 닿지 않음</span>` : '',
     // (The road to it, laid in one press: the chip above only said what was missing.)
     roadPath && roadCost !== null ? `<button type="button" class="chip" data-lay-path="${roadPath.map((p) => p.join(',')).join(';')}" data-lay-kind="road" data-lay-goal="${goalOfStructure(q.structure!.kind) ?? ''}" title="가장 가까운 도로까지 ${fmt(roadPath.length)}칸, 빈 땅으로 바로 잇기 (§${fmt(roadCost)})">${icon('road')}도로 ${fmt(roadPath.length)}칸 잇기</button>` : '',
