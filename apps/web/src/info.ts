@@ -413,7 +413,7 @@ ${paths}${voice}
         <tr${row('health')}><td>건강 지수</td><td>${b.hq.toFixed(0)}</td></tr>${smogRow(x, y, q.airPollution)}` : ''}
       ${stRows}${smokeRow(b ? b.id : q.structure ? -q.structure.id : 0, row('environment'))}
     </table>` : ''}
-    ${q.structure && def!.category !== 'park' && def!.category !== 'garbage' && def!.category !== 'water' && def!.category !== 'landmark' && !(def!.category === 'safety' && def!.police?.radius === 0) && !def!.station ? fundingSlider(q.structure) : q.structure ? `<p class="muted">예산은 재정의 부서 예산 "${def!.category === 'garbage' ? '위생' : def!.category === 'water' ? '수도' : def!.station ? '대중교통' : def!.category === 'landmark' ? '랜드마크' : def!.category === 'safety' ? '교도소' : '공원 미화'}"${def!.category === 'garbage' ? '으로' : '로'} 정합니다.</p>` : ''}
+    ${q.structure && def!.category !== 'park' && def!.category !== 'garbage' && def!.category !== 'water' && def!.category !== 'landmark' && !(def!.category === 'safety' && def!.police?.radius === 0) && !def!.station ? fundingSlider(q.structure) : q.structure ? ((dept) => `<p class="muted">예산은 재정의 부서 예산 "${dept}"${josa(dept, '으로', '로')} 정합니다.</p>`)(def!.category === 'garbage' ? '위생' : def!.category === 'water' ? '수도' : def!.station ? '대중교통' : def!.category === 'landmark' ? '랜드마크' : def!.category === 'safety' ? '교도소' : '공원 미화') : ''}
     ${growth}
     ${land && !b && !q.structure ? `<div class="info-glance">
       <span class="${q.powered ? '' : q.zone !== 'none' ? 'neg' : 'muted'}">${icon('zap')}${q.powered ? '전기 있음' : '전기 없음'}</span>
