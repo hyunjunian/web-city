@@ -180,7 +180,9 @@ function checkNewYear(year: number): void {
     sore && sore[1].approve < 0.6 ? ` · 가장 큰 불만 ${POLL_NAME[sore[0]]} (만족 ${Math.round(sore[1].approve * 100)}%)` : ''}`;
   // A year the city shrank or lost money is no good news; a little spent from a deep purse is only worth noting.
   const worse = now.population < then.population * 0.99 || now.funds < 0 || now.funds < then.funds - Math.max(1000, Math.abs(then.funds) * 0.1);
-  const mild = !worse && (now.population < then.population || now.funds < then.funds);
+  // (A year that barely grew isn't good news either: "인구 +16" came with the award badge in a city of 24,000.)
+  const flat = now.population - then.population < Math.max(10, then.population * 0.01);
+  const mild = !worse && (now.population < then.population || now.funds < then.funds || flat);
   pushNotice({ text, until: city.state.day + 60, ...(worse ? { warn: true } : mild ? { info: true } : {}) });
   toast(text, worse ? 'bad' : mild ? 'info' : 'good');
 }
@@ -216,6 +218,19 @@ function nextReward(): string {
  * 점수판: what the city has become — its stage by name, the residents that earned it,
  * and how close the next stage is (a bar that fills toward it).
  */
+/**
+ * The bar standing still, said (a state, not advice): a year of under 1% growth, and the homes' cap when people wait
+ * at it — two years of "도시까지 570명 → 531명 96%" said nothing of why.
+ */
+function stalled(): string {
+  const h = city.state.history;
+  const now = h.at(-1);
+  const then = h.at(-13);
+  if (!now || !then || then.population < 500 || now.population - then.population >= Math.max(10, then.population * 0.01)) return '';
+  const capped = capWaiting() >= 100;
+  return `<small class="score-stall" title="지난 1년 인구 ${now.population >= then.population ? '+' : '−'}${fmt(Math.abs(now.population - then.population))}명${capped ? ` · 주거 상한에서 약 ${fmt(Math.round(capWaiting()))}명 대기` : ''}"> · 1년째 제자리${capped ? ' · 주거 상한' : ''}</small>`;
+}
+
 function scoreboard(population: number, trend: string): string {
   const i = STAGES.filter(([n]) => population >= n).length - 1;
   const [from, name] = STAGES[i]!;
@@ -225,7 +240,7 @@ function scoreboard(population: number, trend: string): string {
     <p class="score-stage">${icon('trophy')}<b>${name}</b><span>${i + 1}단계</span></p>
     <p class="score-main"><span class="sum-value">${fmt(population)}</span><span class="score-unit">명</span>${trend}</p>
     <span class="score-bar"><i style="width:${(share * 100).toFixed(1)}%"></i></span>
-    <p class="score-next">${next ? `<span>다음 단계 <b>${next[1]}</b>까지 ${fmt(next[0] - population)}명</span><span class="score-pct">${Math.floor(share * 100)}%</span>` : '<span>가장 높은 단계에 올랐습니다</span>'}</p></div>`;
+    <p class="score-next">${next ? `<span>다음 단계 <b>${next[1]}</b>까지 ${fmt(next[0] - population)}명${stalled()}</span><span class="score-pct">${Math.floor(share * 100)}%</span>` : '<span>가장 높은 단계에 올랐습니다</span>'}</p></div>`;
 }
 
 /** Residents, workers, jobs and the jobless by wealth (from the census). */

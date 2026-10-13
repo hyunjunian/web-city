@@ -1821,6 +1821,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 #status, #status > section { grid-template-columns: minmax(0, 1fr); min-width: 0; }
 .score-next .score-pct { margin-left: auto; color: var(--accent-hi); font-weight: 650; }
 .score-next > span:first-child { margin-left: 0; color: var(--muted); font-weight: 400; }
+.score-stall { color: var(--warn-ink); font-size: inherit; font-weight: 600; } /* (the bar standing still: a fact to see) */
 .sec-head .chip + .sec-note { margin-left: 4px; }
 
 /* The clock held while building: the pause button ringed; the tool chip says 멈춤. */
