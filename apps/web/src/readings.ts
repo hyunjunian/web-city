@@ -2082,7 +2082,7 @@ export function suggestSpot(id: GoalId): { x: number; y: number; tiles: number; 
  * What is happening right now and can't wait for a plan: buildings and trees burning
  * (소방), mobs in the streets (치안). Each with where it is and the unit to send.
  */
-export type Incident = { goal: 'fire' | 'police'; title: string; at: [number, number]; places: [number, number][]; tool: 'send-fire' | 'send-police'; urgent: boolean; riot?: boolean; /** (a fire) why it is or isn't urgent, for its row */ why?: string };
+export type Incident = { goal: 'fire' | 'police'; title: string; at: [number, number]; places: [number, number][]; tool: 'send-fire' | 'send-police'; urgent: boolean; riot?: boolean; /** (a fire) why it is or isn't urgent, for its row */ why?: string; /** (a fire) a power plant is alight: it may blow up */ plant?: boolean };
 let incidentMemo: { key: string; list: Incident[] } | null = null;
 export function incidents(): Incident[] {
   const s = city.state;
@@ -2102,7 +2102,7 @@ export function incidents(): Incident[] {
   const outside = fire.some(([x, y]) => (cover[y * s.size + x] ?? 0) <= 0);
   const fireUrgent = fire.length >= 3 || onPlant || outside;
   const why = onPlant ? '발전소가 타는 중' : outside ? '소방서 반경 밖 · 출동이 필요' : fireUrgent ? '번지는 중 · 출동이 필요' : '소방서가 끄는 중';
-  if (fire.length) list.push({ goal: 'fire', title: `불이 났습니다: ${fmt(fire.length)}곳`, at: fire[0]!, places: fire, tool: 'send-fire', urgent: fireUrgent, why });
+  if (fire.length) list.push({ goal: 'fire', title: `불이 났습니다: ${fmt(fire.length)}곳`, at: fire[0]!, places: fire, tool: 'send-fire', urgent: fireUrgent, why, plant: onPlant });
   if (s.mobs.length) list.push({ goal: 'police', title: `폭동이 일어났습니다: ${fmt(s.mobs.length)}곳`, at: [s.mobs[0]!.x, s.mobs[0]!.y], places: s.mobs.map((m) => [m.x, m.y]), tool: 'send-police', urgent: true, riot: true });
   // Arsonists show up before they strike: police on the spot lock them up.
   if (s.arsonists.length) {
