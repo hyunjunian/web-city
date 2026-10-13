@@ -1373,7 +1373,8 @@ export function setupInput(): void {
       return;
     }
     // Enter (not on a control): look at the tile in the middle of the view — arrows move the map to it.
-    if (e.key === 'Enter' && plain0(e) && tool.kind === 'query' && !(e.target as Element).closest?.('button, a, summary, input, select, textarea, [tabindex]')) {
+    // (The map itself takes focus now — the skip link, a click on it — and is no control.)
+    if (e.key === 'Enter' && plain0(e) && tool.kind === 'query' && !(e.target as Element).closest?.('button, a, summary, input, select, textarea, [tabindex]:not(#map)')) {
       const r = renderer.canvas.getBoundingClientRect();
       const [cx, cy] = renderer.toTile(cam, r.width / 2, r.height / 2);
       if (cx >= 0 && cy >= 0 && cx < city.size && cy < city.size) {
@@ -1469,8 +1470,9 @@ function keySpot(): boolean {
   }
   const area = tool.kind === 'zone' ? renderer.marks.find((m) => m.tone === 'area') : undefined;
   const at: [number, number] = area ? [area.x, area.y] : [spot.x, spot.y];
-  // (Off the button that picked the tool, so Enter builds rather than pressing it again.)
-  if ((document.activeElement as Element | null)?.closest('button, a, summary, [role=button]')) (document.activeElement as HTMLElement).blur();
+  // (Off the button that picked the tool, so Enter builds rather than pressing it again; off a notice too, which Enter
+  // would open.)
+  if ((document.activeElement as Element | null)?.closest('button, a, summary, [role=button], .toast')) (document.activeElement as HTMLElement).blur();
   setHover(at);
   renderer.cursor = { x: at[0], y: at[1] };
   centerOn(at[0], at[1], undefined, mapBand());
@@ -1513,8 +1515,9 @@ function keyBuild(e: KeyboardEvent): boolean {
     !!t && t[0] >= Math.ceil(cam.x) && t[1] >= Math.ceil(cam.y) && t[0] < Math.floor(cam.x + W / cam.scale) && t[1] < Math.floor(cam.y + H / cam.scale);
   let at: [number, number] = seen(hover) ? [hover![0], hover![1]] : renderer.toTile(cam, W / 2, H / 2);
   if (arrow) {
-    // Off the dock button that picked the tool, so the next Enter builds rather than pressing it again.
-    if ((document.activeElement as Element | null)?.closest('button, a, summary, [role=button]')) (document.activeElement as HTMLElement).blur();
+    // Off the dock button that picked the tool, so the next Enter builds rather than pressing it again (or opening the
+    // notice in focus).
+    if ((document.activeElement as Element | null)?.closest('button, a, summary, [role=button], .toast')) (document.activeElement as HTMLElement).blur();
     const k = e.shiftKey ? 5 : 1;
     at = [Math.max(0, Math.min(n - 1, at[0] + arrow[0] * k)), Math.max(0, Math.min(n - 1, at[1] + arrow[1] * k))];
     // The map follows, keeping two tiles of room.
