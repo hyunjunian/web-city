@@ -46,6 +46,7 @@ export function renderOnboarding(): void {
   const s = city.state;
   const st = city.stats();
   const kinds = [...s.structures.values()].map((x) => STRUCTURES[x.kind]);
+  const pumps = [...s.structures.values()].filter((x) => STRUCTURES[x.kind].pump);
   // A service counts once it can work: crews and garbage trucks need a road beside it.
   const served = [...s.structures.values()].filter((x) => city.roadBeside(x.x, x.y, x.w, x.h)).map((x) => STRUCTURES[x.kind]);
   // Built but off the road: say what's missing rather than leave the step looking undone.
@@ -104,7 +105,10 @@ export function renderOnboarding(): void {
     // (A landfill counts once trucks can reach it: a road beside one of its tiles.)
     [landfillReached() || kinds.some((d) => d.incinerator),
       `매립지 구역 (도로 옆에 · 쓰레기는 첫 달부터 쌓입니다)${zoned((z) => z === 10) && !landfillReached() ? ' · ⚠ 도로와 닿지 않음' : ''}`, 'goal:garbage'],
-    [st.water.supply > 0 && city.state.pipe.some((v) => v > 0), '양수 펌프와 수도관 (부유층과 큰 건물에 필요)', 'goal:water'],
+    // (Ticked once water reaches buildings: a tower waters what is near it with no pipe, and the step that also asked
+    // for a pipe stayed open under a 수도 screen reading 양호.)
+    [st.water.supply > 0, `급수 시설 (양수 펌프·급수탑 · 부유층과 큰 건물에 필요)${st.water.supply > 0 || !pumps.length ? ''
+      : pumps.some((p) => p.powered) ? ' · ⚠ 물이 닿는 건물 없음: 수도관으로 이으세요' : ' · ⚠ 전기 없음: 송전선으로 이으세요'}`, 'goal:water'],
     // Services cost every month: a town of a few hundred can't carry them yet (following the list went bankrupt).
     [served.some((d) => d.school), `학교 — ${later('elementarySchool')}` + offRoad('school'), 'goal:education'],
     [served.some((d) => d.health), `병원 — ${later('medicalClinic')}` + offRoad('health'), 'goal:health'],

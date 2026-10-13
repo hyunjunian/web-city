@@ -308,7 +308,9 @@ export function updatePreview(): void {
       ? newlyReached(goal, sx + def.w / 2, sy + def.h / 2, reach) : -1;
     // (A fire station: the plants it would take in too.)
     const plants = gained >= 0 && goal === 'fire' ? plantsReached(sx + def.w / 2, sy + def.h / 2, reach) : 0;
-    const reached = gained < 0 ? '' : `새로 닿는 ${plants ? `발전소 ${fmt(plants)}곳 · ` : ''}${goal === 'health' || goal === 'education' ? '집' : '건물'} ${gained ? `${fmt(gained)}채` : '없음'}`;
+    // (A pump or tower off the pipes: the buildings it waters as it stands, and that pipes take it further.)
+    const watered = def.pump && check.ok && !pipedAt(kind, sx, sy) ? wateredBy(kind, sx, sy) : 0;
+    const reached = watered ? `새로 물이 닿는 건물 ${fmt(watered)}채 · 더 멀리는 수도관으로` : gained < 0 ? '' : `새로 닿는 ${plants ? `발전소 ${fmt(plants)}곳 · ` : ''}${goal === 'health' || goal === 'education' ? '집' : '건물'} ${gained ? `${fmt(gained)}채` : '없음'}`;
     const extraNow = reached ? `${extra} · ${reached}` : extra;
     // Warnings and refusals first: the hint shows three lines, and the ⚠ were last to be cut.
     // (Name and price are on the tool chip and by the pointer: the bar says what they don't.)
@@ -723,6 +725,28 @@ function reachAt(kind: StructureKind, x: number, y: number): number {
   return r && def.fire?.needsRoad && !city.roadBeside(x, y, def.w, def.h) ? r * city.cfg.safety.fireNoRoad : r;
 }
 
+/** Buildings without water that a pump or tower at (x, y) would water on its own, within the pipes' reach of it. */
+function wateredBy(kind: StructureKind, x: number, y: number): number {
+  const def = STRUCTURES[kind];
+  if (!def.pump) return 0;
+  const r = city.cfg.services.waterRadius;
+  let n = 0;
+  for (const b of city.state.buildings.values()) {
+    if (!b.type || b.watered) continue;
+    if (b.x <= x + def.w - 1 + r && b.x + b.w - 1 >= x - r && b.y <= y + def.h - 1 + r && b.y + b.h - 1 >= y - r) n++;
+  }
+  return n;
+}
+
+/** Whether a pump or tower at (x, y) would stand on or beside a pipe (else it feeds only what is within reach of it). */
+function pipedAt(kind: StructureKind, x: number, y: number): boolean {
+  const def = STRUCTURES[kind];
+  for (let yy = y - 1; yy <= y + def.h; yy++) for (let xx = x - 1; xx <= x + def.w; xx++) {
+    if (xx >= 0 && yy >= 0 && xx < city.size && yy < city.size && city.state.pipe[yy * city.size + xx]) return true;
+  }
+  return false;
+}
+
 function siteWarnings(kind: StructureKind, x: number, y: number): string {
   const def = STRUCTURES[kind];
   // A plant must reach something to feed; pumps and the like need a powered grid.
@@ -736,12 +760,11 @@ function siteWarnings(kind: StructureKind, x: number, y: number): string {
   let covered = false;
   if (def.plant) for (let yy = y; yy < y + def.h && !covered; yy++) for (let xx = x; xx < x + def.w; xx++) if (city.fields.fireCover[yy * city.size + xx]! > 0) covered = true;
   const unguarded = def.plant && !covered ? ' · ⚠ 소방서 범위 밖 (불타면 폭발합니다 — 근처에 소방서를)' : '';
-  // A pump or tower feeds the pipes on or beside it: alone it pumps for nobody.
-  let piped = !def.pump;
-  for (let yy = y - 1; yy <= y + def.h && !piped; yy++) for (let xx = x - 1; xx <= x + def.w; xx++) {
-    if (xx >= 0 && yy >= 0 && xx < city.size && yy < city.size && city.state.pipe[yy * city.size + xx]) piped = true;
-  }
-  const dry = piped ? '' : ' · ⚠ 수도관에 닿지 않음 (옆으로 수도관을 이어야 물을 보냄)';
+  // A pump or tower feeds the pipes on or beside it.
+  const piped = !def.pump || pipedAt(kind, x, y);
+  // (Alone it still waters what stands within the pipes' reach of it: a warning only with nothing there to water — a
+  // tower beside 26 dry buildings was told in red it sent water nowhere, and watered 18 of them.)
+  const dry = piped || wateredBy(kind, x, y) > 0 ? '' : ' · ⚠ 주변에 물을 쓸 건물이 없음 (수도관을 이어야 멀리 보냄)';
   // A dirty plant (or an incinerator) beside homes: its smoke drives residents away (it is the commonest early mistake).
   // (Coal and oil as far as their smoke stays thick, as the guide sites them: within half its reach, a coal plant 10
   // tiles off was let by unwarned and its homes breathed 80.)
