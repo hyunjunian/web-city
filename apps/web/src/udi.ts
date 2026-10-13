@@ -53,8 +53,9 @@ export function renderUdi(force = false): void {
   const progress = Object.entries(s.udi.partial).map(([k, v]) => `${STRUCTURE_NAME[k as StructureKind]} ${city.isUnlocked(k as StructureKind) ? '해제됨' : partialCount(k, v ?? 0)}`).join(' · ');
   $('#udi').innerHTML = `
     ${vehicles.length
-      // (Chips with what each runs on, as the cards' tiles: a line of names ran on with commas.)
-      ? `<p class="udi-vehicles"><span class="muted">탈것</span>${vehicles.map((v) => `<span class="chip">${icon(CLASS_ICON[VEHICLES[v].class])}${VEHICLE_NAME_KO[v]}</span>`).join('')}</p>`
+      // (Each with what it runs on, as the cards' tiles: a line of names ran on with commas. Words with their sign, not
+      // chips, which looked pressable and did nothing.)
+      ? `<p class="udi-vehicles"><span class="muted">탈것</span>${vehicles.map((v) => `<span class="udi-veh">${icon(CLASS_ICON[VEHICLES[v].class])}${VEHICLE_NAME_KO[v]}</span>`).join('<span class="udi-sep" aria-hidden="true">·</span>')}</p>`
       : '<p class="legend">탈것: 없음 — 경찰서·소방서·학교·버스 정류장 등을 지으면 생깁니다</p>'}
     ${sortMissions(ids).map((id) => {
       const m: MissionDef = MISSIONS[id];

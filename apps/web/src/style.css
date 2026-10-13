@@ -2353,8 +2353,10 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   .mission > button { grid-column: 2; justify-self: start; align-self: start; }
 }
 /* The vehicles one can drive: chips with what each runs on (road, rail, water, air). */
-.udi-vehicles { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 12.5px; }
-.udi-vehicles .chip .i { width: 13px; height: 13px; color: var(--muted); }
+.udi-vehicles { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 0 0 6px; font-size: 12.5px; }
+.udi-vehicles .udi-veh { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+.udi-vehicles .udi-veh .i { width: 13px; height: 13px; color: var(--muted); }
+.udi-vehicles .udi-sep { color: var(--faint); }
 
 /* ================================================================== the map's chrome
 
