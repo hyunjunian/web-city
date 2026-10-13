@@ -58,11 +58,18 @@ export async function goToSquare(x: number, y: number): Promise<void> {
     flash(`${SPAN_NAME[foundSpan]} 도시는 이 칸에서 오른쪽·아래로 ${foundSpan}×${foundSpan}칸이 비어 있어야 합니다`, 'bad');
     return;
   }
-  // A new city stays in the region for good: ask before founding one.
-  if (!region.has(x, y) && !(await ask(`(${x + 1}, ${y + 1})에 ${SPAN_NAME[foundSpan]} 새 도시를 세우고 그 도시로 옮겨 갈까요? 지금 도시는 저장됩니다.`, '새 도시 세우기'))) return;
+  // A new city stays in the region for good: ask before founding one. (Where, said from the city open now: "(5, 4)에"
+  // named a grid nobody sees, and the city was called "새 도시 (4, 6)".)
+  const span = Math.max(1, Math.round(city.size / region.citySize));
+  const [px, py] = regionPos;
+  const dir = `${y < py ? '북' : y >= py + span ? '남' : ''}${x < px ? '서' : x >= px + span ? '동' : ''}` || '';
+  const side = dir ? `${dir}쪽` : '';
+  const beside = (x >= px && x < px + span && (y === py - 1 || y === py + span)) || (y >= py && y < py + span && (x === px - 1 || x === px + span));
+  const tiles = region.citySize * foundSpan;
+  if (!region.has(x, y) && !(await ask(`${city.state.name}의 ${side}${beside ? '(이웃 칸)' : ''}에 ${SPAN_NAME[foundSpan]} 새 도시(${tiles}×${tiles})를 세우고 그 도시로 옮겨 갈까요? 지금 도시는 저장됩니다.`, '새 도시 세우기'))) return;
   if (!region) return;
   region.close(regionPos[0], regionPos[1], city);
-  const next = region.has(x, y) ? region.open(x, y) : region.found(x, y, { difficulty: city.state.difficulty, water: true, name: `새 도시 (${x + 1}, ${y + 1})` }, foundSpan);
+  const next = region.has(x, y) ? region.open(x, y) : region.found(x, y, { difficulty: city.state.difficulty, water: true, name: side ? `${city.state.name} ${side} 새 도시` : '새 도시' }, foundSpan);
   const at = region.footprintAt(x, y);
   regionPos = at ? [at.x, at.y] : [x, y];
   storeRegion();
@@ -285,8 +292,10 @@ export function whyNoDeals(offers: ReturnType<City['dealOffers']>): string {
     for (const resource of ['power', 'water', 'garbage'] as const) {
       if (city.state.neighbourDeals.some((d) => d.edge === nb.edge && d.resource === resource)) continue;
       // Buying and selling have reasons of their own: name which is which (joined bare they read as a contradiction).
-      const why = [...new Set(offers.filter((o) => o.edge === nb.edge && o.resource === resource && !o.ok && o.reason)
-        .map((o) => `${o.direction === 'buy' ? '구매' : '판매'}: ${ko(o.reason!)}`))];
+      // (Said once where the two share it: "구매: 송전선이 필요합니다 / 판매: 송전선이 필요합니다".)
+      const both = offers.filter((o) => o.edge === nb.edge && o.resource === resource && !o.ok && o.reason);
+      const reasons = [...new Set(both.map((o) => ko(o.reason!)))];
+      const why = reasons.length === 1 && both.length > 1 ? reasons : [...new Set(both.map((o) => `${o.direction === 'buy' ? '구매' : '판매'}: ${ko(o.reason!)}`))];
       if (why.length) lines.push(`${EDGE_NAME[nb.edge]} ${RESOURCE_NAME[resource]}: ${why.join(' / ')}`);
     }
   }
