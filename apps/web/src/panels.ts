@@ -207,7 +207,7 @@ function nextReward(): string {
     <span class="rw-icon">${icon('award')}</span>
     <span class="rw-name"><small class="rw-label">다음 보상</small><b>${STRUCTURE_NAME[best.kind]}${city.isUnlocked(best.kind) ? ' (다음 단계)' : ''}</b>${gives ? `<small>${gives}</small>` : ''}</span><span class="rw-pct">${Math.round(best.share * 100)}%${icon('chevronRight', 'rw-go')}</span>
     <span class="rw-bar"><i style="width:${(best.share * 100).toFixed(1)}%"></i></span>
-    <span class="rw-left">${left.length ? `<span>열리려면</span> ${escapeHtml(left.join(' · '))}` : '이번 달에 열립니다'}</span></button>`;
+    <span class="rw-left">${left.length ? `<span>열리려면</span>${escapeHtml(left.join(' · '))}` : '이번 달에 열립니다'}</span></button>`; // (its label's margin is the gap: a space too made two)
   rewardSeen = { key, html };
   return html;
 }
