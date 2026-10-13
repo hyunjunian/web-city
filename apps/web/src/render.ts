@@ -2199,9 +2199,27 @@ export class Renderer {
       ctx.beginPath();
       ctx.arc(d.x + 0.5, d.y + 0.5, 0.48, 0, Math.PI * 2);
       ctx.fill();
-      // An arrow beside the vehicle pointing at the target.
+      // An arrow beside the vehicle pointing at the target, and a faint dashed line the rest of the way (off screen
+      // it shows which way the target lies).
       const ang = Math.atan2(d.ty - d.y, d.tx - d.x);
       if (d.tx !== d.x || d.ty !== d.y) {
+        if (Math.hypot(d.tx - d.x, d.ty - d.y) > 3.5) {
+          ctx.save();
+          const u = this.dpr / sc;
+          ctx.setLineDash([8 * u, 7 * u]);
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(d.x + 0.5 + Math.cos(ang) * 3.4, d.y + 0.5 + Math.sin(ang) * 3.4);
+          ctx.lineTo(d.tx + 0.5 - Math.cos(ang) * 1, d.ty + 0.5 - Math.sin(ang) * 1);
+          // (On a dark edge, so it reads over a road's own yellow and the cars on it.)
+          ctx.lineWidth = 5 * u;
+          ctx.strokeStyle = 'rgba(20,16,4,0.55)';
+          ctx.stroke();
+          ctx.lineWidth = 3 * u;
+          ctx.strokeStyle = 'rgba(255,210,63,0.95)';
+          ctx.stroke();
+          ctx.restore();
+        }
         const ax = d.x + 0.5 + Math.cos(ang) * 2.2;
         const ay = d.y + 0.5 + Math.sin(ang) * 2.2;
         ctx.fillStyle = '#ffd23f';

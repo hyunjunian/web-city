@@ -16,7 +16,7 @@ import { MISSION_NAME_KO, VEHICLE_NAME_KO } from './udi-names';
 import { $, endFlash, flash, fmt } from './util';
 
 /** A mission being driven: vehicle position, time left, held directions. */
-export let drive: { plan: ActiveMission; x: number; y: number; left: number; held: Set<string>; step: number; speedBefore: number; dir: [number, number]; ammo: number; camBefore: { x: number; y: number; scale: number } } | null = null;
+export let drive: { plan: ActiveMission; x: number; y: number; left: number; held: Set<string>; step: number; speedBefore: number; dir: [number, number]; ammo: number; camBefore: { x: number; y: number; scale: number }; /** the distance last told, and whether the last move took the car away */ was?: number; away?: boolean } | null = null;
 
 export let udiSignature = '';
 
@@ -92,7 +92,8 @@ export function startDrive(id: MissionId): void {
   btn.hidden = !special;
   if (special) btn.textContent = special.label;
   setSpeed(0);
-  cam.scale = Math.max(cam.scale, 10);
+  // Close enough to see the car and the road ahead (at 10 it was a dot of a few pixels by a wedge of an arrow).
+  cam.scale = Math.max(cam.scale, 20);
   followVehicle();
   $('#drive-hud').hidden = false;
   // The road ahead needs the whole map: cards over it step aside.
@@ -118,13 +119,16 @@ export function updateDriveHud(): void {
   const dx = (drive.plan.target % n) - drive.x;
   const dy = Math.floor(drive.plan.target / n) - drive.y;
   const dist = Math.abs(dx) + Math.abs(dy);
+  // Going the wrong way said as it happens (the count rose from 30 to 47 with nothing to say so).
+  if (drive.was !== undefined && dist !== drive.was) drive.away = dist > drive.was;
+  drive.was = dist;
   // Which way the goal lies (screen y grows downward): an arrow and a compass word.
   const angle = Math.atan2(dy, dx);
   const compass = ['동', '남동', '남', '남서', '서', '북서', '북', '북동'][((Math.round(angle / (Math.PI / 4)) % 8) + 8) % 8];
   const arrow = dist ? `<span class="goal-arrow" style="transform: rotate(${angle.toFixed(2)}rad)" aria-hidden="true">➜</span> ${compass}쪽 ` : '';
   $('#drive-info').innerHTML = `<div><b>${MISSION_NAME_KO[drive.plan.id]}</b> · ${VEHICLE_NAME_KO[drive.plan.vehicle]}</div>
     <div class="time ${drive.left < 10 ? 'low' : ''}">${Math.max(0, drive.left).toFixed(1)}초</div>
-    <div class="muted">${arrow}목표까지 ${dist}칸${drive.plan.fire !== undefined && MISSIONS[drive.plan.id].alignment === 'good' ? ' · 불 옆에서 Space로 끄세요' : ''}${drive.plan.vehicle === 'tank' ? ` · 포탄 ${drive.ammo}` : ''}</div>`;
+    <div class="muted">${arrow}목표까지 ${dist}칸${drive.away && dist ? ' <b class="drive-away">· 멀어지는 중</b>' : ''}${drive.plan.fire !== undefined && MISSIONS[drive.plan.id].alignment === 'good' ? ' · 불 옆에서 Space로 끄세요' : ''}${drive.plan.vehicle === 'tank' ? ` · 포탄 ${drive.ammo}` : ''}</div>`;
 }
 
 /** Leaves a drive without a result (another city opened: the mission was the old city's). */
