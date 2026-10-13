@@ -128,6 +128,7 @@ export function fitCamera(whole = false): void {
   // (A glide under way doesn't carry on over the new framing: closing the phone's pane started one toward the town
   // being left, and the sample city opened framed where it had been.)
   flights++;
+  moves++;
   const r = renderer.canvas.getBoundingClientRect();
   // The built-up part with a margin, or the whole map while there is none (or when asked: 전체 보기).
   const { cx, cy, span } = builtArea(whole);
@@ -167,6 +168,7 @@ export function centerOn(x: number, y: number, minScale = 8, band?: Band): void 
   const fromCy = from.y + my / from.scale;
   const start = performance.now();
   const flight = ++flights;
+  moves++;
   const step = (now: number) => {
     if (flight !== flights) return; // another flight took over
     const k = Math.min(1, (now - start) / 350);
@@ -187,6 +189,10 @@ export function centerOn(x: number, y: number, minScale = 8, band?: Band): void 
   requestAnimationFrame(step);
 }
 let flights = 0;
+/** Camera moves begun by the game (a flight, a glide, a framing), not the player's hand on the map. */
+let moves = 0;
+/** Counts the game's own camera moves (one begun since another reads a different number). */
+export const moveCount = (): number => moves;
 
 /**
  * Blinks a rectangle twice once the map has flown there (centerOn takes 350ms): a flash at the press was over before
@@ -220,6 +226,7 @@ export function glideTo(cx: number, cy: number, scale: number, ms = 220): void {
   const from = { cx: cam.x + r.width / cam.scale / 2, cy: cam.y + r.height / cam.scale / 2, scale: cam.scale };
   const start = performance.now();
   const flight = ++flights;
+  moves++;
   const step = (now: number) => {
     if (flight !== flights) return;
     const k = Math.min(1, (now - start) / ms);

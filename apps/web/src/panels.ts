@@ -734,7 +734,7 @@ export function renderDepartments(): void {
   // so in words, not as a greyed slider.
   const slider = (attr: string, max: number, value: number) =>
     `<input ${attr} type="range" min="0" max="${max}" step="5" value="${value}" data-mark="100" style="--span:${(max / DEPT_TOP).toFixed(3)}">`;
-  const none = (what: string) => `<em class="dept-none" title="${what}${what === '시설' ? '이' : '를'} 지으면 조절할 수 있습니다">아직 없음</em><span></span>`;
+  const none = (what: string) => `<em class="dept-none" title="${what}${josa(what, '을', '를')} 지으면 조절할 수 있습니다">아직 없음</em><span></span>`;
   el.innerHTML = `
     <h3 class="sub">부서 예산</h3>
     ${DEPTS.map(([k, name, hint]) => `<label class="funding dept" title="${hint}">${name} ${deptEmpty(k) ? none(k === 'corrections' ? '교도소' : '랜드마크') : `${slider(`data-dept="${k}"`, k === 'parks' || k === 'landmarks' ? 100 : 120, d[k])}<span>${d[k]}%</span>`}</label>`).join('')}

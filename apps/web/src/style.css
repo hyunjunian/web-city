@@ -1196,11 +1196,11 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .budget-table tr.sub td:first-child { padding-left: 14px; }
 .budget-table tr.head td { font-weight: 600; }
 .budget-table tr.head + tr.head td, .budget-table tr.sub + tr.head td { padding-top: 10px; }
-.budget-table .share { position: absolute; left: 0; bottom: 1px; z-index: 1; height: 4px; border-radius: 2px; opacity: 0.8; }
+.budget-table .share { position: absolute; left: 0; bottom: 1px; height: 4px; border-radius: 2px; opacity: 0.8; }
 .budget-table tr.sub .share { left: 14px; max-width: calc(100% - 14px); }
 /* (On a faint track the row's width: a hairline of its own length read as an underline gone short.) */
-.budget-table td:first-child:has(> .share)::after { content: ''; position: absolute; left: 0; right: 6px; bottom: 1px; height: 4px; border-radius: 2px; background: var(--surface-2); }
-.budget-table tr.sub td:first-child:has(> .share)::after { left: 14px; }
+.budget-table td:first-child:has(> .share)::before { content: ''; position: absolute; left: 0; right: 6px; bottom: 1px; height: 4px; border-radius: 2px; background: var(--surface-2); }
+.budget-table tr.sub td:first-child:has(> .share)::before { left: 14px; }
 .budget-table .share.in { background: var(--good); }
 .budget-table .share.out { background: var(--data); }
 .budget-table tr.total td { padding-top: 8px; border-top: 1px solid var(--line); }

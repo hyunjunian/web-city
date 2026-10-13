@@ -914,7 +914,8 @@ function markLegend(byColor: Map<string, number>): void {
   // of them greyed to nothing, crowded the card). With none on the map at all, all are shown as the key.
   const count = (el: HTMLElement) => byColor.get(el.dataset.color!) ?? 0;
   const sorted = [...items].sort((a, b) => count(b) - count(a));
-  if (sorted.some((el, k) => el !== items[k])) legend.prepend(...sorted);
+  // (Not under the keyboard: moving the focused entry dropped focus to the page as the counts swapped places.)
+  if (sorted.some((el, k) => el !== items[k]) && !legend.contains(document.activeElement)) legend.prepend(...sorted);
   const absent = items.filter((el) => !count(el)).length;
   let rest = legend.querySelector<HTMLButtonElement>('.legend-rest');
   if (absent && absent < items.length) {

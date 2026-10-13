@@ -1190,7 +1190,6 @@ export function suggestedKinds(): Map<string, StructureKind> {
   return map;
 }
 
-/** The goal's build actions: each kind of facility it may place, and its other tools. */
 /** The facility a goal's build list marks 추천 (the one its guide recommends building), for the getting-started list. */
 export function bestBuild(id: GoalId): StructureKind | null {
   const tpl = document.createElement('template');
@@ -1198,6 +1197,7 @@ export function bestBuild(id: GoalId): StructureKind | null {
   return (tpl.content.querySelector<HTMLElement>('.act.best[data-kind]')?.dataset.kind as StructureKind | undefined) ?? null;
 }
 
+/** The goal's build actions: each kind of facility it may place, and its other tools. */
 function buildActions(g: Goal): string {
   const items: string[] = [];
   const dem = city.demand.demand;
@@ -1927,13 +1927,16 @@ function airCauses(id: GoalId): string {
  * One advisor's word under 진단, with its 보기 and fix buttons. The word 추천 조치 already leads with
  * is not said twice: its first sentence stands at the top of the screen, so only the rest is read here.
  */
-function diagnosis(a: ReturnType<typeof adviceFor>[number], lead: ReturnType<typeof guideSaid>): string {
+function diagnosis(a: ReturnType<typeof adviceFor>[number], lead: ReturnType<typeof guideSaid>, id: GoalId): string {
   let text = a.code === 'waterShort' && waterApart() ? APART : ADVICE_TEXT[a.code]?.(a.value ?? 0, a.type) ?? a.code;
-  const echo = a === lead.worst && !!lead.said && text.startsWith(lead.said);
+  // (The card may name it its own way — a full hospital, which one and all of them — over the same first sentence.)
+  const echo = a === lead.worst && !!lead.said && (text.startsWith(lead.said) || lead.said === fullNote(a, id));
   // (The trouble the top card leads with and mends in one press itself — a tax to neutral, a budget to 100% — is
-  // not offered again here: the same advice and the same button twice on one screen.)
-  if (echo && (a.code === 'taxHigh' || BUDGET_FIX[a.code]) && fixButton(a)) return '';
-  if (echo) text = text.slice(lead.said.length).trim();
+  // not offered again here: the same advice and the same button twice on one screen. Only then: a budget already at
+  // 100% leaves the card a build, and this line its 보기 and its own button.)
+  const mended = a.code === 'taxHigh' ? !!fixButton(a) : a.level !== 'good' && !!BUDGET_FIX[a.code] && !!budgetStep('finance', a);
+  if (echo && mended) return '';
+  if (echo) text = text.slice((text.startsWith(lead.said) ? lead.said : firstSentence(text)).length).trim();
   const more = a.code === 'unemployment' ? jobHint() : a.code === 'abandoned' ? abandonHint() : a.code === 'capRes' ? capHint() : '';
   const acts = a.at || fixButton(a) ? `<span class="advice-acts">${a.at ? `<button type="button" class="advice-view" data-at="${a.at.join(',')}" title="지도에서 그곳 보기">보기</button>` : ''}${fixButton(a)}</span>` : '';
   if (echo && !text && !more && !acts) return '';
@@ -1984,7 +1987,7 @@ function goalHtml(id: GoalId): string {
     ${usageBar(id)}
     ${airCauses(id)}
     <div class="mg-views" role="group" aria-label="지도 보기">${icon('layers')}${g.views.map(([v, label]) => `<button type="button" class="vchip" data-mg-view="${v}" aria-pressed="${view === v}">${label}</button>`).join('')}</div>
-    ${((said) => (said ? `<section class="mg-sec"><h3>${icon('info')}진단</h3>${said}</section>` : ''))(advice.map((a) => diagnosis(a, lead)).join(''))}
+    ${((said) => (said ? `<section class="mg-sec"><h3>${icon('info')}진단</h3>${said}</section>` : ''))(advice.map((a) => diagnosis(a, lead, id)).join(''))}
     ${id === 'finance' ? financeActions() : ''}
     ${spotLine(id)}
     ${id === 'growth' && $('#demand').innerHTML.trim() ? `<section class="mg-sec mg-rci"><h3>${icon('zones')}구역별 수요 <span class="sec-note">막대가 위로 길수록 수요가 큼</span></h3>${$('#demand').innerHTML.replace('id="demand-detail"', 'class="demand-detail-mg"')}</section>` : ''}

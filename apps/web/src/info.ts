@@ -8,7 +8,7 @@ import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { updatePanels } from './panels';
 import { ROUTE_COLOR, structureColor, TYPE_COLOR, zoneTint } from './render';
-import { cam, city, clampCamera, overlay, overlayType, redraw, renderer, setSelected } from './state';
+import { cam, city, cityGeneration, clampCamera, flightCount, moveCount, overlay, overlayType, redraw, renderer, setSelected, stopFlight } from './state';
 import { closeInfo, showTab } from './tabs';
 import { $, escapeHtml, flash, fmt, glue, hours, josa, pct, touchFirst } from './util';
 import { refreshTaxes } from './controls';
@@ -108,43 +108,55 @@ export function keepInView(r: { x: number; y: number; w: number; h: number }): v
   if (Math.abs(dx) < 1e-3 && Math.abs(dy) < 1e-3) return;
   // (Kept, to give back when the card goes — added to a move it made for the lot before, if nothing moved it since.)
   const was = shiftedFor && untouched(shiftedFor) ? shiftedFor : { dx: 0, dy: 0 };
-  shiftedFor = { dx: was.dx + dx, dy: was.dy + dy, x: ox + dx, y: oy + dy, scale: cam.scale };
   glide(dx, dy);
+  shiftedFor = { dx: was.dx + dx, dy: was.dy + dy, x: ox + dx, y: oy + dy, scale: cam.scale, moves: moveCount(), city: cityGeneration };
 }
 
-/** How far keepInView moved the camera for the card, and where it left it. */
-let shiftedFor: { dx: number; dy: number; x: number; y: number; scale: number } | null = null;
-const untouched = (s: { x: number; y: number; scale?: number }) =>
-  Math.abs(cam.x - s.x) < 1e-3 && Math.abs(cam.y - s.y) < 1e-3 && (s.scale === undefined || cam.scale === s.scale);
+/** How far keepInView moved the camera for the card, where it left it, and the game's camera moves and city then. */
+let shiftedFor: { dx: number; dy: number; x: number; y: number; scale: number; moves: number; city: number } | null = null;
+/** Left where the card put it (or on its way there): not moved since by the player, nor by a flight or framing begun since. */
+const untouched = (s: { x: number; y: number; scale: number; moves: number; city: number }) => {
+  const at = gliding ?? cam;
+  return s.moves === moveCount() && s.city === cityGeneration && Math.abs(at.x - s.x) < 1e-3 && Math.abs(at.y - s.y) < 1e-3 && cam.scale === s.scale;
+};
 
 /**
  * The card closing: the camera back where it was before the card moved it, unless the player has moved it since.
  * (On a phone the sheet lifted the town into the top half, and closed it left it there over a black lower half.)
+ * Not when another move has begun since — a flight to a site, another city's framing — which it pulled back.
  */
 export function giveBackView(): void {
   const s = shiftedFor;
   shiftedFor = null;
-  if (s && untouched(s)) glide(-s.dx, -s.dy);
+  if (s && untouched(s)) glide(s.x - s.dx - cam.x, s.y - s.dy - cam.y);
 }
 
-/** Moves the camera by (dx, dy) tiles over 220ms, easing out. */
+/** Moves the camera by (dx, dy) tiles over 220ms, easing out; any other camera move after it stops it. */
 let glideId = 0;
+/** Where a glide under way is taking the camera (null when none is). */
+let gliding: { x: number; y: number } | null = null;
 /** Stops a glide under way (another camera move takes over: a double click's zoom). */
 export function cancelGlide(): void {
   glideId++;
+  gliding = null;
 }
 function glide(dx: number, dy: number): void {
   const from = { x: cam.x, y: cam.y };
   const start = performance.now();
   const id = ++glideId;
+  stopFlight(); // (a flight under way gives way to it, as it gives way to one begun after it)
+  const flight = flightCount();
+  gliding = { x: from.x + dx, y: from.y + dy };
   const step = (now: number) => {
     if (id !== glideId) return;
+    if (flight !== flightCount()) return void (gliding = null);
     const k = Math.min(1, (now - start) / 220);
     const e = 1 - (1 - k) ** 3;
     cam.x = from.x + dx * e;
     cam.y = from.y + dy * e;
     redraw();
     if (k < 1) requestAnimationFrame(step);
+    else gliding = null;
   };
   requestAnimationFrame(step);
 }

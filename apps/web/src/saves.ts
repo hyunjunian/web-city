@@ -3,7 +3,7 @@
 import { loadCity, saveCity, type SavedCity } from '@web-city/engine';
 import { icon } from './icons';
 import { thumbnail } from './minimap';
-import { leaveRegion } from './region';
+import { leaveRegion, region } from './region';
 import { city, saveSlotId, setCity, setSaveSlotId } from './state';
 import { SAVE_KEY } from './storage';
 import { choicesMade } from './undo';
@@ -129,8 +129,12 @@ export function showSaves(): void {
   const list = readIndex().sort((a, b) => b.savedAt - a.savedAt);
   const body = $('#saves-body');
   if (!list.length) {
-    // (With the way to make one: the list said to use the menu's 저장, and offered only 닫기.)
-    body.innerHTML = `<p class="muted">저장된 도시가 없습니다. 지금 도시를 이 브라우저에 저장해 두면 여기서 다시 열 수 있습니다.</p>
+    // (With the way to make one: the list said to use the menu's 저장, and offered only 닫기. In a region, 저장 keeps the
+    // whole region, which this list doesn't show: said so, with where it opens again.)
+    body.innerHTML = region
+      ? `<p class="muted">저장된 도시가 없습니다. 지금 도시는 지역에 속해 있어 저장하면 지역의 모든 도시가 함께 저장되고, 지역 시트의 <b>저장된 지역 열기</b>로 다시 엽니다.</p>
+      <p class="saves-empty-act"><button type="button" class="primary" id="saves-save-now">${icon('save')}지역 저장하기</button></p>`
+      : `<p class="muted">저장된 도시가 없습니다. 지금 도시를 이 브라우저에 저장해 두면 여기서 다시 열 수 있습니다.</p>
       <p class="saves-empty-act"><button type="button" class="primary" id="saves-save-now">${icon('save')}지금 도시 저장하기</button></p>`;
   } else {
     body.innerHTML = `<ul class="saves">${list.map((s) => `
@@ -148,7 +152,9 @@ export function showSaves(): void {
   const now = body.querySelector<HTMLButtonElement>('#saves-save-now');
   if (now) now.onclick = () => {
     $<HTMLButtonElement>('#btn-save').click(); // (as the menu's 저장: a region saves all its cities)
-    showSaves();
+    // (A region's save is no slot of this list, which stayed empty with its word behind the dialog: the dialog goes.)
+    if (region) dialog.close();
+    else showSaves();
   };
   body.querySelectorAll<HTMLButtonElement>('[data-load]').forEach((btn) => {
     btn.onclick = async () => {
