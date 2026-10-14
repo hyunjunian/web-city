@@ -17,7 +17,7 @@ import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, 
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { GRAPH_KEYS } from './graphs';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
-import { categoryOf, chosen, kindsFor, openTray, panTipAt, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
+import { categoryOf, chosen, kindsFor, openTray, panTipAt, pickStructure, restView, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
@@ -268,7 +268,7 @@ function guideHtml(id: GoalId): { head: string; act: string } {
     // Nothing to build or press for it: where it is worst, and the views that show why.
     const at = worst?.at ?? (spot ? [spot.x, spot.y] : null);
     action = `<div class="g-act"><p class="g-act-head">${icon('search')}<b>원인부터 살펴보세요</b></p>
-      <p class="g-act-why">${GOALS[id].tabs.length > 1 ? `위의 탭(${GOALS[id].tabs.map((t) => t.label).join(' · ')})을 차례로 눌러 지도와 ` : '지도와 '}아래 진단에서 원인을 찾으세요</p>
+      <p class="g-act-why">${goalTabs(id).length > 1 ? `위의 탭(${goalTabs(id).map((t) => t.label).join(' · ')})을 차례로 눌러 지도와 ` : '지도와 '}아래 진단에서 원인을 찾으세요</p>
       ${at ? `<div class="g-act-btns"><button type="button" class="primary" data-spot="${at.join(',')}">${icon('target')}가장 심한 곳 보기</button></div>` : ''}</div>`;
   } else if (st.widen) {
     // A stretch to widen, shown on the map from end to end before it is widened.
@@ -360,7 +360,7 @@ function guideHtml(id: GoalId): { head: string; act: string } {
     if (station && spot) markSite = { id, at: siteNear(station, spot.x, spot.y, 0) ?? siteNear(station, spot.x, spot.y, 6), kind: station, name: STRUCTURE_NAME[station] };
     action = `<div class="g-act"><p class="g-act-head">${st.glyph}<b>${escapeHtml(st.what)}</b>${st.sub ? `<small class="${short ? 'neg' : ''}">${escapeHtml(st.sub)}</small>` : ''}</p>
       ${why ? `<p class="${st.fx ? `g-act-fx${/−|모자람/.test(st.fx) ? ' neg' : ''}` : 'g-act-why'}">${escapeHtml(why)}</p>` : ''}
-      <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}>${go}</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}" title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
+      <div class="g-act-btns"><button type="button" class="primary mg-guide-go" data-guide-kind="${st.kind}"${st.fixAct ? ` data-guide-act="${st.fixAct}"` : ''}${st.kind === 'best' && st.act ? ` data-guide-tool="${st.act}"` : ''}>${go}</button>${site ? `<button type="button" class="g-site" data-spot-build="${spot.x},${spot.y}"${st.build ? ` data-build-kind="${st.build}"` : ''} title="${escapeHtml(siteTitle)}">${icon('target')}추천 자리에 짓기</button>`
         : own ? `<button type="button" class="g-site" data-spot-build="${own.at.map((at) => at.join(',')).join(';')}" data-build-kind="${st.build}" title="${own.title}">${icon('target')}추천 자리에 ${own.at.length > 1 ? `${own.at.length}곳 ` : ''}짓기</button>`
         : block && zone ? `<button type="button" class="g-site" data-zone="${block.x0},${block.y0},${block.x1},${block.y1}" data-zone-kind="${zone}" title="${escapeHtml(st.what)} 구역 ${block.side}×${block.side}을 도로에 닿는 빈 땅에 바로 놓기 · §${fmt(blockCost)}">${icon('target')}추천 자리에 ${block.side}×${block.side} 놓기</button>`
         : fill ? `<button type="button" class="g-site" data-landfill="${fill.x0},${fill.y0},${fill.x1},${fill.y1}" title="${fillSpan(fill.months) ? `${fillSpan(fill.months)}의 쓰레기를 묻을 크기로, ` : ''}도로에 닿고 주거·상업에서 떨어진 빈 땅에 바로 놓기 · §${fmt(fill.cost)} · 월 §${fmt(fill.side * fill.side * city.cfg.garbage.landfill.upkeep)}">${icon('target')}추천 자리에 ${fill.side}×${fill.side} 놓기</button>` : ''}</div></div>`;
@@ -894,9 +894,6 @@ function nextHtml(tones: Tone[]): Step {
 
 /** The goal on screen (null: the overview). */
 export let active: GoalId | null = null;
-/** The view before a goal put its own on, to put back after (unless the player changed it meanwhile). */
-let viewBefore = 'none';
-let viewSet = '';
 /** Each figure's number when the screen opened (its tile shows how far it has moved since). */
 const baseline = new Map<string, number>();
 let baselineCity = -1;
@@ -1109,8 +1106,12 @@ function showGoalView(id: GoalId, view: string): void {
     if (want && type.value !== want) type.value = want;
   }
   showOverlay(view);
-  viewSet = view;
   refreshInfo();
+}
+
+/** The view the map rests on: the open goal's tab's, else the city as it is (a tool in hand may put its own over it). */
+export function baseView(): string {
+  return active ? tabView(active, tabNow(active)) : 'none';
 }
 
 // ------------------------------------------------------------------ a goal's tabs
@@ -1165,7 +1166,9 @@ function tabTone(id: GoalId, t: GoalTab): '' | 'bad' {
  */
 function openingTab(id: GoalId): number {
   const tabs = goalTabs(id);
-  const by = (code: string | undefined) => (code ? tabs.findIndex((t) => t.codes?.includes(code)) : -1);
+  // (A code no tab names is the first tab's, as 진단 has it: by the names alone, a card led by an unnamed code opened
+  // on another tab's trouble, its own on the first.)
+  const by = (code: string | undefined) => (code ? tabs.findIndex((t) => codeOn(id, t, code)) : -1);
   const inc = incidents().find((x) => x.goal === id);
   const lead = inc ? incidentCode(inc) : (capFirst(id) ?? guideSaid(id).worst)?.code;
   const k = by(lead);
@@ -1190,13 +1193,45 @@ function selectTab(k: number, focus = false): void {
 }
 
 /** [ and ]: the open goal's tab before or after (the map's view goes with it); with none open, how to get one. */
+/**
+ * The open goal's tab whose screen has a control, the one on first (−1: none has it). 추천 조치 stands on every tab,
+ * but what its 해 보기 presses — the build card, the advisor's row with its tool — only on its own tab.
+ */
+function tabWith(sel: string): number {
+  if (!active) return -1;
+  if ($('#manage').querySelector(sel)) return tabAt;
+  const was = tabAt;
+  const tpl = document.createElement('template');
+  try {
+    for (let k = 0; k < goalTabs(active).length; k++) {
+      if (k === was) continue;
+      tabAt = k;
+      const parts = goalParts(active);
+      tpl.innerHTML = parts.acts + parts.more;
+      if (tpl.content.querySelector(sel)) return k;
+    }
+  } finally {
+    tabAt = was;
+  }
+  return -1;
+}
+
+/** Presses a control of the open screen's on the tab that has it, put on first (its view with it) if another shows. */
+function pressOnTab(sel: string): void {
+  const k = tabWith(sel);
+  if (k < 0) return;
+  if (k !== tabAt) selectTab(k);
+  $('#manage').querySelector<HTMLElement>(sel)?.click();
+}
+
 export function stepTab(by: number): void {
   if (!active) {
     flash('도시 상태에서 항목을 열면 [ ]로 그 탭을 넘깁니다 · 탭마다 알맞은 지도 보기가 켜집니다', 'info');
     return;
   }
   const n = goalTabs(active).length;
-  if (n > 1) selectTab((Math.min(tabAt, n - 1) + by + n) % n);
+  // (Focus on a tab goes on to the new one: given back to the old, it sat on a tab out of the Tab order.)
+  if (n > 1) selectTab((Math.min(tabAt, n - 1) + by + n) % n, !!document.activeElement?.closest('.mg-tabs'));
   flash(`${GOALS[active].name} › ${tabNow(active).label}`, 'info');
 }
 
@@ -1239,7 +1274,6 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
   dropGoalToasts(id); // (an advisor's alarm too, worded with the advisor's name: 공공시설: …)
   if (changed) {
     if (!active) {
-      viewBefore = currentView();
       overviewScroll = $('#pane').scrollTop;
       byKeyboard = !!document.activeElement?.closest('#pane') && document.activeElement!.matches(':focus-visible');
     }
@@ -1360,7 +1394,9 @@ function openGoalAt(id: GoalId, part: string, view?: string): void {
 
 /** Phones: the built-up city glided into the map left above the pane. */
 function cityAbovePane(): void {
-  if (!active) return;
+  // (Not once the pane has gone down again: a view's 보기 opens its goal and then shows the map, and the city moved for
+  // a pane that was no longer there.)
+  if (!active || !$('#app').classList.contains('pane-open')) return;
   const v = renderer.canvas.getBoundingClientRect();
   const pane = $('#pane').getBoundingClientRect();
   // Beside the pane (landscape: it stands at the left) or between the top bar (or the view's card under it, when
@@ -1414,9 +1450,11 @@ export function closeGoal(): boolean {
   renderer.guidePath = null;
   marksSig = '';
   hotSites = []; // (the button that lit them went with the screen)
-  if (currentView() === viewSet) showOverlay(viewBefore);
   if (handed && tool.id === handed) selectTool('query');
   handed = '';
+  // The screen's view goes with it: the city as it is, or the view of a tool still in hand. (Putting back the view from
+  // before it opened brought back a tool's — a station held then — with nothing left to take it off.)
+  restView();
   updatePanels();
   // Back where the overview was, focus on the goal's row if the keyboard was in the panel.
   $('#pane').scrollTop = overviewScroll;
@@ -2376,11 +2414,11 @@ function tabsHtml(id: GoalId): string {
     const on = x === now;
     const tone = tabTone(id, x);
     const shows = x.view === 'none' ? '지도 보기 없음 (도시 그대로)' : `지도: ${viewName(tabView(id, x)) || x.label}`;
-    return `<button type="button" role="tab" class="mg-tab${on ? ' on' : ''}" id="mg-tab-${k}" data-mg-tabk="${k}" aria-selected="${on}" aria-controls="manage" tabindex="${on ? 0 : -1}" title="${escapeHtml(shows)}${tone ? ' · 문제 있음' : ''}">${escapeHtml(x.label)}${tone ? '<i class="mg-tab-dot" aria-hidden="true"></i>' : ''}</button>`;
+    return `<button type="button" role="tab" class="mg-tab${on ? ' on' : ''}" id="mg-tab-${k}" data-mg-tabk="${k}" aria-selected="${on}" tabindex="${on ? 0 : -1}" title="${escapeHtml(shows)}${tone ? ' · 문제 있음' : ''}">${escapeHtml(x.label)}${tone ? '<i class="mg-tab-dot" aria-hidden="true"></i>' : ''}</button>`;
   }).join('');
   // (Only the kinds the city has, and the one showing: six networks opened on a blank map and "아직 없습니다".)
   const kinds = now.views?.filter(([v]) => v === now.view || v === view || !viewEmpty(v)) ?? [];
-  const sub = kinds.length > 1 ? `<div class="mg-kinds" role="group" aria-label="${escapeHtml(now.label)}: 무엇의">${kinds.map(([v, label]) => `<button type="button" class="vchip" data-mg-view="${v}" aria-pressed="${view === v}">${label}</button>`).join('')}</div>` : '';
+  const sub = kinds.length > 1 ? `<div class="mg-kinds" role="group" aria-label="${escapeHtml(now.label)} 종류">${kinds.map(([v, label]) => `<button type="button" class="vchip" data-mg-view="${v}" aria-pressed="${view === v}">${label}</button>`).join('')}</div>` : '';
   return `<div class="mg-tabs" role="tablist" aria-label="${GOALS[id].name}: 탭마다 지도 보기가 바뀝니다">${row}</div>${sub}`;
 }
 
@@ -2483,6 +2521,15 @@ export const paneHeld = () => holding;
 /** Redraws the goal's panel with the city as it is now (from updatePanels). */
 export function renderGoal(force = false): void {
   if (!active) return;
+  // A tab gone from under the player (radiation cleared while its tab was on): the last one stands, and its view with
+  // it (the list showed it chosen over the old tab's map).
+  const tabs = goalTabs(active);
+  if (tabAt >= tabs.length) {
+    tabAt = tabs.length - 1;
+    showGoalView(active, tabView(active, tabs[tabAt]!));
+    showGoalStats(active);
+    force = true;
+  }
   refreshBadge();
   // The result of the work: the goal turning good while its screen is open is said once.
   const tone = goalStatus(active).tone;
@@ -2619,9 +2666,10 @@ export function setupGoals(): void {
       return;
     }
     if (guide) {
-      const btn = guide.dataset.guideKind === 'best' ? $('#manage').querySelector<HTMLElement>('.act.best')
-        : $('#manage').querySelector<HTMLElement>(`.advice-acts [data-act="${guide.dataset.guideAct}"]`);
-      btn?.click();
+      // (On the tab with the card or the advisor's row it presses: on 화재 위험, 해 보기 for a fire station did nothing.)
+      const named = guide.dataset.guideTool;
+      pressOnTab(guide.dataset.guideKind === 'best' ? `.act.best${named ? `[data-act="${CSS.escape(named)}"]` : ''}`
+        : `.advice-acts [data-act="${CSS.escape(guide.dataset.guideAct ?? '')}"]`);
       return;
     }
     // An emergency's card: its goal's screen, with the units ready (as pressed there).
@@ -2631,9 +2679,9 @@ export function setupGoals(): void {
       openGoal(next.dataset.next as GoalId, where);
       const kind = next.dataset.nextKind;
       if (kind === 'incident') $('#manage').querySelector<HTMLElement>('.mg-alert [data-act]')?.click();
-      const btn = kind === 'best' ? $('#manage').querySelector<HTMLElement>('.act.best')
-        : kind === 'fix' ? $('#manage').querySelector<HTMLElement>(`.advice-acts [data-act="${next.dataset.nextAct}"]`) : null;
-      btn?.click();
+      // (The screen opens on the tab about its trouble, which may not be the one with the card to press.)
+      if (kind === 'best') pressOnTab('.act.best');
+      else if (kind === 'fix') pressOnTab(`.advice-acts [data-act="${CSS.escape(next.dataset.nextAct ?? '')}"]`);
       return;
     }
     const row = (e.target as HTMLElement).closest<HTMLElement>('[data-goal]');

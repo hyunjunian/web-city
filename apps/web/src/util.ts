@@ -47,7 +47,7 @@ export const flashing = (): boolean => flashTimer !== 0;
 export function keyForControl(e: KeyboardEvent): boolean {
   const el = e.target as Element;
   const moving = /^(Arrow|Page|Home$|End$)/.test(e.key);
-  if (el.closest?.('input[type="range"], [role="tablist"]')) return moving || (e.key === 'Escape' && !!el.closest('[role="tablist"]'));
+  if (el.closest?.('input[type="range"], [role="tablist"]')) return moving; // (Esc too goes to the game: on a goal's tab it closed nothing)
   if (el.closest?.('input[type="checkbox"]')) return e.key === ' ';
   return !!el.closest?.('input, select, textarea');
 }

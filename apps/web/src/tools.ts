@@ -4,12 +4,12 @@
 import { DEFAULT_CONFIG, DEV_TYPES, DISASTER_KINDS, type DisasterKind, type NetworkKind, type StructureKind, STRUCTURES, type ZoneKind } from '@web-city/engine';
 import { icon, type IconName } from './icons';
 import { hoverUnderMouse, setPreview, updatePreview } from './input';
-import { goalTools, markToolSite, nextStep, openGoal, suggestedKinds } from './manage';
+import { baseView, goalTools, markToolSite, nextStep, openGoal, suggestedKinds } from './manage';
 import { firstStepTool } from './onboarding';
 import { DISASTER_NAME, plainCodes, STRUCTURE_NAME } from './names';
 import { holdForBuilding, isHeld, releaseHold, showHelp, showOverlay, viewProblem } from './controls';
 import { structureMark } from './render';
-import { city, overlay, redraw, renderer, setDrag } from './state';
+import { city, redraw, renderer, setDrag } from './state';
 import { closeInfo, closePane, closeSheet, showTab } from './tabs';
 import { cancelMySimAction } from './mysims';
 import { $, endFlash, flash, fmt, touchFirst } from './util';
@@ -1010,16 +1010,17 @@ export function selectTool(id: string): void {
       }
     } catch { /* storage unavailable */ }
   }
-  const view = UNDERGROUND_VIEW[tool.kind] ?? PLACING_VIEW[tool.id] ?? null;
-  const current = overlay.kind === 'none' ? 'none' : overlay.kind;
-  // Underground work is seen in its view whatever view was on (laid under the
-  // traffic view, pipes stayed unseen); the view before comes back after.
-  if (view && current !== view) {
-    if (current !== autoView) viewBefore = current; // (a view picked by hand meanwhile is the one to come back to)
+  const view = toolView();
+  // (The view as the screen names it — 'volume:road', not the overlay's 'volume', which named no view to come back to.)
+  const current = document.querySelector<HTMLSelectElement>('#overlay-kind')?.value;
+  // Underground work is seen in its view whatever view was on (laid under the traffic view, pipes stayed unseen); put
+  // down, the view the map rests on comes back: the open screen's tab's, else none.
+  if (current === undefined) autoView = null; // (the first tool, at the start, comes before the views are built)
+  else if (view && current !== view) {
     showOverlay(view);
     autoView = view;
   } else if (autoView && autoView !== view && current === autoView) {
-    showOverlay(viewBefore);
+    showOverlay(baseView());
     autoView = null;
   } else if (!view) autoView = null;
   markToolSite(); // (a station in hand: where it fills the biggest gap)
@@ -1042,8 +1043,16 @@ const PLACING_VIEW: Record<string, string> = {
 };
 /** The view a tool turned on itself (turned off again when another tool is picked). */
 let autoView: string | null = null;
-/** The view showing before the tool turned its own on. */
-let viewBefore = 'none';
+
+/** The view the tool in hand turns on, if any. */
+const toolView = (): string | null => UNDERGROUND_VIEW[tool.kind] ?? PLACING_VIEW[tool.id] ?? null;
+
+/** The map's view with no screen to hold one (a goal's closed): the tool in hand's own, else the city as it is. */
+export function restView(): void {
+  const view = toolView();
+  showOverlay(view ?? 'none');
+  autoView = view;
+}
 
 // ------------------------------------------------------------------ finding a tool
 

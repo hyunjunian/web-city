@@ -834,6 +834,12 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #map-layer .layer-title .i { width: 16px; height: 16px; }
 #map-layer .layer-title > .i:first-child { color: var(--accent-hi); }
 #map-layer .legend-toggle { display: none; margin-left: auto; }
+/* Wider screens: the name folds the legend away and back (the chevron points the way it goes). */
+#mapbar:not(.fit4) #map-layer:not(.off) .layer-title { cursor: pointer; }
+#mapbar:not(.fit4) #map-layer:not(.off) .legend-toggle { display: inline-flex; color: var(--muted); transform: rotate(180deg); transition: transform 0.2s var(--ease); }
+#mapbar:not(.fit4) #map-layer.tucked .legend-toggle { transform: none; }
+#mapbar:not(.fit4) #map-layer.tucked :is(#overlay-legend, #overlay-scale, #overlay-type) { display: none !important; }
+#mapbar:not(.fit4) #map-layer.tucked:has(#overlay-sum[hidden]) .layer-title { margin-bottom: -4px; }
 #overlay { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 #overlay select { width: 100%; }
 /* A drag that starts on the view's card selected its text; with a building tool in hand its legend steps aside (the map is the work). */
@@ -2504,8 +2510,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #mapbar.fit4 #map-layer:not(.off) #overlay { gap: 6px; }
 #mapbar.fit4 #map-layer:not(.open) :is(#overlay-legend, #overlay-scale) { display: none !important; }
 /* (With a tool in hand the legend steps aside: no unfolding then.) */
-#view.holding #mapbar.fit4 #map-layer .legend-toggle { display: none; }
-#view.holding #mapbar.fit4 #map-layer .layer-title { pointer-events: none; }
+#view.holding #mapbar #map-layer .legend-toggle { display: none; }
+#view.holding #mapbar #map-layer .layer-title { pointer-events: none; }
 
 /* ---- the view's card, hanging from the bar's left end: the view's name, its legend and the count */
 #view #mapbar #map-layer {

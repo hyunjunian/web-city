@@ -15,7 +15,7 @@ let consuming = false;
 /** Whether anything Esc would put away is out: a dialog or the ⋯ menu, the tool card, a card, a sheet, the pane, a goal's screen, a tool in hand. */
 function anythingOpen(): boolean {
   return !!document.querySelector('dialog[open], details.dropdown[open]') || !$('#tray').hidden || !$('#info-card').hidden || !$('#sheet').hidden
-    || $('#app').classList.contains('pane-open') || $('#map-layer').classList.contains('picking') || active !== null || tool.id !== 'query';
+    || $('#app').classList.contains('pane-open') || active !== null || tool.id !== 'query';
 }
 
 /** After a press: an entry in front of the page while something is out, none once nothing is. */

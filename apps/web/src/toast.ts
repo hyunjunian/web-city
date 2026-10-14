@@ -57,8 +57,7 @@ function placeToasts(): void {
   let low = 0;
   for (const id of ['mapbar', 'goal-strip', 'manage-chip', 'map-layer']) {
     const part = document.getElementById(id);
-    // (Not the view list while it is open: it is a menu, gone at the next press, and a notice under it fell off screen.)
-    if (!part || part.hidden || part.classList.contains('picking')) continue;
+    if (!part || part.hidden) continue;
     const cs = getComputedStyle(part);
     if (cs.display === 'none' || cs.visibility === 'hidden') continue;
     const r = part.getBoundingClientRect();
