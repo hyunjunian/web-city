@@ -897,6 +897,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 }
 #tool-alts button:hover { background: var(--surface-2); color: var(--text); }
 #tool-alts button.active { background: var(--accent-soft, var(--surface-3)); color: var(--accent-hi); font-weight: 650; }
+#tool-alts .alt-cost { margin-left: 1px; color: var(--muted); font-size: 11px; font-weight: 500; font-variant-numeric: tabular-nums; }
 #tool-alts .i { width: 15px; height: 15px; }
 #tool-alts .swatch, #tool-alts .pick-swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; flex: none; font-size: 0; } /* (its colour alone at that size) */
 #view:has(#confirm-bar:not([hidden])) #tool-alts, #view:has(#tool-chip[hidden]) #tool-alts { display: none; }

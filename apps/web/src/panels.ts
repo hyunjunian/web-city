@@ -16,7 +16,7 @@ import { TYPE_COLOR } from './render';
 import { GROWTH_LABEL } from './views';
 import { checkLeft, checkText, renderAges, renderPolls, renderRewards, rewardRank, rewardShare } from './reports';
 import { blinkAt, centerOn, changeKey, city, cityGeneration, graphs, overlay, redraw, speed } from './state';
-import { categoryOf, chosen, openTray, pickStructure, refreshStructureLists, selectTool, structureStat, TOOLS } from './tools';
+import { CATEGORIES, type CategoryId, categoryOf, chosen, openTray, pickStructure, refreshStructureLists, selectTool, structureStat, TOOLS } from './tools';
 import { renderUdi, watchMissions } from './udi';
 import { journal, type Notice } from './journal';
 import { toast } from './toast';
@@ -1086,8 +1086,25 @@ export function advice(): string {
       pickStructure(k);
     }, false, `눌러서 ${STRUCTURE_NAME[k]} 짓기`);
   }
-  // Several at once (a milestone opens a few): one toast, the pane lists them.
-  if (unlocked.length > 1) toast(`새 보상·거래 ${unlocked.length}개: ${unlocked.map((k) => STRUCTURE_NAME[k]).join(', ')}`);
+  // Several at once (a milestone opens a few): one toast, the pane lists them — each kind once, with how many (one
+  // unlock a tier named 예배당 and 묘지 twice and counted 12 for 10 kinds; and most weren't rewards, but bigger schools
+  // and pumps). Pressed, the tools' card where most of them are.
+  if (unlocked.length > 1) {
+    const counts = new Map<StructureKind, number>();
+    for (const k of unlocked) counts.set(k, (counts.get(k) ?? 0) + 1);
+    const cats = new Map<CategoryId, number>();
+    for (const k of counts.keys()) {
+      const tool = TOOLS.find((t) => t.kind === 'structure' && t.category === STRUCTURES[k].category);
+      if (tool) cats.set(categoryOf(tool.id), (cats.get(categoryOf(tool.id)) ?? 0) + 1);
+    }
+    const cat = [...cats].sort((a, b) => b[1] - a[1])[0]?.[0];
+    const label = CATEGORIES.find((c) => c.id === cat)?.label;
+    toast(`새로 지을 수 있는 시설 ${counts.size}종: ${[...counts].map(([k, n]) => `${STRUCTURE_NAME[k]}${n > 1 ? ` ${n}곳` : ''}`).join(', ')}`, 'good', undefined,
+      cat ? () => {
+        closeSheet();
+        openTray(cat);
+      } : undefined, false, label ? `눌러서 ${label} 보기` : undefined);
+  }
   for (const r of city.takeReports()) {
     const parts = [r.buildings && `건물 ${r.buildings}`, r.structures && `시설 ${r.structures}`, r.networkTiles && `도로·선로 ${r.networkTiles}칸`,
       r.undergroundTiles && `지하 ${r.undergroundTiles}칸`, r.fires && `화재 ${r.fires}`].filter(Boolean).join(' · ');

@@ -914,6 +914,8 @@ export function refreshToolChip(): void {
 function refreshToolAlts(): void {
   const row = $('#tool-alts');
   let html = '';
+  // Each with its price, how they differ (in a tooltip only, a finger never saw it).
+  const cost = (price: string) => (price ? `<small class="alt-cost">${price}</small>` : '');
   if (tool.kind === 'structure') {
     const t = tool;
     // (The everyday kinds where there are many — the bar would scroll through 22 parks — and the one in hand.)
@@ -923,8 +925,8 @@ function refreshToolAlts(): void {
     const lineTool = line ? TOOLS.find((x) => x.id === line) : undefined;
     if (kinds.length > 1 || lineTool) {
       html = kinds.map((k) => `<button type="button" class="${chosen[t.id] === k ? 'active' : ''}" data-alt-kind="${k}" aria-pressed="${chosen[t.id] === k}"
-        title="${attr(`${STRUCTURES[k].w}×${STRUCTURES[k].h}칸 · §${fmt(STRUCTURES[k].cost)} · 월 §${fmt(STRUCTURES[k].upkeep)}`)}">${swatchOf(k)}${STRUCTURE_NAME[k]}</button>`).join('')
-        + (lineTool ? `<button type="button" data-alt-tool="${lineTool.id}" title="${attr(`${toolName(lineTool)} · ${toolPrice(lineTool)}`)}">${toolGlyph(lineTool)}${lineTool.label}</button>` : '');
+        title="${attr(`${STRUCTURES[k].w}×${STRUCTURES[k].h}칸 · §${fmt(STRUCTURES[k].cost)} · 월 §${fmt(STRUCTURES[k].upkeep)}`)}">${swatchOf(k)}${STRUCTURE_NAME[k]}${cost(`§${fmt(STRUCTURES[k].cost)}`)}</button>`).join('')
+        + (lineTool ? `<button type="button" data-alt-tool="${lineTool.id}" title="${attr(`${toolName(lineTool)} · ${toolPrice(lineTool)}`)}">${toolGlyph(lineTool)}${lineTool.label}${cost(toolPrice(lineTool))}</button>` : '');
     }
   } else if (tool.id !== 'query') {
     const g = TOOL_GROUPS.find((x) => x.tools.includes(tool));
@@ -934,7 +936,7 @@ function refreshToolAlts(): void {
       html = sibs.map((t) => {
         const key = Object.entries(TOOL_KEYS).find(([, id]) => id === t.id)?.[0];
         return `<button type="button" class="${t.id === tool.id ? 'active' : ''}" data-alt-tool="${t.id}" aria-pressed="${t.id === tool.id}"
-          title="${attr(`${toolName(t)}${key ? ` (${key.toUpperCase()})` : ''}${toolPrice(t) ? ` · ${toolPrice(t)}` : ''}`)}">${toolGlyph(t)}${t.label}</button>`;
+          title="${attr(`${toolName(t)}${key ? ` (${key.toUpperCase()})` : ''}${toolPrice(t) ? ` · ${toolPrice(t)}` : ''}`)}">${toolGlyph(t)}${t.label}${cost(toolPrice(t))}</button>`;
       }).join('');
     }
     // A line or pipe leads back to the plant or pump it serves (the kind last chosen).
@@ -942,7 +944,7 @@ function refreshToolAlts(): void {
     if (back && city.isUnlocked(chosen[back]!)) {
       const k = chosen[back]!;
       html = (html || `<button type="button" class="active" data-alt-tool="${tool.id}" aria-pressed="true">${toolGlyph(tool)}${tool.label}</button>`)
-        + `<button type="button" data-alt-tool="${back}" title="${attr(`${STRUCTURE_NAME[k]} · §${fmt(STRUCTURES[k].cost)}`)}">${swatchOf(k)}${STRUCTURE_NAME[k]}</button>`;
+        + `<button type="button" data-alt-tool="${back}" title="${attr(`${STRUCTURE_NAME[k]} · §${fmt(STRUCTURES[k].cost)}`)}">${swatchOf(k)}${STRUCTURE_NAME[k]}${cost(`§${fmt(STRUCTURES[k].cost)}`)}</button>`;
     }
   }
   if (row.dataset.html !== html) {
