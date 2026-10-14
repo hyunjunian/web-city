@@ -1702,6 +1702,13 @@ export class Renderer {
       // Against the busiest tile in the whole city (a road's colour must not change as the view pans).
       if (overlay.kind === 'volume') for (let i = 0; i < n * n; i++) volumeMax = Math.max(volumeMax, volumeAt(s, f, overlay.network, i));
       const onWater = overlay.kind === 'volume' && overlay.network === 'ferry';
+      // A tile where people live: zoned for homes (codes 1–3), or a home stands on it.
+      const homeAt = (i: number): boolean => {
+        const z = s.zone[i]!;
+        if (z >= 1 && z <= 3) return true;
+        const occ = s.occupant[i]!;
+        return occ > 0 && s.buildings.get(occ)?.type?.[0] === 'R';
+      };
       // Painted at one pixel per tile, then scaled up in one piece: no seams where
       // translucent tiles would overlap.
       if (this.layer.width !== n) {
@@ -1772,12 +1779,14 @@ export class Renderer {
               else if ((s.zone[i] && s.zone[i] !== 10) || s.occupant[i]! > 0) color = 'rgba(230,40,40,0.45)';
               else continue;
               break;
+            // (Hospitals and schools are for homes alone: red where people live and none reaches, not on the
+            // workplaces — a large red patch of industry sat beside "모든 집이 병원 범위 안입니다".)
             case 'health':
-              color = coverage(f.healthQuality[i]!, s.zone[i]! > 0 && s.zone[i] !== 10 || s.occupant[i]! > 0);
+              color = coverage(f.healthQuality[i]!, homeAt(i));
               if (!color) continue;
               break;
             case 'school':
-              color = coverage(f.schoolQuality[i]!, s.zone[i]! > 0 && s.zone[i] !== 10 || s.occupant[i]! > 0);
+              color = coverage(f.schoolQuality[i]!, homeAt(i));
               if (!color) continue;
               break;
             case 'hq':

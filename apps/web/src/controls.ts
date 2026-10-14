@@ -431,8 +431,8 @@ export function buildOverlay(): void {
       fire: '파랑이 진할수록 소방 보호가 강함. 보호 안의 작은 불은 번지기 전에 꺼집니다. 연빨강 = 보호 없는 구역·건물.',
       flammability: '빨강 = 불이 잘 붙음(물 없는 곳·빈 건물·공장·발전소). 54 이상이 모이면 화재 다발 지역.',
       waterService: '진파랑 = 수도관, 파랑 = 급수 범위, 주황 = 관은 있지만 공급 없음, 빨강 = 물 없음.',
-      health: '병원 반경 안의 효과(등급 반영): 파랑이 진할수록 좋음. 연빨강 = 병원이 닿지 않는 구역·건물.',
-      school: '학교 종류별 효과의 평균: 파랑이 진할수록 좋음. 연빨강 = 학교가 닿지 않는 구역·건물.',
+      health: '병원 반경 안의 효과(등급 반영): 파랑이 진할수록 좋음. 연빨강 = 병원이 닿지 않는 집(주거 구역·건물; 병원은 집에만 듦).',
+      school: '학교 종류별 효과의 평균: 파랑이 진할수록 좋음. 연빨강 = 학교가 닿지 않는 집(주거 구역·건물; 학교는 집에만 듦).',
       hq: '주거 건물의 건강 지수 0–200.',
       eq: '주거 건물의 교육 지수 0–200.',
       traffic: '도로·철도의 교통량 대비 용량. 초록 = 원활, 빨강 = 용량의 2배(속도 −35%).',
@@ -508,10 +508,11 @@ export function buildOverlay(): void {
       legend.title = legend.textContent;
       legend.textContent = '';
     }
-    // The coverage views paint a faint red where people live or work and none reaches: said under the scale (it was
-    // only in the tooltip, beside a count of homes that may all be in reach while workplaces are not).
+    // The coverage views paint a faint red where none reaches — where people live or work, or for hospitals and
+    // schools (which are for homes) where people live: said under the scale (it was only in the tooltip).
     const unreached = ({ police: '경찰이', fire: '소방이', health: '병원이', school: '학교가' } as Record<string, string>)[kind.value];
-    if (unreached) legend.innerHTML = `<span class="swatch-item"><i style="background:rgba(230,60,60,0.3)"></i>${unreached} 닿지 않는 구역·건물</span>`;
+    const where = kind.value === 'health' || kind.value === 'school' ? '집' : '구역·건물';
+    if (unreached) legend.innerHTML = `<span class="swatch-item"><i style="background:rgba(230,60,60,0.3)"></i>${unreached} 닿지 않는 ${where}</span>`;
     redraw();
     refreshViewSummary();
     fitMapbar(); // (a longer name may want the room)
