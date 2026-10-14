@@ -1462,7 +1462,9 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 
   /* The tools' card heads itself with the build categories (the foot bar goes off the screen while it is up). */
   #tray.build #tray-title { display: none; }
-  #tray.build #tray-cats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; flex: 1; min-width: 0; }
+  /* (Each as wide as its name at least, the rest shared: seven equal ones cut 개발 구역 short; at the narrowest they
+     share alike again, cut short.) */
+  #tray.build #tray-cats { display: grid; grid-template-columns: repeat(7, minmax(max-content, 1fr)); gap: 2px; flex: 1; min-width: 0; }
   .tray-cat {
     flex-direction: column; gap: 3px; min-height: 54px; padding: 4px 0; border-radius: var(--r-md);
     background: transparent; color: var(--muted);
@@ -2542,7 +2544,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #view.squeezed :is(.dock-build-cat, #dock-tools > .dock-sep) { display: none; }
 #view.squeezed .dock-build { display: inline-flex; }
 #view.squeezed #tray.build #tray-title { display: none; }
-#view.squeezed #tray.build #tray-cats { display: grid; grid-template-columns: repeat(6, 50px); gap: 2px; flex: none; }
+#view.squeezed #tray.build #tray-cats { display: grid; grid-template-columns: repeat(6, 50px) 40px; gap: 2px; flex: none; }
 #view.squeezed #tray.build .card-head .find-box { flex: 1 1 280px; min-width: 0; } /* (it gives way to them: in equal shares of what it left, their names ran together) */
 #view.squeezed .tray-cat { flex-direction: column; gap: 3px; min-height: 52px; padding: 4px 0; border-radius: var(--r-md); background: transparent; color: var(--muted); }
 #view.squeezed .tray-cat .i { width: 21px; height: 21px; }
@@ -2809,6 +2811,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #dock-tools { gap: 0; }
   .dock-btn { flex: 1 1 auto; }
   #mapbar .mb-time.open .gear { grid-template-columns: repeat(4, 60px); }
+  #tray.build #tray-cats { grid-template-columns: repeat(7, minmax(0, auto)); gap: 0; justify-content: space-between; }
 }
 
 /* Placing a facility on a touch screen: its card's 여기에 짓기 is the press that builds — the tools' card, opened over

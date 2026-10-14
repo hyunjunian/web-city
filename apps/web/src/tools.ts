@@ -359,7 +359,8 @@ export function buildTools(): void {
   dock.innerHTML = CATEGORIES.filter((c) => c.id !== 'inspect').map((c) => (c.id === 'bulldoze' ? build : '') + (SEP_BEFORE.includes(c.id) ? '<span class="dock-sep" aria-hidden="true"></span>' : '')
     + catButton(c, `dock-btn${BUILD_CATS.includes(c.id) ? ' dock-build-cat' : ''}`, 'short' in c ? c.short : c.label)).join('');
   // A window too low for them all: the build categories as a row at the top of the tray.
-  $('#tray-cats').innerHTML = BUILD_CATS.map((id) => {
+  // (철거 at its end as on the bar: the bar is away under the card on a phone, and the bulldozer was out of reach.)
+  $('#tray-cats').innerHTML = [...BUILD_CATS, 'bulldoze' as const].map((id) => {
     const c = CATEGORIES.find((x) => x.id === id)!;
     return catButton(c, 'tray-cat', 'short' in c ? c.short : c.label);
   }).join('');
