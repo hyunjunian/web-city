@@ -2104,8 +2104,12 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .lead.calm .lead-title { color: var(--text); }
 /* 추천 reads the same wherever it is: the action's blue ring and tag (green said "good" in the goal screen and
    "recommended" nowhere else); what it would do stays green, as a gain. */
-.act.wanted, .act.best { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.act.best { box-shadow: inset 0 0 0 1.5px var(--accent); }
 .act-best { background: var(--accent-soft); color: var(--accent-hi); }
+/* (A zone much wanted is not the 추천: its demand in green says so, without the 추천's ring — with it, 테니스장 above
+   and 농업 here both read as the recommendation.) */
+.act.wanted:not(.best) { box-shadow: none; }
+.act.wanted:not(.best) .act-sub { color: var(--good-ink); font-weight: 600; }
 .overlay-sum.good { color: var(--good-ink); font-weight: 500; } /* all well, said calmly; a gap is the bold red line */
 .score-bar i { background: var(--gold); } /* progress to the next stage, in the trophy's gold (blue is for what to press) */
 /* Wide screens: a sheet as tall as what it holds (up to the map's height), not a full-height panel with an

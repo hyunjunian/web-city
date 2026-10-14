@@ -357,7 +357,9 @@ function goalMetrics(id: GoalId): Metric[] {
     case 'growth': {
       const dem = city.demand.demand;
       const cls = (k: string, n: string): Metric => {
-        const v = Math.max(...DEV_TYPES.filter((t) => (k === 'A' ? t === 'IA' : t[0] === k && t !== 'IA')).map((t) => dem[t]));
+        // (Its strongest demand, else its weakest, as the bars below read it: "상업 −3" above sat over a bar at −141.)
+        const vals = DEV_TYPES.filter((t) => (k === 'A' ? t === 'IA' : t[0] === k && t !== 'IA')).map((t) => dem[t]);
+        const v = Math.max(...vals) > 0 ? Math.max(...vals) : Math.min(...vals);
         // (Held at its cap, "0" hid why: the cap says what to do about it.)
         // (A trickle beside the cap is the cap too: "+1" read as wanted.)
         const atCap = v < 10 && DEV_TYPES.some((t) => (k === 'A' ? t === 'IA' : t[0] === k && t !== 'IA') && capped(t));
