@@ -49,7 +49,7 @@ function describe(c: typeof city, id: string, savedAt: number): Slot {
 
 /**
  * Saves the open city in its own slot: the one it was loaded from or saved to
- * before (through undo and reloads too). Any other city gets a new slot, even
+ * before (through reloads too). Any other city gets a new slot, even
  * one that shares the name (every new city starts as "새 도시").
  */
 /** When a save was made, in full: 2026-10-04 15:47 (the short form's two-digit year sat beside game years). */

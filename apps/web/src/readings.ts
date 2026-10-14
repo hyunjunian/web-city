@@ -1959,8 +1959,8 @@ let awayMemo: { key: string; at: [number, number] | null } | null = null;
 
 /**
  * The landfill tiles at each month's garbage tally (a new tally, a new record), to tell a landfill laid since from a
- * full one. (The last few months: an undo across a month's end brings back a month whose landfills were noted then,
- * where noting them again would count one laid that month as tallied.)
+ * full one. (The last few months: a save loaded from before a month's end brings back a month whose landfills were
+ * noted then, where noting them again would count one laid that month as tallied.)
  */
 const talliedLandfill = new Map<string, Set<number>>();
 let freshMemo: { key: string; fresh: { tiles: number; joined: boolean } | null } | null = null;
@@ -1972,7 +1972,7 @@ let freshMemo: { key: string; fresh: { tiles: number; joined: boolean } | null }
  */
 export function freshLandfill(): { tiles: number; joined: boolean } | null {
   const s = city.state;
-  // (By the city and the tally's month, not the record itself: undo brings back a copy of the same tally.)
+  // (By the city and the tally's month, not the record itself: a load brings back a copy of the same tally.)
   const tally = `${cityLineage}|${s.history.at(-1)?.month ?? -1}`;
   let counted = talliedLandfill.get(tally);
   if (!counted) {

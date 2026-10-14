@@ -54,15 +54,14 @@ function placeToasts(): void {
     window.addEventListener('resize', again);
   }
   // While a sheet is up on a phone held upright, the notices the clock didn't stop for wait under it, their time held.
-  holdUnder(box, matchMedia('(max-width: 860px) and (orientation: portrait)').matches
-    && document.documentElement.matches(':has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden])))'));
+  holdUnder(box, matchMedia('(max-width: 860px) and (orientation: portrait)').matches && sheetUp());
   if (!matchMedia('(max-width: 860px)').matches) return void box.style.removeProperty('--toasts-top');
   const v = view.getBoundingClientRect();
   const b = box.getBoundingClientRect();
   let low = 0;
   // (The top buttons, not their row: while a sheet is up they are away, the row left where it was — and the notices
   // sat a row lower than they needed to.)
-  const away = document.documentElement.matches(':has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden])))');
+  const away = sheetUp();
   const top = away ? [] : [...document.querySelectorAll<HTMLElement>('#mapbar > :not(#map-layer)')];
   for (const part of [...top, ...['goal-strip', 'manage-chip', 'map-layer'].map((id) => document.getElementById(id))]) {
     if (!part || part.hidden) continue;
@@ -77,6 +76,12 @@ function placeToasts(): void {
   if (box.style.getPropertyValue('--toasts-top') !== at) box.style.setProperty('--toasts-top', at);
 }
 let watching = false;
+
+/** Whether a sheet is up (on a phone the top buttons are away under it). By the classes and the tray's hidden, not by
+ *  :has() in a selector: where the browser has no :has(), matches() threw, and every notice with it. */
+function sheetUp(): boolean {
+  return !!document.querySelector('#app.pane-open, #view.info-open, #view.sheet-open') || document.getElementById('tray')?.hidden === false;
+}
 
 /** Each shown notice's timer, to hold while it waits under a sheet and to run on (a little) once it shows again. */
 const lives = new WeakMap<HTMLElement, { hold: () => void; wait: (ms: number) => void }>();

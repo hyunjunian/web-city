@@ -366,10 +366,12 @@ export function buildTools(): void {
   }).join('');
   document.querySelectorAll<HTMLButtonElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) => {
     b.onclick = (e) => {
-      // 철거: the bulldozer in hand at once (no card: it is the one tool), and put down by a second press.
+      // 철거: the bulldozer in hand at once (no card: it is the one tool), and put down by a second press — on the
+      // bar; the card's row only picks it up (in hand already, a press there to go on bulldozing put it down).
       if (b.dataset.cat === 'bulldoze') {
+        const inRow = !!b.closest('#tray-cats');
         closeTray();
-        selectTool(tool.id === 'bulldoze' ? 'query' : 'bulldoze');
+        if (!(inRow && tool.id === 'bulldoze')) selectTool(tool.id === 'bulldoze' ? 'query' : 'bulldoze');
         // (From the keyboard, on to the map, where Enter takes down at the cursor: left here, the next Enter pressed
         // 철거 again and put it down.)
         if (e.detail === 0 && tool.id === 'bulldoze') $('#map').focus({ preventScroll: true });
@@ -628,7 +630,7 @@ export function openTray(cat: CategoryId, fromDock = false): void {
   // Reopened, it shows the tool in hand (a landfill or a pump sat a scroll down every time).
   // (A facility's hidden tile is 'active' too: its card in the list is the one to show.)
   document.querySelector<HTMLElement>('#tools .tray-section:not([hidden]) :is(.tile.active:not([hidden]), .pick.active)')?.scrollIntoView({ block: 'nearest' });
-  document.querySelectorAll<HTMLButtonElement>('#dock-tools [aria-controls="tray"], #tray-cats [data-cat]').forEach((b) => {
+  document.querySelectorAll<HTMLButtonElement>('#dock-tools [aria-controls="tray"], #tray-cats [aria-controls="tray"]').forEach((b) => {
     const on = b.dataset.cat === cat || (b.dataset.cat === 'build' && BUILD_CATS.includes(cat));
     b.classList.toggle('open', on);
     b.setAttribute('aria-expanded', String(on));
@@ -656,7 +658,7 @@ export function closeTray(byPlayer = false): boolean {
     if (tool.id !== 'query' && !byPlayer) active?.blur();
     else [...document.querySelectorAll<HTMLButtonElement>(`#dock-tools [data-cat="${cat}"], #dock-tools .dock-build`)].find((b) => b.offsetParent)?.focus();
   }
-  document.querySelectorAll<HTMLButtonElement>('#dock-tools [aria-controls="tray"], #tray-cats [data-cat]').forEach((b) => {
+  document.querySelectorAll<HTMLButtonElement>('#dock-tools [aria-controls="tray"], #tray-cats [aria-controls="tray"]').forEach((b) => {
     b.classList.remove('open');
     b.setAttribute('aria-expanded', 'false');
   });
@@ -1011,7 +1013,7 @@ export function selectTool(id: string): void {
   // The dock marks the category in use; the chip on the map names the tool (none for 조회).
   document.querySelectorAll<HTMLButtonElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) =>
     b.classList.toggle('current', b.dataset.cat === cat || (b.dataset.cat === 'build' && BUILD_CATS.includes(cat))));
-  document.querySelector('#dock-tools [data-cat="bulldoze"]')?.setAttribute('aria-pressed', String(tool.id === 'bulldoze'));
+  document.querySelectorAll('#dock-tools [data-cat="bulldoze"], #tray-cats [data-cat="bulldoze"]').forEach((b) => b.setAttribute('aria-pressed', String(tool.id === 'bulldoze')));
   // Building or clearing: time waits while it is planned (and runs on when the tool is put down).
   holdForBuilding(!WATCHING.has(tool.kind));
   refreshToolChip();

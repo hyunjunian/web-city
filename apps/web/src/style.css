@@ -617,7 +617,6 @@ kbd {
   display: grid; justify-content: stretch; justify-items: start; gap: 2px; min-width: 0; padding: 8px 10px; text-align: left;
   background: var(--surface-2); border-radius: var(--r-md);
 }
-.act.wanted, .act.best { box-shadow: inset 0 0 0 1.5px var(--good); }
 .act-best { margin-left: 2px; padding: 0 5px; border-radius: 999px; background: var(--good-soft); color: var(--good-ink); font-size: 10.5px; font-style: normal; font-weight: 650; }
 .act-name { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; font-weight: 600; line-height: 1.25; word-break: keep-all; }
 .act-name .i { flex: none; width: 15px; height: 15px; }
@@ -1445,9 +1444,12 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .pane-grip { display: block; position: absolute; top: 9px; left: 50%; width: 40px; height: 5px; margin-left: -20px; border-radius: 3px; background: var(--surface-3); }
   /* The clock in the grip's row, while the top buttons are away under the pane: time went on unseen behind an
      area's screen (a month in four seconds at 빠르게). */
+  /* (Stuck at the sheet's top as the × is, 4px from its edge: placed in the padding it scrolled away with the rows.
+     First in the column, taking no room from it: its margins and the column's 14px gap cancel its height.) */
   .pane-clock {
-    display: inline-flex; align-items: center; gap: 4px; position: absolute; top: 4px; left: 12px; z-index: 3;
-    height: 20px; min-height: 0; padding: 0 9px 0 7px; border-radius: 999px; background: var(--surface-2); color: var(--muted);
+    display: inline-flex; flex: none; align-items: center; gap: 4px; position: sticky; top: -22px; order: -4; align-self: flex-start; z-index: 4;
+    height: 20px; min-height: 0; margin: -22px 0 -12px -4px; padding: 0 9px 0 7px; border-radius: 999px;
+    background: var(--surface-2); color: var(--muted); box-shadow: var(--shadow-sm);
     font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap;
   }
   .pane-clock::after { content: ''; position: absolute; inset: -4px -4px -6px; } /* (a finger's reach, past its small face) */
@@ -1547,7 +1549,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   /* (From the pane's own edge: a notch's inset pushes the pane in, and the hint and notices started under it.) */
   #app.pane-open #hint { left: calc(max(8px, env(safe-area-inset-left)) + min(380px, 50%) + 10px); right: 10px; width: auto; max-width: none; transform: none; }
   #app.pane-open #toasts { left: calc(max(8px, env(safe-area-inset-left)) + min(380px, 50%) + 10px); width: auto; right: 84px; }
-  .mg-head { top: -18px; margin-top: -40px; padding-top: 36px; } /* this sheet's padding is 18px (and the clock's row) */
+  .mg-head { top: -18px; margin-top: -44px; padding-top: 36px; } /* this sheet's padding is 18px (and the clock's row) */
+  .pane-clock { top: -14px; margin-top: -14px; margin-bottom: -16px; } /* (4px from the edge here too; this column's gap is 10px) */
   .pane-close { top: -8px; margin-top: -8px; margin-bottom: -24px; } /* (and so the ×'s insets) */
   #pane.managing .pane-close { top: 18px; }
   #view.info-open #toasts { width: calc(100% - min(420px, 58%) - 92px); }
@@ -2534,7 +2537,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .dock-btn.open { background: var(--accent-soft); color: var(--accent-hi); }
 #dock.sheet-open .dock-btn.current:not(.open), #dock:has(.dock-btn.open) .dock-btn.current:not(.open) { color: inherit; background: transparent; }
 /* 철거 takes things away: it says so in red while it is chosen. */
-.dock-btn[data-cat='bulldoze'].open, .dock-btn[data-cat='bulldoze'].current { background: var(--danger-soft); color: var(--danger-ink); }
+:is(.dock-btn, .tray-cat)[data-cat='bulldoze']:is(.open, .current) { background: var(--danger-soft); color: var(--danger-ink); }
 @media (hover: hover) { .dock-btn[data-cat='bulldoze']:hover .i { color: var(--danger); } }
 .dock-build, #tray-cats { display: none; }
 /* By a button's icon: the count of what needs action (a phone's 도시 상태), a red dot for news unread. */
@@ -2560,7 +2563,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #view.squeezed :is(.dock-build-cat, #dock-tools > .dock-sep) { display: none; }
 #view.squeezed .dock-build { display: inline-flex; }
 #view.squeezed #tray.build #tray-title { display: none; }
-#view.squeezed #tray.build #tray-cats { display: grid; grid-template-columns: repeat(6, 50px) 40px; gap: 2px; flex: none; }
+#view.squeezed #tray.build #tray-cats { display: grid; grid-template-columns: repeat(6, 50px); gap: 2px; flex: none; }
+#view.squeezed #tray-cats [data-cat='bulldoze'] { display: none; } /* (the bar's own 철거 is in sight beside the card) */
 #view.squeezed #tray.build .card-head .find-box { flex: 1 1 280px; min-width: 0; } /* (it gives way to them: in equal shares of what it left, their names ran together) */
 #view.squeezed .tray-cat { flex-direction: column; gap: 3px; min-height: 52px; padding: 4px 0; border-radius: var(--r-md); background: transparent; color: var(--muted); }
 #view.squeezed .tray-cat .i { width: 21px; height: 21px; }

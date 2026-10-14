@@ -381,7 +381,7 @@ function guideHtml(id: GoalId): { head: string; act: string } {
 
 /**
  * A facility put up in one press on a site (x, y: its middle), as the guide's 추천 자리에 짓기 does — the getting
- * started list's fire station: refused, and the sites found again, if taken or short of money. One undo.
+ * started list's fire station: refused, and the sites found again, if taken or short of money.
  */
 export function buildAtSite(kind: StructureKind, x: number, y: number): boolean {
   city.settle();
@@ -410,7 +410,7 @@ export function buildAtSite(kind: StructureKind, x: number, y: number): boolean 
 
 /**
  * A zone or landfill block laid in one press — the guide's 추천 자리에 N×N 놓기 and the getting started list's —
- * refused, and found again, if it was taken or the money is short. One undo.
+ * refused, and found again, if it was taken or the money is short.
  */
 export function layZone(kind: ZoneKind, x0: number, y0: number, x1: number, y1: number): boolean {
   const name = kind === 'landfill' ? '매립지' : `${ZONE_NAME[kind] ?? kind} 구역`;
@@ -757,7 +757,7 @@ function layStep(lay: Lay, line: [number, number][], why: string): GuideStep | n
 }
 
 /**
- * Lays a path the guide or the info card offered, as one step to undo; false (and why, said) when it can't be now.
+ * Lays a path the guide or the info card offered, at once; false (and why, said) when it can't be now.
  * (Kept in the log of the screen it is for only: a road laid from the info card while 재정 is open is not 재정's doing.)
  */
 export function layPath(lay: Lay, path: [number, number][], owner: GoalId | null): boolean {
@@ -1022,7 +1022,7 @@ export function watchGoals(): void {
     const fresh = [...codes].find((c) => !seen.has(c));
     if (tone !== 'bad' || was === undefined || (was === 'bad' && !fresh)) continue;
     const key = was === 'bad' ? `${id}:${fresh}` : id;
-    // (Days since, counted only forward: an undo that went back before it is not "lately".)
+    // (Days since, counted only forward: a city loaded from before it is not "lately".)
     const ago = day - (pausedFor.get(key) ?? -Infinity);
     if (!running || active === id || (ago >= 0 && ago < 180)) continue;
     // (A lone fire inside the stations' reach is theirs to put out: not a pause.)
@@ -2614,7 +2614,7 @@ export function setupGoals(): void {
     // A goal screen's 추천 조치: the action it names, taken up (as if pressed below).
     const guide = (e.target as HTMLElement).closest<HTMLElement>('.mg-guide-go');
     if (guide?.dataset.guideKind === 'budget') {
-      // A budget raised to 100% (undoable as the sliders are, logged for the result).
+      // A budget raised to 100% (as the sliders do, logged for the result).
       const [what, key] = guide.dataset.guideAct!.split(':') as [string, string];
       if (what === 'rubble') {
         const res = choice('잔해 치우기', () => city.clearRubble());
@@ -2655,7 +2655,7 @@ export function setupGoals(): void {
       return;
     }
     if (guide?.dataset.guideKind === 'ord') {
-      // An ordinance, enacted as its switch below would (undoable, logged).
+      // An ordinance, enacted as its switch below would (logged).
       const ordId = guide.dataset.guideAct as OrdinanceId;
       const res = choice('조례', () => city.enactOrdinance(ordId));
       if (!res.ok) flash(ko(res.message ?? ''), 'bad');
@@ -2778,7 +2778,7 @@ export function setupGoals(): void {
       updatePanels();
       return;
     }
-    // A jammed road's 이 구간 대로로 넓히기: the stretch upgraded at once, as one step to undo.
+    // A jammed road's 이 구간 대로로 넓히기: the stretch upgraded at once.
     const widen = (e.target as HTMLElement).closest<HTMLElement>('#info [data-widen], #manage [data-widen]');
     if (widen) {
       const [x0, y0, x1, y1] = widen.dataset.widen!.split(',').map(Number) as [number, number, number, number];
@@ -2983,8 +2983,7 @@ export function setupGoals(): void {
       redraw();
       return;
     }
-    // 추천 자리에 … 놓기: the landfill, or the zone the growth screen wants, laid where the guide found room, as one
-    // step to undo.
+    // 추천 자리에 … 놓기: the landfill, or the zone the growth screen wants, laid where the guide found room.
     const fillBtn = t.closest<HTMLElement>('[data-landfill], [data-zone]');
     if (fillBtn) {
       const kind = (fillBtn.dataset.zoneKind ?? 'landfill') as ZoneKind;
@@ -2993,7 +2992,7 @@ export function setupGoals(): void {
       renderGoal(true);
       return;
     }
-    // 바로 잇기: the guide's line or road laid in straight runs (one undo for all of it).
+    // 바로 잇기: the guide's line or road laid in straight runs.
     const lineBtn = t.closest<HTMLElement>('[data-line-path]');
     if (lineBtn) {
       const path = lineBtn.dataset.linePath!.split(';').map((p) => p.split(',').map(Number) as [number, number]);
@@ -3092,7 +3091,7 @@ export function setupGoals(): void {
       showTab(sheet.dataset.sheet as 'budget');
       return;
     }
-    // 적자 줄이기: the lever applied (undoable, logged).
+    // 적자 줄이기: the lever applied (logged).
     const fin = t.closest<HTMLElement>('[data-mg-fin]');
     if (fin) {
       const kind = fin.dataset.mgFin;

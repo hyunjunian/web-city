@@ -114,7 +114,7 @@ export function keepInView(r: { x: number; y: number; w: number; h: number }): v
 }
 
 /** Where the camera was before the card moved it, where it left it, and the game's camera moves and city then (its
- * lineage, kept through undo and redo, which reopen the same city and close the card on the way). */
+ * lineage: a city opened since is another). */
 let shiftedFor: { home: { x: number; y: number }; x: number; y: number; scale: number; moves: number; city: number } | null = null;
 /** Left where the card put it (or on its way there): not moved since by the player, nor by a flight or framing begun since. */
 const untouched = (s: { x: number; y: number; scale: number; moves: number; city: number }) => {

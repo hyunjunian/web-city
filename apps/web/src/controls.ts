@@ -649,7 +649,7 @@ export function buildTaxes(): void {
   note.title = TAX_DETAIL;
   note.textContent = taxNote();
   el.append(note);
-  refreshTaxes(); // (the marks and the opening at once: an undo or a load rebuilt them unmarked until the month turned)
+  refreshTaxes(); // (the marks and the opening at once: a load rebuilt them unmarked until the month turned)
 }
 
 /**
@@ -898,7 +898,7 @@ function viewSummaryNow(v: string, live = true): [string, '' | 'bad' | 'good', n
     }
     case 'growth': {
       // (Worked out once a month or edit: the growth map is the whole map's.)
-      const key = `${cityGeneration}|${city.revision}|${Math.floor(s.day / 30)}`; // (the generation: an undo or another save restarts the revision)
+      const key = `${cityGeneration}|${city.revision}|${Math.floor(s.day / 30)}`; // (the generation: another city opened restarts the revision)
       if (growthSum.key !== key) {
         const map = growthNow(city);
         if (!map) return ['', '', []]; // (not worked out yet: nothing rather than a wrong all-clear)
