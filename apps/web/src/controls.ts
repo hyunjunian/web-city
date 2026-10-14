@@ -649,7 +649,9 @@ export function markCity(): void {
   const out = narrow ? app.classList.contains('pane-open') : !app.classList.contains('focus');
   btn.setAttribute('aria-pressed', String(out));
   btn.classList.toggle('open', narrow && out); // (lit as an open card's button is; wide, its mark is quieter: the pane is mostly out)
-  btn.title = narrow ? (out ? '도시 현황 닫기' : '도시 현황 열기') : out ? '도시 현황 접기 · 지도만 크게 보기 (F)' : '도시 현황 펼치기 (F)';
+  // (With the count of what needs action, which its corner carries while the pane is away.)
+  const bad = !out && btn.dataset.alerts ? ` · 조치가 필요한 분야 ${btn.dataset.alerts}곳` : '';
+  btn.title = narrow ? (out ? '도시 현황 닫기' : `도시 현황 열기${bad}`) : out ? '도시 현황 접기 · 지도만 크게 보기 (F)' : `도시 현황 펼치기${bad} (F)`;
 }
 
 /** The map's top bar holds the date and the weather only (its controls are in the bar down the left): it fits as it

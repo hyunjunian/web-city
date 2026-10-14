@@ -7,7 +7,7 @@
 import { placeAt } from './input';
 import { DEV_TYPES, type DevType, Net, NETWORK_KINDS, ORDINANCES, POWER_DISPATCHES, STRUCTURES, type HistoryPoint, type OrdinanceId, type PowerDispatch, type RepairDepartment, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
 import { icon } from './icons';
-import { chooseSpeed, refreshTaxes, runningSpeed, showOverlay, toggleFocus, viewEmpty, viewName } from './controls';
+import { chooseSpeed, markCity, refreshTaxes, showOverlay, toggleFocus, viewEmpty, viewName } from './controls';
 import { redrawInfo, refreshInfo, riotNear, showInfo } from './info';
 import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -33,8 +33,9 @@ function refreshBadge(bad = GOAL_ORDER.filter((id) => goalStatus(id).tone === 'b
   if (!dock) return;
   if (bad) dock.dataset.alerts = String(bad);
   else delete dock.dataset.alerts;
-  // (The count is drawn by CSS: the button's name carries it for screen readers.)
+  // (The count is drawn by CSS: the button's name carries it for screen readers, its title for a pointer.)
   dock.setAttribute('aria-label', bad ? `도시 현황, 조치 필요 ${bad}` : '도시 현황');
+  markCity();
 }
 
 /** The pane's watch list: one row per goal, problems marked; a row opens its goal. */
@@ -2220,18 +2221,6 @@ function pairMarks(kind: StructureKind): typeof renderer.marks {
 }
 
 /**
- * Time going by, beside the goal's name: a fast clock spent a year or two while a screen
- * was being read. One press pauses it to think (and again goes on at the speed it had).
- */
-function timeButton(): string {
-  const on = speed > 0;
-  const name = ['', '느리게', '보통', '빠르게'][speed] ?? '';
-  // (Named for what a press does, as a button is: "멈춤" read as how things stood, and pressing it went on. Its words
-  // show only where the pane has room for them beside the longest goal's name.)
-  return `<button type="button" class="mg-time${on ? ' on' : ''}" aria-label="${on ? '시간 멈추기' : '시간 이어 가기'}" title="${on ? `시간이 ${name} 흐르는 중 · 눌러서 멈추고 살펴보기 (Space)` : '시간이 멈춰 있음 · 눌러서 이어 가기 (Space)'}">${icon(on ? 'pause' : 'play')}<span>${on ? '멈추기' : '이어 가기'}</span></button>`;
-}
-
-/**
  * A riot takes three police units or more unless it is on a dead-end street (an engine rule):
  * each press of the map sends one, so say so, and warn when the city has fewer to send.
  */
@@ -2473,7 +2462,7 @@ function goalParts(id: GoalId): { top: string; acts: string; more: string } {
   const ops = operations(id);
   const top = `<header class="mg-head">
       <button type="button" class="icon-btn mg-back" title="도시로 돌아가기 (Esc)" aria-label="도시로 돌아가기">${icon('back')}</button>
-      <h2 title="${g.aim}">${icon(g.icon)}<span>${g.name}</span></h2>${timeButton()}${!s.tone && !readStats().population && !city.state.buildings.size
+      <h2 title="${g.aim}">${icon(g.icon)}<span>${g.name}</span></h2>${!s.tone && !readStats().population && !city.state.buildings.size
       ? '<span class="chip" title="아직 사는 사람이 없습니다: 판단은 도시가 생긴 뒤에">시작 전</span>' // (an empty map isn't "good")
       : `<span class="chip ${s.tone || 'good'}">${s.tone === 'bad' ? '조치 필요' : s.tone === 'warn' ? '주의' : '양호'}</span>`}
       ${tabsHtml(id)}
@@ -2912,22 +2901,10 @@ export function setupGoals(): void {
   };
   window.addEventListener('pointerup', release);
   window.addEventListener('pointercancel', release);
-  // The clock in the header follows the speed however it was set (Space, the top bar, a dialog).
-  window.addEventListener('speedchange', () => {
-    const b = el.querySelector('.mg-time');
-    if (!b) return;
-    const focused = document.activeElement === b;
-    b.outerHTML = timeButton();
-    if (focused) el.querySelector<HTMLElement>('.mg-time')?.focus();
-  });
   el.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     if (t.closest('.mg-back')) {
       closeGoal();
-      return;
-    }
-    if (t.closest('.mg-time')) {
-      chooseSpeed(speed > 0 ? 0 : runningSpeed);
       return;
     }
     // A tab: its part of the goal, and its view on the map.

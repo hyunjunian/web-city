@@ -23,6 +23,7 @@ import { closeInfo, closePane, closeSheet, openPane, setupTabs } from './tabs';
 import { setupTheme } from './theme';
 import { paintIcons } from './icons';
 import { setupPointerBlur, setupRangeFill, setupSwipeDown, setupTouchTitles } from './widgets';
+import { setupTips } from './tips';
 
 export let last = performance.now();
 
@@ -262,6 +263,7 @@ setupSwipeDown($('#info-card'), closeInfo);
 setupSwipeDown($('#tray'), closeTray);
 setupSwipeDown($('#sheet'), closeSheet);
 setupPointerBlur();
+setupTips();
 renderer.resize();
 buildTools();
 buildSpeed();

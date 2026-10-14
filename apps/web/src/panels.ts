@@ -408,6 +408,7 @@ export function updatePanels(): void {
     dateEl.classList.add('turned');
   }
   dateEl.style.setProperty('--month-pct', `${((city.state.day % 30) / 30) * 100}%`);
+  dateEl.title = `${d.year}년 ${d.month}월 ${d.day}일 · 밑줄: 이달이 지나간 만큼`;
   // The weather beside the date, always (the bar is theirs): the wind's way is where a fire spreads, a gale in amber —
   // a fire then leaps further.
   const windEl = $('#sb-wind');

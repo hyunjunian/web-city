@@ -335,8 +335,16 @@ export function buildTools(): void {
   // The dock: one button per category.
   const dock = $('#dock-tools');
   const catButton = (c: (typeof CATEGORIES)[number], cls: string, label: string = c.label) => {
-    const keys = Object.entries(TOOL_KEYS).filter(([, id]) => categoryOf(id) === c.id).map(([k]) => k.toUpperCase());
-    return `<button class="${cls}" data-cat="${c.id}" aria-expanded="false" aria-controls="tray" title="${c.label}${keys.length ? ` (${keys.join('·')})` : ''}">${icon(c.icon)}<span class="dock-label">${label}</span></button>`;
+    const keyed = Object.entries(TOOL_KEYS).filter(([, id]) => categoryOf(id) === c.id).map(([k, id]) => {
+      const t = TOOLS.find((x) => x.id === id)!;
+      return { key: k.toUpperCase(), name: t.kind === 'zone' ? TOOL_GROUPS.find((g) => g.tools.includes(t))!.title : t.label };
+    });
+    // What it holds (its groups, unless they are its name: 지형·재해) and its keys, each by the tool it picks (the
+    // bar's tooltip shows them so: 도로 R · 골목 T …); one key for the one tool it is (철거) by itself.
+    const groups = TOOL_GROUPS.filter((g) => g.cat === c.id).map((g) => g.title).join('·');
+    const holds = groups && groups !== c.label ? `: ${groups}` : '';
+    const named = keyed.length > 1 || (keyed[0] && keyed[0].name !== c.label);
+    return `<button class="${cls}" data-cat="${c.id}" aria-expanded="false" aria-controls="tray" title="${c.label}${holds}${keyed.length ? ` (${keyed.map((k) => k.key).join('·')})` : ''}"${named ? ` data-keys="${keyed.map((k) => `${k.name} ${k.key}`).join(' · ')}"` : ''}>${icon(c.icon)}<span class="dock-label">${label}</span></button>`;
   };
   // In three groups: looking and removing; building the city; rewards and the land.
   const SEP_BEFORE: CategoryId[] = ['transport', 'special'];

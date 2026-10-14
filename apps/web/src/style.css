@@ -304,6 +304,21 @@ kbd {
   font: 600 11.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; text-align: center; color: var(--muted);
 }
 
+/* ---- the bars' tooltips (tips.ts): a control's name and its keys on the first line, what it does under it */
+#tip {
+  position: fixed; left: 0; top: 0; z-index: 60; pointer-events: none;
+  display: grid; gap: 2px; max-width: 250px; padding: 6px 10px 7px; border-radius: 9px;
+  background: var(--float-solid); color: var(--text); box-shadow: var(--shadow-sm);
+  font-size: 12.5px; line-height: 1.4; word-break: keep-all; animation: tip-in 0.12s var(--ease);
+}
+#tip[hidden] { display: none; }
+#tip .tip-head { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+#tip .tip-head b { margin-right: 5px; font-weight: 650; }
+#tip kbd { min-width: 1.5em; padding: 0 4px; font-size: 10.5px; line-height: 1.45; border-bottom-width: 1px; }
+#tip .tip-desc { color: var(--muted); font-size: 11.5px; }
+#tip .tip-keys { display: flex; flex-wrap: wrap; gap: 3px 9px; margin-top: 3px; color: var(--muted); font-size: 11.5px; }
+@keyframes tip-in { from { opacity: 0; } to { opacity: 1; } }
+
 /* ------------------------------------------------------------------ the clock (in the map's top bar) */
 
 #sb-date { position: relative; }
@@ -527,17 +542,9 @@ kbd {
 .mg-head h2 .i { width: 20px; height: 20px; color: var(--accent-hi); }
 .mg-head .chip { margin-left: auto; }
 /* The clock beside the goal's name: a quiet pill while time runs, amber when paused (the city waits). */
-.mg-time { display: inline-flex; flex: none; align-items: center; gap: 4px; margin-left: auto; min-height: 26px; padding: 0 9px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
-.mg-time .i { width: 13px; height: 13px; }
-.mg-time.on .i { color: var(--accent-hi); }
-.mg-time:not(.on) { background: var(--warn-soft); color: var(--text); }
-.mg-time + .chip { margin-left: 0; }
-@media (max-width: 1799px) { .mg-time > span { display: none; } .mg-time { padding: 0 7px; } } /* (its icon says it; the goal's name keeps the room: below a 380px pane its words cut 재정·정책 and 부유층·고급화 short, and on a phone broke over two lines) */
 /* (Where the head has the room — a tablet's 600px sheet — the word comes back: a bare ▶ beside 주의 read as "do the
    recommendation", and touch has no tooltip to say it is the clock. A finger's size there too, clear of the ×.) */
 .mg-head { container-type: inline-size; }
-@container (min-width: 520px) { .mg-time > span { display: inline; } .mg-time { padding: 0 10px; } }
-@media (pointer: coarse) { .mg-time { min-height: 36px; min-width: 36px; justify-content: center; } }
 .mg-back { flex: none; }
 /* The goal's tabs, a row of their own in its sticky head: each a part of the goal, putting its map view on (the
    underline is the one showing; a red dot, a part in trouble). Scrolled sideways where they don't fit. */
@@ -1610,9 +1617,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .tile kbd { display: none; }
   /* The goal screens' small controls: a finger's margin, the rows unchanged. */
   :is(.watch-sort, .advice-view, .mg-kinds .vchip, .mg-chips .vchip, .mg-tax .tax-step, .fac-fund .tax-step, #manage-chip .icon-btn) { position: relative; }
-  .mg-time { position: relative; }
-  :is(.watch-sort, .advice-view, .mg-kinds .vchip, .mg-chips .vchip, #manage-chip .icon-btn, .mg-time)::after { content: ''; position: absolute; inset: -7px 0; }
-  #pane .mg-time::after { inset: -7px; } /* (its icon alone is 27px across: a finger's width to hit, not to take from the goal's name) */
+  :is(.watch-sort, .advice-view, .mg-kinds .vchip, .mg-chips .vchip, #manage-chip .icon-btn)::after { content: ''; position: absolute; inset: -7px 0; }
   :is(.mg-tax .tax-step, .fac-fund .tax-step)::after { content: ''; position: absolute; inset: -7px -3px; }
   .mg-switch button { height: 40px; }
   /* Two links one above the other: each its own 40px row (their margins overlapped, the lower one took the upper's tap). */
@@ -2123,7 +2128,6 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 /* All well: the card is calm (neutral, its check green), not a green block asking to be read. */
 .lead.calm { background: var(--surface-2); }
 .lead.calm .lead-title { color: var(--text); }
-.mg-time:not(.on) { background: var(--surface-2); color: var(--muted); } /* the clock's state is not a warning: the goal's own chip beside it is */
 /* 추천 reads the same wherever it is: the action's blue ring and tag (green said "good" in the goal screen and
    "recommended" nowhere else); what it would do stays green, as a gain. */
 .act.wanted, .act.best { box-shadow: inset 0 0 0 1.5px var(--accent); }
@@ -2688,6 +2692,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #map-controls { top: calc(var(--bar-h) + 8px); right: 8px; }
   #view.info-open #map-controls { right: 8px; }
   #goal-strip:not([hidden]) { top: calc(var(--bar-h) + 13px); left: 8px; right: 62px; }
+  /* (Not over the lot a card is open for: it is framed in the strip of map above the card, which the chips half filled.) */
+  #view.info-open #goal-strip { visibility: hidden; }
   #manage-chip:not([hidden]) { top: calc(var(--bar-h) + 9px); left: 8px; }
   /* (Under whatever hangs from the top bar: toast.ts measures it, as the view's card is as tall as its count.) */
   #toasts { top: var(--toasts-top, calc(var(--bar-h) + 8px)); bottom: auto; align-content: start; left: 8px; right: 64px; width: auto; transform: none; animation: none; } /* (clear of 전체 by a gap, not 1px) */
@@ -2798,10 +2804,11 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
    is not lit as the tool in hand meanwhile, and the tools' card, opened over it, hides it until it is put away. */
 #view:has(#confirm-bar:not([hidden])) .dock-build.current { background: transparent; color: var(--muted); }
 #view:has(#tray:not([hidden])) #confirm-bar { display: none; }
-/* A phone's notices over the city pane's sheet, not half under it: in the strip above it, two lines at most. */
+/* A phone's notices over the city pane's sheet, not half under it: in the strip above it, two lines at most — as over
+   any sheet (a building's card, the tools, 주민 · 지역), where five lines of a notice hid the lot the card was open for. */
 @media (max-width: 860px) and (orientation: portrait) {
   #app.pane-open #toasts { z-index: 22; }
-  #app.pane-open .toast-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  :is(#app.pane-open, #view.info-open, #view.sheet-open, #view:has(#tray:not([hidden]))) .toast-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 }
 
 /* ---- the speeds where a finger presses (a phone's foot bar; a touch screen wider than a phone, down the left): a 시간
