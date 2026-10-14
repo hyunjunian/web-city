@@ -1,13 +1,13 @@
 /* Web City viewer — a car-touchscreen-style shell around the map: an instrument pane (the city, headed by its
-   region › name) and the full-bleed map with its floating controls — the top bar (the view, the clock, the menu),
-   the build bar down the left — and cards.
+   region › name) and the full-bleed map with its floating parts — the top bar (the date, the weather), every control
+   in one bar down the left (a phone: a top bar and a foot bar) — and cards.
    Design tokens first (dark, then light); components after; small screens last. */
 
 :root {
   --font: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', system-ui, sans-serif; /* Korean faces before system-ui, which picked a Latin-only face for the digits when the web font was blocked */
   --bar-h: 0px; /* (no bar above the map: its controls float on it) */
   --dock-h: 0px; /* (no bottom bar: the build menu floats on the map) */
-  --dock-w: 70px; /* the build bar down the map's left */
+  --dock-w: 70px; /* the controls' bar down the map's left */
   --bb: 12px; /* the hint's and the notices' distance from the map's foot (no menu there) */
   --pane-w: 340px;
   --info-w: 380px;
@@ -688,7 +688,7 @@ kbd {
   /* The sheet's padding is taller here: the sticky head starts at its edge, and keeps clear of the close button. */
   .mg-head { top: -26px; margin-top: -26px; padding-top: 22px; padding-right: 52px; }
   /* Half the screen: the goal's map view stays in sight above it. */
-  #pane.managing { max-height: min(60dvh, calc(100dvh - var(--bar-h) - var(--dock-h) - 12px)); }
+  #pane.managing { max-height: min(calc(60dvh - var(--dock-h)), calc(100dvh - var(--bar-h) - var(--dock-h) - 12px)); }
 }
 
 .card { padding: 14px 14px; /* one inset with the KPIs and gauges */ background: var(--surface); border-radius: var(--r-lg); }
@@ -810,7 +810,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 
 /* ------------------------------------------------------------------ map */
 
-#view { grid-area: view; position: relative; overflow: hidden; background: var(--view-bg); min-width: 0; }
+#view { grid-area: view; position: relative; overflow: hidden; overflow: clip; background: var(--view-bg); min-width: 0; } /* (clip: a control at its foot, focused, scrolled the whole map up) */
 #map { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; user-select: none; -webkit-user-select: none; }
 
 .floating {
@@ -1469,7 +1469,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   /* (Over the controls' bar at the foot, which stays: 도시 there puts it away, 짓기 swaps it for the tools.) */
   #pane {
     position: fixed; left: 0; right: 0; bottom: var(--dock-h); z-index: 20;
-    max-height: min(80dvh, calc(100dvh - var(--bar-h) - var(--dock-h) - 12px)); padding-top: 26px; padding-bottom: 24px;
+    max-height: min(calc(80dvh - var(--dock-h)), calc(100dvh - var(--bar-h) - var(--dock-h) - 12px)); padding-top: 26px; padding-bottom: 24px;
     border-right: 0; border-radius: var(--r-xl) var(--r-xl) 0 0; box-shadow: var(--shadow);
     transform: translateY(100%); visibility: hidden;
     transition: transform 0.26s var(--ease), visibility 0s 0.26s;
@@ -1605,8 +1605,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #tool-chip #tool-alts button { min-height: 36px; }
   .graph-range button { min-height: 40px; }
   /* (Not the folds that draw their chevron with ::after: on phones it was thrown off to a corner. They are whole rows to hit anyway.) */
-  button.link, details:not(.watch-rest, .acts-more, .info-more, .tip) > summary { position: relative; }
-  button.link::after, details:not(.watch-rest, .acts-more, .info-more, .tip) > summary::after { content: ''; position: absolute; inset: -12px -8px; }
+  button.link, details:not(.watch-rest, .acts-more, .info-more, .tip, .dropdown) > summary { position: relative; }
+  button.link::after, details:not(.watch-rest, .acts-more, .info-more, .tip, .dropdown) > summary::after { content: ''; position: absolute; inset: -12px -8px; }
   .tile kbd { display: none; }
   /* The goal screens' small controls: a finger's margin, the rows unchanged. */
   :is(.watch-sort, .advice-view, .mg-kinds .vchip, .mg-chips .vchip, .mg-tax .tax-step, .fac-fund .tax-step, #manage-chip .icon-btn) { position: relative; }
@@ -2406,7 +2406,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #advice .advice.news .advice-view { background: var(--surface); }
 @media (hover: hover) { #advice .advice.news .advice-view:hover { background: var(--surface-3); } }
 /* Driving: the building tools and the views step back (they wait for the drive to end). */
-#view.driving :is(#dock, #map-layer) { opacity: 0.35; pointer-events: none; filter: saturate(0.4); transition: opacity 0.2s; }
+#view.driving :is(#dock-tools, .dock-clock, .dock-cap, #map-layer) { opacity: 0.35; pointer-events: none; filter: saturate(0.4); transition: opacity 0.2s; }
+/* (The drive's panel beside the bar down the left, not over its foot.) */
+@media (min-width: 861px) { #drive-hud { left: calc(var(--dock-w) + 24px); } }
 /* The info card's one-press fixes (옆에 하나 더 짓기, 예산 100%로) read as actions, apart from the status chips beside them. */
 #info button.chip:is([data-relieve], [data-fund-full]) { background: var(--accent-soft); color: var(--accent-hi); font-weight: 650; }
 /* The narrowest phones: 출발 under the mission's words (beside them it squeezed 성공 into three lines). */
@@ -2423,9 +2425,10 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 /* ================================================================== the map's chrome
 
    No bar above the map: the pane is headed by where the city is (its region › its name), and the map carries its
-   controls, floating — the top bar (what the map shows; the clock: date, speed, wind; then undo, 주민, help, the map
-   alone and the menu) with the view's card hanging under it; the build bar down the left, its tools' card opening
-   beside it; the tool in hand at the foot; 전체 보기 and the minimap in the top right corner. */
+   controls, floating — the top bar (the date and the weather) with the view's card hanging under it; every control in
+   the bar down the left, by what it does (도시 · 주민 | the speeds, undo | 짓기 | the menu), its tools' card opening
+   beside it; the tool in hand at the foot; 전체 보기 and the minimap in the top right corner. On a phone the top bar
+   is the screen's top bar and the left bar its foot bar. */
 
 
 /* ---- the pane's head: the region › the city */
@@ -2506,8 +2509,15 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   animation: pop-in 0.18s var(--ease);
 }
 #dock:has(.dropdown[open]) { z-index: 30; } /* (its menu over the cards beside the bar) */
+#dock.scrolls { max-height: calc(100% - 28px); overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; } /* (fitMapbar: lower than its least) */
 .dock-group, #dock-tools { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
 .dock-sep { flex: none; height: 1px; margin: 4px 12px; background: var(--line-strong); }
+/* Between the bar's groups a full line with room about it; inside 짓기 (철거 · the build categories · rewards and the
+   land) a gap only: one family, not four. */
+#dock > .dock-sep { margin: 7px 4px; }
+#dock-tools > .dock-sep { height: 0; margin: 3px 0; background: none; }
+/* A group's name over it (시간, 짓기): the square of speeds had none, and 짓기 read as four groups. */
+.dock-cap { flex: none; margin: 0 0 3px; color: var(--faint); font-size: 10px; font-weight: 650; letter-spacing: 0.04em; line-height: 12px; text-align: center; }
 .dock-btn {
   position: relative; flex: none; flex-direction: column; gap: 3px;
   width: 60px; height: 54px; min-height: 0; padding: 0; border-radius: 12px;
@@ -2525,8 +2535,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 @media (hover: hover) { .dock-btn[data-cat='bulldoze']:hover .i { color: var(--danger); } }
 .dock-build, #tray-cats { display: none; }
 .dock-btn[data-alerts]::after {
-  content: attr(data-alerts); position: absolute; top: 3px; right: 5px; min-width: 16px; height: 16px; padding: 0 4px;
+  content: attr(data-alerts); position: absolute; top: 2px; left: calc(50% + 4px); min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: 8px; background: var(--danger); color: #fff; font-size: 10.5px; font-weight: 700; line-height: 16px; text-align: center;
+  box-shadow: 0 0 0 2px var(--float-solid); /* (by the icon's corner, not over it: "( 1" read as a broken icon) */
 }
 .dock-btn.unread::before { content: ''; position: absolute; top: 6px; right: 12px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); }
 .dock-btn.suggest::after { top: 6px; left: calc(50% + 8px); }
@@ -2543,35 +2554,56 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .dock-mini .i { width: 18px; height: 18px; }
 .dock-mini .dock-label { display: none; }
 .dock-mini:disabled { opacity: 0.35; }
-#dock .dropdown > summary.dock-mini { display: flex; align-items: center; justify-content: center; }
-#dock .dropdown[open] > summary { background: var(--surface-2); color: var(--text); }
+#dock .dropdown > summary.dock-btn { display: flex; align-items: center; justify-content: center; }
+/* What is on reads one way in the bar: lit (the open menu, the speed now, an open card's category). */
+#dock .dropdown[open] > summary { background: var(--accent-soft); color: var(--accent-hi); }
 /* The speeds: four in a square (pause, then slow to fast), the one on lit as in a gear. */
 .dock-time { position: relative; }
-#dock .gear { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 3px; border-radius: 12px; }
-#dock .gear button { min-width: 0; height: 28px; border-radius: 9px; }
+#dock .gear { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; padding: 2px; border-radius: 12px; }
+#dock .gear button { min-width: 0; height: 30px; border-radius: 10px; }
 #dock .gear button .i { width: 16px; height: 16px; }
+#dock .gear button.active { background: var(--accent-soft); color: var(--accent-hi); box-shadow: none; }
+@media (hover: hover) { #dock .gear button:not(.active):hover { background: var(--surface-3); color: var(--text); } }
+#dock .gear.held button.active { box-shadow: inset 0 0 0 1.5px var(--accent); }
 .speed-label { display: none; }
 #btn-time { display: none; } /* (a phone's: there the speeds stand in its card) */
-/* A short window: the bar tighter (its tiles lower, their names smaller), then the tiles by their icons alone (their
-   names in their titles), so all of it stays on the map. */
-@media (min-width: 861px) and (max-height: 780px) {
-  #dock .dock-btn:not(.dock-mini) { height: 46px; gap: 2px; }
-  #dock .dock-btn .i { width: 19px; height: 19px; }
-  #dock .dock-label { font-size: 10.5px; }
-  #dock .dock-sep { margin: 3px 12px; }
-  #dock .gear button { height: 25px; }
-  #dock .dock-mini { height: 29px; }
-}
-@media (min-width: 861px) and (max-height: 640px) {
-  #dock .dock-btn:not(.dock-mini) { height: 38px; }
-  #dock .dock-btn:not(.dock-mini) .dock-label { display: none; }
-  #dock .dock-sep { margin: 2px 12px; }
-}
+/* A window too low for the whole bar (fitMapbar measures it: a laptop with its bookmarks bar, a zoomed page) folds it
+   in steps until it fits: first tighter (its tiles lower, their names smaller, no group names); then the build
+   categories behind one 짓기, as on a phone, their row at the head of the tools' card; then the tiles by their icons
+   alone (their names in their titles); last, the bar scrolls. */
+#view.dock-compact #dock .dock-btn:not(.dock-mini) { height: 46px; gap: 2px; }
+#view.dock-compact #dock .dock-btn .i { width: 19px; height: 19px; }
+#view.dock-compact #dock .dock-label { font-size: 10.5px; }
+#view.dock-compact #dock > .dock-sep { margin: 5px 4px; }
+#view.dock-compact #dock .dock-cap { display: none; }
+#view.dock-compact #dock .gear button { height: 27px; }
+#view.dock-compact #dock .dock-mini { height: 30px; }
+#view.squeezed :is(.dock-build-cat, #dock-tools > .dock-sep) { display: none; }
+#view.squeezed .dock-build { display: inline-flex; }
+#view.squeezed #tray.build #tray-title { display: none; }
+#view.squeezed #tray.build #tray-cats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; flex: 1; min-width: 0; }
+#view.squeezed .tray-cat { flex-direction: column; gap: 3px; min-height: 52px; padding: 4px 0; border-radius: var(--r-md); background: transparent; color: var(--muted); }
+#view.squeezed .tray-cat .i { width: 21px; height: 21px; }
+#view.squeezed .tray-cat .dock-label { font-size: 11px; }
+#view.squeezed .tray-cat.open { background: var(--surface-2); color: var(--text); }
+#view.squeezed .tray-cat.open .i { color: var(--accent-hi); }
+#view.dock-iconic #dock .dock-btn:not(.dock-mini) { height: 38px; }
+#view.dock-iconic #dock .dock-btn:not(.dock-mini) .dock-label { display: none; }
+#view.dock-iconic #dock > .dock-sep { margin: 3px 4px; }
 /* The menu out from the bar's side, its foot level with its button (it opened down the map from the top bar's end). */
 #dock .dropdown-menu { top: auto; bottom: -4px; left: calc(100% + 12px); right: auto; max-height: calc(100dvh - 28px); }
-.menu-phone { display: none !important; } /* (주민 is the bar's own, but on a phone) */
+.menu-phone { display: none !important; } /* (주민 is the bar's own, but on a phone held upright) */
+/* A long menu says so as it scrolls: a shadow at the edge with more beyond (sideways, 6 of its 15 lines showed). */
+.dropdown-menu {
+  background:
+    linear-gradient(var(--float-solid) 30%, transparent) center top / 100% 28px no-repeat local,
+    linear-gradient(transparent, var(--float-solid) 70%) center bottom / 100% 28px no-repeat local,
+    radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.16), transparent) center top / 100% 10px no-repeat scroll,
+    radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.16), transparent) center bottom / 100% 10px no-repeat scroll,
+    var(--float-solid);
+}
 
-/* ---- the tools' card, beside the build bar under the top row */
+/* ---- the tools' card, beside the controls' bar under the top row */
 @media (min-width: 861px) {
   #tray {
     top: 70px; bottom: auto; left: calc(var(--dock-w) + 24px); transform: none;
@@ -2632,35 +2664,23 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
     border: 0; border-top: 1px solid var(--line); border-radius: 0; box-shadow: 0 -1px 8px rgba(0, 0, 0, 0.05);
     animation: none;
   }
-  .dock-build-cat, #btn-sims, #btn-help, #dock-tools .dock-sep { display: none; } /* (주민 and help in the menu) */
-  /* The groups apart by a hairline: 도시 | time and undo | 철거 · 짓기 | the menu. */
-  #dock > .dock-sep { align-self: center; width: 1px; height: 30px; margin: 0 2px; }
+  .dock-build-cat, #btn-sims, #dock-tools .dock-sep, .dock-cap { display: none; } /* (주민 in the menu, held upright) */
+  /* The groups apart by a hairline with room about it: 도시 | time and undo | 철거 · 짓기 | the menu. */
+  #dock > .dock-sep { align-self: center; width: 1px; height: 30px; margin: 0 4px; }
   .dock-group, #dock-tools, .dock-pair { display: flex; flex-direction: row; align-items: flex-start; gap: 0; }
   .dock-build { display: inline-flex; }
-  .dock-btn, .dock-mini { width: 52px; height: 50px; flex-direction: column; gap: 3px; border-radius: 12px; }
+  .dock-btn { width: 52px; height: 50px; flex-direction: column; gap: 3px; border-radius: 12px; }
   .dock-btn .i { width: 21px; height: 21px; }
-  .dock-mini .dock-label { display: inline; }
+  /* Undo and redo by their arrows (their words in their titles): mostly greyed, two words side by side read as one
+     faint phrase and took two whole places; the arrows level with the other icons. */
+  .dock-mini { width: 44px; height: 50px; padding-bottom: 16px; border-radius: 12px; }
+  .dock-mini .i { width: 21px; height: 21px; }
   .dock-label { font-size: 11px; }
   .dock-btn.unread::before { top: 5px; right: 11px; }
   /* The count of urgent areas already says "look here": the unread dot beside it was a second red mark. */
   .dock-btn.unread[data-alerts]::before { display: none; }
   .dock-btn.suggest::after { top: 6px; left: calc(50% + 7px); }
   .menu-phone { display: flex !important; }
-  /* 시간 says the speed; pressed, the four rise in a card over it. */
-  #btn-time { display: inline-flex; }
-  #btn-time .time-glyph { display: grid; place-items: center; }
-  #btn-time.stopped { color: var(--text); }
-  #btn-time.held { color: var(--accent-hi); }
-  .dock-time.open #btn-time { background: var(--accent-soft); color: var(--accent-hi); }
-  #dock .gear { display: none; }
-  #dock .dock-time.open .gear {
-    display: grid; grid-template-columns: repeat(4, 66px); gap: 4px; position: absolute; bottom: calc(100% + 10px); left: -2px;
-    padding: 6px; border-radius: 18px; background: var(--float-solid); border: 1px solid var(--line); box-shadow: var(--shadow);
-    animation: pop-in 0.16s var(--ease);
-  }
-  #dock .dock-time.open .gear button { height: 56px; flex-direction: column; gap: 4px; border-radius: 12px; }
-  #dock .dock-time.open .gear button .i { width: 20px; height: 20px; }
-  .speed-label { display: inline; font-size: 12px; font-weight: 600; }
   /* The menu up from its button, at the bar's right end. */
   #dock .dropdown-menu { top: auto; bottom: calc(100% + 10px); left: auto; right: -2px; max-height: calc(100dvh - var(--bar-h) - var(--dock-h) - 24px); }
 
@@ -2694,8 +2714,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #tool-chip #tool-chip-close { width: 34px; height: 34px; }
   #view:has(#tool-chip:not([hidden])) #hint { bottom: calc(var(--bb) + 60px); }
   #view:has(#tray:not([hidden])) #hint { display: none; } /* (it peeked out under the card) */
-  /* Driving: its pad over the foot bar, not on it. */
+  /* Driving: its pad over the foot bar, not on it, and its hint over the pad. */
   #drive-hud { bottom: var(--bb); }
+  #view:has(#drive-hud:not([hidden])) #hint { bottom: calc(var(--bb) + 182px); }
 }
 /* Held upright, the city pane rising over the map puts the view's card away (its top peeked out above the pane). */
 @media (max-width: 860px) and (orientation: portrait) {
@@ -2714,12 +2735,16 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #toasts { right: auto; width: min(440px, calc(100% - 72px)); } /* (a card, not a banner across the map) */
   /* The tool's bar at its own width in the middle of the foot. */
   #tool-chip { left: 50%; right: auto; transform: translateX(-50%); max-width: min(720px, calc(100% - 16px)); animation-name: chip-in; }
+  /* Room for 주민 on the foot bar, beside 도시 (it hid in the menu with 280px of the bar to spare). */
+  #btn-sims { display: inline-flex; }
+  .menu-phone { display: none !important; }
 }
 /* Sideways, little height: both bars slimmer (the foot bar's names beside their icons), and the side panels between
    them, so neither covers their heads or feet. */
 @media (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
   :root { --bar-h: calc(38px + env(safe-area-inset-top)); --dock-h: calc(46px + env(safe-area-inset-bottom)); }
-  .dock-btn, .dock-mini { width: auto; height: 40px; flex-direction: row; gap: 6px; padding: 0 10px; }
+  .dock-btn { width: auto; height: 40px; flex-direction: row; gap: 6px; padding: 0 10px; }
+  .dock-mini { width: 40px; height: 40px; padding: 0; }
   .dock-btn .i { width: 19px; height: 19px; }
   .dock-label { font-size: 12px; }
   /* (The count by the icon: at the tile's corner it sat on the name beside it.) */
@@ -2747,17 +2772,67 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 
   #app.pane-open #view.info-open #mapbar #map-layer { display: none; }
 }
-/* Narrower phones: the foot bar's buttons narrower, their names tighter; at 320px undo and redo by their arrows alone. */
+@media (max-width: 760px) and (orientation: landscape) and (max-height: 520px) {
+  #dock { justify-content: space-between; gap: 0; }
+  .dock-btn { width: 52px; height: 42px; flex-direction: column; gap: 2px; padding: 0; }
+  .dock-btn .i { width: 19px; height: 19px; }
+  .dock-label { font-size: 10.5px; }
+  .dock-mini { width: 40px; height: 42px; padding: 0 0 14px; }
+  .dock-btn[data-alerts]::after { top: 1px; left: calc(50% + 4px); }
+}
+/* Narrower phones: the foot bar's buttons narrower, their names tighter. */
 @media (max-width: 389px) {
-  .dock-btn, .dock-mini { width: 48px; }
+  .dock-btn { width: 49px; }
+  .dock-mini { width: 40px; }
   .dock-label { font-size: 10.5px; letter-spacing: -0.03em; }
+  #dock > .dock-sep { margin: 0 2px; }
 }
 @media (max-width: 359px) {
-  .dock-btn { width: 44px; }
+  .dock-btn { width: 45px; }
   .dock-mini { width: 36px; }
-  .dock-mini .dock-label { display: none; }
   #dock > .dock-sep { margin: 0; }
-  #dock .dock-time.open .gear { grid-template-columns: repeat(4, 60px); }
+  #dock .dock-time.open .gear { grid-template-columns: repeat(4, 58px); left: -6px; } /* (within the screen: it ran 2px past a 320px edge) */
+}
+
+/* Placing a facility on a touch screen: its card's 여기에 짓기 is the press that builds — the foot bar's 짓기 under it
+   is not lit as the tool in hand meanwhile, and the tools' card, opened over it, hides it until it is put away. */
+#view:has(#confirm-bar:not([hidden])) .dock-build.current { background: transparent; color: var(--muted); }
+#view:has(#tray:not([hidden])) #confirm-bar { display: none; }
+/* A phone's notices over the city pane's sheet, not half under it: in the strip above it, two lines at most. */
+@media (max-width: 860px) and (orientation: portrait) {
+  #app.pane-open #toasts { z-index: 22; }
+  #app.pane-open .toast-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+}
+
+/* ---- the speeds where a finger presses (a phone's foot bar; a touch screen wider than a phone, down the left): a 시간
+   tile saying the speed, the four in a card by it at a finger's size */
+@media (max-width: 860px), (min-width: 861px) and (pointer: coarse) and (hover: none) {
+  #btn-time { display: inline-flex; }
+  #btn-time .time-glyph { display: grid; place-items: center; }
+  /* (A picker's caret by its name: it says the speed, and brings up the four.) */
+  #time-label::after { content: ''; display: inline-block; margin-left: 2px; vertical-align: 2px; border: 3.5px solid transparent; border-bottom: 4px solid currentColor; border-top-width: 0; opacity: 0.7; }
+  #btn-time.stopped { background: var(--surface-2); color: var(--text); }
+  #btn-time.held { color: var(--accent-hi); }
+  .dock-time.open #btn-time { background: var(--accent-soft); color: var(--accent-hi); }
+  #dock .gear { display: none; }
+  #dock .dock-time.open .gear {
+    display: grid; grid-template-columns: repeat(4, 66px); gap: 4px; position: absolute; z-index: 1;
+    padding: 6px; border-radius: 18px; background: var(--float-solid); border: 1px solid var(--line); box-shadow: var(--shadow);
+    animation: pop-in 0.16s var(--ease);
+  }
+  #dock .dock-time.open .gear button { height: 56px; flex-direction: column; gap: 4px; border-radius: 12px; }
+  #dock .dock-time.open .gear button .i { width: 20px; height: 20px; }
+  .speed-label { display: inline; font-size: 12px; font-weight: 600; }
+}
+@media (max-width: 860px) {
+  #dock .dock-time.open .gear { bottom: calc(100% + 10px); left: -2px; }
+}
+/* A touch screen wider than a phone: the card out from the bar's side, and undo and redo one above the other at a
+   finger's height (side by side they were 29px wide). */
+@media (min-width: 861px) and (pointer: coarse) and (hover: none) {
+  #dock .dock-time.open .gear { top: -4px; left: calc(100% + 12px); }
+  #dock .dock-clock .dock-pair { grid-template-columns: minmax(0, 1fr); }
+  #dock .dock-mini { height: 44px; }
 }
 
 /* ---- touch: a finger's size for what the map's chrome took down to a mouse's (later rules had won over the touch

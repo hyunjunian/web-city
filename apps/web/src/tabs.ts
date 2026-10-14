@@ -13,7 +13,7 @@ import { $, flash } from './util';
 
 /** 'budget': the pane's 재정·정책 (taxes, budgets, loans, ordinances and the books). */
 export type Tab = 'city' | 'info' | 'budget' | SheetTab;
-/** The sheets: 주민 (My Sim, U-Drive-It; the top bar) and 지역 (neighbours, deals; the pane's head). */
+/** The sheets: 주민 (My Sim, U-Drive-It; the controls' bar) and 지역 (neighbours, deals; the pane's head). */
 export type SheetTab = 'sims' | 'region';
 
 const SHEET_TITLE: Record<SheetTab, string> = { sims: '주민', region: '지역' };
@@ -157,7 +157,7 @@ function markOpen(): void {
   });
 }
 
-/** Opens a sheet, or closes it when it is the one open (주민 on the top bar, 지역 at the pane's head; U, J). */
+/** Opens a sheet, or closes it when it is the one open (주민 on the controls' bar, 지역 at the pane's head; U, J). */
 export function toggleSheet(tab: SheetTab): void {
   if (sheetTab === tab) closeSheet();
   else openSheet(tab);

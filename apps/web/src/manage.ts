@@ -1312,7 +1312,7 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
 
 /**
  * The screen's first target, on the map but under something floating on it (the top bar and the view's card under
- * it, the build bar, the minimap): the map moves it out from under, at the zoom it has. (The 개발 막힘 legend hid
+ * it, the controls' bar, the minimap): the map moves it out from under, at the zoom it has. (The 개발 막힘 legend hid
  * the 추천 자리's label just beside it.)
  */
 function clearOfCards(): void {
@@ -1407,12 +1407,14 @@ function cityAbovePane(): void {
   // shown) and the pane.
   const card = $('#map-layer').getBoundingClientRect();
   const side = pane.top < v.top + v.height * 0.2 && pane.right < v.right - 200;
+  // (Between the bars: sideways the top bar and the foot bar take the band's top and foot, which the box ignored.)
+  const band = mapBand(false);
   const box = side
-    ? { left: Math.max(v.left, pane.right + 6), right: v.right - 60, top: Math.max(v.top + 6, card.height && card.right > pane.right + 6 ? card.bottom + 6 : 0), bottom: v.bottom - 6 } // (under the view's card beside the pane: it hid the sites' labels)
-    : { left: v.left, right: v.right, top: Math.max(v.top + mapBand().top + 6, card.height ? card.bottom + 6 : 0), bottom: Math.min(v.bottom, pane.top - 6) };
+    ? { left: Math.max(v.left, pane.right + 6), right: v.right - 60, top: Math.max(v.top + band.top + 6, card.height && card.right > pane.right + 6 ? card.bottom + 6 : 0), bottom: v.top + band.bottom - 6 } // (under the view's card beside the pane: it hid the sites' labels)
+    : { left: v.left, right: v.right, top: Math.max(v.top + band.top + 6, card.height ? card.bottom + 6 : 0), bottom: Math.min(v.top + band.bottom, pane.top - 6) };
   // (Sideways, an unfolded legend left too little under it: framed beside it as if it weren't there, not left where
   // the last screen had it.)
-  if (side && box.bottom - box.top < 100) box.top = v.top + 6;
+  if (side && box.bottom - box.top < 100) box.top = v.top + band.top + 6;
   const w = box.right - box.left;
   const h = box.bottom - box.top;
   if (w < 100 || h < 100) return;
@@ -1434,9 +1436,12 @@ export function paneClosed(): void {
   const framed = takeBandFraming();
   const still = !!framed && framed.x === cam.x && framed.y === cam.y && framed.scale === cam.scale;
   if (!still && (!was || was.flight !== flightCount() || Math.abs(cam.scale - was.scale) > 1e-6)) return;
+  // (In the band the bars leave, as fitCamera frames it: on the whole canvas the town ran under both.)
   const v = renderer.canvas.getBoundingClientRect();
+  const b = mapBand();
   const { cx, cy, span } = builtArea();
-  glideTo(cx, cy, fitScale(v.width, v.height, span), 300);
+  const scale = fitScale(b.right - b.left, b.bottom - b.top, span);
+  glideTo(cx + (v.width / 2 - (b.left + b.right) / 2) / scale, cy + (v.height / 2 - (b.top + b.bottom) / 2) / scale, scale, 300);
 }
 
 /** Back to the overview: the view the goal put on goes, and a tool it handed out is put down. */

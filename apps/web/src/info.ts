@@ -554,7 +554,7 @@ ${paths}${voice}
           flash(ko(res.message ?? 'pick a lived-in home'), 'bad');
           return;
         }
-        // (주민 is on the top bar, or in its ⋯ menu when the bar is short of room.)
+        // (주민 is on the bar down the left — a tablet's foot bar too — or, on a phone held upright, in its menu.)
         const sims = document.getElementById('btn-sims')?.offsetParent ? "왼쪽 막대의 '주민'" : "아래 막대 메뉴의 '주민'";
         flash(`${res.sim!.name}${josa(res.sim!.name, '이', '가')} 입주했습니다 — ${sims}에서 생각을 들어 보세요`);
         renderMySims(true);

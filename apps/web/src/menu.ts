@@ -24,12 +24,20 @@ export function setupMenu(): void {
     if (!dropdown.open) return;
     const m = lastAutosave + 6;
     $('#autosave-note').textContent = `다음 자동 저장: ${2000 + Math.floor(m / 12)}년 ${(m % 12) + 1}월 (탭을\u00a0떠날\u00a0때도\u00a0저장)`;
-    // It rises from its button (the bar's foot, wide or on a phone): no taller than the room up to the window's top —
-    // on a phone, to the top bar's foot — scrolling the rest (on a short window its first lines were off the top).
+    // It rises from its button (the bar's foot, wide or on a phone): no taller than the room up to the top bar's foot
+    // — the date's card beside the bar, a phone's top bar — scrolling the rest (on a short window its first lines were
+    // off the top, then over the date).
     const menu = dropdown.querySelector<HTMLElement>('.dropdown-menu')!;
     menu.style.maxHeight = '';
+    // (A bar that scrolls — a window lower than its least — would cut a menu inside it off: it stands outside then,
+    // by its button.)
+    const dock = $('#dock');
+    if (dock.classList.contains('scrolls')) {
+      const at = dropdown.querySelector('summary')!.getBoundingClientRect();
+      Object.assign(menu.style, { position: 'fixed', left: `${dock.getBoundingClientRect().right + 12}px`, bottom: `${Math.max(8, innerHeight - at.bottom - 4)}px`, top: 'auto' });
+    } else for (const k of ['position', 'left', 'bottom', 'top'] as const) menu.style[k] = '';
     const r = menu.getBoundingClientRect();
-    const roof = matchMedia('(max-width: 860px)').matches ? $('#mapbar').getBoundingClientRect().bottom + 8 : 8;
+    const roof = $('#mapbar').getBoundingClientRect().bottom + 8;
     if (r.top < roof) menu.style.maxHeight = `${Math.max(160, r.bottom - roof)}px`;
   });
   document.addEventListener('pointerdown', (e) => {
@@ -155,7 +163,6 @@ export function setupMenu(): void {
       name.select();
     }
   };
-  $('#btn-help').onclick = showHelp;
   dialog.addEventListener('close', async () => {
     if (dialog.returnValue !== 'sample' && dialog.returnValue !== 'ok') return;
     // The city on screen gives way: its progress since the last save goes with it.

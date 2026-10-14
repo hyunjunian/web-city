@@ -252,7 +252,7 @@ export function updatePreview(): void {
     // (A touch screen has no hover to show the site: it says how a facility is placed.)
     // (Driving: how to drive, what the moment wants, rather than what can't be done.)
     hint.textContent = drive ? `${touchFirst() ? '방향 버튼으로' : '방향키·WASD로'} 노란 목표까지 운전하세요${SPECIAL[drive.plan.vehicle] ? ` · ${touchFirst() ? SPECIAL[drive.plan.vehicle]!.label.replace(' (Space)', ' 버튼') : SPECIAL[drive.plan.vehicle]!.label}` : ''} · 운전 중에는 짓지 못함`
-      : touchFirst() && tool.kind === 'structure' ? '놓을 자리를 누르세요 · 아래 짓기로 확정합니다' : '';
+      : touchFirst() && tool.kind === 'structure' ? '놓을 자리를 누르세요 · 그 자리 카드의 여기에 짓기로 확정합니다' : '';
     preview = null;
     tag = null;
     placeTag(); // off the map (or driving): no tag left where the pointer was
@@ -336,7 +336,8 @@ export function updatePreview(): void {
         + (check.ok ? `<span class="confirm-stat">${esc(extraNow)}</span>` : `<span class="confirm-no">놓을 수 없음: ${esc(ko(check.message ?? ''))}</span><span class="confirm-stat">지도에서 다른 자리를 눌러 옮겨 보세요</span>`)
         + (catches.length ? `<span class="confirm-warns">${catches.map((w) => `<span>⚠ ${esc(w)}</span>`).join('')}</span>` : '');
       $<HTMLButtonElement>('#confirm-build').disabled = !check.ok;
-      $('#confirm-build').textContent = check.ok ? `짓기 §${fmt(def.cost)}` : '짓기';
+      // (여기에 짓기, not 짓기: the foot bar's 짓기 under it opens the tools.)
+      $('#confirm-build').textContent = check.ok ? `여기에 짓기 §${fmt(def.cost)}` : '여기에 짓기';
       $('#confirm-bar').hidden = false;
     } else hint.textContent = text;
   } else if (drag && tool.kind === 'powerline') {

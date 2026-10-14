@@ -62,7 +62,7 @@ export type Band = { left: number; top: number; right: number; bottom: number };
  * has it as a side panel. Framing on a phone, the edge arrows and their flights keep to it (an arrow under the sheet,
  * a target landing there).
  */
-export function mapBand(): Band {
+export function mapBand(withPane = true): Band {
   const r = renderer.canvas.getBoundingClientRect();
   let [left, top, right, bottom] = [0, 0, r.width, r.height];
   const bar = document.getElementById('mapbar')?.getBoundingClientRect();
@@ -75,7 +75,7 @@ export function mapBand(): Band {
   else if (d?.width) left = Math.max(left, Math.min(r.width / 3, d.right - r.left));
   const pane = document.getElementById('pane');
   const app = document.getElementById('app');
-  if (pane && app?.classList.contains('pane-open') && matchMedia('(max-width: 860px)').matches) {
+  if (withPane && pane && app?.classList.contains('pane-open') && matchMedia('(max-width: 860px)').matches) {
     // (Where the sheet comes to rest, not where its slide-in has got to: offsets leave the transform out.)
     const at = app.getBoundingClientRect();
     if (matchMedia('(orientation: landscape) and (max-height: 520px)').matches) left = Math.max(left, Math.min(r.width / 2, at.left + pane.offsetLeft + pane.offsetWidth - r.left));
@@ -85,7 +85,7 @@ export function mapBand(): Band {
 }
 
 /** The cards over the map's top — the view's legend under the top bar, a goal's chip and (phones) the goals in
- *  trouble beside the build bar, 전체 보기 and the minimap (not while they fade, the whole city in sight) — in CSS px
+ *  trouble under the top bar, 전체 보기 and the minimap (not while they fade, the whole city in sight) — in CSS px
  *  from its top left: a target under one is out of sight. Only those shown (the chip is only made invisible while a
  *  phone's sheet is up); the strip by its chips, not the row they may not fill. */
 const COVERS = ['map-layer', 'manage-chip', 'goal-strip', 'map-zoom', 'minimap'];
@@ -142,7 +142,10 @@ export function fitCamera(whole = false): void {
   cam.scale = fitScale(w, h, span, whole);
   cam.x = cx - (b.left + w / 2) / cam.scale;
   cam.y = cy - (b.top + h / 2) / cam.scale;
-  bandFraming = b.bottom < r.height - 1 || b.left > 1 ? { x: cam.x, y: cam.y, scale: cam.scale } : null;
+  // (Only where the pane took a part of it: the bars across the top and the foot always do, and every phone framing
+  // counted as one beside the pane.)
+  const bare = mapBand(false);
+  bandFraming = b.bottom < bare.bottom - 1 || b.left > bare.left + 1 ? { x: cam.x, y: cam.y, scale: cam.scale } : null;
 }
 
 /**
