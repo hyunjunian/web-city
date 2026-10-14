@@ -2564,7 +2564,7 @@ export function renderGoal(force = false): void {
 }
 
 /** Attributes that pick out a control again after the panel is redrawn. */
-const KEYS = ['data-spot', 'data-spot-build', 'data-widen', 'data-line-path', 'data-landfill', 'data-zone', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-mg-tabk', 'data-goal', 'data-mg-tab', 'data-at', 'data-power-dispatch', 'data-repair-network'];
+const KEYS = ['data-jump-guide', 'data-spot', 'data-spot-build', 'data-widen', 'data-line-path', 'data-landfill', 'data-zone', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-mg-tabk', 'data-goal', 'data-mg-tab', 'data-at', 'data-power-dispatch', 'data-repair-network'];
 
 /** A selector for the focused control inside the goal panel, to give focus back after a redraw ('' if none). */
 function focusKey(el: Element | null): string {

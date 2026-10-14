@@ -925,8 +925,10 @@ export function refreshToolChip(): void {
 function refreshToolAlts(): void {
   const row = $('#tool-alts');
   let html = '';
-  // Each with its price, how they differ (in a tooltip only, a finger never saw it).
+  // Each with its price, how they differ (in a tooltip only, a finger never saw it) — the land's free before the first
+  // build, as the chip says it.
   const cost = (price: string) => (price ? `<small class="alt-cost">${price}</small>` : '');
+  const priceOf = (t: Tool) => (t.kind === 'terraform' && !city.established() ? '무료' : toolPrice(t));
   if (tool.kind === 'structure') {
     const t = tool;
     // (The everyday kinds where there are many — the bar would scroll through 22 parks — and the one in hand.)
@@ -947,7 +949,7 @@ function refreshToolAlts(): void {
       html = sibs.map((t) => {
         const key = Object.entries(TOOL_KEYS).find(([, id]) => id === t.id)?.[0];
         return `<button type="button" class="${t.id === tool.id ? 'active' : ''}" data-alt-tool="${t.id}" aria-pressed="${t.id === tool.id}"
-          title="${attr(`${toolName(t)}${key ? ` (${key.toUpperCase()})` : ''}${toolPrice(t) ? ` · ${toolPrice(t)}` : ''}`)}">${toolGlyph(t)}${t.label}${cost(toolPrice(t))}</button>`;
+          title="${attr(`${toolName(t)}${key ? ` (${key.toUpperCase()})` : ''}${toolPrice(t) ? ` · ${toolPrice(t)}` : ''}`)}">${toolGlyph(t)}${t.label}${cost(priceOf(t))}</button>`;
       }).join('');
     }
     // A line or pipe leads back to the plant or pump it serves (the kind last chosen).
@@ -1316,6 +1318,7 @@ export function markSuggested(): void {
   const act = firstStepTool ?? (city ? nextStep().act : '');
   // Not once the player has looked (its category opened, or its tool picked) until the next step is another: there is
   // always a next step, and a dot always on read as unread, and went unread.
+  if (act !== seen.act) seen = { act: '', city: -1 }; // (a step come back after another is news again)
   shownAct = act && categoryOf(act) !== 'inspect' && !(seen.act === act && seen.city === cityLineage) ? act : '';
   const cats = new Set(shownAct ? [categoryOf(shownAct)] : []);
   document.querySelectorAll<HTMLElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) => {

@@ -172,9 +172,12 @@ export function setupTips(): void {
   document.addEventListener('focusout', (e) => {
     if (kept && e.target === kept && !kept.matches(':hover')) release(false);
   });
-  // (The menu opened from the keyboard, its button keeping focus: the tooltip went on over the menu.)
+  // (The menu opened from the keyboard, its button keeping focus: the tooltip went on over the menu.) Only a
+  // <details> holding the control: the panels rebuild theirs open (유형별 수요, 다른 선택) every update, and each fired
+  // a toggle that put the tooltip away before it showed.
   document.addEventListener('toggle', (e) => {
-    if ((e.target as HTMLDetailsElement).open) release(false);
+    const d = e.target;
+    if (d instanceof HTMLDetailsElement && d.open && kept && d.contains(kept)) release(false);
   }, true);
   document.addEventListener('pointerdown', () => release(false), true);
   document.addEventListener('keydown', (e) => {

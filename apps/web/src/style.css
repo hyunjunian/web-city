@@ -983,7 +983,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #toasts { position: absolute; bottom: calc(var(--bb) + 60px); left: 50%; align-content: end; z-index: 5; transform: translateX(-50%); display: grid; gap: 8px; width: min(440px, calc(100% - 32px)); pointer-events: none; }
 /* A notice that stopped the clock (its reason, 계속) stays over a card or sheet opened since: under the 지역 sheet, the
    game sat paused for a reason out of sight. */
-@media (min-width: 861px) { #toasts:has(> .toast.sticky) { z-index: 8; } }
+@media (min-width: 861px) { #view.sheet-open #toasts:has(> .toast.sticky) { z-index: 8; } }
 /* With the info card open, toasts centre on the map left of it, clear of the map controls beside the card. */
 @media (min-width: 1100px) { #view.info-open #toasts { left: calc((100% - var(--info-w) - 28px) / 2); width: min(440px, max(240px, calc(100% - var(--info-w) - 180px))); } }
 .toast {
