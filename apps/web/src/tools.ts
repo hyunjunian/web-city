@@ -381,25 +381,21 @@ export function buildTools(): void {
         closeTray(true);
         return;
       }
-      // One tap picks the category's tool (the last one used there) and shows the others.
-      // (Not a locked one: rewards and deals start out all locked.)
+      // A build category only opens its card: the tool is picked there (and picking one closes the card). Nothing is
+      // armed unseen — a road or a zone armed by the press laid itself at the next drag, one meant to pan (§1,625 of
+      // zone and streets for a look at 개발 구역), and nothing undoes a build. (Not a locked one: rewards and deals
+      // start out all locked.)
       const tools = TOOL_GROUPS.find((g) => g.cat === cat)!.tools;
       const pick = [TOOLS.find((t) => t.id === lastTool[cat]), ...tools].find(usable);
-      // A build category only opens: a tool armed unseen (a reward's §1,800, a
-      // disaster) would act at the next drag; picking one closes the tray.
-      // A drawing tool is the exception with a mouse: roads, zones, lines and pipes cost by the tile, show it
-      // while dragged and undo, so 교통 then a drag lays a road (it only panned: the tray wanted a second pick).
-      // (Not on a touch screen: a tap on the map to put the tray away would lay a tile.)
-      const draw = BUILD_CATS.includes(cat) && DRAW_KINDS.includes(pick?.kind ?? '') && !touchFirst();
-      const had = tool.id;
-      if (pick && (!BUILD_CATS.includes(cat) || draw)) selectTool(pick.id);
-      armedByDock = draw;
-      if (draw) armedUnasked = tool.id !== had; // (another category with nothing to arm leaves the flag as it was) // (already in hand, it was the player's pick: it stays when the tray is put away)
+      if (pick && !BUILD_CATS.includes(cat)) selectTool(pick.id);
       openTray(cat, true);
-      // From the keyboard, carry on in the tray at the tool in hand, or its first (arrows move from there).
+      // From the keyboard, carry on in the tray at the tool in hand, or the one last used there, or its first (arrows
+      // move from there).
       if (e.detail === 0) {
         const section = '#tools .tray-section:not([hidden])';
-        (document.querySelector<HTMLElement>(`${section} :is(.tile.active:not([hidden]), .pick.active)`) ?? document.querySelector<HTMLElement>(`${section} :is(.tile, .pick:not([disabled]))`))?.focus();
+        (document.querySelector<HTMLElement>(`${section} :is(.tile.active:not([hidden]), .pick.active)`)
+          ?? (pick ? document.querySelector<HTMLElement>(`${section} .tile[data-tool="${pick.id}"]:not([hidden])`) : null)
+          ?? document.querySelector<HTMLElement>(`${section} :is(.tile, .pick:not([disabled]))`))?.focus();
       }
     };
   });
@@ -581,24 +577,13 @@ export function buildTools(): void {
 }
 
 /** Opens the tray under the dock (at the map's top) with a category's tools. */
-/** Whether the tool in hand was armed by a dock category's press (not picked in the card or by a key). */
-let armedByDock = false;
-/** …and was not in hand before (put away unused, the tray takes it back down). */
-let armedUnasked = false;
-export const dockArmed = (): boolean => armedByDock;
 /**
- * A tool has built something: if the dock armed it, it is the player's now (the tray put away leaves it); and it is
- * one of the recent ones. (Picked up alone it isn't: opening 교통 arms 도로 and 구역 arms 주거 저밀도, and every tray
- * read "최근 [주거 저밀도] [도로]" before anything was built.)
+ * A tool has built something: it is one of the recent ones. (Picked up alone it isn't: every tray read
+ * "최근 [주거 저밀도] [도로]" before anything was built.)
  */
 export function toolUsed(used: Tool = tool): void {
-  armedUnasked = false;
   noteRecent(used);
 }
-
-/** Tools drawn tile by tile, cheap and shown as they're dragged: armed straight from the dock. */
-// (Not lines and pipes: their tool turns the map to its own view, which a look at the card shouldn't.)
-const DRAW_KINDS: string[] = ['network', 'zone'];
 
 /** Whether the tools' card goes on below what shows of it: its foot fades then. */
 function markScroll(): void {
@@ -650,16 +635,13 @@ export function openTray(cat: CategoryId, fromDock = false): void {
 }
 
 /**
- * Closes the tray (the tool stays picked). Returns whether it was open. Put away by the player
- * (its ×, Esc, its dock button again) with nothing picked, a tool the dock armed goes down with it:
- * only looked through, nothing was chosen (and the clock held for it runs on).
+ * Closes the tray (the tool stays picked). Returns whether it was open. (byPlayer: put away by its ×, Esc or its dock
+ * button again — focus goes back to that button.)
  */
 export function closeTray(byPlayer = false): boolean {
   if (!openCat) return false;
   const cat = openCat;
   openCat = null;
-  if (byPlayer && armedUnasked && tool.id !== 'query') selectTool('query');
-  armedUnasked = false; // (closed another way — a press on the map — the tool is kept: the player's now)
   // Keyboard focus inside the tray goes back to the dock button that opened it, not to the page.
   // (After a mouse pick it goes nowhere: on the dock button, Space would open the tray again instead of pausing.)
   const active = document.activeElement as HTMLElement | null;
@@ -1003,8 +985,6 @@ export let toolPicks = 0;
 export function selectTool(id: string): void {
   sawSuggestion(null, id);
   toolPicks++;
-  armedByDock = false;
-  armedUnasked = false;
   cancelMySimAction(); // the map click goes to the new tool
   endFlash(); // the last tool's message gives way to this one's hints
   const before = tool;
@@ -1272,7 +1252,7 @@ function clearFind(): void {
 function pickFound(key: string): void {
   const f = [...findables(), ...screens()].find((x) => x.key === key);
   if (!f || f.locked) return;
-  // A screen is no tool: the one the dock armed unasked goes down first (it stayed in hand, the clock held).
+  // (A screen is no tool: the card is put away first, as by its ×.)
   if (f.key.startsWith('screen:')) closeTray(true);
   f.pick();
   closeTray();

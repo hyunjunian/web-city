@@ -16,7 +16,7 @@ import { goalOfStructure } from './goals';
 import { cam, centerOn, city, drag, fitCamera, glideTo, hover, mapBand, overlay, redraw, renderer, selected, setDrag, setHover, speed, stopFlight } from './state';
 import { drive, SPECIAL } from './udi';
 import { closeTopLayer, toggleSheet } from './tabs';
-import { chosen, closeTray, dockArmed, openFind, previousTool, stepAlt, refreshToolChip, selectTool, STATION_HINT, tool, TOOL_KEYS, toolName, toolUsed, refreshEdgeHint } from './tools';
+import { chosen, closeTray, openFind, previousTool, stepAlt, refreshToolChip, selectTool, STATION_HINT, tool, TOOL_KEYS, toolName, toolUsed, refreshEdgeHint } from './tools';
 import { $, ask, askText, escapeHtml, keyForControl, onHintRestore, flash, flashing, fmt, josa, touchFirst, flashYields, endFlash } from './util';
 
 /** What each cheat did, for the toast. */
@@ -1195,7 +1195,6 @@ export function setupInput(): void {
   /** When an edge arrow was last pressed (its double click's second press and zoom are left alone). */
   let edgePressed = -Infinity;
   let pinch: { dist: number; scale: number } | null = null;
-  let clickDismiss = false;
 
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   canvas.addEventListener('pointerdown', (e) => {
@@ -1222,13 +1221,9 @@ export function setupInput(): void {
     // Text left selected (a drag from the pane onto the map) made the browser cancel every drag after.
     if (!document.getSelection()?.isCollapsed) document.getSelection()?.removeAllRanges();
     canvas.setPointerCapture(e.pointerId);
-    // The tool is picked; the map is the work now. On a touch screen the touch
-    // that puts the tray away only does that (and pans): it never builds.
-    const closed = closeTray();
-    const dismissed = closed && touchFirst();
-    // With a mouse, the card put away by a press with the tool the dock armed: a drag builds, a plain
-    // click only puts the card away (it laid a tile of road where the card was clicked off).
-    clickDismiss = closed && !touchFirst() && dockArmed();
+    // The press that puts the tools' card away only does that (and pans), with a finger or a mouse: it never builds
+    // — the card was being looked through, and nothing undoes a build (it laid a road where the card was clicked off).
+    const dismissed = closeTray();
     const [px, py] = pos(e);
     pointers.set(e.pointerId, [px, py]);
     if (pointers.size === 2) {
@@ -1341,9 +1336,7 @@ export function setupInput(): void {
       selectTool('query');
       return;
     }
-    const still = !!drag && drag.start[0] === drag.end[0] && drag.start[1] === drag.end[1];
-    if (drag && (!drag.pan || drag.pan.tap) && !(clickDismiss && still)) applyTool();
-    clickDismiss = false;
+    if (drag && (!drag.pan || drag.pan.tap)) applyTool();
     setDrag(null);
     updatePreview();
     redraw();
