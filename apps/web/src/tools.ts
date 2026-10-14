@@ -7,7 +7,7 @@ import { hoverUnderMouse, setPreview, updatePreview } from './input';
 import { baseView, goalTools, markToolSite, nextStep, openGoal, suggestedKinds } from './manage';
 import { firstStepTool } from './onboarding';
 import { DISASTER_NAME, plainCodes, STRUCTURE_NAME } from './names';
-import { holdForBuilding, isHeld, releaseHold, showHelp, showOverlay, viewProblem } from './controls';
+import { holdForBuilding, isHeld, showHelp, showOverlay, viewProblem } from './controls';
 import { structureMark } from './render';
 import { city, redraw, renderer, setDrag } from './state';
 import { closeInfo, closePane, closeSheet, showTab } from './tabs';
@@ -249,7 +249,7 @@ const usable = (t: Tool | undefined): boolean => !!t && (t.kind !== 'structure' 
 
 /** Simulation speeds, shown like a player's buttons: pause, then one, two or three play arrows. */
 export const SPEEDS: { icon: IconName; days: number; title: string }[] = [
-  { icon: 'pause', days: 0, title: '일시정지 (0 · Space)' },
+  { icon: 'pause', days: 0, title: '멈춤 (0 · Space)' },
   { icon: 'play', days: 2, title: '느리게 (1)' },
   { icon: 'play2', days: 8, title: '보통 (2)' },
   { icon: 'play3', days: 30, title: '빠르게 (3)' },
@@ -436,9 +436,7 @@ export function buildTools(): void {
   chipLabel.onclick = (e) => {
     // (After a mouse press, Space is the game's pause again, not this button's.)
     if (e.detail > 0) chipLabel.blur();
-    // (멈춤 on it lets time run on while building; the rest of the name opens the card.)
-    if ((e.target as HTMLElement).closest('.chip-held')) releaseHold();
-    else openTray(categoryOf(tool.id));
+    openTray(categoryOf(tool.id));
   };
   $('#tool-alts').addEventListener('scroll', edgeAlts, { passive: true });
   new ResizeObserver(edgeAlts).observe($('#tool-alts')); // (shown again after the tray, or a narrower window)
@@ -901,9 +899,9 @@ export function refreshToolChip(): void {
     : tool.kind === 'terraform' && !city.established() ? '무료 (처음 짓기 전)' : toolPrice(tool);
   const short = !!kind && STRUCTURES[kind].cost > city.state.funds;
   const demand = tool.kind === 'zone' ? zoneDemandChip(tool.zone) : '';
-  // (The clock held for building says so here, where the eye is, not up in the top bar.)
-  const held = isHeld() ? `<span class="chip-held" title="짓는 동안 시간이 잠시 멈춥니다 · 도구를 내려놓으면 다시 흐릅니다 · 누르면 지금 흐르게" aria-label="시간 멈춤">${icon('pause')}<span class="held-word">멈춤</span></span>` : '';
-  const html = `<b>${kind ? STRUCTURE_NAME[kind] : toolName(tool)}</b>${price ? `<span${short ? ' class="short" title="자금이 모자랍니다"' : ''}>${price}</span>` : ''}${demand}${icon('chevronDown', 'chip-more')}${held}`;
+  // (Not the clock held for building as well: a ⏸ 멈춤 here whose press set time going read as the reverse of what
+  // it did. The bar's speeds say it, ringed — on a phone its 시간, 잠시 멈춤 — and the hint, the first times.)
+  const html = `<b>${kind ? STRUCTURE_NAME[kind] : toolName(tool)}</b>${price ? `<span${short ? ' class="short" title="자금이 모자랍니다"' : ''}>${price}</span>` : ''}${demand}${icon('chevronDown', 'chip-more')}`;
   if ($('#tool-chip-label').innerHTML !== html) $('#tool-chip-label').innerHTML = html;
   refreshToolAlts();
 }

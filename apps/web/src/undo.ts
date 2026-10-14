@@ -5,7 +5,7 @@ import { updatePanels } from './panels';
 import { setSpeed } from './controls';
 import { city, setCity, speed } from './state';
 import { drive } from './udi';
-import { $, ask, flash, fmt, josa, keyForControl } from './util';
+import { $, ask, flash, fmt, josa, keyForControl, keyLabel } from './util';
 
 const LIMIT = 20;
 
@@ -167,14 +167,14 @@ export function refreshUndo(): void {
   if (!btn) return;
   const top = [...stack].reverse().find((e) => e.owner === city);
   btn.disabled = !top;
-  btn.title = top ? `되돌리기: ${top.label}${city.state.day > top.day ? ` (그 뒤 ${elapsed(city.state.day - top.day)}도 함께)` : ''} (Ctrl+Z)` : '되돌리기 (Ctrl+Z)';
+  btn.title = top ? `되돌리기: ${top.label}${city.state.day > top.day ? ` (그 뒤 ${elapsed(city.state.day - top.day)}도 함께)` : ''} (${keyLabel('Ctrl+Z')})` : `되돌리기 (${keyLabel('Ctrl+Z')})`;
   // Redo keeps its place beside undo, dimmed while there is nothing to redo: appearing after an undo, it took the
   // spot undo had been pressed in, and a second press there redid what the first undid.
   const again = document.querySelector<HTMLButtonElement>('#btn-redo');
   const next = [...redoStack].reverse().find((e) => e.owner === city);
   if (again) {
     again.disabled = !next;
-    again.title = next ? `다시 하기: ${next.label} (Ctrl+Shift+Z)` : '다시 하기 (Ctrl+Shift+Z)';
+    again.title = next ? `다시 하기: ${next.label} (${keyLabel('Ctrl+Shift+Z')})` : `다시 하기 (${keyLabel('Ctrl+Shift+Z')})`;
   }
 }
 

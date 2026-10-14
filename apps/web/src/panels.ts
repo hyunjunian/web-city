@@ -21,7 +21,7 @@ import { renderUdi, watchMissions } from './udi';
 import { journal, type Notice } from './journal';
 import { toast } from './toast';
 import { closeSheet, paneShown, revealMap, sheetShown, showTab, type Tab } from './tabs';
-import { $, escapeHtml, firstSentence, flash, fmt, josa, landfillMonths, landfillSpan, stoppedNote, touchFirst } from './util';
+import { $, escapeHtml, firstSentence, flash, fmt, josa, keyLabel, landfillMonths, landfillSpan, stoppedNote, touchFirst } from './util';
 import { choice } from './undo';
 
 /** Last month's crimes by kind, for a tooltip. */
@@ -364,7 +364,7 @@ export function updatePanels(): void {
   const st = city.stats();
   if (st.impeached && impeachedCity !== city) {
     impeachedCity = city;
-    toast(`시장이 탄핵되어 시뮬레이션이 멈췄습니다. 되돌리기${touchFirst() ? '' : '(Ctrl+Z)'}·저장 불러오기·새 도시로 다시 시작하세요.`, 'bad');
+    toast(`시장이 탄핵되어 시뮬레이션이 멈췄습니다. 되돌리기${touchFirst() ? '' : `(${keyLabel('Ctrl+Z')})`}·저장 불러오기·새 도시로 다시 시작하세요.`, 'bad');
   }
   // The sheets' sections and a goal's statistics render only while shown (on a big map
   // they are costly); opening one brings it up to date (the 'sheet-open' event).

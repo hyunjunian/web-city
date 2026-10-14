@@ -10,10 +10,10 @@ import { updatePanels } from './panels';
 import { type Overlay, type VolumeNetwork } from './render';
 import { ABANDONED_COLOR, buildingRisk, GROWTH_COLOR, GROWTH_LABEL, growthNow, RISK_COLOR, volumeAt } from './views';
 import { centerOn, pingAt, changeKey, city, cityGeneration, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
-import { refreshToolChip, selectTool, SPEEDS, TOOL_KEYS, toolName, TOOLS } from './tools';
+import { selectTool, SPEEDS, TOOL_KEYS, toolName, TOOLS } from './tools';
 import { drive } from './udi';
 import { revealMap } from './tabs';
-import { $, flash, fmt } from './util';
+import { $, flash, fmt, keyLabel } from './util';
 import { choice } from './undo';
 import { type GoalId } from './goals';
 import { capped, incidents } from './readings';
@@ -78,12 +78,12 @@ export function showHelp(): void {
     ['관리 화면과 탭', `${wide ? '왼쪽' : '<b>도시</b>의'} 도시 상태(개발·전력·수도·교육 등)에서 항목을 누르면 그 분야의 관리 화면이 열립니다. 맨 위의 탭(교통이면 혼잡·통근·통행량)을 누를 때마다 지도에 알맞은 보기가 켜지고, 그 아래에 점수판(주요 수치·추이 그래프)과 할 일(추천 조치, 지을 것·예산·조례)이 나옵니다. 탭의 빨간 점은 그 부분에 급한 문제가 있다는 뜻입니다. 시설 버튼을 누르면 지도로 넘어가고, 지도 위 칩을 누르면 관리 화면으로 돌아옵니다. 지도의 과녁은 서비스가 가장 많이 빠진 곳입니다.`],
     ['불·폭동 출동', '불·폭동은 <b>시민 서비스</b>의 소방 출동·경찰 출동 도구로(또는 도시 상태 위 출동 카드의 출동 준비) 그곳을 누르면 가까운 서에서 차가 갑니다(서의 크기만큼 대수 제한). 불난 건물은 지도에 빨간 원으로, 미니맵에 빨간 점(폭동은 주황 점)으로 보이고, 소방·경찰 범위 보기의 <b>찾아가기</b>가 그곳으로 차례로 데려갑니다. 소방서 반경 안의 불 한두 곳은 소방서가 끄므로 소방 줄이 주황으로만 남고, 반경 밖·세 곳 이상·발전소의 불에는 출동 카드가 뜹니다. 폭동은 경찰차 3대 이상이 모여야 진압되니(막다른 길 제외) 같은 곳을 여러 번 누르세요. 아무것도 짓기 전의 새 도시에서는 지형 편집이 무료입니다.'],
     ['발전소', '발전소는 불타거나 수명이 다하면 폭발합니다: 소방서 반경 안에 두세요.'],
-    ['알림·세율·시간', `알림 카드는 누르면 그곳으로 가고, 옆으로 밀면 치워집니다. 재정·정책의 세율은 −·+ 버튼으로 0.5%씩 바꿀 수 있습니다. 시간은 ${bar}의 <b>시간</b>에서 바꿉니다: 지금 속도를 보여 주고, 누르면 멈추거나(멈춰 있으면 이어 가고) ${wide ? '그 옆에' : '그 위에'} 일시정지·느리게·보통·빠르게가 나와 속도를 고릅니다. 날짜와 바람은 화면 위 막대에 있습니다. 짓거나 철거하는 도구를 든 동안에는 시간이 잠시 멈춥니다. 제안(해 보기)으로 든 시설은 한 곳에 놓으면 도구가 내려가고 시간이 다시 흐릅니다.`],
+    ['알림·세율·시간', `알림 카드는 누르면 그곳으로 가고, 옆으로 밀면 치워집니다. 재정·정책의 세율은 −·+ 버튼으로 0.5%씩 바꿀 수 있습니다. 시간은 ${bar}의 <b>시간</b>에서 바꿉니다: 지금 속도를 보여 주고, 누르면 멈추거나(멈춰 있으면 이어 가고) ${wide ? '그 옆에' : '그 위에'} 멈춤·느리게·보통·빠르게가 나와 속도를 고릅니다. 날짜와 바람은 화면 위 막대에 있습니다. 짓거나 철거하는 도구를 든 동안에는 시간이 잠시 멈춥니다. 제안(해 보기)으로 든 시설은 한 곳에 놓으면 도구가 내려가고 시간이 다시 흐릅니다.`],
   ] : [
     ['키보드로 짓기', '키보드만으로도 지을 수 있습니다: 건설 도구를 들고 방향키로 커서를 옮겨(Shift: 5칸, 지도가 따라감) Enter로 짓습니다. 도로·구역처럼 끌어 짓는 도구는 시작점과 끝점에서 Enter를 한 번씩 누르고, Esc로 취소합니다.'],
     ['끄는 동안 보이는 것', '끄는 동안 그 자리 바로 옆 칩에 칸 수·비용과 걸리는 점이 나오고, 지을 수 없으면 빨갛게 이유를 알려 줍니다(구역은 함께 놓일 골목 자리까지 미리 보임). 도로는 처음 끈 방향으로 먼저 뻗어 꺾이고, Shift를 누르면 곧게 뻗습니다. 짓거나 철거하는 도구를 든 동안에는 시간이 잠시 멈추고, 도구를 내려놓으면 다시 흐릅니다(도구 막대의 멈춤을 누르면 바로 흐름).'],
     ['같은 묶음의 다른 도구', '도구를 들면 지도 아래쪽에 서는 도구 막대에 그 도구와 같은 묶음의 다른 도구(도로 종류·밀도·시설 종류)가 함께 나와 한 번에 바꿀 수 있습니다(, . 키). 자주 쓰지 않는 도구는 도구 카드의 <b>더 보기</b>에 있습니다. / 키로 도구·시설을 이름으로 찾고 Enter로 바로 고릅니다(세율·대출·범죄처럼 하려는 일을 쓰면 그 관리 화면도 나옵니다).'],
-    [wide ? '왼쪽 막대와 도구 카드' : '아래 막대와 도구 카드', `${wide ? '조작은 모두 지도 왼쪽 막대에 하는 일별로 묶여 있습니다: 위에서부터 <b>도시</b>(도시 현황을 접어 지도만 크게, 다시 누르면 펼침 · F)·<b>주민</b>(U), 시간(일시정지·느리게·보통·빠르게 · 0–3, Space)과 되돌리기·다시 하기, 짓기(철거 / 교통·구역·공공시설·서비스 / 보상·지형), 그리고 <b>메뉴</b>(저장·불러오기·지역·조작법·테마). 창이 낮으면 짓기 묶음이 <b>짓기</b> 하나로 모이고, 묶음은 도구 카드 맨 위에서 고릅니다.' : '조작은 모두 화면 아래 막대에 하는 일별로 묶여 있습니다: <b>도시</b>(도시 현황 열기·닫기) | <b>시간</b>(누르면 멈춤·이어 가기, 속도는 그 위 카드에서 · 0–3, Space)·되돌리기·다시 하기 | 철거·<b>짓기</b>(도구 카드 맨 위에서 묶음을 고름) | <b>메뉴</b>(주민·저장·불러오기·지역·조작법·테마).'} 화면 위 막대에는 날짜와 바람만 있습니다. 도구를 들지 않으면 지도는 그대로 조회입니다. 묶음을 누르면 그 옆으로 도구 카드가 열리고, 도구를 고르면 지도 아래쪽에 든 도구의 막대가 섭니다(카드 안에서는 방향키로 도구를 옮겨 고를 수 있음). 시설은 카드에서 종류를 바로 누르면 됩니다. 지도를 누르기 시작하면 카드는 접힙니다. 둘러보기만 하고 ×나 Esc로 닫으면 묶음이 집어 든 도구도 내려놓습니다. 가장 급한 곳의 추천 조치가 쓰는 도구의 묶음에는 작은 점이 하나 붙습니다. 알림은 지도 오른쪽 아래에 잠시 떴다가 사라집니다(아랫줄이 남은 시간, 가리키고 있으면 기다림).`],
+    [wide ? '왼쪽 막대와 도구 카드' : '아래 막대와 도구 카드', `${wide ? '조작은 모두 지도 왼쪽 막대에 하는 일별로 묶여 있습니다: 위에서부터 <b>도시</b>(도시 현황을 접어 지도만 크게, 다시 누르면 펼침 · F)·<b>주민</b>(U), 시간(멈춤·느리게·보통·빠르게 · 0–3, Space)과 되돌리기·다시 하기, 짓기(철거 / 교통·구역·공공시설·서비스 / 보상·지형), 그리고 <b>메뉴</b>(저장·불러오기·지역·조작법·테마). 창이 낮으면 짓기 묶음이 <b>짓기</b> 하나로 모이고, 묶음은 도구 카드 맨 위에서 고릅니다.' : '조작은 모두 화면 아래 막대에 하는 일별로 묶여 있습니다: <b>도시</b>(도시 현황 열기·닫기) | <b>시간</b>(누르면 멈춤·이어 가기, 속도는 그 위 카드에서 · 0–3, Space)·되돌리기·다시 하기 | 철거·<b>짓기</b>(도구 카드 맨 위에서 묶음을 고름) | <b>메뉴</b>(주민·저장·불러오기·지역·조작법·테마).'} 화면 위 막대에는 날짜와 바람만 있습니다. 도구를 들지 않으면 지도는 그대로 조회입니다. 묶음을 누르면 그 옆으로 도구 카드가 열리고, 도구를 고르면 지도 아래쪽에 든 도구의 막대가 섭니다(카드 안에서는 방향키로 도구를 옮겨 고를 수 있음). 시설은 카드에서 종류를 바로 누르면 됩니다. 지도를 누르기 시작하면 카드는 접힙니다. 둘러보기만 하고 ×나 Esc로 닫으면 묶음이 집어 든 도구도 내려놓습니다. 가장 급한 곳의 추천 조치가 쓰는 도구의 묶음에는 작은 점이 하나 붙습니다. 알림은 지도 오른쪽 아래에 잠시 떴다가 사라집니다(아랫줄이 남은 시간, 가리키고 있으면 기다림).`],
 
     ['칸 정보 보기', '도구를 들지 않은 채 지도 위에 마우스를 올리면 그 칸이 무엇인지 바로 옆에 나옵니다. 누르면 오른쪽 정보 카드에 자세히 나오고, 두 번 누르면 그곳으로 확대됩니다. 문제가 있는 시설의 카드에는 고치는 버튼(옆에 하나 더 짓기, 예산 100%로 등)이 함께 나옵니다.'],
     ['조언의 보기·+ 버튼', '조언·알림의 <b>보기</b>를 누르면 지도가 그 장소로 옮겨 갑니다. <b>+ 학교</b>처럼 생긴 버튼은 그 문제를 고칠 도구를 바로 골라 줍니다. 오른쪽 위 미니맵을 눌러 이동할 수 있습니다.'],
@@ -112,7 +112,7 @@ export function showHelp(): void {
     <div class="help-keys">
     <h3 class="sub">키보드</h3>
     <div class="key-groups">
-      ${group('시간·되돌리기', `${key('Space', '멈춤·이어 하기')}${key('0–3', '속도 (⏸ ▶ ▶▶ ▶▶▶)')}${key('Ctrl+Z', '되돌리기 (20개)')}${key('Ctrl+Shift+Z', '다시 하기')}${key('Ctrl+S', '브라우저에 저장')}`)}
+      ${group('시간·되돌리기', `${key('Space', '멈춤·이어 하기')}${key('0–3', '속도 (⏸ ▶ ▶▶ ▶▶▶)')}${key(keyLabel('Ctrl+Z'), '되돌리기 (20개)')}${key(keyLabel('Ctrl+Shift+Z'), '다시 하기')}${key(keyLabel('Ctrl+S'), '브라우저에 저장')}`)}
       ${group('화면', `${key('M', '가장 급한 분야의 관리 화면')}${key('[ ]', '열린 분야의 이전·다음 탭 (지도 보기가 함께 바뀜)')}${key('G', '개발·수요의 개발 막힘 탭')}${key('B', '재정·정책 (세율·예산·대출·조례)')}${key('U', '주민 (My Sim·직접 운전)')}${key('J', '지역 (이웃 도시)')}${key('?', '이 도움말')}${key('Ctrl+Shift+X', '치트 콘솔')}`)}
       ${group('지도', `${key('+ −', '확대·축소')}${key('Home', '도시 전체 보기')}${key('방향키', '지도 이동')}${key('F', '지도만 크게')}${key('N', '밤 풍경')}`)}
       ${group('도구 다루기', `${key('/', '도구·시설·화면 찾기 (예: 소방서, 세율)')}${key(', .', '같은 묶음의 이전·다음 도구')}${key('`', '직전 도구로 돌아가기')}${key('Shift+끌기', '도로·선로를 곧게')}${key('Enter', '건설 도구: 커서 자리에 짓기 · 그 밖: 가운데 칸 조회')}${key('S', '건설 도구: 커서를 추천 자리(과녁)로')}${key('Esc', '취소 → 카드 닫기 → 도구 내려놓기')}`)}
@@ -146,7 +146,7 @@ export function showHelp(): void {
   dialog.scrollTop = 0;
 }
 
-/** A speed's name, as its button says it (일시정지 · 느리게 · 보통 · 빠르게). */
+/** A speed's name, as its button says it (멈춤 · 느리게 · 보통 · 빠르게). */
 const speedName = (i: number): string => SPEEDS[i]?.title.replace(/ \(.*\)$/, '') ?? '';
 
 /** The speed selector at the top of the controls' bar (on a phone, the card over its 시간 button): ⏸ ▶ ▶▶ ▶▶▶. */
@@ -246,14 +246,8 @@ export function resumeAfterBuilding(v: number): void {
 
 export const isHeld = (): boolean => heldSpeed !== null;
 
-/** The tool bar's 멈춤 pressed: time runs on at the speed it had (the player's choice from here). */
-export function releaseHold(): void {
-  if (heldSpeed !== null) chooseSpeed(heldSpeed);
-}
-
-/** The speed buttons say the clock is only held for building (and comes back by itself); so does the tool chip. */
+/** The speed buttons say the clock is only held for building (and comes back by itself). */
 function markHeld(): void {
-  refreshToolChip();
   document.querySelectorAll<HTMLElement>('.gear').forEach((el) => {
     el.classList.toggle('held', heldSpeed !== null);
     el.title = heldSpeed !== null ? '짓는 동안 잠시 멈춤 · 도구를 내려놓으면 다시 흐릅니다' : '';
@@ -580,7 +574,7 @@ export function buildTaxes(): void {
       // Under the slider, the row's full width (in the label column it wrapped).
       // (Red only past −100%, where demand turns round: a usual rate's dent reads as plain fact.)
       fx.className = `tax-effect ${e <= -100 && !easing ? 'neg' : e > 0 ? 'pos' : ''}`;
-      fx.title = easing ? '내린 세율: 심들이 높았던 세율을 90일 동안 기억해, 그동안 수요 영향이 남았다가 사라집니다'
+      fx.title = easing ? '내린 세율: 주민·기업이 높았던 세율을 90일 동안 기억해, 그동안 수요 영향이 남았다가 사라집니다'
         : '세율 때문에 수요가 그 크기의 몇 %만큼 늘거나 줄어드는지(−100%를 넘으면 수요가 마이너스로 돌아섬)';
       fx.textContent = e ? `수요 영향 ${e > 0 ? '+' : '−'}${Math.abs(e)}%${easing ? ' · 되돌아오는 중' : ''}` : '';
     };

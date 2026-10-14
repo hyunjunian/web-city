@@ -5,8 +5,9 @@
 
 const SCOPE = '#dock :is(button, summary), #sb-date, #sb-wind, #map-controls button';
 
-/** A key as a title ends with one: "(Ctrl+Z)", "(R·T·V·H)", "(0 · Space)" — words in brackets are not keys. */
-const KEY = /^(?:(?:Ctrl|Shift|Alt)\+)*(?:[A-Z0-9?/`,.+=−-]|Space|Esc|Home|Enter|\[|\])$/;
+/** A key as a title ends with one: "(Ctrl+Z)" (on a Mac "(⌘Z)", "(⇧⌘Z)"), "(R·T·V·H)", "(0 · Space)" — words in
+ *  brackets are not keys. */
+const KEY = /^(?:(?:(?:Ctrl|Shift|Alt)\+)*|⇧?⌘)(?:[A-Z0-9?/`,.+=−-]|Space|Esc|Home|Enter|\[|\])$/;
 
 /** A title read as a name, what it does (after its first ": " or " · ") and the keys it gives in brackets. */
 export function readTitle(title: string): { name: string; desc: string; keys: string[] } {

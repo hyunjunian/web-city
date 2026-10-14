@@ -1417,8 +1417,10 @@ export function setupInput(): void {
     if (plain && letter === 's' && !drag && !drive && keySpot()) return;
     // Esc: cancel a drag, else close the topmost card, else put the tool down.
     if (e.key === 'Escape') {
+      const menu = document.querySelector<HTMLDetailsElement>('details.dropdown[open]');
       if (proposal) dropProposal();
       else if (drag) setDrag(null);
+      else if (menu) menu.open = false; // (opened by a press, which leaves focus outside it: its own Esc didn't hear)
       else if (document.querySelector('.dock-time.open')) closeClock(); // (a phone's speeds' card, first: it is the topmost)
       else if (!closeTray(true) && !closeTopLayer()) {
         // Then the tool goes down, then the goal's screen gives way to the overview.

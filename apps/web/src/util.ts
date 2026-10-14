@@ -54,9 +54,15 @@ export function keyForControl(e: KeyboardEvent): boolean {
 
 export const touchFirst = (): boolean => matchMedia('(pointer: coarse) and (hover: none)').matches;
 
+/** An Apple keyboard, which says ⌘ where others say Ctrl (undo, redo and save take either). */
+const MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+/** A shortcut of undo, redo or save as this keyboard writes it: Ctrl+Z, or ⌘Z (⇧⌘Z) on a Mac. (Not the cheat
+ *  console's Ctrl+Shift+X, which is the Control key there too.) */
+export const keyLabel = (k: string): string => (MAC ? k.replace('Ctrl+Shift+', '⇧⌘').replace('Ctrl+', '⌘') : k);
+
 /** How a notice says to take something back: Ctrl+Z, or on a touch screen the controls' bar's ↶ (down the left; on a
  *  phone across the foot). */
-export const undoHint = (): string => (touchFirst() ? `${matchMedia('(max-width: 860px)').matches ? '아래' : '왼쪽'} 막대의 ↶로 되돌리기` : 'Ctrl+Z로 되돌리기');
+export const undoHint = (): string => (touchFirst() ? `${matchMedia('(max-width: 860px)').matches ? '아래' : '왼쪽'} 막대의 ↶로 되돌리기` : `${keyLabel('Ctrl+Z')}로 되돌리기`);
 
 /** Ends a flash message now (another tool's hints take the bar). */
 export function endFlash(): void {

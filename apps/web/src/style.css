@@ -438,6 +438,9 @@ kbd {
 /* The map takes the keys from Tab as from a click; its ring only for the keyboard. */
 #map:focus { outline: none; }
 #map:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+/* In the controls' bar the accent is what lit means (the speed now, an open card's category, the open menu): the
+   keyboard's ring there is the text's colour, inside the tile, so a focused tile doesn't read as a lit one. */
+#dock :is(button, summary):focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
 .watch-head h2 { margin: 0; font-size: 13.5px; font-weight: 650; white-space: nowrap; }
 .watch-head .chip, .watch-sort { white-space: nowrap; flex: none; }
 .watch-sort { margin-left: auto; min-height: 24px; padding: 0 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 12px; font-weight: 550; text-decoration: none; }
@@ -981,6 +984,9 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 /* Notifications drop in at the top of the map. */
 /* Above the hint at the foot of the map: at the top they covered the tool chip and the view legend. */
 #toasts { position: absolute; bottom: calc(var(--bb) + 60px); left: 50%; align-content: end; z-index: 5; transform: translateX(-50%); display: grid; gap: 8px; width: min(440px, calc(100% - 32px)); pointer-events: none; }
+/* A notice that stopped the clock (its reason, 계속) stays over a card or sheet opened since: under the 지역 sheet, the
+   game sat paused for a reason out of sight. */
+@media (min-width: 861px) { #toasts:has(> .toast.sticky) { z-index: 8; } }
 /* With the info card open, toasts centre on the map left of it, clear of the map controls beside the card. */
 @media (min-width: 1100px) { #view.info-open #toasts { left: calc((100% - var(--info-w) - 28px) / 2); width: min(440px, max(240px, calc(100% - var(--info-w) - 180px))); } }
 .toast {
@@ -1849,8 +1855,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 
 /* The clock held while building: the pause button ringed; the tool chip says 멈춤. */
 .gear.held button.active { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--accent-hi); }
-.chip-held { display: inline-flex; align-items: center; gap: 3px; margin-left: 2px; padding: 1px 7px 1px 5px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi) !important; font-size: 11px; font-weight: 650; }
-.chip-held .i { width: 11px; height: 11px; }
 
 /* ------------------------------------------------------------------ the tray: the everyday tools first */
 
@@ -1930,7 +1934,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .pick.suggested .pick-stat { display: flex; align-items: center; width: 100%; }
 .pick.suggested .pick-stat::after { content: '추천'; margin-left: auto; padding: 1px 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 10.5px; font-weight: 700; } /* (on the line under the name: the name keeps its room) */
 .tray-section:not(.show-more) .pick.more:not(.active) { display: none; }
-@media (hover: hover) { .chip-held:hover { background: var(--accent); color: #fff !important; } }
 #tool-chip-label { background: transparent; color: inherit; min-height: 0; font-weight: 400; border: 0; }
 /* Siblings cut off by a narrow bar fade at that edge (a swipe brings them in). */
 #tool-alts.more-right, #tray-recent.more-right { mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
@@ -2290,11 +2293,9 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .g-wait { display: flex; align-items: flex-start; gap: 6px; margin: 4px 0 0 !important; color: var(--muted); font-size: 12px; line-height: 1.4; }
 .g-wait .i { flex: none; width: 14px; height: 14px; margin-top: 1px; color: var(--good); }
 .mg-guide { display: grid; grid-template-columns: minmax(0, 1fr); }
-/* (Its own section now, under the scoreboard: the step outlined as the recommended build cards are, on the goal's
-   tint where it is in trouble, so it reads as the one to press first.) */
+/* (Its own section now, under the scoreboard: the step outlined as the recommended build cards are, so it reads as
+   the one to press first — on its own surface, not the problem's amber or red, which read as a second warning.) */
 #pane .mg-guide .g-act { box-shadow: inset 0 0 0 1.5px var(--accent); }
-#pane .mg-guide.warn .g-act { background: var(--warn-soft); box-shadow: none; }
-#pane .mg-guide.bad .g-act { background: var(--danger-soft); box-shadow: none; }
 .mg-lead { margin-top: 2px; }
 .mg-guide > .g-act, .mg-guide > .g-label, .mg-guide > .g-wait { grid-column: 1 / -1; }
 /* (A flex column: the lead's grid placed the cost line after the label.) */
@@ -2712,11 +2713,10 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #tool-chip-label > span { flex: 0 100 auto; }
   #tool-chip-label > .zone-demand { flex: 0 20 auto; }
   #tool-chip-label > b { flex: 0 1 auto; min-width: 3em; }
-  #tool-chip-label > :is(.chip-held, .chip-more) { flex: none; }
-  #tool-chip-label .held-word, #tool-chip-label .chip-more { display: none; }
-  #tool-chip-label .chip-held { padding: 4px 6px; }
-  #tool-chip-label:has(.zone-demand) > span:not(.zone-demand, .chip-held) { display: none; }
-  #tool-chip[data-kind='structure'] #tool-chip-label > span:not(.chip-held) { display: none; }
+  #tool-chip-label > .chip-more { flex: none; }
+  #tool-chip-label .chip-more { display: none; }
+  #tool-chip-label:has(.zone-demand) > span:not(.zone-demand) { display: none; }
+  #tool-chip[data-kind='structure'] #tool-chip-label > span { display: none; }
   #tool-chip #tool-alts:empty { display: none; }
   #tool-chip #tool-alts { flex: 1 1 0; padding-left: 4px; border-left: 0; }
   #tool-chip #tool-chip-close { width: 34px; height: 34px; }

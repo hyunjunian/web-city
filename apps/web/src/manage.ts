@@ -201,7 +201,7 @@ const RISK_OF: Record<string, string> = {
   plantUnprotected: '불이 나면 발전소가 폭발해 둘레까지 부숩니다',
   facilityNoRoad: '쓰레기가 쌓이고, 경찰서·소방서·병원·학교라면 불이나 범죄에 출동하지 못합니다',
   atRisk: '두면 그 건물들이 비어 인구와 세입이 줄고, 빈 건물은 범죄를 부릅니다',
-  taxHigh: '두면 들어오려는 심이 막혀 인구도 세입도 더 늘지 않습니다',
+  taxHigh: '두면 들어오려는 주민·기업이 막혀 인구도 세입도 더 늘지 않습니다',
 };
 
 const RISK: Record<GoalId, string> = {
@@ -2625,13 +2625,13 @@ export function setupGoals(): void {
           for (const t of cut) city.setTaxRate(t, to);
         });
         noteAction(`세율: ${cut.map((t) => TYPE_NAME[t]).join(' · ')} ${to.toFixed(1)}%`);
-        flash(`세율 ${cut.length}가지를 ${to.toFixed(1)}%로 내렸습니다 · 높았던 세율을 심들이 90일 동안 기억해, 수요는 그 뒤에 돌아옵니다`, 'info');
+        flash(`세율 ${cut.length}가지를 ${to.toFixed(1)}%로 내렸습니다 · 높았던 세율을 주민·기업이 90일 동안 기억해, 수요는 그 뒤에 돌아옵니다`, 'info');
         refreshTaxes();
       } else if (what === 'tax') {
         const to = city.demand.neutralTax;
         choice('세율', () => city.setTaxRate(key as DevType, to));
         noteAction(`세율: ${TYPE_NAME[key as DevType]} ${to.toFixed(1)}%`);
-        flash(`${TYPE_NAME[key as DevType]} 세율을 ${to.toFixed(1)}%로 내렸습니다 · 높았던 세율을 심들이 90일 동안 기억해, 수요는 그 뒤에 돌아옵니다`, 'info');
+        flash(`${TYPE_NAME[key as DevType]} 세율을 ${to.toFixed(1)}%로 내렸습니다 · 높았던 세율을 주민·기업이 90일 동안 기억해, 수요는 그 뒤에 돌아옵니다`, 'info');
         refreshTaxes();
       } else if (what === 'dept') {
         const name = Object.values(GOALS).flatMap((g) => g.depts).find(([k]) => k === key)?.[1] ?? key;
@@ -3004,7 +3004,7 @@ export function setupGoals(): void {
       choice('세율', () => city.setTaxRate(type, to));
       noteAction(`세율: ${TYPE_NAME[type]} ${to.toFixed(1)}%`);
       // (Demand goes by the highest rate of the last 90 days: it comes back once the old rate is forgotten.)
-      flash(`${TYPE_NAME[type]} 세율을 ${to.toFixed(1)}%로 내렸습니다 · 높았던 세율을 심들이 90일 동안 기억해, 수요는 그 뒤에 돌아옵니다`, 'info');
+      flash(`${TYPE_NAME[type]} 세율을 ${to.toFixed(1)}%로 내렸습니다 · 높았던 세율을 주민·기업이 90일 동안 기억해, 수요는 그 뒤에 돌아옵니다`, 'info');
       refreshTaxes();
       updatePanels();
       renderGoal(true);

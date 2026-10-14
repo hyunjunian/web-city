@@ -201,7 +201,8 @@ function readStatus(id: GoalId): Status {
         const transit = ['bus', 'subway', 'passengerTrain', 'monorail', 'ferry'].some((k) => (trips[k] ?? 0) > 0);
         why = jams >= 10 ? `막힌 길 ${fmt(jams)}칸` : !transit ? '대중교통 없음 · 일터가 멀거나 길이 느림' : '일터가 멀거나 길이 느림';
       }
-      return pick(h !== undefined && h > 1 ? 'warn' : '', h ? minutes(h) : '—', h ? why : '아직 통근하는 주민 없음');
+      // (Named, as the other rows' figures are — 건강 지수 23, 대기 오염 73: a bare 1시간 16분 said not of what.)
+      return pick(h !== undefined && h > 1 ? 'warn' : '', h ? `통근 ${minutes(h)}` : '—', h ? why : '아직 통근하는 주민 없음');
     }
     case 'wealth': {
       const rich = st.residents[2] / Math.max(1, sum(st.residents));
