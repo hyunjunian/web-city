@@ -1860,8 +1860,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* Transport's stations and airports: the whole width under the roads and tracks (a column of twelve cards beside an empty one). */
 @media (min-width: 861px) { #tray[data-cat='transport'] .tray-section:has(.picker) { grid-column: 1 / -1; } }
 /* A drag laying something down: the bars, the minimap and the zoom step back. */
-#view :is(#dock-col, #minimap, #map-zoom, #goal-strip, #manage-chip) { transition: opacity 0.2s var(--ease); }
-#view.drawing :is(#dock-col, #minimap, #map-zoom, #goal-strip, #manage-chip) { opacity: 0.25; } /* (the view's card steps back with the top bar) */
+#view :is(#dock-col, #minimap, #map-zoom, #goal-strip, #manage-chip, #toasts) { transition: opacity 0.2s var(--ease); }
+#view.drawing :is(#dock-col, #minimap, #map-zoom, #goal-strip, #manage-chip, #toasts) { opacity: 0.25; } /* (the view's card steps back with the top bar) */
 /* The tool's name opens its card: it reads as a button (a hover, a small caret). */
 #tool-chip-label { align-items: center; margin: -4px 0 -4px -6px; padding: 4px 6px; border-radius: 999px; }
 @media (hover: hover) { #tool-chip-label:hover { background: var(--surface-2); } }
@@ -2701,8 +2701,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) #mapbar > :not(#map-layer) { transform: translateY(calc(-100% - 16px - env(safe-area-inset-top))); }
   :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) #dock-col { transform: translateY(calc(100% + 16px + env(safe-area-inset-bottom))); }
   :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) #view #mapbar #map-layer { top: 0; }
-  /* (Under a goal's chip, there: it stayed 114px down, over the map below the chip.) */
-  :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) #view:has(#manage-chip:not([hidden])) #mapbar #map-layer { top: 46px; }
+  /* (Under a goal's chip, there — a building's card is the one sheet that leaves the chip in sight: it stayed 114px
+     down, over the map below the chip. With the city pane up the chip is away, and so is the room for it.) */
+  #app:not(.pane-open) #view.info-open:has(#manage-chip:not([hidden])) #mapbar #map-layer { top: 46px; }
   /* (The sheets themselves are placed by the screen's edges, not by the bars: they are up only while the bars are
      away — placed by the bars, the city pane jumped as it went, the bars coming back before it slid down.) The tools'
      card and 지역 reach the top: the chips that float there wait for them (slivers of them peeked over the card). */
@@ -2804,6 +2805,15 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 @media (max-width: 860px) and (orientation: portrait) {
   #app.pane-open #toasts { z-index: 22; }
   :is(#app.pane-open, #view.info-open, #view.sheet-open, #view:has(#tray:not([hidden]))) .toast-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+  /* Only one the clock stopped for, while a sheet is up: the rest wait, their time held, until it goes down (in the
+     strip of map left above an area's screen they covered the tab's view and its ring; over the tools' card they hung
+     half under its edge). */
+  #toasts.held > .toast:not(.sticky) { display: none; }
+  /* An area's screen up: the view's card on one line, its count cut short beside 찾아가기 (three lines of it and a
+     notice under them left the strip of map little of itself). */
+  #app.pane-open #map-layer .overlay-sum { flex-wrap: nowrap; }
+  #app.pane-open #map-layer .overlay-sum > span { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #app.pane-open #map-layer .overlay-sum .sum-go { flex: none; }
 }
 
 /* ---- touch: a finger's size for what the map's chrome took down to a mouse's (later rules had won over the touch

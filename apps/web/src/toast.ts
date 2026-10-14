@@ -49,8 +49,13 @@ function placeToasts(): void {
     // (What shows of them goes with the states set on these: a tool in hand, the pane or a sheet open.)
     const states = new MutationObserver(again);
     for (const part of [view, document.getElementById('app')]) if (part) states.observe(part, { attributes: true, attributeFilter: ['class'] });
+    const tray = document.getElementById('tray'); // (the tools' card is up by its own hidden, not by a class)
+    if (tray) states.observe(tray, { attributes: true, attributeFilter: ['hidden'] });
     window.addEventListener('resize', again);
   }
+  // While a sheet is up on a phone held upright, the notices the clock didn't stop for wait under it, their time held.
+  holdUnder(box, matchMedia('(max-width: 860px) and (orientation: portrait)').matches
+    && document.documentElement.matches(':has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden])))'));
   if (!matchMedia('(max-width: 860px)').matches) return void box.style.removeProperty('--toasts-top');
   const v = view.getBoundingClientRect();
   const b = box.getBoundingClientRect();
@@ -72,6 +77,18 @@ function placeToasts(): void {
   if (box.style.getPropertyValue('--toasts-top') !== at) box.style.setProperty('--toasts-top', at);
 }
 let watching = false;
+
+/** Each shown notice's timer, to hold while it waits under a sheet and to run on (a little) once it shows again. */
+const lives = new WeakMap<HTMLElement, { hold: () => void; wait: (ms: number) => void }>();
+function holdUnder(box: HTMLElement, held: boolean): void {
+  if (box.classList.contains('held') === held) return;
+  box.classList.toggle('held', held);
+  for (const el of box.querySelectorAll<HTMLElement>('.toast:not(.sticky):not(.leaving)')) {
+    const life = lives.get(el);
+    if (held) life?.hold();
+    else life?.wait(4000);
+  }
+}
 
 /** `at`: a tile the notice is about; clicking the notice then shows it. `goal`: the screen it opens, to put it away when that opens. */
 export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'good', at?: [number, number], open?: () => void, sticky = false, label?: string, goal?: string, unread = true): void {
@@ -204,7 +221,11 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
     clearTimeout(timer);
     el.classList.remove('timed');
   };
-  if (!sticky) wait(7000);
+  if (!sticky) {
+    lives.set(el, { hold, wait });
+    if (box.classList.contains('held')) hold(); // (it waits under the sheet up now)
+    else wait(7000);
+  }
   if (sticky) {
     el.classList.add('sticky');
     // (The clock stopped for it — a fire, a blackout: said at once to a screen reader, not after what it is reading.)
