@@ -19,15 +19,11 @@ export function setupMenu(): void {
   dropdown.querySelector('.dropdown-menu')!.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('button')) dropdown.open = false;
   });
-  // When the menu opens, say when the game is next saved automatically (every six game months).
-  dropdown.addEventListener('toggle', () => {
-    if (!dropdown.open) return;
-    const m = lastAutosave + 6;
-    $('#autosave-note').textContent = `다음 자동 저장: ${2000 + Math.floor(m / 12)}년 ${(m % 12) + 1}월 (탭을\u00a0떠날\u00a0때도\u00a0저장)`;
-    // No taller than the room it has, scrolling the rest (on a short window its first lines were off the top, then over
-    // the date): on a phone, down from the top bar's end to the building bar's head; wide, out from its button's side
-    // under the building bar, its foot level with the button — or, taller than the room above it, from the top bar's
-    // foot down (up from the button it was cut to half its lines, with the window's lower half empty).
+  // No taller than the room it has, scrolling the rest (on a short window its first lines were off the top, then over
+  // the date): on a phone, down from the top bar's end to the building bar's head; wide, out from its button's side
+  // under the building bar, its foot level with the button — or, taller than the room above it, from the top bar's
+  // foot down (up from the button it was cut to half its lines, with the window's lower half empty).
+  const place = () => {
     const menu = dropdown.querySelector<HTMLElement>('.dropdown-menu')!;
     menu.style.maxHeight = menu.style.top = menu.style.bottom = '';
     const r = menu.getBoundingClientRect();
@@ -43,6 +39,19 @@ export function setupMenu(): void {
         if (roof + r.height > floor) menu.style.maxHeight = `${Math.max(160, floor - roof)}px`;
       }
     }
+  };
+  // When the menu opens, say when the game is next saved automatically (every six game months).
+  dropdown.addEventListener('toggle', () => {
+    if (!dropdown.open) return;
+    const m = lastAutosave + 6;
+    $('#autosave-note').textContent = `다음 자동 저장: ${2000 + Math.floor(m / 12)}년 ${(m % 12) + 1}월 (탭을\u00a0떠날\u00a0때도\u00a0저장)`;
+    place();
+  });
+  // (The window resized with it open: placed again for the room there is now. Across the phone's width it closes
+  // instead, as it moves to the other bar: fitMapbar.)
+  addEventListener('resize', () => {
+    const phone = () => matchMedia('(max-width: 860px)').matches;
+    if (dropdown.open) requestAnimationFrame(() => dropdown.open && !!dropdown.closest('#mapbar') === phone() && place());
   });
   document.addEventListener('pointerdown', (e) => {
     if (dropdown.open && !dropdown.contains(e.target as Node)) dropdown.open = false;

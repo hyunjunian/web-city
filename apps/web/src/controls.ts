@@ -150,7 +150,7 @@ export function showHelp(): void {
 /** A speed's name, as its button says it (멈춤 · 느리게 · 보통 · 빠르게). */
 const speedName = (i: number): string => SPEEDS[i]?.title.replace(/ \(.*\)$/, '') ?? '';
 
-/** The speed selector at the top of the controls' bar (on a phone, the card over its 시간 button): ⏸ ▶ ▶▶ ▶▶▶. */
+/** The speed selector in the top bar (on a phone, the card under its 시간 button): ⏸ ▶ ▶▶ ▶▶▶. */
 export function buildSpeed(): void {
   for (const el of document.querySelectorAll<HTMLElement>('.gear')) {
     el.innerHTML = '';
@@ -168,7 +168,7 @@ export function buildSpeed(): void {
         closeClock(); // (a phone's card goes once a speed is picked)
       };
       b.onkeydown = (e) => {
-        // (Up and down a row where the speeds stand in a square — the bar's — and to the next in a row.)
+        // (Up and down a row where the speeds stand in rows, and to the next in a single row — the bar's, a phone's card.)
         const cols = getComputedStyle(el).display === 'grid' ? getComputedStyle(el).gridTemplateColumns.split(' ').length : SPEEDS.length;
         const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowDown' ? (cols < SPEEDS.length ? cols : 1) : e.key === 'ArrowUp' ? (cols < SPEEDS.length ? -cols : -1) : 0;
         if (!d) return;
@@ -655,8 +655,8 @@ export function markCity(): void {
 }
 
 /** The map's bars as the window has them. A phone held upright folds the view's card under the top bar to its name
- *  (`fit4`); the menu is the top bar's last on a phone and a button of its own under the building bar wide; a window
- *  too low for the building bar folds it. */
+ *  (`fit4`); the menu is the top bar's last on a phone and a button of its own under the building bar wide, and the
+ *  building bar comes after the top bar on a phone; a window too low for the building bar folds it. */
 export function fitMapbar(): void {
   const bar = document.getElementById('mapbar');
   if (!bar) return;
@@ -665,20 +665,31 @@ export function fitMapbar(): void {
   bar.classList.toggle('fit4', folded);
   // (Whether its legend shows, as the card's name says it: folded on a phone unless opened, else unless tucked.)
   document.getElementById('layer-title')?.setAttribute('aria-expanded', String(folded ? !!card?.classList.contains('open') : !card?.classList.contains('tucked')));
-  const chip = document.getElementById('manage-chip');
-  const chipRight = chip && !chip.hidden && chip.offsetParent ? chip.offsetLeft + chip.offsetWidth : 0;
-  bar.classList.toggle('near-chip', chipRight > 0 && bar.offsetLeft < chipRight + 8);
   // (The building bar runs across the foot on a phone: its arrows go left and right there.)
   const narrow = matchMedia('(max-width: 860px)').matches;
   document.getElementById('dock-tools')?.setAttribute('aria-orientation', narrow ? 'horizontal' : 'vertical');
   markCity();
+  bar.setAttribute('aria-label', narrow ? '도시 상태·날짜·시간·메뉴' : '날짜·시간');
   // The menu: the top bar's last on a phone (도시 상태, the date and time and the menu up there; building alone at the
-  // foot), a button of its own under the building bar wide. (Moved, not twice: one menu, its open state and focus kept.)
-  const menu = document.getElementById('menu');
+  // foot), a button of its own under the building bar wide. (Moved, not twice: one menu. Open, it closes as it moves:
+  // its place was worked out beside the other bar, and it hung off the screen.) And the building bar after the top bar
+  // on a phone, so Tab goes the way the eye does there; wide, building first. (Moved, focus inside stays on it.)
+  const menu = document.getElementById('menu') as HTMLDetailsElement | null;
   const col = document.getElementById('dock-col');
+  const move = (el: HTMLElement, put: () => void, refocus?: HTMLElement | null) => {
+    const had = el.contains(document.activeElement) ? (document.activeElement as HTMLElement) : null;
+    put();
+    if (had) (refocus ?? had).focus({ preventScroll: true });
+  };
   if (menu && col) {
     const home = narrow ? bar : col;
-    if (menu.parentElement !== home) home.append(menu);
+    if (menu.parentElement !== home) move(menu, () => {
+      menu.open = false;
+      menu.querySelector('.dropdown-menu')?.removeAttribute('style'); // (the other bar's place: worked out again when it opens)
+      home.append(menu);
+    }, menu.querySelector('summary'));
+    if (narrow && col.nextElementSibling === bar) move(col, () => bar.after(col));
+    else if (!narrow && bar.nextElementSibling === col) move(col, () => bar.before(col));
   }
   // A window too low for the building bar and the menu under it folds the bar in steps until both fit (style.css):
   // tighter; the build categories behind one 짓기, their row at the head of the tools' card; the tiles by their icons;

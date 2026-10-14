@@ -97,7 +97,7 @@ function keep(el: HTMLElement): void {
     get: () => text,
     set: (v: string) => {
       const next = String(v);
-      if (next === text) return; // (the date, the wind and 도시 say theirs again each update)
+      if (next === text) return; // (the date and 도시 상태 say theirs again each update)
       text = next;
       if (kept === el && shown) render(el, text);
     },

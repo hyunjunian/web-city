@@ -1324,7 +1324,7 @@ function clearOfCards(): void {
   const r = renderer.canvas.getBoundingClientRect();
   const [sx, sy] = [(spot.x + spot.w / 2 - cam.x) * cam.scale + r.left, (spot.y + spot.h / 2 - cam.y) * cam.scale + r.top];
   if (sx < r.left || sx > r.right || sy < r.top || sy > r.bottom) return; // (off the map: its edge arrow points there)
-  const cards = ['mapbar', 'map-layer', 'dock', 'map-zoom', 'minimap'].flatMap((k) => {
+  const cards = ['mapbar', 'map-layer', 'dock-col', 'map-zoom', 'minimap'].flatMap((k) => {
     const el = document.getElementById(k);
     const c = el && !el.hidden && el.offsetParent && getComputedStyle(el).visibility !== 'hidden' ? el.getBoundingClientRect() : null;
     return c && c.width > 0 ? [c] : [];
@@ -3190,8 +3190,7 @@ export function setupGoals(): void {
     updatePanels();
     renderGoal(true);
   });
-  // The map's chip: back to the goal's panel, or out of it.
-  // (Map-only on a wide screen: the pane comes back by leaving that view.)
+  // The map's chip (a phone's, its screen put away): back to the goal's panel, or out of it.
   $('#manage-chip-label').onclick = () => openPane();
   $('#manage-chip-close').onclick = () => closeGoal();
 }
