@@ -1308,7 +1308,7 @@ export function markSuggested(): void {
     b.classList.toggle('suggest', on);
     // (Said in words too, for a tooltip and a screen reader.)
     b.dataset.title0 ??= b.title;
-    b.title = on ? `${b.dataset.title0} · 지금 지을 만한 시설 있음` : b.dataset.title0;
+    b.title = on ? `${b.dataset.title0} · 다음에 지을 것이 여기 있음` : b.dataset.title0;
   });
 }
 

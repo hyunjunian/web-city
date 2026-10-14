@@ -39,9 +39,14 @@ function render(el: HTMLElement, title: string): void {
   // Keys each by the tool it picks, where a tile holds several (data-keys: "도로 R · 골목 T"), else by the name.
   const named = (el.dataset.keys ?? '').split(' · ').map((k) => k.match(/^(.+) (\S+)$/)).filter((m) => !!m);
   const kbd = (k: string) => `<kbd>${esc(k)}</kbd>`;
+  // What the dot on a build category means, by a dot of its colour (its title says it after the rest).
+  const NOTE = '다음에 지을 것이 여기 있음';
+  const note = el.classList.contains('suggest') && t.desc.endsWith(NOTE);
+  const desc = note ? t.desc.slice(0, -NOTE.length).replace(/\s*·\s*$/, '') : t.desc;
   tip.innerHTML = `<span class="tip-head"><b>${esc(t.name)}</b>${named.length ? '' : t.keys.map(kbd).join('')}</span>`
-    + (t.desc ? `<span class="tip-desc">${esc(t.desc)}</span>` : '')
-    + (named.length ? `<span class="tip-keys">${named.map((m) => `<span>${esc(m[1]!)} ${kbd(m[2]!)}</span>`).join('')}</span>` : '');
+    + (desc ? `<span class="tip-desc">${esc(desc)}</span>` : '')
+    + (named.length ? `<span class="tip-keys">${named.map((m) => `<span>${esc(m[1]!)} ${kbd(m[2]!)}</span>`).join('')}</span>` : '')
+    + (note ? `<span class="tip-note">${NOTE}</span>` : '');
   place(el);
 }
 
