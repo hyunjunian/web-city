@@ -2227,8 +2227,9 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .advice .adv-who::after { content: ''; display: inline-block; width: 1px; height: 0.85em; margin: 0 1px 0 7px; background: currentColor; opacity: 0.35; vertical-align: -0.05em; }
 /* The arrows' key, under the list while any shows. */
 .s-legend { display: flex; align-items: center; gap: 2px; margin: 8px 6px 0; color: var(--faint); font-size: 11px; }
-.s-legend .w-drift { margin-right: 0; font-size: 9px; }
-.s-legend .w-drift + .w-drift { margin-right: 5px; }
+.s-legend { white-space: pre-wrap; }
+.s-legend .s-good { color: var(--good-ink, var(--good)); }
+.s-legend .s-bad { color: var(--danger-ink); }
 .rci-mini .k-r { --c: var(--zone-r); }
 .rci-mini .k-c { --c: var(--zone-c); }
 .rci-mini .k-i { --c: var(--zone-i); }

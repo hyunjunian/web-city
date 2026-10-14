@@ -140,7 +140,8 @@ function qualityGrid(counts: string, top: string, figs: PaneFigs): string {
   listOrder = { keys: [...off, ...sound].map((e) => e.key), split: off.length };
   // What the arrows mean, said once under the list while any shows (a red ▼ by 90k / 100k read as a puzzle).
   const arrows = [...off, ...sound].some((r) => r.html.includes('w-drift'));
-  const key = arrows ? '<p class="s-legend"><span class="w-drift up">▲</span><span class="w-drift down">▼</span> 지난 3개월 흐름 · 초록 좋아짐 · 빨강 나빠짐</p>' : '';
+  // (The arrows themselves uncoloured here: a green ▲ and a red ▼ said up is good, beside a red ▲ for crime.)
+  const key = arrows ? '<p class="s-legend">▲▼ 지난 3개월 흐름 · <span class="s-good">초록 좋아짐</span> · <span class="s-bad">빨강 나빠짐</span></p>' : '';
   return `<section class="card quality" aria-label="도시 상태"><div class="sec-head"><h2>도시 상태</h2>${counts}</div>${top}<div class="s-list">${off.map((e) => e.html).join('')}${off.length && sound.length ? `<p class="s-split">양호 ${sound.length}</p>` : ''}${sound.map((e) => e.html).join('')}</div>${key}</section>`;
 }
 
