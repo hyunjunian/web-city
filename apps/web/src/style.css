@@ -44,7 +44,7 @@
   --float-solid: #18181b;
   --shadow: 0 14px 36px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06);
-  --view-bg: #0c0d10;
+  --view-bg: #12150f; /* the map's margin: the land's dark, not black (a third of a phone's map is margin) */
   --active-ink: #dbe6ff;
   --warn-ink: #ffd08a;
   --good-ink: #a4ebc4;
@@ -95,7 +95,7 @@
   --float-solid: #ffffff;
   --shadow: 0 12px 32px rgba(23, 26, 32, 0.1), 0 1px 3px rgba(23, 26, 32, 0.06);
   --shadow-sm: 0 2px 10px rgba(23, 26, 32, 0.07), 0 0 0 1px rgba(23, 26, 32, 0.05);
-  --view-bg: #dde1e6;
+  --view-bg: #d6dbcd; /* the land's grey: beside its green the margin reads as more of it, faded */
   --active-ink: #1f3f99;
   --warn-ink: #774800;
   --good-ink: #0d6b39;
