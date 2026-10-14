@@ -597,6 +597,10 @@ kbd {
 .mg-sec .funding.mg-group span { grid-column: auto; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 .mg-sec .funding.mg-group span.note { grid-column: 2 / -1; text-align: left; margin-top: -4px; font-size: 11.5px; }
 .mg-sec .ordinance { margin-bottom: 4px; }
+/* An operating section's lines (an outlook, the notes under the dispatch and the repairs): spaced by the section's
+   gap (a paragraph's own margins left a line's height between each), in the advice's size. */
+.mg-sec > p { margin: 0; font-size: 13px; line-height: 1.5; word-break: keep-all; }
+.mg-sec > p.muted, .mg-sec > small { font-size: 12px; line-height: 1.5; }
 .acts { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 6px; }
 /* In the pane's width two columns wrapped every line: one wide row each, name and price across, what it gives below. */
 #manage .acts { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
