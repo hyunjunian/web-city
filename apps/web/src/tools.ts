@@ -441,13 +441,12 @@ export function buildTools(): void {
     }
   });
   $('#tool-chip-close').onclick = () => selectTool('query');
-  // The chip's name opens the tray at its category (another kind, another tool).
+  // The chip's name opens the tray at its category (another kind, another tool) — not 철거's: it is the one tool.
   const chipLabel = $('#tool-chip-label');
-  chipLabel.title = '다른 종류 고르기';
   chipLabel.onclick = (e) => {
     // (After a mouse press, Space is the game's pause again, not this button's.)
     if (e.detail > 0) chipLabel.blur();
-    openTray(categoryOf(tool.id));
+    if (tool.kind !== 'bulldoze') openTray(categoryOf(tool.id));
   };
   $('#tool-alts').addEventListener('scroll', edgeAlts, { passive: true });
   new ResizeObserver(edgeAlts).observe($('#tool-alts')); // (shown again after the tray, or a narrower window)
@@ -921,9 +920,14 @@ export function refreshToolChip(): void {
     : tool.kind === 'terraform' && !city.established() ? '무료 (처음 짓기 전)' : toolPrice(tool);
   const short = !!kind && STRUCTURES[kind].cost > city.state.funds;
   const demand = tool.kind === 'zone' ? zoneDemandChip(tool.zone) : '';
+  // 철거: how a drag works, in place of a price (a finger has no hover to say it first), and no card to open.
+  const bulldoze = tool.kind === 'bulldoze';
+  $('#tool-chip-label').title = bulldoze ? '철거: 끌어서 헐기 · 빈 구역에서 시작하면 구역 해제' : '다른 종류 고르기';
+  $('#tool-chip-label').tabIndex = bulldoze ? -1 : 0;
   // (Not the clock held for building as well: a ⏸ 멈춤 here whose press set time going read as the reverse of what
   // it did. The bar's speeds say it, ringed — on a phone its 시간, 잠시 멈춤 — and the hint, the first times.)
-  const html = `<b>${kind ? STRUCTURE_NAME[kind] : toolName(tool)}</b>${price ? `<span${short ? ' class="short" title="자금이 모자랍니다"' : ''}>${price}</span>` : ''}${demand}${icon('chevronDown', 'chip-more')}`;
+  const how = bulldoze ? '끌어서 헐기 · 빈 구역은 해제' : price;
+  const html = `<b>${kind ? STRUCTURE_NAME[kind] : toolName(tool)}</b>${how ? `<span${short ? ' class="short" title="자금이 모자랍니다"' : ''}>${how}</span>` : ''}${demand}${bulldoze ? '' : icon('chevronDown', 'chip-more')}`;
   if ($('#tool-chip-label').innerHTML !== html) $('#tool-chip-label').innerHTML = html;
   refreshToolAlts();
 }

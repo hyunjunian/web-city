@@ -1865,6 +1865,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* The tool's name opens its card: it reads as a button (a hover, a small caret). */
 #tool-chip-label { align-items: center; margin: -4px 0 -4px -6px; padding: 4px 6px; border-radius: 999px; }
 @media (hover: hover) { #tool-chip-label:hover { background: var(--surface-2); } }
+/* (철거's name opens nothing: it says how a drag works, not a button.) */
+#tool-chip[data-kind='bulldoze'] #tool-chip-label { cursor: default; background: transparent; }
 #tool-chip-label .chip-more { width: 13px; height: 13px; color: var(--faint); margin-left: -4px; }
 /* The pointer's chip eases in where it appears. */
 #cursor-tag:not([hidden]) { animation: tag-in 0.12s var(--ease); }
