@@ -2225,14 +2225,23 @@ export class Renderer {
         ctx.arc(px, py, r, 0, Math.PI * 2);
         ctx.fillStyle = m.hot ? '#1d5bd6' : '#2f6fe0';
         ctx.fill();
-        // The arrow: a chevron along the way to the target.
+        // The arrow: a shaft and its head along the way to the target (a filled triangle in a blue disc read as ▶,
+        // the clock's play button, over a paused map).
+        const [tipX, tipY] = [px + dx * r * 0.55, py + dy * r * 0.55];
+        const h = r * 0.42;
+        ctx.save();
         ctx.beginPath();
-        ctx.moveTo(px + dx * r * 0.6, py + dy * r * 0.6);
-        ctx.lineTo(px - dx * r * 0.35 - dy * r * 0.45, py - dy * r * 0.35 + dx * r * 0.45);
-        ctx.lineTo(px - dx * r * 0.35 + dy * r * 0.45, py - dy * r * 0.35 - dx * r * 0.45);
-        ctx.closePath();
-        ctx.fillStyle = '#fff';
-        ctx.fill();
+        ctx.moveTo(px - dx * r * 0.55, py - dy * r * 0.55);
+        ctx.lineTo(tipX, tipY);
+        ctx.moveTo(tipX - dx * h - dy * h * 0.85, tipY - dy * h + dx * h * 0.85);
+        ctx.lineTo(tipX, tipY);
+        ctx.lineTo(tipX - dx * h + dy * h * 0.85, tipY - dy * h - dx * h * 0.85);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = r * 0.2;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.stroke();
+        ctx.restore();
       }
     }
 
