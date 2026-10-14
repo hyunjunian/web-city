@@ -37,12 +37,11 @@ export const flashYields = (): boolean => flashTimer !== 0 && flashTone === 'inf
 /** True while a flash message is showing. */
 export const flashing = (): boolean => flashTimer !== 0;
 
-/** A touch screen without a hovering pointer (a phone or tablet). */
 /**
  * Whether a key belongs to the control it was pressed in rather than to the game:
  * anything typed into a text field or list; on a slider or a tab bar, only the
  * keys that move it (a clicked tax slider or sheet tab used to swallow Space,
- * 0–3, tool keys and Ctrl+Z).
+ * 0–3 and the tool keys).
  */
 export function keyForControl(e: KeyboardEvent): boolean {
   const el = e.target as Element;
@@ -52,16 +51,14 @@ export function keyForControl(e: KeyboardEvent): boolean {
   return !!el.closest?.('input, select, textarea');
 }
 
+/** A touch screen without a hovering pointer (a phone or tablet). */
 export const touchFirst = (): boolean => matchMedia('(pointer: coarse) and (hover: none)').matches;
 
-/** An Apple keyboard, which says ⌘ where others say Ctrl (undo, redo and save take either). */
+/** An Apple keyboard, which says ⌘ where others say Ctrl (save takes either). */
 const MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
-/** A shortcut of undo, redo or save as this keyboard writes it: Ctrl+Z, or ⌘Z (⇧⌘Z) on a Mac. (Not the cheat
- *  console's Ctrl+Shift+X, which is the Control key there too.) */
+/** A shortcut such as save as this keyboard writes it: Ctrl+S, or ⌘S on a Mac. (Not the cheat console's
+ *  Ctrl+Shift+X, which is the Control key there too.) */
 export const keyLabel = (k: string): string => (MAC ? k.replace('Ctrl+Shift+', '⇧⌘').replace('Ctrl+', '⌘') : k);
-
-/** How a notice says to take something back: Ctrl+Z, or on a touch screen the top bar's ↶. */
-export const undoHint = (): string => (touchFirst() ? '위 막대의 ↶로 되돌리기' : `${keyLabel('Ctrl+Z')}로 되돌리기`);
 
 /** Ends a flash message now (another tool's hints take the bar). */
 export function endFlash(): void {
@@ -227,8 +224,8 @@ export const firstSentence = (t: string) => /^.*?[.!?](?=\s|$)/.exec(t)?.[0] ?? 
  */
 export const glue = (t: string) => t.replace(/\)(?=[가-힣])/g, ')\u2060').replace(/([가-힣\d%])(?=\()/g, '$1\u2060').replace(/([가-힣])·(?=[가-힣])/g, '$1\u2060·\u2060');
 
-/** Said when the clock was stopped for something (a toast's tail): a phone's 시간 says 멈춤 then, not ▶. */
-export const stoppedNote = () => ` · 멈춤 (${!touchFirst() ? 'Space로 계속' : matchMedia('(max-width: 860px)').matches ? '시간을 눌러 계속' : '▶로 계속'})`;
+/** Said when the clock was stopped for something (a toast's tail): a phone's speeds are in its date's button. */
+export const stoppedNote = () => ` · 멈춤 (${!touchFirst() ? 'Space로 계속' : matchMedia('(max-width: 860px)').matches ? '날짜·속도 버튼에서 계속' : '▶로 계속'})`;
 
 /** A path tile by tile as its straight runs, end to end (a line or road tool lays one run at a time). */
 export function straightRuns(path: readonly [number, number][]): [number, number, number, number][] {

@@ -19,8 +19,8 @@ import { CATEGORIES, type CategoryId, categoryOf, chosen, openTray, pickStructur
 import { journal, type Notice } from './journal';
 import { toast } from './toast';
 import { closeSheet, paneShown, revealMap, sheetShown, showTab, type Tab } from './tabs';
-import { $, escapeHtml, firstSentence, flash, fmt, josa, keyLabel, landfillMonths, landfillSpan, stoppedNote, touchFirst } from './util';
-import { choice } from './undo';
+import { $, escapeHtml, firstSentence, flash, fmt, josa, landfillMonths, landfillSpan, stoppedNote } from './util';
+import { choice } from './choices';
 
 /** Last month's crimes by kind, for a tooltip. */
 export function crimeKinds(byType: Record<string, number> | undefined): string {
@@ -362,7 +362,7 @@ export function updatePanels(): void {
   const st = city.stats();
   if (st.impeached && impeachedCity !== city) {
     impeachedCity = city;
-    toast(`시장이 탄핵되어 시뮬레이션이 멈췄습니다. 되돌리기${touchFirst() ? '' : `(${keyLabel('Ctrl+Z')})`}·저장 불러오기·새 도시로 다시 시작하세요.`, 'bad');
+    toast(`시장이 탄핵되어 시뮬레이션이 멈췄습니다. 저장한 도시를 불러오거나 새 도시로 다시 시작하세요.`, 'bad');
   }
   // The sheets' sections and a goal's statistics render only while shown (on a big map
   // they are costly); opening one brings it up to date (the 'sheet-open' event).

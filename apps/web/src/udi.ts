@@ -9,7 +9,7 @@ import { pushNotice, updatePanels } from './panels';
 import { cam, city, mapBand, redraw, renderer, speed } from './state';
 import { closeTopLayer, showTab } from './tabs';
 import { closeTray } from './tools';
-import { choice } from './undo';
+import { choice } from './choices';
 import { toast } from './toast';
 import { updatePreview } from './input';
 import { MISSION_NAME_KO, VEHICLE_NAME_KO } from './udi-names';

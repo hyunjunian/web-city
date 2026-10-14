@@ -102,7 +102,7 @@ export function renderOnboarding(): void {
     // The first residents, then the town to a thousand (where the services start to be worth their upkeep), with more
     // homes once those there are all built.
     st.population === 0
-      ? [false, zoned(homeZone) && city.state.day > 60 ? '첫 주민 입주 · 안 들어오면 개발 막힘 보기로 원인 확인' : `첫 주민 입주 (시간이 멈춰 있으면 ${matchMedia('(max-width: 860px)').matches ? '위 막대의 시간을 누르세요' : '위 막대의 ▶'})`, zoned(homeZone) ? 'view:growth' : null]
+      ? [false, zoned(homeZone) && city.state.day > 60 ? '첫 주민 입주 · 안 들어오면 개발 막힘 보기로 원인 확인' : `첫 주민 입주 (시간이 멈춰 있으면 ${matchMedia('(max-width: 860px)').matches ? '날짜·속도 버튼에서 속도를 고르세요' : '위 막대의 ▶'})`, zoned(homeZone) ? 'view:growth' : null]
       : [st.population >= 1000, `주민 1,000명 (지금 ${fmt(st.population)}명)${homesFull ? ' · 주거 구역이 다 찼습니다: 더 칠하면 늘어납니다' : ''}`, homesFull ? 'R-low' : 'view:growth'],
     // Spending runs ahead of a young town's taxes: the step that keeps the books in the black.
     // (Always listed, so the count doesn't change under the player; ticked by a month in the black.)
@@ -188,13 +188,13 @@ export function renderOnboarding(): void {
     // (The first road: drawn along the dashed route the tool shows, or laid at once. The first zones likewise.)
     const block = !ok && tool ? blocks.get(tool) : undefined;
     const lay = !ok && tool === 'road' && way && !way.short
-      ? `<button type="button" class="link step-lay" data-lay="road" title="지도 가장자리까지 가장 싼 곧은 길을 바로 놓기 (도로를 들면 지도에 점선으로 보이는 그 길 · Ctrl+Z로 되돌리기)">추천 길 바로 놓기 · ${fmt(way.path.length)}칸 §${fmt(way.cost)}</button>`
-      : block ? `<button type="button" class="link step-lay" data-lay="${tool}" title="도로에 닿는 빈 땅에 바로 놓기${tool === 'I-medium' ? ' (주거에서 떨어진 곳)' : tool === 'C-low' ? ' (주거 가까이)' : ''} · Ctrl+Z로 되돌리기">추천 자리에 ${tool === 'I-medium' ? '산업' : tool === 'C-low' ? '상업' : '주거'} ${block.side}×${block.side} 바로 놓기 · §${fmt(block.cost)}</button>`
-      : !ok && tool === 'goal:power' && plant ? `<button type="button" class="link step-lay" data-lay="plant" title="전력 화면이 권하는 발전소를 전기 없는 구역 가까이 도로 옆(연기가 주거에 닿지 않는 곳)에 바로 짓기 · 월 §${fmt(STRUCTURES[plant.kind].upkeep)} · Ctrl+Z로 되돌리기">추천 자리에 ${STRUCTURE_NAME[plant.kind]} 바로 짓기 · §${fmt(STRUCTURES[plant.kind].cost)}</button>`
-      : !ok && tool === 'goal:power' && wire ? `<button type="button" class="link step-lay" data-lay="powerline" title="전력망에서 전기 없는 가장 가까운 구역까지 가장 짧은 송전선을 바로 잇기 (송전선을 들면 지도에 보이는 그 길 · Ctrl+Z로 되돌리기)">송전선 ${fmt(wire.path.length)}칸 바로 잇기 · §${fmt(wire.cost)}</button>`
-      : !ok && tool === 'goal:garbage' && fill ? `<button type="button" class="link step-lay" data-lay="landfill" title="${fillSpan(fill.months) ? `${fillSpan(fill.months)}의 쓰레기를 묻을 크기로, ` : ''}도로에 닿고 주거·상업에서 떨어진 빈 땅에 바로 놓기 · 월 §${fmt(fill.side * fill.side * city.cfg.garbage.landfill.upkeep)} · Ctrl+Z로 되돌리기">추천 자리에 매립지 ${fill.side}×${fill.side} 바로 놓기 · §${fmt(fill.cost)}</button>`
-      : !ok && tool === 'goal:water' && tower ? `<button type="button" class="link step-lay" data-lay="water" title="수도 화면의 과녁 자리(물 없는 건물이 모인 곳 가까이 도로 옆)에 바로 짓기 · 월 §${fmt(STRUCTURES[tower.kind].upkeep)} · Ctrl+Z로 되돌리기">추천 자리에 ${STRUCTURE_NAME[tower.kind]} 바로 짓기 · §${fmt(STRUCTURES[tower.kind].cost)}</button>`
-      : !ok && tool === 'goal:fire' && station ? `<button type="button" class="link step-lay" data-lay="fire" title="소방 화면의 과녁 자리(소방이 닿지 않는 발전소·건물 가까이 도로 옆)에 바로 짓기 · Ctrl+Z로 되돌리기">추천 자리에 ${STRUCTURE_NAME[station.kind]} 바로 짓기 · §${fmt(STRUCTURES[station.kind].cost)}</button>` : '';
+      ? `<button type="button" class="link step-lay" data-lay="road" title="지도 가장자리까지 가장 싼 곧은 길을 바로 놓기 (도로를 들면 지도에 점선으로 보이는 그 길)">추천 길 바로 놓기 · ${fmt(way.path.length)}칸 §${fmt(way.cost)}</button>`
+      : block ? `<button type="button" class="link step-lay" data-lay="${tool}" title="도로에 닿는 빈 땅에 바로 놓기${tool === 'I-medium' ? ' (주거에서 떨어진 곳)' : tool === 'C-low' ? ' (주거 가까이)' : ''}">추천 자리에 ${tool === 'I-medium' ? '산업' : tool === 'C-low' ? '상업' : '주거'} ${block.side}×${block.side} 바로 놓기 · §${fmt(block.cost)}</button>`
+      : !ok && tool === 'goal:power' && plant ? `<button type="button" class="link step-lay" data-lay="plant" title="전력 화면이 권하는 발전소를 전기 없는 구역 가까이 도로 옆(연기가 주거에 닿지 않는 곳)에 바로 짓기 · 월 §${fmt(STRUCTURES[plant.kind].upkeep)}">추천 자리에 ${STRUCTURE_NAME[plant.kind]} 바로 짓기 · §${fmt(STRUCTURES[plant.kind].cost)}</button>`
+      : !ok && tool === 'goal:power' && wire ? `<button type="button" class="link step-lay" data-lay="powerline" title="전력망에서 전기 없는 가장 가까운 구역까지 가장 짧은 송전선을 바로 잇기 (송전선을 들면 지도에 보이는 그 길)">송전선 ${fmt(wire.path.length)}칸 바로 잇기 · §${fmt(wire.cost)}</button>`
+      : !ok && tool === 'goal:garbage' && fill ? `<button type="button" class="link step-lay" data-lay="landfill" title="${fillSpan(fill.months) ? `${fillSpan(fill.months)}의 쓰레기를 묻을 크기로, ` : ''}도로에 닿고 주거·상업에서 떨어진 빈 땅에 바로 놓기 · 월 §${fmt(fill.side * fill.side * city.cfg.garbage.landfill.upkeep)}">추천 자리에 매립지 ${fill.side}×${fill.side} 바로 놓기 · §${fmt(fill.cost)}</button>`
+      : !ok && tool === 'goal:water' && tower ? `<button type="button" class="link step-lay" data-lay="water" title="수도 화면의 과녁 자리(물 없는 건물이 모인 곳 가까이 도로 옆)에 바로 짓기 · 월 §${fmt(STRUCTURES[tower.kind].upkeep)}">추천 자리에 ${STRUCTURE_NAME[tower.kind]} 바로 짓기 · §${fmt(STRUCTURES[tower.kind].cost)}</button>`
+      : !ok && tool === 'goal:fire' && station ? `<button type="button" class="link step-lay" data-lay="fire" title="소방 화면의 과녁 자리(소방이 닿지 않는 발전소·건물 가까이 도로 옆)에 바로 짓기">추천 자리에 ${STRUCTURE_NAME[station.kind]} 바로 짓기 · §${fmt(STRUCTURES[station.kind].cost)}</button>` : '';
     return `<li class="${ok ? 'done' : i === 0 && st.population === 0 ? 'next' : ''}">${!ok && tool
       ? `<button type="button" class="step" data-step-tool="${tool}" title="${tool.startsWith('goal:') ? '관리 화면 열기 (지도 보기·지을 곳·추천 시설)' : tool.startsWith('view:') ? '지도 보기 켜기' : '이 도구 고르기'}">${body}${icon('chevronRight', 'step-go')}</button>`
       : `<div class="step">${body}</div>`}${lay}</li>`;

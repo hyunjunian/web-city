@@ -6,8 +6,8 @@ import {
   ArrowDownToLine, Scan, ArrowLeft, ArrowUpDown, Target, ArrowUpFromLine, Award, Building2, Bus, Cable, CableCar, ChartLine, Check, ChevronDown, ChevronRight,
   CircleHelp, Clover, CornerUpRight, Droplet, Ellipsis, Eraser, Factory, Flame, Car, Plane, Ship, Briefcase, TrendingDown, Save, FolderOpen, Download, Upload, Camera, FileSpreadsheet, Pencil, SunMoon, Dices, FilePlus, FlameKindling, Hammer, Activity, Bot, Bug, CloudLightning, MountainSnow, Orbit, Sparkles, Footprints, Gauge, Globe, GraduationCap,
   HandCoins, LayoutDashboard, Handshake, HeartPulse, Info, Landmark, Layers, LayoutGrid, Lock, Map as MapIcon, Maximize2, Megaphone, Mic, Minimize2,
-  Minus, Moon, MoonStar, Mountain, MoveRight, PanelLeftClose, PanelLeftOpen, Plus, Recycle, Route, Scissors, Search, Shield, Shovel, Siren, SquareDashed, Sun, Ticket,
-  Tornado, Tractor, TrainFront, TrainFrontTunnel, TrainTrack, Trash2, TreePine, Trees, TriangleAlert, Trophy, Undo2, Redo2, Users,
+  Minus, Moon, MoonStar, Mountain, MoveRight, PanelLeftClose, PanelLeftOpen, Plus, Recycle, Route, Scissors, Search, Shield, Shovel, Siren, Sun, Ticket,
+  Tornado, Tractor, TrainFront, TrainFrontTunnel, TrainTrack, Trash2, TreePine, Trees, TriangleAlert, Trophy, Users,
   Wallet, Waves, Wind, X, Zap, Gem, ThumbsUp, type IconNode,
 } from 'lucide';
 
@@ -30,7 +30,7 @@ const ELEVATED: IconNode = [line('M2 8h20'), line('M2 12h20'), line('M6 12v9'), 
 
 const ICONS = {
   // Dock, top bar and panels
-  search: Search, route: Route, mic: Mic, eraser: Eraser, dezone: SquareDashed,
+  search: Search, route: Route, mic: Mic, eraser: Eraser,
   road: ROAD, street: STREET, avenue: AVENUE, highway: HIGHWAY, elevated: ELEVATED, oneway: MoveRight, onramp: CornerUpRight, clover: Clover,
   rail: TrainTrack, subway: TrainFrontTunnel, train: TrainFront, monorail: CableCar, transition: ArrowUpDown, scissors: Scissors, ticket: Ticket, bus: Bus,
   pipe: PIPE, zones: LayoutGrid, zap: Zap, cable: Cable, factory: Factory, droplet: Droplet, trash: Trash2, recycle: Recycle,
@@ -38,7 +38,7 @@ const ICONS = {
   civic: Landmark, award: Award, trophy: Trophy, gem: Gem, approval: ThumbsUp, coins: HandCoins, handshake: Handshake, landmark: Building2,
   terrain: Mountain, tornado: Tornado, tractor: Tractor, waves: Waves, shovel: Shovel, raise: ArrowUpFromLine, lower: ArrowDownToLine,
   wallet: Wallet, chart: ChartLine, users: Users, globe: Globe, map: MapIcon, info: Info, gauge: Gauge, layers: Layers,
-  undo: Undo2, redo: Redo2, help: CircleHelp, maximize: Maximize2, minimize: Minimize2, panelClose: PanelLeftClose, panelOpen: PanelLeftOpen, moon: Moon, moonStar: MoonStar, sun: Sun, more: Ellipsis, car: Car, plane: Plane, ship: Ship, briefcase: Briefcase, trendDown: TrendingDown, save: Save, folder: FolderOpen, download: Download, upload: Upload, camera: Camera, sheet: FileSpreadsheet, pencil: Pencil, theme: SunMoon, dice: Dices, filePlus: FilePlus, pause: PAUSE, play: PLAY, play2: PLAY2, play3: PLAY3, flameKindling: FlameKindling, lightning: CloudLightning, sparkles: Sparkles, quake: Activity, volcano: MountainSnow, bot: Bot, bug: Bug, ufo: Orbit, hammer: Hammer, apps: LayoutDashboard,
+  help: CircleHelp, maximize: Maximize2, minimize: Minimize2, panelClose: PanelLeftClose, panelOpen: PanelLeftOpen, moon: Moon, moonStar: MoonStar, sun: Sun, more: Ellipsis, car: Car, plane: Plane, ship: Ship, briefcase: Briefcase, trendDown: TrendingDown, save: Save, folder: FolderOpen, download: Download, upload: Upload, camera: Camera, sheet: FileSpreadsheet, pencil: Pencil, theme: SunMoon, dice: Dices, filePlus: FilePlus, pause: PAUSE, play: PLAY, play2: PLAY2, play3: PLAY3, flameKindling: FlameKindling, lightning: CloudLightning, sparkles: Sparkles, quake: Activity, volcano: MountainSnow, bot: Bot, bug: Bug, ufo: Orbit, hammer: Hammer, apps: LayoutDashboard,
   plus: Plus, minus: Minus, fit: Scan, close: X, check: Check, lock: Lock, chevronDown: ChevronDown, chevronRight: ChevronRight,
   back: ArrowLeft, target: Target,
   wind: Wind, alert: TriangleAlert, megaphone: Megaphone, walk: Footprints,

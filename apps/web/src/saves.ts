@@ -6,7 +6,7 @@ import { thumbnail } from './minimap';
 import { leaveRegion, region } from './region';
 import { city, saveSlotId, setCity, setSaveSlotId } from './state';
 import { SAVE_KEY } from './storage';
-import { choicesMade } from './undo';
+import { choicesMade } from './choices';
 import { $, ask, escapeHtml, flash, fmt, josa } from './util';
 
 const INDEX_KEY = 'web-city:saves';

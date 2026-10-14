@@ -19,7 +19,7 @@ import { GRAPH_KEYS } from './graphs';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, panTipAt, pickStructure, restView, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
-import { choice, remember } from './undo';
+import { choice } from './choices';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type GoalTab, type Metric, type TabPart, type Tone } from './goals';
 import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
@@ -421,10 +421,8 @@ export function layZone(kind: ZoneKind, x0: number, y0: number, x1: number, y1: 
     flash(p.cost > city.state.funds ? `§${fmt(Math.ceil(p.cost - city.state.funds))} 모자랍니다` : `그사이 그 자리가 막혀 ${name} 자리를 새로 찾았습니다`, 'bad');
     return false;
   }
-  const drop = remember(name);
   const res = city.zone(x0, y0, x1, y1, kind);
   if (!res.ok) {
-    drop();
     flash(ko(res.message ?? ''), 'bad');
     return false;
   }
@@ -762,7 +760,6 @@ export function layPath(lay: Lay, path: [number, number][], owner: GoalId | null
     flash(cost === null ? `그사이 막혀서 ${LAY_WORD[lay]}${josa(LAY_WORD[lay], '을', '를')} 놓을 곳을 새로 찾았습니다` : `§${fmt(Math.ceil(cost - city.state.funds))} 모자랍니다`, 'bad');
     return false;
   }
-  const drop = remember(LAY_WORD[lay]);
   let laid = 0;
   for (const [x0, y0, x1, y1] of straightRuns(path)) {
     const res = lay === 'road' ? city.buildNetwork(x0, y0, x1, y1, 'road') : lay === 'pipe' ? city.buildPipe(x0, y0, x1, y1) : city.buildPowerLine(x0, y0, x1, y1);
@@ -771,10 +768,7 @@ export function layPath(lay: Lay, path: [number, number][], owner: GoalId | null
   // (A road joins another only where a drag runs into it: one beside the last tile, not ahead of it, stayed apart,
   // and the station it was laid for still couldn't send its crews. The last tile once more, alone, joins all four sides.)
   if (lay === 'road' && laid) city.buildNetwork(path.at(-1)![0], path.at(-1)![1], path.at(-1)![0], path.at(-1)![1], 'road');
-  if (!laid) {
-    drop();
-    return false;
-  }
+  if (!laid) return false;
   city.refreshIfDirty();
   if (owner && owner === active) noteAction(`${LAY_WORD[lay]} ${fmt(path.length)}칸 · −§${fmt(laid)}`);
   flash(`${LAY_WORD[lay]} ${fmt(path.length)}칸을 이었습니다 · −§${fmt(laid)}`, 'info');
@@ -2734,9 +2728,8 @@ export function setupGoals(): void {
     const repair = (e.target as HTMLElement).closest<HTMLElement>('#manage [data-repair-network]');
     if (repair) {
       const department = repair.dataset.repairNetwork as RepairDepartment;
-      const drop = remember('망 수리');
       const result = city.repairNetworks(department, 0, 0, city.size - 1, city.size - 1);
-      if (!result.ok) { drop(); flash(ko(result.message ?? '수리할 손상 구간이 없습니다'), 'bad'); }
+      if (!result.ok) { flash(ko(result.message ?? '수리할 손상 구간이 없습니다'), 'bad'); }
       else {
         noteAction(`${REPAIR_NAME[department]} 수리 ${fmt(result.tiles)}칸 · −§${fmt(result.cost)}`);
         flash(`${REPAIR_NAME[department]} ${fmt(result.tiles)}칸을 수리했습니다 · −§${fmt(result.cost)}`, 'info');
@@ -2790,10 +2783,8 @@ export function setupGoals(): void {
         redrawInfo();
         return;
       }
-      const drop = remember(word);
       const res = city.buildNetwork(x0, y0, x1, y1, to);
       if (!res.ok) {
-        drop();
         flash(ko(res.message ?? ''), 'bad');
         return;
       }

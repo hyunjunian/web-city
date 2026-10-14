@@ -33,13 +33,14 @@ export type Tool =
 /** The dock's tool categories: each opens a tray with its groups' tools. */
 export const CATEGORIES = [
   { id: 'inspect', label: '살펴보기', icon: 'search' },
-  { id: 'bulldoze', label: '철거', icon: 'eraser' },
   { id: 'transport', label: '교통', icon: 'road', short: '교통' },
   { id: 'zones', label: '개발 구역', icon: 'zones', short: '개발 구역' },
   { id: 'utilities', label: '에너지', icon: 'zap', short: '에너지' },
   { id: 'services', label: '시민 서비스', icon: 'civic', short: '서비스' },
   { id: 'special', label: '보상·거래', icon: 'award', short: '보상' },
   { id: 'terrain', label: '지형·재해', icon: 'terrain', short: '지형' },
+  // (Last in the bar: taking down, after all that builds.)
+  { id: 'bulldoze', label: '철거', icon: 'eraser' },
 ] as const satisfies readonly { id: string; label: string; icon: IconName; short?: string }[];
 
 export type CategoryId = (typeof CATEGORIES)[number]['id'];
@@ -60,8 +61,8 @@ export const TOOL_GROUPS: { title: string; cat: CategoryId; tools: Tool[] }[] = 
     title: '철거',
     cat: 'bulldoze',
     tools: [
+      // (One tool: begun on an empty zone, its drag takes the zones away — input.ts.)
       { id: 'bulldoze', label: '철거', kind: 'bulldoze' },
-      { id: 'dezone', label: '구역 해제', kind: 'zone', zone: 'none', color: '#888' },
     ],
   },
   {
@@ -272,7 +273,7 @@ function swatchOf(k: StructureKind, title = ''): string {
 
 /** An icon for each tool (zones use their colour swatch instead). */
 const TOOL_ICON: Record<string, IconName> = {
-  query: 'search', route: 'route', mic: 'mic', bulldoze: 'eraser', dezone: 'dezone',
+  query: 'search', route: 'route', mic: 'mic', bulldoze: 'eraser',
   road: 'road', street: 'street', avenue: 'avenue', oneway: 'oneway', highway: 'highway', elhighway: 'elevated', onramp: 'onramp', cloverleaf: 'clover',
   rail: 'rail', subway: 'subway', unsubway: 'scissors', elrail: 'train', transition: 'transition', monorail: 'monorail', toll: 'ticket', transport: 'bus',
   powerline: 'cable', power: 'factory', pipe: 'pipe', unpipe: 'scissors', water: 'droplet', landfill: 'trash', garbage: 'recycle',
@@ -343,16 +344,19 @@ export function buildTools(): void {
     // What it holds (its groups, unless they are its name: 지형·재해) and its keys, each by the tool it picks (the
     // bar's tooltip shows them so: 도로 R · 골목 T …); one key for the one tool it is (철거) by itself.
     const groups = TOOL_GROUPS.filter((g) => g.cat === c.id).map((g) => g.title).join('·');
-    const holds = groups && groups !== c.label ? `: ${groups}` : '';
+    // (철거 is a tool, not a card of them: pressed, it is in hand — what a drag does, said instead.)
+    const holds = c.id === 'bulldoze' ? ': 끌어서 헐기 · 빈 구역에서 시작하면 구역 해제' : groups && groups !== c.label ? `: ${groups}` : '';
     const named = keyed.length > 1 || (keyed[0] && keyed[0].name !== c.label);
-    return `<button class="${cls}" data-cat="${c.id}" aria-expanded="false" aria-controls="tray" title="${c.label}${holds}${keyed.length ? ` (${keyed.map((k) => k.key).join('·')})` : ''}"${named ? ` data-keys="${keyed.map((k) => `${k.name} ${k.key}`).join(' · ')}"` : ''}>${icon(c.icon)}<span class="dock-label">${label}</span></button>`;
+    const opens = c.id === 'bulldoze' ? 'aria-pressed="false"' : 'aria-expanded="false" aria-controls="tray"';
+    return `<button class="${cls}" data-cat="${c.id}" ${opens} title="${c.label}${holds}${keyed.length ? ` (${keyed.map((k) => k.key).join('·')})` : ''}"${named ? ` data-keys="${keyed.map((k) => `${k.name} ${k.key}`).join(' · ')}"` : ''}>${icon(c.icon)}<span class="dock-label">${label}</span></button>`;
   };
-  // In three groups: looking and removing; building the city; rewards and the land.
-  const SEP_BEFORE: CategoryId[] = ['transport', 'special'];
+  // In three groups: building the city; rewards and the land; taking down, last.
+  const SEP_BEFORE: CategoryId[] = ['special', 'bulldoze'];
+  // (The one 짓기 a window too low gathers the build categories behind stands where they stood, before 철거.)
+  const build = `<button class="dock-btn dock-build" data-cat="build" aria-expanded="false" aria-controls="tray" title="짓기: ${BUILD_CATS.map((id) => CATEGORIES.find((c) => c.id === id)!.label).join('·')}">${icon('hammer')}<span class="dock-label">짓기</span></button>`;
   // (Not 살펴보기: with nothing in hand the map looks by itself.)
-  dock.innerHTML = CATEGORIES.filter((c) => c.id !== 'inspect').map((c) => (SEP_BEFORE.includes(c.id) ? '<span class="dock-sep" aria-hidden="true"></span>' : '')
-    + catButton(c, `dock-btn${BUILD_CATS.includes(c.id) ? ' dock-build-cat' : ''}`, 'short' in c ? c.short : c.label)).join('')
-    + `<button class="dock-btn dock-build" data-cat="build" aria-expanded="false" aria-controls="tray" title="짓기: ${BUILD_CATS.map((id) => CATEGORIES.find((c) => c.id === id)!.label).join('·')}">${icon('hammer')}<span class="dock-label">짓기</span></button>`;
+  dock.innerHTML = CATEGORIES.filter((c) => c.id !== 'inspect').map((c) => (c.id === 'bulldoze' ? build : '') + (SEP_BEFORE.includes(c.id) ? '<span class="dock-sep" aria-hidden="true"></span>' : '')
+    + catButton(c, `dock-btn${BUILD_CATS.includes(c.id) ? ' dock-build-cat' : ''}`, 'short' in c ? c.short : c.label)).join('');
   // A window too low for them all: the build categories as a row at the top of the tray.
   $('#tray-cats').innerHTML = BUILD_CATS.map((id) => {
     const c = CATEGORIES.find((x) => x.id === id)!;
@@ -360,6 +364,12 @@ export function buildTools(): void {
   }).join('');
   document.querySelectorAll<HTMLButtonElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) => {
     b.onclick = (e) => {
+      // 철거: the bulldozer in hand at once (no card: it is the one tool), and put down by a second press.
+      if (b.dataset.cat === 'bulldoze') {
+        closeTray();
+        selectTool(tool.id === 'bulldoze' ? 'query' : 'bulldoze');
+        return;
+      }
       const inTray = !!b.closest('#tray-cats');
       const cat = b.dataset.cat === 'build' ? lastBuildCat : b.dataset.cat as CategoryId;
       const same = b.dataset.cat === 'build' ? !!openCat && BUILD_CATS.includes(openCat) : openCat === cat;
@@ -629,7 +639,7 @@ export function openTray(cat: CategoryId, fromDock = false): void {
   // Reopened, it shows the tool in hand (a landfill or a pump sat a scroll down every time).
   // (A facility's hidden tile is 'active' too: its card in the list is the one to show.)
   document.querySelector<HTMLElement>('#tools .tray-section:not([hidden]) :is(.tile.active:not([hidden]), .pick.active)')?.scrollIntoView({ block: 'nearest' });
-  document.querySelectorAll<HTMLButtonElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) => {
+  document.querySelectorAll<HTMLButtonElement>('#dock-tools [aria-controls="tray"], #tray-cats [data-cat]').forEach((b) => {
     const on = b.dataset.cat === cat || (b.dataset.cat === 'build' && BUILD_CATS.includes(cat));
     b.classList.toggle('open', on);
     b.setAttribute('aria-expanded', String(on));
@@ -660,7 +670,7 @@ export function closeTray(byPlayer = false): boolean {
     if (tool.id !== 'query' && !byPlayer) active?.blur();
     else [...document.querySelectorAll<HTMLButtonElement>(`#dock-tools [data-cat="${cat}"], #dock-tools .dock-build`)].find((b) => b.offsetParent)?.focus();
   }
-  document.querySelectorAll<HTMLButtonElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) => {
+  document.querySelectorAll<HTMLButtonElement>('#dock-tools [aria-controls="tray"], #tray-cats [data-cat]').forEach((b) => {
     b.classList.remove('open');
     b.setAttribute('aria-expanded', 'false');
   });
@@ -1012,6 +1022,7 @@ export function selectTool(id: string): void {
   // The dock marks the category in use; the chip on the map names the tool (none for 조회).
   document.querySelectorAll<HTMLButtonElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) =>
     b.classList.toggle('current', b.dataset.cat === cat || (b.dataset.cat === 'build' && BUILD_CATS.includes(cat))));
+  document.querySelector('#dock-tools [data-cat="bulldoze"]')?.setAttribute('aria-pressed', String(tool.id === 'bulldoze'));
   // Building or clearing: time waits while it is planned (and runs on when the tool is put down).
   holdForBuilding(!WATCHING.has(tool.kind));
   refreshToolChip();

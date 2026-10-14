@@ -5,7 +5,6 @@ import { DISASTER_NAME, LIVE_ICON } from './names';
 import { updatePanels } from './panels';
 import { city, redraw, renderer } from './state';
 import { tool } from './tools';
-import { remember } from './undo';
 import { $, flash } from './util';
 
 /** The moving disaster being pulled by the pointer (its id), if any. */
@@ -23,12 +22,8 @@ export function grabDisaster(t: [number, number]): boolean {
   if (!LIVE_KINDS.includes(kind)) return false;
   let live = city.state.liveDisasters.find((d) => d.kind === kind);
   if (!live) {
-    const forget = remember(DISASTER_NAME[kind]); // undone like the instant disasters
     const res = city.unleash(kind, t[0], t[1], Number($<HTMLInputElement>('#disaster-intensity').value) / 100);
-    if (!('id' in res)) {
-      forget();
-      return false;
-    }
+    if (!('id' in res)) return false;
     live = res;
     flash(`${DISASTER_NAME[kind]}! 누른 채로 끌면 그쪽으로 끌려갑니다`);
   }

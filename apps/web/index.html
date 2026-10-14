@@ -109,27 +109,22 @@
           </details>
         </div>
 
-        <!-- The map's top bar: the date, time (stop and the speeds) and undo; on a phone 도시 상태 first and the menu last.
-             The map view's card hangs under it: the view a goal's tab put on (no list of views: the goal's tabs choose),
-             its name, legend and count. (Positioned, not in the row.) -->
+        <!-- The map's top bar: the date and the speeds; on a phone three buttons of their own — the clock (the date and the
+             speed now, its four speeds in a card), 도시 상태 and the menu (fitMapbar puts the date in the clock and the
+             menu last there). The map view's card hangs under it: the view a goal's tab put on (no list of views: the
+             goal's tabs choose), its name, legend and count. (Positioned, not in the row.) -->
         <div id="mapbar" class="floating" role="group" aria-label="날짜·시간">
           <div id="map-layer" class="floating off">
             <button type="button" class="layer-title" id="layer-title" aria-expanded="false" title="범례 펼치기·접기"><span data-icon="layers"></span><span id="layer-name"></span><span class="legend-toggle" aria-hidden="true"><span data-icon="chevronDown"></span></span></button>
             <div id="overlay"></div>
           </div>
-          <button type="button" class="mb-btn mb-city" data-app="city" aria-label="도시 상태" aria-pressed="false" title="도시 상태 열기"><span data-icon="gauge"></span><span class="mb-label">도시 상태</span></button>
-          <span class="mb-sep mb-city-sep" aria-hidden="true"></span>
           <span id="sb-date" class="sb-date"></span>
-          <span class="mb-sep" aria-hidden="true"></span>
-          <!-- The speeds in a row (a phone's in a card from its 시간 button, which says the speed and stops or starts the
-               clock). -->
+          <!-- The speeds in a row (a phone's in a card from its clock button, which only opens it). -->
           <div class="mb-time">
-            <button type="button" id="btn-time" class="mb-btn" aria-expanded="false" aria-controls="speed" title="시간: 속도 고르기"><span class="time-glyph"></span><span class="mb-label" id="time-label">시간</span></button>
+            <button type="button" id="btn-time" class="mb-btn" aria-haspopup="true" aria-expanded="false" aria-controls="speed" title="시간: 속도 고르기"><span class="time-glyph" aria-hidden="true"></span><span class="mb-label" id="time-label">시간</span></button>
             <div id="speed" class="gear" role="radiogroup" aria-label="시뮬레이션 속도"></div>
           </div>
-          <span class="mb-sep" aria-hidden="true"></span>
-          <button id="btn-undo" class="mb-btn mb-icon" title="되돌리기 (Ctrl+Z)" aria-label="되돌리기" disabled><span data-icon="undo"></span></button>
-          <button id="btn-redo" class="mb-btn mb-icon" title="다시 하기 (Ctrl+Shift+Z)" aria-label="다시 하기" disabled><span data-icon="redo"></span></button>
+          <button type="button" class="mb-btn mb-city" data-app="city" aria-label="도시 상태" aria-pressed="false" title="도시 상태 열기"><span data-icon="gauge"></span><span class="mb-label">도시 상태</span></button>
         </div>
 
         <div id="manage-chip" class="floating" hidden>

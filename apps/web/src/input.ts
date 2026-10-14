@@ -17,8 +17,7 @@ import { cam, centerOn, city, drag, fitCamera, glideTo, hover, mapBand, overlay,
 import { drive, SPECIAL } from './udi';
 import { closeTopLayer, toggleSheet } from './tabs';
 import { chosen, closeTray, dockArmed, openFind, previousTool, stepAlt, refreshToolChip, selectTool, STATION_HINT, tool, TOOL_KEYS, toolName, toolUsed, refreshEdgeHint } from './tools';
-import { remember } from './undo';
-import { $, ask, askText, escapeHtml, keyForControl, onHintRestore, flash, flashing, fmt, josa, touchFirst, flashYields, endFlash, undoHint } from './util';
+import { $, ask, askText, escapeHtml, keyForControl, onHintRestore, flash, flashing, fmt, josa, touchFirst, flashYields, endFlash } from './util';
 
 /** What each cheat did, for the toast. */
 const CHEAT_DONE: Record<string, string> = {
@@ -491,6 +490,20 @@ export function updatePreview(): void {
     // (Size and price ride by the pointer; the zone's name is on the chip: the bar for what stops it, and what else it does.)
     // (Beside the pointer, a line each.)
     hint.textContent = `${catches}${plan.streets.length ? ` · 골목 ${plan.streets.length}칸 함께 놓음` : ''}${built}`.replace(/^ · /, '').split(' · ').join(besidePointer ? '\n' : ' · ');
+  } else if (drag && dezoning()) {
+    // Begun on an empty zone: the drag takes the zones away (the empty tiles; what is built stays, as it does).
+    const plan = city.previewZone(drag.start[0], drag.start[1], drag.end[0], drag.end[1], 'none');
+    const box = { x: Math.min(drag.start[0], drag.end[0]), y: Math.min(drag.start[1], drag.end[1]), w: Math.abs(drag.end[0] - drag.start[0]) + 1, h: Math.abs(drag.end[1] - drag.start[1]) + 1 };
+    preview = { tiles: plan.cells, ok: plan.ok || !plan.message, color: 'rgba(240,160,40,0.45)', box };
+    let built = 0;
+    for (const [cx, cy] of rectTiles(drag.start, drag.end)) if (city.state.occupant[cy * city.size + cx]! > 0 && city.state.zone[cy * city.size + cx]! > 0) built++;
+    const kept = built ? `건물 선 ${built}칸은 그대로 (건물에서 시작하면 철거)` : '';
+    if (plan.message && !(plan.message === 'not enough funds' && plan.cost)) tag = { text: '구역 해제할 수 없음', tone: 'bad' };
+    else if (plan.tiles) costTag('구역 해제', plan.cost);
+    else tag = { text: '해제할 빈 구역 없음', tone: '' };
+    hint.textContent = plan.message ? `구역 해제 · ${reason(plan)}` : plan.tiles
+      ? [besidePointer ? `빈 구역 ${plan.tiles}칸` : `구역 해제: 빈 구역 ${plan.tiles}칸 · §${fmt(plan.cost)}`, kept].filter(Boolean).join(besidePointer ? '\n' : ' · ')
+      : '해제할 빈 구역이 없습니다';
   } else if (drag && tool.kind === 'bulldoze') {
     const tiles = rectTiles(drag.start, drag.end);
     const plan = city.previewBulldoze(drag.start[0], drag.start[1], drag.end[0], drag.end[1]);
@@ -536,6 +549,12 @@ export function updatePreview(): void {
         hint.textContent = besidePointer ? `${describeTile(hx, hy).replace(/⚠ /g, '')}${b?.type ? ' · 주민·일자리 시가 포함' : ''}${left}` : `철거 · §${fmt(plan.cost)}${b?.type ? ' (주민·일자리 시가 포함)' : ''}${left} · ${verb}`;
         costTag('철거', plan.cost);
       }
+    } else if (tool.kind === 'bulldoze' && !touchFirst() && emptyZone(hx, hy)) {
+      // Over an empty zone: a drag from here takes the zone away (no building to take down yet).
+      const plan = city.previewZone(hx, hy, hx, hy, 'none');
+      preview = { tiles: [[hx, hy]], ok: true, color: 'rgba(240,160,40,0.45)' };
+      hint.textContent = besidePointer ? `${describeTile(hx, hy).replace(/⚠ /g, '')} · 끌면 구역 해제` : `구역 해제 · §${fmt(plan.cost)}/칸 · 빈 구역에서 시작해 끌기`;
+      costTag('구역 해제', plan.cost);
     }
   }
   // While a drag lays something down, what floats over the map steps back (the work is where the eye is).
@@ -840,6 +859,21 @@ function snapToSpot(px: number, py: number, t: [number, number]): [number, numbe
 /** What a station being bulldozed alone reached (said with the result). */
 let lostCover: { n: number; what: string } | null = null;
 
+/** A zone with nothing on it yet (no building or facility, road, track or rubble): where the bulldozer takes the zone
+ *  away instead. (Not a landfill still holding garbage: that can't be unzoned.) */
+function emptyZone(x: number, y: number): boolean {
+  const s = city.state;
+  if (x < 0 || y < 0 || x >= s.size || y >= s.size) return false;
+  const i = y * s.size + x;
+  return s.zone[i]! > 0 && s.occupant[i] === 0 && s.net[i] === 0 && !s.elevated[i] && !s.rubble[i] && !(s.landfill[i]! > 0);
+}
+
+/** Whether the bulldozer's drag unzones: it started on an empty zone (one 철거 for both — the zones a drag across
+ *  them takes away, what stands on the land another drag takes down). */
+function dezoning(): boolean {
+  return tool.kind === 'bulldoze' && !!drag && !drag.pan && emptyZone(drag.start[0], drag.start[1]);
+}
+
 export function applyTool(): void {
   if (!drag || drive) return; // no building under the car while driving
   const [x0, y0] = drag.start;
@@ -851,8 +885,8 @@ export function applyTool(): void {
   }
   let res: { ok: boolean; cost: number; message?: string } | null = null;
   const usedKind = tool.kind; // (a handed facility puts the tool down below)
+  const dz = dezoning(); // (before the drag's tiles change)
   let built: [string, 'bad' | 'info'] | null = null; // a facility's "built" line (what it still needs), said again if the tool goes down
-  const forget = tool.kind === 'query' || tool.kind === 'route' || tool.kind === 'mic' ? null : remember(tool.kind === 'structure' ? STRUCTURE_NAME[chosen[tool.id]!] : toolName(tool)); // "산업 중밀도", not "중밀도"
   switch (tool.kind) {
     case 'network': {
       const first = !city.state.net.some((v) => v !== 0);
@@ -869,6 +903,10 @@ export function applyTool(): void {
     }
     case 'zone': res = city.zone(x0, y0, x1, y1, tool.zone); break;
     case 'bulldoze': {
+      if (dz) {
+        res = city.zone(x0, y0, x1, y1, 'none');
+        break;
+      }
       // (Stations taken down: what only they reached, said with the result — a touch screen has no hover to warn first.)
       city.settle();
       const ids = new Set<number>();
@@ -923,8 +961,8 @@ export function applyTool(): void {
       };
       // A finger lands on the map for many reasons: on a touch screen a disaster asks first.
       if (touchFirst()) {
-        void ask(`(${x1}, ${y1})에 ${DISASTER_NAME[kind]}${josa(DISASTER_NAME[kind], '을', '를')} 일으킬까요? 되돌리기로만 복구됩니다.`, `${DISASTER_NAME[kind]} 일으키기`).then((go) => {
-          if (!go) return forget?.();
+        void ask(`(${x1}, ${y1})에 ${DISASTER_NAME[kind]}${josa(DISASTER_NAME[kind], '을', '를')} 일으킬까요? 되돌릴 수 없습니다.`, `${DISASTER_NAME[kind]} 일으키기`).then((go) => {
+          if (!go) return;
           strike();
           city.refreshIfDirty();
           redraw();
@@ -964,7 +1002,6 @@ export function applyTool(): void {
       const plants = reach && goal === 'fire' ? plantsReached(sx + def.w / 2, sy + def.h / 2, reach) : 0;
       res = city.placeStructure(kind, sx, sy);
       // Say it stands (the hint over it would now read "has a building"), and what it still needs.
-      // (Where to take it back, if it landed a tile off: Ctrl+Z, or the ↶ at the top on a touch screen.)
       if (res.ok) {
         justBuilt = { x: sx, y: sy, w: def.w, h: def.h, kind };
         const reached = gained || plants ? ` · 새로 닿는 ${[plants ? `발전소 ${fmt(plants)}곳` : '', gained ? `${goal === 'health' || goal === 'education' ? '집' : '건물'} ${fmt(gained)}채` : ''].filter(Boolean).join(' · ')}` : '';
@@ -972,7 +1009,7 @@ export function applyTool(): void {
         // line already, while two stations elsewhere wait for theirs.)
         const placed = city.query(sx, sy)?.structure;
         const track = kind === 'subwayStation' && !warn && placed && subwayAlone(placed.id) && subwayGap() ? ' · 다른 역과 지하철 선로로 이어야 탑니다 (교통 › 지하철)' : '';
-        built = [`${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 지었습니다 · −§${fmt(res.cost)}${reached}${warn}${track}${warn || track ? '' : ` · ${undoHint()}`}`, warn ? 'bad' : 'info'];
+        built = [`${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 지었습니다 · −§${fmt(res.cost)}${reached}${warn}${track}`, warn ? 'bad' : 'info'];
         flash(...built);
       }
       break;
@@ -1002,10 +1039,9 @@ export function applyTool(): void {
     case 'route': showRoutes(x1, y1); break;
     case 'mic': interviewAt(x1, y1); break;
   }
-  if (forget && !res?.ok) forget();
   // What was done where the map shows little of it: a word that it happened, and its cost.
   const lost = tool.kind === 'bulldoze' && lostCover ? ` · ⚠ 혼자 맡던 ${lostCover.what} ${fmt(lostCover.n)}채가 범위 밖이 됨` : '';
-  if (res?.ok && !res.message && QUIET_KINDS.has(tool.kind)) flash(`${tool.label} 완료${res.cost ? ` · −§${fmt(res.cost)}` : ''}${lost}${tool.kind === 'bulldoze' ? ` · ${undoHint()}` : ''}`, 'info'); // (taken down by mistake: the way back)
+  if (res?.ok && !res.message && QUIET_KINDS.has(tool.kind)) flash(`${dz ? '구역 해제' : tool.label} 완료${res.cost ? ` · −§${fmt(res.cost)}` : ''}${lost}`, 'info');
   lostCover = null;
   if (res && !res.ok && res.message) flash(ko(res.message), 'bad');
   // A new city's clock starts with its first zone (the game opened paused).
@@ -1023,13 +1059,13 @@ export function applyTool(): void {
     if (area && area.w * area.h <= 4096) {
       const line = tool.kind === 'network' || tool.kind === 'powerline' || tool.kind === 'pipe' || tool.kind === 'subway';
       if (line) for (const [lx, ly] of linePath(...L)) renderer.effect('flash', lx, ly);
-      else renderer.effect(tool.kind === 'bulldoze' && area.w * area.h <= 400 ? 'dust' : 'flash', bx, by, area.w, area.h); // (dust is a few puffs a tile)
+      else renderer.effect(tool.kind === 'bulldoze' && !dz && area.w * area.h <= 400 ? 'dust' : 'flash', bx, by, area.w, area.h); // (dust is a few puffs a tile)
     }
     if (res.cost > 0) renderer.effect('cost', x1 + 0.5, y1 - 0.2, 1, 1, `−§${fmt(res.cost)}`);
   }
   // A goal's screen keeps what was done from it (its figures show what came of it).
   if (res?.ok && !res.message && tool.kind !== 'query' && tool.kind !== 'route' && tool.kind !== 'mic') {
-    noteAction(`${tool.kind === 'structure' ? STRUCTURE_NAME[chosen[tool.id]!] : toolName(tool)}${res.cost ? ` · −§${fmt(res.cost)}` : ''}`, undefined, tool.id);
+    noteAction(`${tool.kind === 'structure' ? STRUCTURE_NAME[chosen[tool.id]!] : dz ? '구역 해제' : toolName(tool)}${res.cost ? ` · −§${fmt(res.cost)}` : ''}`, undefined, tool.id);
   }
   const used = tool; // (before a handed-out facility's tool goes down)
   // A facility a suggestion handed out is one job: placed, the tool goes down and time runs on.
@@ -1331,10 +1367,8 @@ export function setupInput(): void {
   const cheatConsole = async () => {
     const code = await askText('치트 적용', '치트 코드');
     if (!code) return;
-    const drop = remember('치트'); // undoable like any edit
     const res = city.cheat(code);
     if (!res.ok) {
-      drop();
       flash(ko(res.message ?? 'unknown cheat'), 'bad');
       return;
     }

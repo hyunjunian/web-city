@@ -79,11 +79,11 @@ export const GOALS: Record<GoalId, Goal> = {
   growth: {
     name: '개발·수요', icon: 'zones', aim: '수요가 있는 곳에 구역을 내고, 빈 구역이 왜 비었는지 찾아 풉니다. 더 높은 밀도로 다시 칠하면 재개발됩니다.',
     tabs: [
-      { label: '개발 막힘', view: 'growth', figs: ['인구', '일자리', '실업', '버려진 건물'], graphs: ['population', 'jobs', 'abandoned'], reports: ['buildings'], tools: ['road', 'bulldoze', 'dezone'], codes: ['noGrowth', 'abandoned', 'atRisk', 'rubble', 'unemployment', 'understaffed'] },
+      { label: '개발 막힘', view: 'growth', figs: ['인구', '일자리', '실업', '버려진 건물'], graphs: ['population', 'jobs', 'abandoned'], reports: ['buildings'], tools: ['road', 'bulldoze'], codes: ['noGrowth', 'abandoned', 'atRisk', 'rubble', 'unemployment', 'understaffed'] },
       { label: '수요', view: 'zones', figs: ['주거 수요', '상업 수요', '산업 수요', '농업 수요'], parts: ['rci'], tools: ['R-low', 'R-medium', 'R-high', 'C-low', 'C-medium', 'C-high', 'I-medium', 'I-high', 'A', 'park'], ordinances: ['tourismPromotion'], codes: ['capRes', 'capOffice', 'capIndustry', 'zoneR', 'zoneC', 'zoneI', 'zoneA'] },
     ],
-    // (Bulldozing and dezoning too: reshaping the city is part of growing it.)
-    tools: ['R-low', 'R-medium', 'R-high', 'C-low', 'C-medium', 'C-high', 'I-medium', 'I-high', 'A', 'road', 'park', 'bulldoze', 'dezone'],
+    // (Bulldozing too — begun on an empty zone, it unzones: reshaping the city is part of growing it.)
+    tools: ['R-low', 'R-medium', 'R-high', 'C-low', 'C-medium', 'C-high', 'I-medium', 'I-high', 'A', 'road', 'park', 'bulldoze'],
     ordinances: ['tourismPromotion'], depts: [],
   },
   power: {

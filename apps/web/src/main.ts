@@ -16,7 +16,6 @@ import { cam, city, cityLineage, clampCamera, dirty, fitCamera, mapBand, mapCove
 import { autosave, autosaveSlot, autosaveSteps, lastAutosave, resumeAutosave } from './storage';
 import { buildTools, closeTray, forgetPreviousTool, refreshEdgeHint, selectTool, SPEEDS } from './tools';
 import { abandonDrive, drive, tickDrive } from './udi';
-import { setupUndo } from './undo';
 import { $, flash, onCoveredFlash } from './util';
 import { toast } from './toast';
 import { closeInfo, closePane, closeSheet, openPane, setupTabs } from './tabs';
@@ -282,7 +281,6 @@ document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click
   $('#map').focus();
 });
 setupBack();
-setupUndo();
 setupMinimap();
 setupTheme();
 restoreNight();

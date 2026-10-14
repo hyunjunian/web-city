@@ -11,7 +11,7 @@ import { cam, city, overlay, redraw, renderer, setCity } from './state';
 import { saveSlot, showSaves, unsavedProgress } from './saves';
 import { lastAutosave } from './storage';
 import { $, ask, askText, flash, josa, keyLabel, touchFirst } from './util';
-import { choice } from './undo';
+import { choice } from './choices';
 
 export function setupMenu(): void {
   // The 도시 menu closes once an item is picked, or on a click elsewhere.

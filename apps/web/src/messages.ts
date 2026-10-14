@@ -58,7 +58,7 @@ const EXACT: Record<string, string> = {
   'path crosses a volcano': '경로가 화산을 지납니다',
   'path crosses another network': '경로가 다른 교통망과 교차합니다(고속도로는 진입로로 잇습니다)',
   'path crosses other elevated track': '경로가 다른 고가 선로와 겹칩니다',
-  'path is blocked by a building or zone': '건물이나 구역이 경로를 막고 있습니다 (철거·구역 해제 후 놓으세요)',
+  'path is blocked by a building or zone': '건물이나 구역이 경로를 막고 있습니다 (철거한 뒤 놓으세요: 빈 구역은 그 위에서 철거를 시작하면 풀립니다)',
   'path is blocked by a building': '건물이 경로를 막고 있습니다 (철거 후 놓으세요)',
   'pick a lived-in home': '사람이 사는 집을 고르세요',
   'nothing burns here': '여기는 불타고 있지 않습니다 (소방차를 보내지 않음)',

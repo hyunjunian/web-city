@@ -7,7 +7,7 @@ import { EDGE_NAME, KIND_NAME, RESOURCE_NAME, RESOURCE_UNIT, SPAN_NAME } from '.
 import { updatePanels } from './panels';
 import { changeKey, city, setCity } from './state';
 import { $, ask, escapeHtml, flash, fmt, josa } from './util';
-import { choice } from './undo';
+import { choice } from './choices';
 import { unsavedProgress } from './saves';
 
 export let neighbourSignature = '';

@@ -10,10 +10,10 @@ import { updatePanels } from './panels';
 import { ROUTE_COLOR, structureColor, TYPE_COLOR, zoneTint } from './render';
 import { cam, city, cityLineage, clampCamera, flightCount, moveCount, overlay, overlayType, redraw, renderer, setSelected, stopFlight } from './state';
 import { closeInfo, showTab } from './tabs';
-import { $, escapeHtml, flash, fmt, glue, hours, josa, pct, undoHint } from './util';
+import { $, escapeHtml, flash, fmt, glue, hours, josa, pct } from './util';
 import { refreshTaxes } from './controls';
 import { structureStat, toolGlyph, TOOLS } from './tools';
-import { choice, remember } from './undo';
+import { choice } from './choices';
 import { coverageRadius, overlayReading } from './views';
 import { GOAL_ORDER, type GoalId, goalOfStructure, GOALS, goalsOfOrdinance } from './goals';
 import { active, guideOrdinances } from './manage';
@@ -403,7 +403,7 @@ export function showInfo(x: number, y: number): void {
   const fold = !!(b || q.structure || growth || land || q.network); // (a road's environment too: its gauge and its traffic are what it says)
   // Removing what is selected, from its card (it took the bulldozer tool and a drag over the same spot).
   const bz = b || q.structure ? city.previewBulldoze(x, y, x, y) : null;
-  const demolish = bz?.ok ? `<button type="button" id="info-bulldoze" class="info-bulldoze" title="이 ${b ? '건물' : '시설'}을 헐기 (되돌리기 가능)">${icon('eraser')}철거 · §${fmt(bz.cost)}</button>` : '';
+  const demolish = bz?.ok ? `<button type="button" id="info-bulldoze" class="info-bulldoze" title="이 ${b ? '건물' : '시설'}을 헐기">${icon('eraser')}철거 · §${fmt(bz.cost)}</button>` : '';
   // The way to its goal's screen and the way to take it down: the card's foot, after what it says.
   const goal = goalLink(q.structure?.kind, b ? 'built' : q.zone, !b && !q.structure && !!q.network);
   // A reading here belongs to a goal: pressed, its screen opens on this spot (the view, the figures, what to do).
@@ -499,11 +499,8 @@ ${paths}${voice}
   const demolishBtn = el.querySelector<HTMLButtonElement>('#info-bulldoze');
   if (demolishBtn) demolishBtn.onclick = () => {
     const what = title;
-    // (Undone like the bulldozer's own: a snapshot before, dropped if nothing went.)
-    const forget = remember(`철거: ${what}`);
     const res = city.bulldoze(x, y, x, y);
     if (!res.ok) {
-      forget();
       flash(ko(res.message ?? ''), 'bad');
       return;
     }
@@ -512,7 +509,7 @@ ${paths}${voice}
     city.refreshIfDirty();
     redraw();
     updatePanels();
-    flash(`${what} 철거 · −§${fmt(res.cost)} · ${undoHint()}`, 'info');
+    flash(`${what} 철거 · −§${fmt(res.cost)}`, 'info');
   };
   const historical = el.querySelector<HTMLInputElement>('#historical');
   if (historical) historical.onchange = () => {

@@ -10,7 +10,7 @@ import { centerOn, city, redraw, renderer, setSelected } from './state';
 import { forgetInfo, showInfo } from './info';
 import { closeSheet, revealMap, showTab } from './tabs';
 import { $, ask, escapeHtml, flash, hours, josa } from './util';
-import { choice } from './undo';
+import { choice } from './choices';
 
 /** A place on the map as a link that goes there, named (집, 일터) rather than by its coordinates. */
 const goto = (x: number, y: number, label: string) => `<button type="button" class="link" data-goto="${x},${y}" title="지도에서 보기 (${x}, ${y})">${label}</button>`;

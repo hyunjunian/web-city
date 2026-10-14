@@ -1444,6 +1444,18 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .w-txt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
   .hero-value { font-size: 46px; }
 
+  /* The tools' card heads itself with the build categories (the foot bar goes off the screen while it is up). */
+  #tray.build #tray-title { display: none; }
+  #tray.build #tray-cats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; flex: 1; min-width: 0; }
+  .tray-cat {
+    flex-direction: column; gap: 3px; min-height: 54px; padding: 4px 0; border-radius: var(--r-md);
+    background: transparent; color: var(--muted);
+  }
+  .tray-cat .i { width: 22px; height: 22px; }
+  .tray-cat .dock-label { font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .tray-cat.open { background: var(--surface-2); color: var(--text); }
+  .tray-cat.open .i { color: var(--accent-hi); }
+
   #minimap { display: none; }
   /* The view list takes the room there is, and fades at the foot when more is below. */
 
@@ -1480,6 +1492,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #tabs button { padding: 0 8px; }
 }
 @media (max-width: 420px) {
+  .tray-cat .dock-label { font-size: 10.5px; letter-spacing: -0.02em; } /* (개발 구역 whole at 360px) */
   #tabs button .i { display: none; } /* words alone fit, clear of the close button */
   #tabs button { padding: 0 6px; font-size: 13.5px; }
 }
@@ -2384,28 +2397,25 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   .crumb-region:hover { color: var(--text); }
 }
 
-/* ---- the top bar: the date, then the clock — the four speeds and undo — beside the building bar at the map's top */
+/* ---- the top bar, in the map's top left corner: the date, then the four speeds (the building bar under it) */
 #mapbar {
-  top: 14px; left: calc(var(--dock-w) + 24px);
-  display: flex; align-items: center; gap: 2px; height: 44px; padding: 0 5px 0 16px;
+  top: 14px; left: 14px;
+  display: flex; align-items: center; gap: 12px; height: var(--mb-h); padding: 0 5px 0 16px;
   border-radius: 14px; background: var(--float-solid); box-shadow: var(--shadow-sm); white-space: nowrap;
   -webkit-user-select: none; user-select: none;
   /* No layer of its own (no z-index, no backdrop blur on a solid bar): the view's card that hangs from it takes its
      place among the map's floating parts, under the cards that open over the map. */
   -webkit-backdrop-filter: none; backdrop-filter: none;
 }
-.mb-sep { flex: none; width: 1px; height: 18px; margin: 0 7px; background: var(--line-strong); }
-#mapbar #sb-date { margin-right: 4px; }
+:root { --mb-h: 44px; }
 .mb-btn {
   position: relative; flex: none; gap: 6px; min-height: 0; height: 34px; padding: 0 10px; border-radius: 10px;
   background: transparent; color: var(--muted); font-size: 13px; font-weight: 600;
 }
 .mb-btn .i { width: 18px; height: 18px; }
-.mb-icon { width: 34px; padding: 0; }
-.mb-btn:disabled { opacity: 0.32; }
-@media (hover: hover) { .mb-btn:not(:disabled):hover { background: var(--surface-2); color: var(--text); } }
+@media (hover: hover) { .mb-btn:hover { background: var(--surface-2); color: var(--text); } }
 /* 도시 상태 is a phone's: wide, the city pane is always beside the map. */
-.mb-city, .mb-city-sep { display: none; }
+.mb-city { display: none; }
 /* The speeds in a row — pause, then slow to fast — the one on lit, as in a gear. */
 .mb-time { position: relative; display: flex; align-items: center; }
 #mapbar .gear { display: flex; gap: 2px; padding: 2px; border-radius: 11px; background: var(--surface-2); }
@@ -2418,15 +2428,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #btn-time { display: none; } /* (a phone's: there the speeds stand in its card) */
 /* A touch screen wider than a phone: the bar's buttons at a finger's size. */
 @media (min-width: 861px) and (pointer: coarse) and (hover: none) {
-  #mapbar { height: 52px; padding-right: 5px; }
+  :root { --mb-h: 52px; }
   #mapbar .gear button { width: 46px; height: 38px; }
-  #mapbar .mb-icon { width: 44px; height: 42px; }
   #view :is(#tray, #sheet, #info-card) { top: 78px; } /* (under the taller bar by as much as under the other) */
-}
-/* (Narrow, the taller bar ran under 전체 보기 at the map's corner: its buttons a little narrower there.) */
-@media (min-width: 861px) and (max-width: 960px) and (pointer: coarse) and (hover: none) {
-  #mapbar .gear button, #mapbar .mb-icon { width: 40px; }
-  #mapbar .mb-sep { margin: 0 4px; }
 }
 
 /* A phone held upright (fitMapbar): the view's card folded to its name and fold, the legend unfolding under it. */
@@ -2449,9 +2453,10 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #view.holding #mapbar #map-layer .legend-toggle { display: none; }
 #view.holding #mapbar #map-layer .layer-title { pointer-events: none; }
 
-/* ---- the view's card, hanging from the bar's left end: the view's name, its legend and the count */
+/* ---- the view's card, hanging from the top bar beside the building bar under it: the view's name, its legend and
+   the count */
 #view #mapbar #map-layer {
-  top: calc(100% + 8px); left: 0; z-index: 3; width: 300px; padding: 10px 6px 12px;
+  top: calc(100% + 8px); left: calc(var(--dock-w) + 10px); z-index: 3; width: 300px; padding: 10px 6px 12px;
   background: var(--float-solid); border-radius: 16px; box-shadow: var(--shadow); white-space: normal;
   animation: drop-in 0.18s var(--ease);
 }
@@ -2462,10 +2467,11 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #view.holding #mapbar #map-layer:not(:has(#overlay-sum:not([hidden]))) { display: none; }
 #view.holding #mapbar #map-layer { width: auto; max-width: 300px; padding: 6px; }
 
-/* ---- down the map's left, the building categories — 철거 | 교통 · 개발 구역 · 에너지 · 서비스 | 보상 · 지형 — their
-   tools' card opening beside them; under them the menu, a button of its own */
+/* ---- down the map's left under the top bar, the building categories — 교통 · 개발 구역 · 에너지 · 서비스 | 보상 · 지형
+   | 철거 — their tools' card opening beside them; under them the menu, a button of its own */
 #dock-col {
-  position: absolute; top: 14px; left: 14px; z-index: 5; max-height: calc(100% - 28px);
+  /* (Under the top bar: it takes the map's top left corner.) */
+  position: absolute; top: calc(14px + var(--mb-h) + 10px); left: 14px; z-index: 5; max-height: calc(100% - var(--mb-h) - 38px);
   display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
   animation: pop-in 0.18s var(--ease);
 }
@@ -2479,7 +2485,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #dock-col > #menu { flex: none; }
 #dock.scrolls { overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; } /* (fitMapbar: lower than its least) */
 #dock-tools { display: flex; flex-direction: column; align-items: stretch; gap: 2px; }
-/* Removing · the build categories · rewards and the land: a gap between them, not a line — one family, building. */
+/* The build categories · rewards and the land · removing: a gap between them, not a line — one family, building. */
 .dock-sep { flex: none; height: 0; margin: 3px 0; }
 .dock-btn {
   position: relative; flex: none; flex-direction: column; gap: 3px;
@@ -2568,70 +2574,69 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #view :is(#mapbar) { transition: opacity 0.2s var(--ease); }
 #view.drawing #mapbar { opacity: 0.25; }
 
-/* ---- phones and small tablets: both bars float at the screen's edges, the map between them — along the top 도시
-   상태, the date, 시간 (its four speeds in a card under it), undo and the menu; along the foot the building categories,
-   all of them; the sheets rise as cards over the foot bar, which stays */
+/* ---- phones and small tablets: along the top three buttons of their own — the clock (the date and the speed now; its
+   four speeds in a card under it), 도시 상태 and the menu — and along the foot a bar of the building categories, all
+   of them, the map between; the sheets rise as cards, and while one is up both go off the screen to give it room */
 @media (max-width: 860px) {
   :root {
     --dock-w: 0px;
-    /* (Each from the screen's edge to the bar's far side: what sits under the top bar, or over the foot bar, keeps
-       8px more.) */
-    --bar-h: calc(env(safe-area-inset-top) + 60px);
+    /* (Each from the screen's edge to the far side of what is there: what sits under the top buttons, or over the
+       foot bar, keeps 8px more.) */
+    --bar-h: calc(env(safe-area-inset-top) + 56px);
     --dock-h: calc(env(safe-area-inset-bottom) + 70px);
     --bb: calc(var(--dock-h) + 10px);
   }
+  /* (A row, not a bar: the map shows between its buttons, and takes the presses there.) */
   #mapbar {
     top: calc(env(safe-area-inset-top) + 8px); left: max(8px, env(safe-area-inset-left)); right: max(8px, env(safe-area-inset-right));
-    height: 52px; gap: 2px; padding: 0 3px;
-    border-radius: 18px; box-shadow: var(--shadow);
+    height: 48px; gap: 8px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; pointer-events: none;
   }
-  /* 도시 상태, 시간 and the menu as the foot bar's tiles are, the icon over its name; undo and redo by their arrows. */
-  .mb-city { display: inline-flex; }
-  .mb-city-sep { display: block; }
-  #mapbar :is(.mb-city, #btn-time, #menu > summary) {
-    flex-direction: column; gap: 3px; width: auto; min-width: 46px; height: 44px; padding: 0 6px; border-radius: 13px;
+  #mapbar > * { pointer-events: auto; }
+  #btn-time, #mapbar .mb-city, #mapbar > #menu {
+    height: 48px; border: 1px solid var(--line); border-radius: 16px; background: var(--float-solid); box-shadow: var(--shadow); color: var(--text);
   }
-  #mapbar :is(.mb-city, #btn-time, #menu > summary) .i { width: 20px; height: 20px; }
-  #mapbar :is(.mb-label, .dock-label) { font-size: 11px; font-weight: 600; letter-spacing: -0.01em; line-height: 13px; }
-  #mapbar .mb-icon { width: 38px; height: 44px; border-radius: 13px; }
-  #mapbar .mb-icon .i { width: 20px; height: 20px; }
-  #mapbar .mb-sep { height: 26px; margin: 0 4px; }
-  /* The date by 도시 상태, the room after it (the clock's buttons at the bar's right end, by the thumb). */
-  #mapbar #sb-date { margin: 0 auto 0 4px; font-size: 14px; }
-  #mapbar #sb-date + .mb-sep { display: none; }
-  /* 도시 상태 lit while the city pane is up; while it is down, the count of what needs action by its icon. */
-  .mb-city.open { background: var(--accent-soft); color: var(--accent-hi); }
-  .mb-btn[data-alerts]::after { top: 1px; left: calc(50% + 5px); }
-  .mb-btn.unread::before { top: 4px; right: calc(50% - 17px); }
-  /* The count of urgent areas already says "look here": the unread dot beside it was a second red mark. */
-  :is(.dock-btn, .mb-btn).unread[data-alerts]::before { display: none; }
-  /* The menu, the bar's last (fitMapbar moves it here): its list drops from it at the bar's right edge. */
-  #mapbar > #menu {
-    position: relative; flex: none; padding: 0; border: 0; border-radius: 13px; background: none; box-shadow: none;
-    -webkit-backdrop-filter: none; backdrop-filter: none;
+  /* The clock: the speed now in its chip, the date over the speed's name and a picker's caret — pressed, it brings
+     down the four speeds to pick from (and changes nothing itself). */
+  #btn-time {
+    display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: 9px; align-content: center; justify-content: start;
+    padding: 0 14px 0 8px; font-weight: 650;
   }
-  #mapbar > #menu > .dropdown-menu { top: calc(100% + 9px); bottom: auto; left: auto; right: -4px; max-height: calc(100dvh - var(--bar-h) - var(--dock-h) - 16px); }
-  /* The view's card under the top bar, clear of 전체 보기. */
-  #view #mapbar #map-layer { left: -1px; right: 53px; width: auto; max-width: none; top: calc(100% + 8px); }
-
-  /* 시간: the speed now — one press stops it or goes on — and the four in a card under the bar at a finger's size. */
-  #btn-time { display: inline-flex; }
-  #btn-time .time-glyph { display: grid; place-items: center; }
-  /* (A picker's caret by its name: it says the speed, and brings down the four.) */
-  #time-label::after { content: ''; display: inline-block; margin-left: 2px; vertical-align: 1px; border: 3.5px solid transparent; border-top: 4px solid currentColor; border-bottom-width: 0; opacity: 0.7; }
-  #btn-time.stopped { background: var(--surface-2); color: var(--text); }
-  #btn-time.held { color: var(--accent-hi); }
-  .mb-time.open #btn-time { background: var(--accent-soft); color: var(--accent-hi); }
-  .mb-time { position: static; } /* (the card hangs from the bar's right end, not from the button) */
+  #btn-time .time-glyph { grid-row: 1 / 3; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-hi); }
+  #btn-time .time-glyph .i { width: 17px; height: 17px; }
+  #btn-time.stopped .time-glyph { background: var(--surface-2); color: var(--text); }
+  #btn-time.held .time-glyph { box-shadow: inset 0 0 0 1.5px var(--accent); }
+  #btn-time #sb-date { grid-column: 2; grid-row: 1; justify-self: start; font-size: 14px; line-height: 17px; }
+  #btn-time #time-label { grid-column: 2; grid-row: 2; justify-self: start; color: var(--muted); font-size: 11.5px; font-weight: 600; line-height: 14px; }
+  #btn-time.held #time-label { color: var(--accent-hi); }
+  #time-label::after { content: ''; display: inline-block; margin-left: 3px; vertical-align: 1px; border: 3.5px solid transparent; border-top: 4px solid currentColor; border-bottom-width: 0; opacity: 0.7; }
+  .mb-time.open #btn-time { background: var(--accent-soft); }
+  @media (hover: hover) { #btn-time:hover { background: var(--surface-2); } }
+  /* Its card under it, the four at a finger's size. */
   #mapbar .gear { display: none; }
   #mapbar .mb-time.open .gear {
-    display: grid; grid-template-columns: repeat(4, 66px); gap: 4px; position: absolute; z-index: 25; top: calc(100% + 8px); right: -1px;
+    display: grid; grid-template-columns: repeat(4, 66px); gap: 4px; position: absolute; z-index: 25; top: calc(100% + 8px); left: 0;
     padding: 6px; border-radius: 18px; background: var(--float-solid); border: 1px solid var(--line); box-shadow: var(--shadow);
     animation: drop-in 0.16s var(--ease);
   }
   #mapbar .mb-time.open .gear button { width: auto; height: 56px; flex-direction: column; gap: 4px; border-radius: 12px; }
   #mapbar .mb-time.open .gear button .i { width: 20px; height: 20px; }
   .speed-label { display: inline; font-size: 12px; font-weight: 600; }
+  /* 도시 상태 and the menu at the other end, as the foot bar's tiles are (the icon over its name). */
+  #mapbar .mb-city { display: inline-flex; flex-direction: column; gap: 3px; margin-left: auto; min-width: 64px; padding: 0 10px; }
+  #mapbar :is(.mb-city, #menu > summary) .i { width: 20px; height: 20px; }
+  #mapbar :is(.mb-label, .dock-label) { font-size: 11px; font-weight: 600; letter-spacing: -0.01em; line-height: 13px; }
+  /* 도시 상태 lit while the city pane is up; while it is down, the count of what needs action by its icon. */
+  #mapbar .mb-city.open { background: var(--accent-soft); color: var(--accent-hi); }
+  .mb-btn[data-alerts]::after { top: 3px; left: calc(50% + 5px); }
+  .mb-btn.unread::before { top: 6px; right: calc(50% - 17px); }
+  /* The count of urgent areas already says "look here": the unread dot beside it was a second red mark. */
+  :is(.dock-btn, .mb-btn).unread[data-alerts]::before { display: none; }
+  /* The menu, the row's last (fitMapbar moves it here): its list drops from it, level with its right edge. */
+  #mapbar > #menu { position: relative; flex: none; padding: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  #mapbar > #menu > summary { width: 54px; height: 100%; border-radius: 15px; color: inherit; }
+  #mapbar > #menu > .dropdown-menu { top: calc(100% + 8px); bottom: auto; left: auto; right: -1px; max-height: calc(100dvh - var(--bar-h) - var(--dock-h) - 16px); }
+  /* The view's card under the row, clear of 전체 보기. */
+  #view #mapbar #map-layer { left: 0; right: 54px; width: auto; max-width: none; top: calc(100% + 8px); }
 
   /* The building categories across the foot, each a tile sharing the bar's width (no 짓기 to open them: all of them,
      a press each). */
@@ -2678,6 +2683,22 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #tool-chip #tool-chip-close { width: 34px; height: 34px; }
   #view:has(#tool-chip:not([hidden])) #hint { bottom: calc(var(--bb) + 60px); }
   #view:has(#tray:not([hidden])) #hint { display: none; } /* (it peeked out under the card) */
+
+  /* A sheet up — the city pane or a goal's screen, the tools, a building's card, 지역 — the top buttons go off the
+     screen upward and the foot bar downward, and the sheet takes the room they had (its own × and back close it; the
+     tools' card heads itself with the build categories meanwhile). The view's card stays, up in their place. */
+  #mapbar > :not(#map-layer), #dock-col { transition: transform 0.24s var(--ease), opacity 0.24s var(--ease); }
+  :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) {
+    --bar-h: env(safe-area-inset-top);
+    --dock-h: env(safe-area-inset-bottom);
+  }
+  :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) :is(#mapbar > :not(#map-layer), #dock-col) {
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: transform 0.24s var(--ease), opacity 0.2s var(--ease), visibility 0s 0.24s;
+  }
+  :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) #mapbar > :not(#map-layer) { transform: translateY(calc(-100% - 16px - env(safe-area-inset-top))); }
+  :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) #dock-col { transform: translateY(calc(100% + 16px + env(safe-area-inset-bottom))); }
+  :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) #view #mapbar #map-layer { top: 0; }
 }
 /* Held upright, the city pane rising over the map puts the view's card away (its top peeked out above the pane) — not
    an area's screen, which leaves the map its upper half: its tab's view needs its key there (folded to its name). */
@@ -2689,13 +2710,10 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 @media (max-width: 639px) and (orientation: portrait) {
   #view.holding #mapbar #map-layer:has(#overlay-sum:not([hidden])) { width: auto; }
 }
-/* Wider than a phone held upright (a tablet; a phone sideways): both bars at their own width — the top one from the
-   left as wide, the foot one in the middle (spread over 768px its tiles read as strangers), its groups apart by a
-   hairline — and the view's card and the notices at a card's width. */
+/* Wider than a phone held upright (a tablet; a phone sideways): the foot bar at its own width in the middle (spread
+   over 768px its tiles read as strangers), its groups apart by a hairline, and the view's card and the notices at a
+   card's width. */
 @media (min-width: 640px) and (max-width: 860px), (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
-  #mapbar { right: auto; }
-  #mapbar #sb-date { margin-right: 0; }
-  #mapbar #sb-date + .mb-sep { display: block; }
   #dock-col { left: 50%; right: auto; translate: -50% 0; }
   #dock { flex: none; }
   .dock-btn { flex: none; width: 64px; }
@@ -2705,16 +2723,19 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   /* The tool's bar at its own width in the middle of the foot. */
   #tool-chip { left: 50%; right: auto; transform: translateX(-50%); max-width: min(720px, calc(100% - 16px)); animation-name: chip-in; }
 }
-/* Sideways, little height: both bars slimmer (their names beside their icons), and the side panels between them, so
-   neither covers their heads or feet. */
+/* Sideways, little height: the top buttons and the foot bar slimmer (names beside their icons, the clock on one
+   line), and the side panels between them, so neither covers their heads or feet. */
 @media (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
-  :root { --bar-h: calc(env(safe-area-inset-top) + 50px); --dock-h: calc(env(safe-area-inset-bottom) + 56px); }
-  #mapbar { top: calc(env(safe-area-inset-top) + 6px); height: 44px; border-radius: 15px; }
-  #mapbar :is(.mb-city, #btn-time, #menu > summary) { flex-direction: row; gap: 6px; height: 36px; padding: 0 10px; border-radius: 11px; }
-  #mapbar :is(.mb-city, #btn-time, #menu > summary) .i { width: 19px; height: 19px; }
+  :root { --bar-h: calc(env(safe-area-inset-top) + 48px); --dock-h: calc(env(safe-area-inset-bottom) + 56px); }
+  #mapbar { top: calc(env(safe-area-inset-top) + 6px); height: 42px; }
+  #btn-time, #mapbar .mb-city, #mapbar > #menu { height: 42px; border-radius: 14px; }
+  #btn-time { grid-template-columns: auto auto auto; grid-template-rows: auto; column-gap: 8px; }
+  #btn-time .time-glyph { grid-row: 1; width: 28px; height: 28px; }
+  #btn-time #time-label { grid-column: 3; grid-row: 1; font-size: 12.5px; }
+  #mapbar .mb-city { flex-direction: row; gap: 6px; padding: 0 12px; }
+  #mapbar > #menu > summary { width: auto; flex-direction: row; gap: 6px; padding: 0 12px; border-radius: 13px; }
+  #mapbar :is(.mb-city, #menu > summary) .i { width: 19px; height: 19px; }
   #mapbar :is(.mb-label, .dock-label) { font-size: 12.5px; }
-  #mapbar .mb-icon { width: 36px; height: 36px; border-radius: 11px; }
-  #mapbar .mb-sep { height: 20px; }
   .mb-btn[data-alerts]::after { top: 0; left: 20px; }
   #dock-col { bottom: calc(env(safe-area-inset-bottom) + 6px); }
   #dock { height: 50px; border-radius: 15px; }
@@ -2753,21 +2774,17 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   .dock-btn[data-alerts]::after { top: 1px; left: calc(50% + 4px); }
   .dock-btn.suggest::after { top: 4px; left: calc(50% + 6px); }
 }
-/* Narrower phones: the bars' tiles narrower, their names tighter. */
+/* Narrower phones: the tiles' names tighter. */
 @media (max-width: 389px) {
   .dock-label, #mapbar :is(.mb-label, .dock-label) { font-size: 10.5px; letter-spacing: -0.03em; }
-  #mapbar :is(.mb-city, #btn-time, #menu > summary) { min-width: 42px; padding: 0 4px; }
-  #mapbar .mb-icon { width: 35px; }
-  #mapbar .mb-sep { margin: 0 2px; }
+  #mapbar .mb-city { min-width: 58px; padding: 0 6px; }
+  #mapbar > #menu > summary { width: 48px; }
 }
 @media (max-width: 359px) {
   .dock-label, #mapbar :is(.mb-label, .dock-label) { font-size: 10px; letter-spacing: -0.04em; }
   /* (Each tile as wide as its name and a share of what is left: in equal shares 개발 구역 was cut to 개발….) */
   #dock-tools { gap: 0; }
   .dock-btn { flex: 1 1 auto; }
-  /* The date's year over its month (on one line it pushed the menu off the bar). */
-  #mapbar #sb-date { display: grid; justify-items: start; font-size: 13.5px; line-height: 1.15; }
-  #mapbar #sb-date .d-y { color: var(--muted); font-size: 10.5px; font-weight: 550; }
   #mapbar .mb-time.open .gear { grid-template-columns: repeat(4, 60px); }
 }
 
