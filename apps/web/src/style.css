@@ -1349,15 +1349,18 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .help-loop { grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .loop-step { grid-template-columns: 20px auto minmax(0, 1fr); align-items: center; column-gap: 10px; padding: 9px 12px; }
 }
-.key-groups { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 22px; align-items: start; }
+/* (In two columns that fill one after the other, not rows of pairs: 시간·저장's three keys beside 화면's seven left a
+   hole as tall as four of them.) */
+.key-groups { columns: 2; column-gap: 22px; }
+.key-group { break-inside: avoid; padding-bottom: 16px; }
 .key-group h4 { margin: 0 0 7px; color: var(--muted); font-size: 12px; font-weight: 650; }
 .key-list { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: 7px 10px; font-size: 13px; line-height: 1.4; }
 .key-list > span { display: contents; }
 .key-list kbd { justify-self: start; }
-.key-group.wide { grid-column: 1 / -1; }
+.key-group.wide { column-span: all; padding-bottom: 0; }
 .key-group.wide .key-list { grid-template-columns: repeat(3, max-content minmax(0, 1fr)); }
 @media (max-width: 560px) {
-  .key-groups { grid-template-columns: minmax(0, 1fr); }
+  .key-groups { columns: 1; }
   .key-group.wide .key-list { grid-template-columns: repeat(2, max-content minmax(0, 1fr)); }
 }
 .help-tips { display: grid; gap: 6px; }
@@ -2716,13 +2719,13 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #view.holding #mapbar #map-layer:has(#overlay-sum:not([hidden])) { width: auto; }
 }
 /* Wider than a phone held upright (a tablet; a phone sideways): the foot bar at its own width in the middle (spread
-   over 768px its tiles read as strangers), its groups apart by a hairline, and the view's card and the notices at a
-   card's width. */
+   over 768px its tiles read as strangers), its groups apart by a gap as the rail's are (no lines between them), and
+   the view's card and the notices at a card's width. */
 @media (min-width: 640px) and (max-width: 860px), (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
   #dock-col { left: 50%; right: auto; translate: -50% 0; }
   #dock { flex: none; }
   .dock-btn { flex: none; width: 64px; }
-  #dock-tools > .dock-sep { display: block; align-self: center; width: 1px; height: 30px; margin: 0 4px; background: var(--line-strong); }
+  #dock-tools > .dock-sep { display: block; width: 10px; height: auto; margin: 0; }
   #view #mapbar #map-layer { right: auto; width: 300px; }
   #toasts { right: auto; width: min(440px, calc(100% - 72px)); } /* (a card, not a banner across the map) */
   /* The tool's bar at its own width in the middle of the foot. */

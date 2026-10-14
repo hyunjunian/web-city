@@ -1082,7 +1082,9 @@ export function advice(): string {
     }
     const cat = [...cats].sort((a, b) => b[1] - a[1])[0]?.[0];
     const label = CATEGORIES.find((c) => c.id === cat)?.label;
-    toast(`새로 지을 수 있는 시설 ${counts.size}종: ${[...counts].map(([k, n]) => `${STRUCTURE_NAME[k]}${n > 1 ? ` ${n}곳` : ''}`).join(', ')}`, 'good', undefined,
+    // (Three named and the rest counted: ten names made a five-line toast over a phone's map.)
+    const names = [...counts].map(([k, n]) => `${STRUCTURE_NAME[k]}${n > 1 ? ` ${n}곳` : ''}`);
+    toast(`새로 지을 수 있는 시설 ${counts.size}종: ${names.length > 4 ? `${names.slice(0, 3).join(', ')} 외 ${names.length - 3}종` : names.join(', ')}`, 'good', undefined,
       cat ? () => {
         closeSheet();
         openTray(cat);

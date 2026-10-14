@@ -325,6 +325,7 @@ function toolPrice(t: Tool): string {
       return per(ec.zoningCost[density]);
     }
     case 'terraform': return per(t.to === 'raise' || t.to === 'lower' ? cfg.terrain.terraform.cost : cfg.disasters.terraformCost);
+    case 'level': return per(cfg.disasters.levelCost);
     case 'trees': return `§${fmt(cfg.flora.saplingCost)}/그루`;
     case 'toll': return `§${fmt(cfg.transport.toll.cost)}`;
     case 'cloverleaf': return `§${fmt(cfg.transport.cloverleaf.cost)}`;
