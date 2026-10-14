@@ -7,7 +7,7 @@
 import { placeAt } from './input';
 import { DEV_TYPES, type DevType, Net, NETWORK_KINDS, ORDINANCES, POWER_DISPATCHES, STRUCTURES, type HistoryPoint, type OrdinanceId, type PowerDispatch, type RepairDepartment, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
 import { icon } from './icons';
-import { chooseSpeed, markCity, refreshTaxes, showOverlay, viewEmpty, viewName } from './controls';
+import { chooseSpeed, markCity, refreshTaxes, resumeAfterBuilding, setSpeed, showOverlay, speedChosen, viewEmpty, viewName } from './controls';
 import { redrawInfo, refreshInfo, riotNear, showInfo } from './info';
 import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -429,7 +429,14 @@ export function layZone(kind: ZoneKind, x0: number, y0: number, x1: number, y1: 
   city.refreshIfDirty();
   placedMonth.set(kind, Math.floor(city.state.day / 30));
   noteAction(`${name} ${x1 - x0 + 1}×${y1 - y0 + 1} · −§${fmt(res.cost)}`);
-  flash(`${name} ${x1 - x0 + 1}×${y1 - y0 + 1}칸을 놓았습니다 · −§${fmt(res.cost)}`, 'info');
+  // A new city's clock starts with its first zone, laid with a press as with a drag (the quick start left it at
+  // 1월, stopped): at once, or when the building tool in hand goes down. (Not when the player stopped it.)
+  const starts = kind !== 'landfill' && speed === 0 && city.state.day === 0 && !speedChosen;
+  if (starts) {
+    if (tool.kind === 'query') setSpeed(1);
+    else resumeAfterBuilding(1);
+  }
+  flash(`${name} ${x1 - x0 + 1}×${y1 - y0 + 1}칸을 놓았습니다 · −§${fmt(res.cost)}${starts ? ` · ${tool.kind === 'query' ? '시간이 흐르기 시작합니다' : '도구를 내려놓으면 시간이 흐릅니다'}` : ''}`, 'info');
   renderer.effect('flash', x0, y0, x1 - x0 + 1, y1 - y0 + 1);
   centerOn(x0 + ((x1 - x0) >> 1), y0 + ((y1 - y0) >> 1), 8);
   redraw();

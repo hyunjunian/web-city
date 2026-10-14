@@ -130,10 +130,13 @@ export function renderOnboarding(): void {
   // whole list to come back over the city at 12/13.
   if (done === steps.length) doneLineage = cityLineage;
   el.hidden = dismissed || done === steps.length || doneLineage === cityLineage;
-  // On a town not yet founded, the first step's tool: the dock dots its category (where to start, on the map's side too).
-  const first = steps.find(([ok]) => !ok)?.[2];
+  // While the list shows, its first step to do (in the order it lists them) with a tool: the dock dots that tool's
+  // category, where to go on, on the map's side too. (Only before the first road had it: after that the goal
+  // screens' next step had the dot, 에너지, beside a list saying 상업·산업 구역 next.) A step done on a screen
+  // (전기, 물…) leaves the dot to the screens.
+  const first = (steps.find(([ok, , , last]) => !ok && !last) ?? steps.find(([ok]) => !ok))?.[2];
   const was = firstStepTool;
-  firstStepTool = !el.hidden && !city.established() && first && !first.includes(':') ? first : null;
+  firstStepTool = !el.hidden && first && !first.includes(':') ? first : null;
   if (firstStepTool !== was) markSuggested();
   // Before anyone lives here the gauges all read 0: the checklist leads the pane instead.
   $('#pane').classList.toggle('fresh', st.population === 0);
