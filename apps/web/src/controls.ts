@@ -293,6 +293,25 @@ function markClock(): void {
   btn.classList.toggle('stopped', i === 0);
   btn.classList.toggle('held', held);
   btn.title = `날짜·속도: ${held ? '짓는 동안 잠시 멈춤' : i === 0 ? '멈춤' : speedName(i)} · 눌러서 속도 고르기`;
+  markPaneClock();
+}
+
+/** A phone's clock in the city pane's head (the top buttons are away under it): the month and the speed; pressed, it
+ *  stops the clock or lets it go on (as Space does) — the speeds are picked from the top button. */
+export function markPaneClock(): void {
+  const el = document.getElementById('pane-clock');
+  if (!el || !city) return;
+  const i = Math.max(0, Math.min(SPEEDS.length - 1, speed));
+  const held = heldSpeed !== null;
+  const now = held ? '잠시 멈춤' : i === 0 ? '멈춤' : speedName(i);
+  const m = Math.floor(city.state.day / 30); // (the engine's months: 30 days, from 2000년 1월)
+  const [year, month] = [2000 + Math.floor(m / 12), (m % 12) + 1];
+  const html = `${icon(SPEEDS[i]!.icon)}${month}월 · ${now}`;
+  if (el.innerHTML !== html) el.innerHTML = html;
+  el.classList.toggle('stopped', i === 0);
+  const label = `시간: ${year}년 ${month}월, ${now} · 눌러서 ${i === 0 ? `계속 (${speedName(runningSpeed || 1)})` : '멈추기'} — 속도는 화면 위 날짜·속도 버튼에서`;
+  el.title = label;
+  el.setAttribute('aria-label', label);
 }
 
 /** A phone's card of the four speeds, under the clock button: open (closed by a pick, a press elsewhere or on the
@@ -319,6 +338,8 @@ export function setupClock(): void {
   // A press brings down the four speeds to pick from, and changes nothing itself (a press that also stopped the clock
   // changed the speed before one was chosen); pressed again, they go.
   btn.onclick = (e) => openClock(!document.querySelector('.mb-time.open'), e.detail === 0);
+  const inPane = document.getElementById('pane-clock');
+  if (inPane) inPane.onclick = () => chooseSpeed(speed > 0 ? 0 : runningSpeed || 1);
   document.addEventListener('pointerdown', (e) => {
     if (!(e.target as Element).closest?.('.mb-time')) closeClock();
   });

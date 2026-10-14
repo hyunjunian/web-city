@@ -26,6 +26,9 @@
       <!-- City pane: like a car's instrument view — the numbers that matter, at a glance. -->
       <aside id="pane" aria-label="도시 현황">
         <div class="pane-grip" aria-hidden="true"></div>
+        <!-- A phone's clock while the top buttons are away under the pane: the month and the speed; pressed, it stops
+             or goes on (the speeds are picked from the top button). -->
+        <button type="button" id="pane-clock" class="pane-clock"></button>
         <button id="pane-close" class="icon-btn pane-close" aria-label="도시 현황 닫기"><span data-icon="close"></span></button>
         <!-- Where this city is: its region (pressed, the region and neighbours), then the city (pressed, renamed). -->
         <nav id="crumbs" class="crumbs" aria-label="지역과 도시">

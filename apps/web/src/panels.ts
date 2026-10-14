@@ -2,7 +2,7 @@
 
 import { DEV_TYPES, type DevType, GROWTH_CODES, STRUCTURES, ZONES, type PollTopic, type StructureKind } from '@web-city/engine';
 import { icon } from './icons';
-import { chooseSpeed, refreshTaxes, refreshViewSummary } from './controls';
+import { chooseSpeed, markPaneClock, refreshTaxes, refreshViewSummary } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
 import { adviceFor, capped as atCap, deptEmpty, deptFunded, freshLandfill, newReadings, readStats, stormHolds } from './readings';
 import { active, autoPause, markToolSite, openGoal, openViewTab, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
@@ -402,6 +402,7 @@ export function updatePanels(): void {
     dateEl.classList.remove('turned');
     void dateEl.offsetWidth;
     dateEl.classList.add('turned');
+    markPaneClock(); // (a phone's clock in the pane says the month too)
   }
   dateEl.style.setProperty('--month-pct', `${((city.state.day % 30) / 30) * 100}%`);
   // (Not in a phone's clock button, which has its own: a second tooltip came up over it with a mouse.)
