@@ -1,9 +1,10 @@
 // What sits beside and over the map besides tools: the city pane on the left (the
-// city's state, 재정·정책, each goal's screen with its statistics), the sheets (주민 from
-// the controls' bar, 지역 from the pane's head), the info card (what the query tool found) and, on small
+// city's state, 재정·정책, each goal's screen with its statistics — always beside the map on a wide screen), the sheet
+// (지역, from the pane's head and the menu), the info card (what the query tool found) and, on small
 // screens, the pane as a bottom sheet. Esc closes the topmost.
+// (주민 — My Sim, 직접 운전 — is not on the web screen for now: its sheet type stays for its unwired modules.)
 
-import { markCity, toggleFocus } from './controls';
+import { markCity } from './controls';
 import { closeGoal, openFinance, paneClosed } from './manage';
 import { redraw, renderer, setSelected } from './state';
 import { closeTray } from './tools';
@@ -13,7 +14,7 @@ import { $, flash } from './util';
 
 /** 'budget': the pane's 재정·정책 (taxes, budgets, loans, ordinances and the books). */
 export type Tab = 'city' | 'info' | 'budget' | SheetTab;
-/** The sheets: 주민 (My Sim, U-Drive-It; the controls' bar) and 지역 (neighbours, deals; the pane's head). */
+/** The sheets: 지역 (neighbours, deals; the pane's head, the menu) — and 주민 (My Sim, U-Drive-It), off the screen for now. */
 export type SheetTab = 'sims' | 'region';
 
 const SHEET_TITLE: Record<SheetTab, string> = { sims: '주민', region: '지역' };
@@ -24,8 +25,8 @@ let sheetTab: SheetTab | null = null;
 /** Phones: the city pane and a sheet are both bottom sheets, one at a time. */
 const phone = () => matchMedia('(max-width: 860px)').matches;
 
-/** Whether the city pane is in sight (always beside the map on wide screens, unless the map has the whole window). */
-export const paneShown = () => (phone() ? $('#app').classList.contains('pane-open') : !$('#app').classList.contains('focus'));
+/** Whether the city pane is in sight (always beside the map on wide screens). */
+export const paneShown = () => (phone() ? $('#app').classList.contains('pane-open') : true);
 
 /** Whether this sheet is on screen now (the panels skip rendering hidden ones). */
 export function sheetShown(tab: SheetTab): boolean {
@@ -69,13 +70,13 @@ export function closeSheet(): boolean {
   const was = sheetTab;
   sheetTab = null;
   $('#sheet').hidden = true;
-  // Back to the button that opened it, if it is in sight (주민 may be in the menu on a narrow bar, 지역 in a closed
-  // or busy pane): else the menu's.
+  // Back to the button that opened it, if it is in sight (지역 in a closed or busy pane, or the menu's line while it
+  // is shut): else the menu's.
   if (hadFocus) {
     // (checkVisibility also rules out the menu's lines while it is shut.)
     const seen = (b: HTMLElement) => (b.checkVisibility ? b.checkVisibility({ checkVisibilityCSS: true }) : !!b.offsetParent && getComputedStyle(b).visibility !== 'hidden');
     const shown = [...document.querySelectorAll<HTMLElement>(`[data-sheet-btn="${was}"]`)].find(seen);
-    (shown ?? document.querySelector<HTMLElement>('#dock .dropdown > summary'))?.focus();
+    (shown ?? document.querySelector<HTMLElement>('#menu > summary'))?.focus();
   }
   $('#view').classList.remove('sheet-open');
   markOpen();
@@ -117,7 +118,7 @@ export function openPane(): void {
   // (It rises at its head — the region › city, the stage — not wherever it was last left scrolled.)
   if (!was && phone() && !$('#pane').classList.contains('managing')) $('#pane').scrollTop = 0;
   $('#app').classList.add('pane-open');
-  document.querySelector('.dock-city')?.classList.remove('unread');
+  document.querySelector('.mb-city')?.classList.remove('unread');
   markOpen();
   if (!was) document.dispatchEvent(new CustomEvent('sheet-open'));
 }
@@ -148,6 +149,7 @@ export function closeTopLayer(): boolean {
 /** The buttons for the pane and the sheets light up while theirs is open. */
 function markOpen(): void {
   const pane = $('#app').classList.contains('pane-open');
+  // (The tool in hand's tile is not lit as well meanwhile: the open card is what is on.)
   $('#dock').classList.toggle('sheet-open', !!sheetTab || (phone() && pane));
   markCity();
   document.querySelectorAll<HTMLButtonElement>('[data-sheet-btn]').forEach((b) => {
@@ -157,7 +159,7 @@ function markOpen(): void {
   });
 }
 
-/** Opens a sheet, or closes it when it is the one open (주민 on the controls' bar, 지역 at the pane's head; U, J). */
+/** Opens a sheet, or closes it when it is the one open (지역: the pane's head, the menu; J). */
 export function toggleSheet(tab: SheetTab): void {
   if (sheetTab === tab) closeSheet();
   else openSheet(tab);
@@ -174,16 +176,10 @@ export function setupTabs(): void {
     watch.observe(pane);
     for (const part of pane.children) watch.observe(part);
   }
-  // The bar's 도시: wide, it puts the pane away (the map alone, F) and brings it back; on a phone it opens the pane's
-  // sheet on its overview, and again, the sheet goes.
-  const city = document.querySelector<HTMLButtonElement>('#dock [data-app="city"]');
+  // A phone's 도시 상태 (the top bar's first): it opens the pane's sheet on its overview, and again, the sheet goes.
+  // (Wide, the pane is always beside the map: the button isn't shown.)
+  const city = document.querySelector<HTMLButtonElement>('#mapbar [data-app="city"]');
   if (city) city.onclick = () => {
-    if (!phone()) {
-      const back = $('#app').classList.contains('focus');
-      toggleFocus();
-      if (back) $('#city-title').focus({ preventScroll: true }); // (the keyboard lands at the pane's head)
-      return;
-    }
     if (!closePane()) {
       closeGoal();
       openPane();
@@ -192,7 +188,7 @@ export function setupTabs(): void {
   document.querySelectorAll<HTMLButtonElement>('[data-sheet-btn]').forEach((b) => (b.onclick = () => toggleSheet(b.dataset.sheetBtn as SheetTab)));
   $('#sheet-close').onclick = closeSheet;
   // Tab keeps to the sheet while it is open, round from its last control to its ×: it ran on into the page behind,
-  // and Esc then closed it with the keyboard left there (on the city's name), not back on 주민.
+  // and Esc then closed it with the keyboard left there (on the city's name), not back where it was opened.
   $('#sheet').addEventListener('keydown', (e) => {
     if (e.key !== 'Tab' || e.altKey || e.ctrlKey || e.metaKey) return;
     const all = [...$('#sheet').querySelectorAll<HTMLElement>('button, a[href], input, select, textarea, summary, [tabindex]:not([tabindex="-1"])')]

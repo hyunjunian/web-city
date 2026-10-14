@@ -60,9 +60,8 @@ const MAC = /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgen
  *  console's Ctrl+Shift+X, which is the Control key there too.) */
 export const keyLabel = (k: string): string => (MAC ? k.replace('Ctrl+Shift+', '⇧⌘').replace('Ctrl+', '⌘') : k);
 
-/** How a notice says to take something back: Ctrl+Z, or on a touch screen the controls' bar's ↶ (down the left; on a
- *  phone across the foot). */
-export const undoHint = (): string => (touchFirst() ? `${matchMedia('(max-width: 860px)').matches ? '아래' : '왼쪽'} 막대의 ↶로 되돌리기` : `${keyLabel('Ctrl+Z')}로 되돌리기`);
+/** How a notice says to take something back: Ctrl+Z, or on a touch screen the top bar's ↶. */
+export const undoHint = (): string => (touchFirst() ? '위 막대의 ↶로 되돌리기' : `${keyLabel('Ctrl+Z')}로 되돌리기`);
 
 /** Ends a flash message now (another tool's hints take the bar). */
 export function endFlash(): void {
@@ -228,8 +227,8 @@ export const firstSentence = (t: string) => /^.*?[.!?](?=\s|$)/.exec(t)?.[0] ?? 
  */
 export const glue = (t: string) => t.replace(/\)(?=[가-힣])/g, ')\u2060').replace(/([가-힣\d%])(?=\()/g, '$1\u2060').replace(/([가-힣])·(?=[가-힣])/g, '$1\u2060·\u2060');
 
-/** Said when the clock was stopped for something (a toast's tail). */
-export const stoppedNote = () => ` · 멈춤 (${touchFirst() ? '▶로 계속' : 'Space로 계속'})`;
+/** Said when the clock was stopped for something (a toast's tail): a phone's 시간 says 멈춤 then, not ▶. */
+export const stoppedNote = () => ` · 멈춤 (${!touchFirst() ? 'Space로 계속' : matchMedia('(max-width: 860px)').matches ? '시간을 눌러 계속' : '▶로 계속'})`;
 
 /** A path tile by tile as its straight runs, end to end (a line or road tool lays one run at a time). */
 export function straightRuns(path: readonly [number, number][]): [number, number, number, number][] {

@@ -225,5 +225,5 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
     if (e.pointerType === 'mouse' && !sticky) wait(2500);
   };
   // Small screens: a dot on the dock's 도시 button until the city pane is opened.
-  if (unread && !paneShown()) document.querySelector('.dock-city')?.classList.add('unread'); // (wide, the pane is shown unless the map is alone)
+  if (unread && !paneShown()) document.querySelector('.mb-city')?.classList.add('unread'); // (a phone's 도시 상태, its sheet down: wide, the pane is always shown)
 }

@@ -7,7 +7,7 @@
 import { placeAt } from './input';
 import { DEV_TYPES, type DevType, Net, NETWORK_KINDS, ORDINANCES, POWER_DISPATCHES, STRUCTURES, type HistoryPoint, type OrdinanceId, type PowerDispatch, type RepairDepartment, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
 import { icon } from './icons';
-import { chooseSpeed, markCity, refreshTaxes, showOverlay, toggleFocus, viewEmpty, viewName } from './controls';
+import { chooseSpeed, markCity, refreshTaxes, showOverlay, viewEmpty, viewName } from './controls';
 import { redrawInfo, refreshInfo, riotNear, showInfo } from './info';
 import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -26,15 +26,15 @@ import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, 
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
-/** Phones: the list is behind the 도시 button, which carries the count of goals needing action (the mayor's rating
- *  counts with them, as in 도시 상태's 급한 일: a goal's screen redrawing it left the rating out). */
+/** Phones: the list is behind the top bar's 도시 상태, which carries the count of goals needing action (the mayor's
+ *  rating counts with them, as in 도시 상태's 급한 일: a goal's screen redrawing it left the rating out). */
 function refreshBadge(bad = GOAL_ORDER.filter((id) => goalStatus(id).tone === 'bad').length + (ratingTone(readStats().mayorRating) === 'bad' ? 1 : 0)): void {
-  const dock = document.querySelector<HTMLElement>('.dock-city');
+  const dock = document.querySelector<HTMLElement>('.mb-city');
   if (!dock) return;
   if (bad) dock.dataset.alerts = String(bad);
   else delete dock.dataset.alerts;
   // (The count is drawn by CSS: the button's name carries it for screen readers, its title for a pointer.)
-  dock.setAttribute('aria-label', bad ? `도시 현황, 조치 필요 ${bad}` : '도시 현황');
+  dock.setAttribute('aria-label', bad ? `도시 상태, 조치 필요 ${bad}` : '도시 상태');
   markCity();
 }
 
@@ -3192,7 +3192,7 @@ export function setupGoals(): void {
   });
   // The map's chip: back to the goal's panel, or out of it.
   // (Map-only on a wide screen: the pane comes back by leaving that view.)
-  $('#manage-chip-label').onclick = () => ($('#app').classList.contains('focus') && !phone() ? toggleFocus() : openPane());
+  $('#manage-chip-label').onclick = () => openPane();
   $('#manage-chip-close').onclick = () => closeGoal();
 }
 

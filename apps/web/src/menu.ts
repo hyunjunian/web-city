@@ -15,7 +15,7 @@ import { choice } from './undo';
 
 export function setupMenu(): void {
   // The 도시 menu closes once an item is picked, or on a click elsewhere.
-  const dropdown = document.querySelector<HTMLDetailsElement>('.dropdown')!;
+  const dropdown = document.querySelector<HTMLDetailsElement>('#menu')!;
   dropdown.querySelector('.dropdown-menu')!.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('button')) dropdown.open = false;
   });
@@ -24,21 +24,25 @@ export function setupMenu(): void {
     if (!dropdown.open) return;
     const m = lastAutosave + 6;
     $('#autosave-note').textContent = `다음 자동 저장: ${2000 + Math.floor(m / 12)}년 ${(m % 12) + 1}월 (탭을\u00a0떠날\u00a0때도\u00a0저장)`;
-    // It rises from its button (the bar's foot, wide or on a phone): no taller than the room up to the top bar's foot
-    // — the date's card beside the bar, a phone's top bar — scrolling the rest (on a short window its first lines were
-    // off the top, then over the date).
+    // No taller than the room it has, scrolling the rest (on a short window its first lines were off the top, then over
+    // the date): on a phone, down from the top bar's end to the building bar's head; wide, out from its button's side
+    // under the building bar, its foot level with the button — or, taller than the room above it, from the top bar's
+    // foot down (up from the button it was cut to half its lines, with the window's lower half empty).
     const menu = dropdown.querySelector<HTMLElement>('.dropdown-menu')!;
-    menu.style.maxHeight = '';
-    // (A bar that scrolls — a window lower than its least — would cut a menu inside it off: it stands outside then,
-    // by its button.)
-    const dock = $('#dock');
-    if (dock.classList.contains('scrolls')) {
-      const at = dropdown.querySelector('summary')!.getBoundingClientRect();
-      Object.assign(menu.style, { position: 'fixed', left: `${dock.getBoundingClientRect().right + 12}px`, bottom: `${Math.max(8, innerHeight - at.bottom - 4)}px`, top: 'auto' });
-    } else for (const k of ['position', 'left', 'bottom', 'top'] as const) menu.style[k] = '';
+    menu.style.maxHeight = menu.style.top = menu.style.bottom = '';
     const r = menu.getBoundingClientRect();
-    const roof = $('#mapbar').getBoundingClientRect().bottom + 8;
-    if (r.top < roof) menu.style.maxHeight = `${Math.max(160, r.bottom - roof)}px`;
+    if (dropdown.closest('#mapbar')) {
+      const floor = $('#dock').getBoundingClientRect().top - 8;
+      if (r.bottom > floor) menu.style.maxHeight = `${Math.max(160, floor - r.top)}px`;
+    } else {
+      const roof = $('#mapbar').getBoundingClientRect().bottom + 8;
+      const floor = $('#view').getBoundingClientRect().bottom - 14;
+      if (r.top < roof) {
+        menu.style.top = `${roof - dropdown.getBoundingClientRect().top}px`;
+        menu.style.bottom = 'auto';
+        if (roof + r.height > floor) menu.style.maxHeight = `${Math.max(160, floor - roof)}px`;
+      }
+    }
   });
   document.addEventListener('pointerdown', (e) => {
     if (dropdown.open && !dropdown.contains(e.target as Node)) dropdown.open = false;

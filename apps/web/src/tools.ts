@@ -35,8 +35,8 @@ export const CATEGORIES = [
   { id: 'inspect', label: '살펴보기', icon: 'search' },
   { id: 'bulldoze', label: '철거', icon: 'eraser' },
   { id: 'transport', label: '교통', icon: 'road', short: '교통' },
-  { id: 'zones', label: '구역', icon: 'zones', short: '구역' },
-  { id: 'utilities', label: '공공시설', icon: 'zap', short: '공공시설' },
+  { id: 'zones', label: '개발 구역', icon: 'zones', short: '개발 구역' },
+  { id: 'utilities', label: '에너지', icon: 'zap', short: '에너지' },
   { id: 'services', label: '시민 서비스', icon: 'civic', short: '서비스' },
   { id: 'special', label: '보상·거래', icon: 'award', short: '보상' },
   { id: 'terrain', label: '지형·재해', icon: 'terrain', short: '지형' },
@@ -44,7 +44,7 @@ export const CATEGORIES = [
 
 export type CategoryId = (typeof CATEGORIES)[number]['id'];
 
-/** The categories that build (phones gather them behind one 짓기 button). */
+/** The categories that build (a window too low for them all gathers them behind one 짓기 button). */
 const BUILD_CATS: CategoryId[] = ['transport', 'zones', 'utilities', 'services', 'special', 'terrain'];
 
 export const TOOL_GROUPS: { title: string; cat: CategoryId; tools: Tool[] }[] = [
@@ -352,8 +352,8 @@ export function buildTools(): void {
   // (Not 살펴보기: with nothing in hand the map looks by itself.)
   dock.innerHTML = CATEGORIES.filter((c) => c.id !== 'inspect').map((c) => (SEP_BEFORE.includes(c.id) ? '<span class="dock-sep" aria-hidden="true"></span>' : '')
     + catButton(c, `dock-btn${BUILD_CATS.includes(c.id) ? ' dock-build-cat' : ''}`, 'short' in c ? c.short : c.label)).join('')
-    + `<button class="dock-btn dock-build" data-cat="build" aria-expanded="false" aria-controls="tray" title="짓기: 교통·구역·공공시설·서비스·보상·지형">${icon('hammer')}<span class="dock-label">짓기</span></button>`;
-  // Phones: the build categories as a row at the top of the tray.
+    + `<button class="dock-btn dock-build" data-cat="build" aria-expanded="false" aria-controls="tray" title="짓기: ${BUILD_CATS.map((id) => CATEGORIES.find((c) => c.id === id)!.label).join('·')}">${icon('hammer')}<span class="dock-label">짓기</span></button>`;
+  // A window too low for them all: the build categories as a row at the top of the tray.
   $('#tray-cats').innerHTML = BUILD_CATS.map((id) => {
     const c = CATEGORIES.find((x) => x.id === id)!;
     return catButton(c, 'tray-cat', 'short' in c ? c.short : c.label);
@@ -1108,14 +1108,13 @@ const SCREEN_WORDS: Record<GoalId, string> = {
   environment: '오염 공기 대기 수질 공원 쾌적도 시장평점 여론', wealth: '부유층 고급 땅값 보상 랜드마크',
 };
 
-/** The screens the box finds besides tools: each goal's, the sheets (주민, 지역), and the help. */
+/** The screens the box finds besides tools: each goal's, 지역, and the help. (Not 주민: off the web screen for now.) */
 function screens(): Found[] {
   const out: Found[] = GOAL_ORDER.map((id) => ({
     key: `screen:${id}`, name: GOALS[id].name, where: '관리 화면', glyph: icon(GOALS[id].icon), sub: '', locked: '',
     words: SCREEN_WORDS[id], pick: () => openGoal(id),
   }));
   out.push(
-    { key: 'screen:sims', name: '주민', where: '화면 (U)', glyph: icon('users'), sub: '', locked: '', words: 'My Sim 마이심 직접운전 U-Drive-It 따라가기', pick: () => showTab('sims') },
     { key: 'screen:region', name: '지역', where: '화면 (J)', glyph: icon('globe'), sub: '', locked: '', words: '이웃 도시 거래 사고팔기 심네이션', pick: () => showTab('region') },
     { key: 'screen:help', name: '조작법', where: '도움말 (?)', glyph: icon('help'), sub: '', locked: '', words: '도움말 단축키 키보드 사용법', pick: () => showHelp() },
   );

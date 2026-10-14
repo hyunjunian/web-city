@@ -102,7 +102,7 @@ export function renderOnboarding(): void {
     // The first residents, then the town to a thousand (where the services start to be worth their upkeep), with more
     // homes once those there are all built.
     st.population === 0
-      ? [false, zoned(homeZone) && city.state.day > 60 ? '첫 주민 입주 · 안 들어오면 개발 막힘 보기로 원인 확인' : `첫 주민 입주 (시간이 멈춰 있으면 ${matchMedia('(max-width: 860px)').matches ? '아래 막대의 시간을 누르세요' : matchMedia('(pointer: coarse) and (hover: none)').matches ? '왼쪽 막대의 시간을 누르세요' : '왼쪽 막대의 ▶'})`, zoned(homeZone) ? 'view:growth' : null]
+      ? [false, zoned(homeZone) && city.state.day > 60 ? '첫 주민 입주 · 안 들어오면 개발 막힘 보기로 원인 확인' : `첫 주민 입주 (시간이 멈춰 있으면 ${matchMedia('(max-width: 860px)').matches ? '위 막대의 시간을 누르세요' : '위 막대의 ▶'})`, zoned(homeZone) ? 'view:growth' : null]
       : [st.population >= 1000, `주민 1,000명 (지금 ${fmt(st.population)}명)${homesFull ? ' · 주거 구역이 다 찼습니다: 더 칠하면 늘어납니다' : ''}`, homesFull ? 'R-low' : 'view:growth'],
     // Spending runs ahead of a young town's taxes: the step that keeps the books in the black.
     // (Always listed, so the count doesn't change under the player; ticked by a month in the black.)
@@ -174,7 +174,7 @@ export function renderOnboarding(): void {
     + (station ? `s${station.kind}${station.at.join(',')}` : '') + (tower ? `t${tower.kind}${tower.at.join(',')}` : '') + (fill ? `l${fill.x0},${fill.y0},${fill.side}${fillSpan(fill.months)}` : '');
   if (el.dataset.sig === sig) return;
   // Phones: the checklist sits in the city pane, so its dock button gets a dot until opened.
-  if (!el.dataset.sig && !paneShown()) document.querySelector('.dock-city')?.classList.add('unread');
+  if (!el.dataset.sig && !paneShown()) document.querySelector('.mb-city')?.classList.add('unread');
   el.dataset.sig = sig;
   // The next three steps; the rest fold away (the whole list pushed the RCI meter off the pane). One that waits on growth
   // goes last.

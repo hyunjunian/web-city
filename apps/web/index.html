@@ -76,35 +76,18 @@
         <canvas id="map" tabindex="0" role="application" aria-label="도시 지도" aria-describedby="map-keys"></canvas>
         <p id="map-keys" class="sr-only">방향키로 지도를 옮기고, 도구를 든 채 Enter로 커서 자리에 짓습니다. S는 추천 자리로, 0에서 3은 속도, Space는 멈춤과 이어 하기, 물음표는 조작법입니다.</p>
 
-        <!-- The map's controls, in one bar down its left (on a phone, across its foot), by what they do: the city's
-             panels (the pane, 주민); time and undo; building (removing, the build categories, rewards and the land); the
-             menu. (First in the map's parts, so Tab reaches it before the date.) -->
-        <nav id="dock" class="floating" aria-label="도구">
-          <button class="dock-btn dock-city" data-app="city" aria-label="도시 현황" aria-pressed="true" title="도시 현황"><span data-icon="gauge"></span><span class="dock-label">도시</span></button>
-          <button id="btn-sims" class="dock-btn" data-sheet-btn="sims" title="주민: My Sim · 직접 운전 (U)" aria-pressed="false"><span data-icon="users"></span><span class="dock-label">주민</span></button>
-          <span class="dock-sep" aria-hidden="true"></span>
-          <div class="dock-group dock-clock" role="group" aria-label="시간·되돌리기">
-            <span class="dock-cap" aria-hidden="true">시간</span>
-            <!-- The speeds in a square (a touch screen's in a card from the 시간 button, which says the speed and stops
-                 or starts the clock). -->
-            <div class="dock-time">
-              <button type="button" id="btn-time" class="dock-btn" aria-expanded="false" aria-controls="speed" title="시간: 속도 고르기"><span class="time-glyph"></span><span class="dock-label" id="time-label">시간</span></button>
-              <div id="speed" class="gear dock-speed" role="radiogroup" aria-label="시뮬레이션 속도"></div>
-            </div>
-            <div class="dock-pair">
-              <button id="btn-undo" class="dock-btn dock-mini" title="되돌리기 (Ctrl+Z)" aria-label="되돌리기" disabled><span data-icon="undo"></span><span class="dock-label">되돌리기</span></button>
-              <button id="btn-redo" class="dock-btn dock-mini" title="다시 하기 (Ctrl+Shift+Z)" aria-label="다시 하기" disabled><span data-icon="redo"></span><span class="dock-label">다시 하기</span></button>
-            </div>
-          </div>
-          <span class="dock-sep" aria-hidden="true"></span>
-          <span class="dock-cap" aria-hidden="true">짓기</span>
-          <div id="dock-tools" role="toolbar" aria-label="짓기" aria-orientation="vertical"></div>
-          <span class="dock-sep" aria-hidden="true"></span>
-          <!-- The menu: the city's files, the region, help and the screen's settings. -->
-          <details class="dropdown">
+        <!-- The map's bars. Down its left (on a phone, across its foot) the building tools alone, and under them the menu,
+             a button of its own; along its top the date, time and undo (on a phone also 도시 상태 and the menu). (First in
+             the map's parts, so Tab reaches building before the date.) -->
+        <div id="dock-col">
+          <nav id="dock" class="floating" aria-label="짓기">
+            <div id="dock-tools" role="toolbar" aria-label="짓기" aria-orientation="vertical"></div>
+          </nav>
+          <!-- The menu: the city's files, the region, help and the screen's settings — a button of its own under the
+               bar (on a phone, at the top bar's end: fitMapbar moves it). -->
+          <details class="dropdown floating" id="menu">
             <summary class="dock-btn" title="메뉴: 저장 · 불러오기 · 지역 · 조작법 · 테마" aria-label="메뉴"><span data-icon="more"></span><span class="dock-label">메뉴</span></summary>
             <div class="dropdown-menu">
-              <button class="menu-phone" data-sheet-btn="sims" title="My Sim · 직접 운전 (U)"><span data-icon="users"></span>주민</button>
               <button data-sheet-btn="region" title="이웃 도시·거래 (J)"><span data-icon="globe"></span>지역</button>
               <hr />
               <button id="btn-new"><span data-icon="filePlus"></span>새 도시…</button>
@@ -124,19 +107,29 @@
               <p id="autosave-note" class="menu-note"></p>
             </div>
           </details>
-        </nav>
+        </div>
 
-        <!-- The map's top bar: the date and the weather (what the city's clock and sky say; the controls are in the bar
-             down the left). The map view's card hangs under it: the view a goal's tab put on (no list of views: the
-             goal's tabs choose), its name, legend and count. (Positioned, not in the row.) -->
-        <div id="mapbar" class="floating" role="group" aria-label="날짜·날씨">
+        <!-- The map's top bar: the date, time (stop and the speeds) and undo; on a phone 도시 상태 first and the menu last.
+             The map view's card hangs under it: the view a goal's tab put on (no list of views: the goal's tabs choose),
+             its name, legend and count. (Positioned, not in the row.) -->
+        <div id="mapbar" class="floating" role="group" aria-label="날짜·시간">
           <div id="map-layer" class="floating off">
             <button type="button" class="layer-title" id="layer-title" aria-expanded="false" title="범례 펼치기·접기"><span data-icon="layers"></span><span id="layer-name"></span><span class="legend-toggle" aria-hidden="true"><span data-icon="chevronDown"></span></span></button>
             <div id="overlay"></div>
           </div>
+          <button type="button" class="mb-btn mb-city" data-app="city" aria-label="도시 상태" aria-pressed="false" title="도시 상태 열기"><span data-icon="gauge"></span><span class="mb-label">도시 상태</span></button>
+          <span class="mb-sep mb-city-sep" aria-hidden="true"></span>
           <span id="sb-date" class="sb-date"></span>
           <span class="mb-sep" aria-hidden="true"></span>
-          <span id="sb-wind" class="sb-wind" title="바람: 불이 번지는 방향"></span>
+          <!-- The speeds in a row (a phone's in a card from its 시간 button, which says the speed and stops or starts the
+               clock). -->
+          <div class="mb-time">
+            <button type="button" id="btn-time" class="mb-btn" aria-expanded="false" aria-controls="speed" title="시간: 속도 고르기"><span class="time-glyph"></span><span class="mb-label" id="time-label">시간</span></button>
+            <div id="speed" class="gear" role="radiogroup" aria-label="시뮬레이션 속도"></div>
+          </div>
+          <span class="mb-sep" aria-hidden="true"></span>
+          <button id="btn-undo" class="mb-btn mb-icon" title="되돌리기 (Ctrl+Z)" aria-label="되돌리기" disabled><span data-icon="undo"></span></button>
+          <button id="btn-redo" class="mb-btn mb-icon" title="다시 하기 (Ctrl+Shift+Z)" aria-label="다시 하기" disabled><span data-icon="redo"></span></button>
         </div>
 
         <div id="manage-chip" class="floating" hidden>
@@ -170,22 +163,6 @@
           <div class="confirm-actions"><button id="confirm-cancel" type="button">취소</button><button id="confirm-build" type="button" class="primary">여기에 짓기</button></div>
         </div>
 
-        <div id="drive-hud" hidden>
-          <div class="drive-side">
-            <div id="drive-info"></div>
-            <div class="drive-actions">
-              <button id="drive-special" hidden></button>
-              <button id="drive-quit"><span data-icon="close"></span>포기</button>
-            </div>
-          </div>
-          <div id="drive-pad">
-            <button data-dir="up" aria-label="위">▲</button>
-            <button data-dir="left" aria-label="왼쪽">◀</button>
-            <button data-dir="right" aria-label="오른쪽">▶</button>
-            <button data-dir="down" aria-label="아래">▼</button>
-          </div>
-        </div>
-
         <!-- The tool tray: the tools of the dock category that is open. -->
         <section id="tray" class="sheet-card" aria-label="도구" hidden>
           <header class="card-head">
@@ -210,7 +187,7 @@
           <div id="info"><p class="muted">지도를 눌러 보세요. 건물·길을 오가는 경로와 주민 생각도 함께 나옵니다.</p></div>
         </section>
 
-        <!-- The sheets: 주민 (My Sim, U-Drive-It; the controls' bar's button) and 지역 (neighbours, deals; the region's name in the pane). -->
+        <!-- The sheet: 지역 (neighbours, deals; the region's name in the pane, and the menu). -->
         <section id="sheet" class="sheet-card" aria-labelledby="sheet-title" hidden>
           <div class="sheet-body">
             <header class="card-head">
@@ -219,16 +196,6 @@
             </header>
             <p id="sheet-note" class="sheet-note" hidden></p>
             <div class="panes">
-              <div data-pane="sims" role="region" aria-label="주민">
-                <section class="card">
-                  <h2>주민 따라가기 <span class="muted">My Sim</span></h2>
-                  <div id="mysims"></div>
-                </section>
-                <section class="card">
-                  <h2>직접 운전 <span class="muted">U-Drive-It</span></h2>
-                  <div id="udi"></div>
-                </section>
-              </div>
               <div data-pane="region" role="region" aria-label="지역" hidden>
                 <section class="card">
                   <h2>이웃 도시와 지역</h2>

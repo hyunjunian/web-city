@@ -15,7 +15,7 @@ let consuming = false;
 
 /** Whether anything Esc would put away is out: a dialog, the menu or the speeds' card, the tool card, a card, a sheet, the pane, a goal's screen, a tool in hand. */
 function anythingOpen(): boolean {
-  return !!document.querySelector('dialog[open], details.dropdown[open], .dock-time.open') || !$('#tray').hidden || !$('#info-card').hidden || !$('#sheet').hidden
+  return !!document.querySelector('dialog[open], details.dropdown[open], .mb-time.open') || !$('#tray').hidden || !$('#info-card').hidden || !$('#sheet').hidden
     || $('#app').classList.contains('pane-open') || active !== null || tool.id !== 'query';
 }
 
@@ -51,7 +51,7 @@ export function setupBack(): void {
     const menu = document.querySelector<HTMLDetailsElement>('details.dropdown[open]');
     if (dialog) dialog.close();
     else if (menu) menu.open = false;
-    else if (document.querySelector('.dock-time.open')) closeClock(); // (the speeds' card over 시간)
+    else if (document.querySelector('.mb-time.open')) closeClock(); // (the speeds' card under 시간)
     else document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     later();
   });

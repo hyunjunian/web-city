@@ -4,7 +4,7 @@ import { type Building, DEFAULT_CONFIG, DEV_TYPES, type DevType, type OrdinanceI
 import { icon } from './icons';
 import { type AirSource, airShareOf, airSourcesAt, alighted, budgetMends, facilityLine, goalStatus, waterSourcesOn, hasRoadNow, jamRun, widenTo, type Lay, LAY_WORD, layCost, lineToStructure, powerToSpare, readStats, relieverFor, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteOnPipes } from './readings';
 import { ko } from './messages';
-import { renderMySims, SIM_NAMES, thoughtChips } from './mysims';
+import { thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { updatePanels } from './panels';
 import { ROUTE_COLOR, structureColor, TYPE_COLOR, zoneTint } from './render';
@@ -188,14 +188,6 @@ function lotType(zone: string): DevType {
   return types.reduce((best, t) => (city.demand.demand[t] > city.demand.demand[best] ? t : best), types[0]!);
 }
 
-/** The My Sims who live or work in a building, named under its meter. */
-function simsHere(id: number): string {
-  const live = city.state.mySims.filter((m) => m.home === id).map((m) => escapeHtml(m.name));
-  const work = city.state.mySims.filter((m) => m.job === id).map((m) => escapeHtml(m.name));
-  const parts = [live.length && `${live.join(' · ')}의 집`, work.length && `${work.join(' · ')}의 일터`].filter(Boolean);
-  return parts.length ? `<p class="info-sims">${icon('users')}My Sim: ${parts.join(' · ')}</p>` : '';
-}
-
 /** Whether the info card's 자세히 part was left open (kept from card to card). */
 let infoMoreOpen = false;
 
@@ -374,7 +366,7 @@ export function showInfo(x: number, y: number): void {
       <div class="info-meter" title="${b.type[0] === 'R' ? '주민' : '영업 중인 일자리'} ${fmt(b.capacity * b.occupancy)} / ${fmt(b.capacity)}">
         <div class="fill" style="width:${Math.round(b.occupancy * 100)}%;background:${TYPE_COLOR[b.type]}"></div>
       </div>
-      <div class="info-meter-label"><span>${b.type[0] === 'R' ? '주민' : '영업 중 일자리'} ${fmt(b.capacity * b.occupancy)} / ${fmt(b.capacity)}${b.type[0] !== 'R' ? ` · 일하는 사람 ${fmt(b.filled)}` : ''}</span><span>${pct(b.capacity ? Math.round(b.capacity * b.occupancy) / b.capacity : 0)}</span></div>${simsHere(b.id)}` : '';
+      <div class="info-meter-label"><span>${b.type[0] === 'R' ? '주민' : '영업 중 일자리'} ${fmt(b.capacity * b.occupancy)} / ${fmt(b.capacity)}${b.type[0] !== 'R' ? ` · 일하는 사람 ${fmt(b.filled)}` : ''}</span><span>${pct(b.capacity ? Math.round(b.capacity * b.occupancy) / b.capacity : 0)}</span></div>` : '';
   // On a road: how full it is (traffic against capacity, like the congestion view).
   const cap = !b && !q.structure && q.network && q.network !== 'crossing' ? DEFAULT_CONFIG.transport.speed[q.network]?.capacity : undefined;
   // Rail's meter is its trains (q.traffic is the nearest road's cars).
@@ -411,9 +403,6 @@ export function showInfo(x: number, y: number): void {
   const fold = !!(b || q.structure || growth || land || q.network); // (a road's environment too: its gauge and its traffic are what it says)
   // Removing what is selected, from its card (it took the bulldozer tool and a drag over the same spot).
   const bz = b || q.structure ? city.previewBulldoze(x, y, x, y) : null;
-  // (A home's My Sim at its foot, beside its screen: the 주민 sheet says to press a home for one, and it was folded
-  // away under 자세히 · 이름·서비스·환경.)
-  const mysim = b?.type?.[0] === 'R' && b.occupancy > 0 ? `<button type="button" id="mysim-add" class="info-mysim" title="이 집에 My Sim을 들여 그 생각을 따라가기">${icon('users')}My Sim 입주</button>` : '';
   const demolish = bz?.ok ? `<button type="button" id="info-bulldoze" class="info-bulldoze" title="이 ${b ? '건물' : '시설'}을 헐기 (되돌리기 가능)">${icon('eraser')}철거 · §${fmt(bz.cost)}</button>` : '';
   // The way to its goal's screen and the way to take it down: the card's foot, after what it says.
   const goal = goalLink(q.structure?.kind, b ? 'built' : q.zone, !b && !q.structure && !!q.network);
@@ -454,7 +443,7 @@ ${paths}${voice}
       <span class="${q.watered ? '' : 'muted'}">${icon('droplet')}${q.watered ? '물 있음' : '물 없음'}</span>
       ${q.zone !== 'landfill' ? `<span title="${TYPE_NAME[type]} 쾌적도 (기본 ${d.baseline})">${icon('sparkles')}쾌적도 ${d.total.toFixed(0)}</span>` : ''}
     </div>` : ''}
-    ${goal || demolish || mysim ? `<div class="info-own">${goal}${mysim}${demolish}</div>` : ''}
+    ${goal || demolish ? `<div class="info-own">${goal}${demolish}</div>` : ''}
     ${fold ? `<details class="info-more"${infoMoreOpen ? ' open' : ''}><summary>자세히${b || q.structure ? ' · 이름·서비스·환경' : land ? ' · 서비스·환경' : ' · 환경·교통'}</summary>` : ''}
     ${b || q.structure ? `<input id="bname" maxlength="40" placeholder="이름 붙이기 (${b ? (b.type ? TYPE_NAME[b.type] : '버려진 건물') : STRUCTURE_NAME[q.structure!.kind]})" value="${escapeHtml(q.name ?? '')}">` : ''}
     ${b?.type ? `<div class="info-actions">
@@ -530,38 +519,6 @@ ${paths}${voice}
     choice('역사 건물', () => city.markHistorical(x, y, historical.checked));
     showInfo(x, y);
   };
-  const add = el.querySelector<HTMLButtonElement>('#mysim-add');
-  if (add) {
-    // The name is asked for in place (a browser prompt looks foreign, worse on phones).
-    add.onclick = () => {
-      const form = document.createElement('form');
-      form.className = 'mysim-form';
-      form.innerHTML = `<input id="mysim-name" maxlength="20" aria-label="My Sim 이름" value="${SIM_NAMES[city.state.mySims.length % SIM_NAMES.length]}"><button class="primary">입주</button>`;
-      add.replaceWith(form);
-      const input = form.querySelector('input')!;
-      input.focus();
-      input.select();
-      input.onkeydown = (e) => {
-        if (e.key === 'Escape') {
-          e.stopPropagation();
-          showInfo(x, y);
-        }
-      };
-      form.onsubmit = (e) => {
-        e.preventDefault();
-        const res = choice('My Sim', () => city.addMySim(input.value, x, y));
-        if (!res.ok) {
-          flash(ko(res.message ?? 'pick a lived-in home'), 'bad');
-          return;
-        }
-        // (주민 is on the bar down the left — a tablet's foot bar too — or, on a phone held upright, in its menu.)
-        const sims = document.getElementById('btn-sims')?.offsetParent ? "왼쪽 막대의 '주민'" : "아래 막대 메뉴의 '주민'";
-        flash(`${res.sim!.name}${josa(res.sim!.name, '이', '가')} 입주했습니다 — ${sims}에서 생각을 들어 보세요`);
-        renderMySims(true);
-        showInfo(x, y);
-      };
-    };
-  }
   const bus = el.querySelector<HTMLInputElement>('#vehicle-funding');
   if (bus && q.structure) {
     const id = q.structure.id;

@@ -8,7 +8,6 @@ import { adviceFor, capped as atCap, deptEmpty, deptFunded, freshLandfill, newRe
 import { active, autoPause, markToolSite, openGoal, openViewTab, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
 import { buildOrdinances, ordinanceMonth, ordinanceSignature, refreshInfo, setOrdinanceMonth } from './info';
 import { ko } from './messages';
-import { renderMySims } from './mysims';
 import { ABANDON_NAME, ADVICE_TEXT, plainCodes, ADVISOR_NAME, CRIME_NAME, EDGE_NAME, ORDINANCE_NAME, POLL_NAME, REPORT_NAME, RESOURCE_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME, TYPE_SHORT } from './names';
 import { renderOnboarding } from './onboarding';
 import { region, renderNeighbours } from './region';
@@ -17,7 +16,6 @@ import { GROWTH_LABEL } from './views';
 import { checkLeft, checkText, renderAges, renderPolls, renderRewards, rewardRank, rewardShare } from './reports';
 import { blinkAt, centerOn, changeKey, city, cityGeneration, graphs, overlay, redraw, speed } from './state';
 import { CATEGORIES, type CategoryId, categoryOf, chosen, openTray, pickStructure, refreshStructureLists, selectTool, structureStat, TOOLS } from './tools';
-import { renderUdi, watchMissions } from './udi';
 import { journal, type Notice } from './journal';
 import { toast } from './toast';
 import { closeSheet, paneShown, revealMap, sheetShown, showTab, type Tab } from './tabs';
@@ -382,8 +380,6 @@ export function updatePanels(): void {
     const delta = prev === undefined ? 0 : now - prev;
     return Math.abs(delta) >= 1 ? `<span class="k-sub ${delta < 0 ? 'neg' : 'pos'}">${delta < 0 ? '▼' : '▲'}${fmt(Math.abs(delta))}</span>` : '';
   };
-  // Always a word with the arrow (a bare ≋ → read as a glyph puzzle).
-  const wind = `바람 ${'→↘↓↙←↖↑↗'[city.state.wind.dir]}${city.state.wind.strength > 0.5 ? ' 강풍' : ''}`;
   // The pane's head: the region (or none: a city of its own, which the 지역 sheet can make one of) › the city.
   const cityName = $('#city-name');
   if (cityName.textContent !== city.state.name) {
@@ -409,23 +405,12 @@ export function updatePanels(): void {
   }
   dateEl.style.setProperty('--month-pct', `${((city.state.day % 30) / 30) * 100}%`);
   dateEl.title = `${d.year}년 ${d.month}월 ${d.day}일 · 밑줄: 이달이 지나간 만큼`;
-  // The weather beside the date, always (the bar is theirs): the wind's way is where a fire spreads, a gale in amber —
-  // a fire then leaps further.
-  const windEl = $('#sb-wind');
-  if (windEl.dataset.wind !== wind) {
-    windEl.dataset.wind = wind;
-    windEl.innerHTML = `${icon('wind')}<span>${wind}</span>`;
-  }
-  const gale = city.state.wind.strength > 0.5;
-  windEl.classList.toggle('gale', gale);
-  windEl.title = city.state.fires.length || city.state.treeFires.length ? `${wind}: 지금 타는 불이 바람 쪽으로 번집니다`
-    : gale ? `${wind}: 불이 나면 바람 쪽으로 멀리 번집니다` : `${wind}: 불이 번지는 방향`;
-  // (The map's top bar keeps the date and the weather: population and money are read in the city pane.)
+  // (The wind — where a fire spreads — is not on the web screen for now. The top bar keeps the date and the clock:
+  // population and money are read in the city pane.)
   // The advisors first: the watch list reads their latest word (a row lagged an update behind).
   const adv = advice();
   watchGoals(); // a goal turning to 조치 필요 may stop the clock; an action's result is told
   flushAlarms(); // then the advisors' own alarms, those whose goal wasn't just told
-  watchMissions(); // a mission newly open is told (and kept in 소식)
   // The pane is redrawn often: keep keyboard focus on the row it was on.
   const focused = (document.activeElement as HTMLElement | null)?.closest?.<HTMLElement>('#status [data-goal]')?.dataset.goal;
   // Only when it changed, not under a press (a row rebuilt between press and release lost the click),
@@ -510,10 +495,6 @@ export function updatePanels(): void {
     renderDepartments();
   }
   if (sheetShown('region')) renderNeighbours();
-  if (sheetShown('sims')) {
-    renderMySims();
-    renderUdi();
-  }
   if (goal === 'environment') renderPolls();
   if (goal === 'wealth') renderRewards();
   if (goal === 'growth' || goal === 'education') renderAges();
@@ -1119,21 +1100,8 @@ export function advice(): string {
       toast(`${text}${none ? ' · 남은 발전소가 없습니다' : ''}${stop ? stoppedNote() : ''}`, 'bad', at, () => openGoal('power', at), stop);
     } else toast(text, 'bad', [r.x, r.y]);
   }
-  for (const m of city.takeMySimNews()) {
-    const why = {
-      jobGone: '일터가 없어져 새 일을 찾습니다', newJob: '가까운 일터에 일자리를 구했습니다', moved: '살던 집을 떠나 가까운 같은 소득 수준의 집으로 이사했습니다',
-      noJob: '두 달 동안 일자리를 못 구해 도시를 떠났습니다', abandoned: '집이 버려지고 갈 집이 없어 도시를 떠났습니다', homeGone: '집을 잃고 갈 집이 없어 도시를 떠났습니다',
-      outclassed: '집이 다른 소득층의 집으로 바뀌었는데 맞는 집을 못 찾아 도시를 떠났습니다',
-      searching: '집을 잃어 같은 소득 수준의 집을 찾는 중입니다 (두 달 안에 못 찾으면 떠납니다)',
-      died: '세상을 떠났습니다 (범죄나 오염이 심한 동네였습니다)',
-      heir: `천수를 누리고 세상을 떠나, ${m.sim.generation ?? 2}대째 자손이 집을 물려받았습니다`,
-      promoted: '교육 수준이 올라 승진했습니다: 더 부유한 집과 일자리로 옮깁니다',
-    }[m.kind];
-    const left = m.kind === 'noJob' || m.kind === 'abandoned' || m.kind === 'homeGone' || m.kind === 'outclassed' || m.kind === 'died';
-    const at: [number, number] = [m.sim.homeTile % city.size, Math.floor(m.sim.homeTile / city.size)];
-    pushNotice({ text: `My Sim ${m.sim.name}: ${why}`, until: city.state.day + 90, warn: left, at });
-    toast(`My Sim ${m.sim.name}: ${why}`, left ? 'bad' : 'info', at);
-  }
+  // (My Sims are not on the web screen for now: a city saved with them still has their news, let go unsaid.)
+  city.takeMySimNews();
   for (const d of city.takeEndedDeals()) {
     pushNotice({ text: `이웃 거래 종료: ${EDGE_NAME[d.edge]} ${RESOURCE_NAME[d.resource]} (유예 기간 안에 조건을 지키지 못함)`, until: city.state.day + 90, warn: true });
     toast(`이웃 거래 종료: ${EDGE_NAME[d.edge]} ${RESOURCE_NAME[d.resource]}`, 'bad');

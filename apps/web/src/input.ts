@@ -2,7 +2,7 @@
 
 import { active as activeGoal, closeGoal, handedPlaced, noteAction, stepTab, toggleFinance, toggleGrowthTab, toggleUrgentGoal } from './manage';
 import { DEV_TYPES, GROWTH_CODES, isLocalNet, Net, linePath, type Rect, LIVE_KINDS, NETWORK_KINDS, STRUCTURES, Terrain, ZONES, type StructureKind } from '@web-city/engine';
-import { chooseSpeed, closeClock, isHeld, resumeAfterBuilding, runningSpeed, showHelp, speedChosen, toggleFocus, toggleNight } from './controls';
+import { chooseSpeed, closeClock, isHeld, resumeAfterBuilding, runningSpeed, showHelp, speedChosen, toggleNight } from './controls';
 import { aloneReached, cancelGlide, keepInView, showInfo, showRoutes } from './info';
 import { grabDisaster, setSteering, steering } from './live';
 import { ko } from './messages';
@@ -1361,7 +1361,6 @@ export function setupInput(): void {
     // (A Latin letter as typed, so AZERTY's Z is Z; by the key's place only when it types something else.)
     const letter = /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
     if (letter === 'n' && !e.ctrlKey && !e.metaKey) toggleNight();
-    if (letter === 'f' && !e.ctrlKey && !e.metaKey) toggleFocus();
     // G: 개발·수요 on its 개발 막힘 tab (what keeps zones empty), or back. (No key of its own for the map's view: a goal's
     // tab puts it on.)
     if (letter === 'g' && !e.ctrlKey && !e.metaKey) toggleGrowthTab();
@@ -1409,9 +1408,8 @@ export function setupInput(): void {
     if (plain && (e.key === ',' || e.key === '.') && !drag) stepAlt(e.key === '.' ? 1 : -1);
     // `: back to the tool before (a road, then the bulldozer, then the road again).
     if (plain && e.key === '`' && !drag) selectTool(previousTool);
-    // B: the pane's 재정·정책 (or back from it); U 주민, J 지역: the sheets of the controls' bar and the pane's head (open, or close when showing).
+    // B: the pane's 재정·정책 (or back from it); J: the 지역 sheet (the pane's head, the menu), open or closed.
     if (plain && letter === 'b') toggleFinance();
-    if (plain && letter === 'u') toggleSheet('sims');
     if (plain && letter === 'j') toggleSheet('region');
     // S: the cursor onto the recommended spot (the blue target), to build there from the keyboard (driving, S steers).
     if (plain && letter === 's' && !drag && !drive && keySpot()) return;
@@ -1421,7 +1419,7 @@ export function setupInput(): void {
       if (proposal) dropProposal();
       else if (drag) setDrag(null);
       else if (menu) menu.open = false; // (opened by a press, which leaves focus outside it: its own Esc didn't hear)
-      else if (document.querySelector('.dock-time.open')) closeClock(); // (a phone's speeds' card, first: it is the topmost)
+      else if (document.querySelector('.mb-time.open')) closeClock(); // (a phone's speeds' card, first: it is the topmost)
       else if (!closeTray(true) && !closeTopLayer()) {
         // Then the tool goes down, then the goal's screen gives way to the overview.
         if (tool.id !== 'query') selectTool('query');

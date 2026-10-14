@@ -15,7 +15,7 @@ import { leaveRegion } from './region';
 import { cam, city, cityLineage, clampCamera, dirty, fitCamera, mapBand, mapCovers, onCityChange, overlay, redraw, renderer, selected, setCity, setDirty, setSaveSlotId, speed } from './state';
 import { autosave, autosaveSlot, autosaveSteps, lastAutosave, resumeAutosave } from './storage';
 import { buildTools, closeTray, forgetPreviousTool, refreshEdgeHint, selectTool, SPEEDS } from './tools';
-import { abandonDrive, drive, setupDriving, tickDrive } from './udi';
+import { abandonDrive, drive, tickDrive } from './udi';
 import { setupUndo } from './undo';
 import { $, flash, onCoveredFlash } from './util';
 import { toast } from './toast';
@@ -222,8 +222,8 @@ export function openSample(): void {
       closePane();
       setCity(town);
       // (One thing to do, and what it already earned: the keys are in 도움말.)
-      // (Where they are: under 짓기 on a phone, the bar's own 보상 on a wide screen.)
-      const where = matchMedia('(max-width: 860px)').matches ? '짓기 › 보상' : '왼쪽 막대의 보상';
+      // (Where they are: the building bar's 보상, across a phone's foot or down the map's left.)
+      const where = matchMedia('(max-width: 860px)').matches ? '아래 막대의 보상' : '왼쪽 막대의 보상';
       flash(`예시 도시입니다 · 건물을 눌러 살펴보세요${earned ? ` · 보상 ${earned}종을 지을 수 있습니다 (${where})` : ''}`);
       finish();
     } catch (e) {
@@ -272,7 +272,8 @@ buildOverlay();
 setupInput();
 setupGoals();
 setupMenu();
-setupDriving();
+// (주민 — My Sim and 직접 운전 — is not on the web screen for now: their modules stay, unwired; the drive's tick and
+// abandoning, below and above, do nothing while no drive can start.)
 setupTabs();
 markCity();
 // (The skip link's jump: a fragment alone scrolls, it doesn't hand the canvas the keys.)

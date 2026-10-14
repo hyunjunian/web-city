@@ -1,9 +1,10 @@
-// The bars' own tooltips — the bar down the map (on a phone-wide window, across its foot), the date and the weather
-// over the map, its 전체 and zoom: a control's name, what it does and its keys, by it once the pointer rests there,
-// at once along the bar. (The browser's came after a second, small and plain, the keys run into the words.)
-// Elsewhere titles stay the browser's.
+// The bars' own tooltips — the building bar down the map (on a phone-wide window, across its foot) and the menu under
+// it, the top bar (the date, the speeds, undo), 전체 and the zoom: a control's name, what it does and its keys, by it
+// once the pointer rests there, at once along the bar. (The browser's came after a second, small and plain, the keys
+// run into the words.) Elsewhere titles stay the browser's.
 
-const SCOPE = '#dock :is(button, summary), #sb-date, #sb-wind, #map-controls button';
+// (Not the view's card hanging from the top bar: its name and 찾아가기 keep the browser's.)
+const SCOPE = '#dock-col :is(button, summary), #mapbar > button, #mapbar .mb-time button, #mapbar > #menu > summary, #sb-date, #map-controls button';
 
 /** A key as a title ends with one: "(Ctrl+Z)" (on a Mac "(⌘Z)", "(⇧⌘Z)"), "(R·T·V·H)", "(0 · Space)" — words in
  *  brackets are not keys. */
@@ -56,14 +57,15 @@ function render(el: HTMLElement, title: string): void {
   place(el);
 }
 
-/** Beside the bar down the map; above a bar across the foot; under the top bar's and the corner's controls. */
+/** Beside the bar down the map (and the menu under it); above a bar across the foot; under the top bar's and the
+ *  corner's controls. */
 function place(el: HTMLElement): void {
   if (!tip) return;
   tip.hidden = false;
   const r = el.getBoundingClientRect();
   const w = tip.offsetWidth;
   const h = tip.offsetHeight;
-  const dock = el.closest<HTMLElement>('#dock');
+  const dock = el.closest<HTMLElement>('#dock-col');
   const across = dock && dock.offsetWidth > dock.offsetHeight;
   const clampX = (x: number) => Math.max(8, Math.min(innerWidth - w - 8, x));
   const clampY = (y: number) => Math.max(8, Math.min(innerHeight - h - 8, y));
