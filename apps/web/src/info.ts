@@ -10,7 +10,7 @@ import { updatePanels } from './panels';
 import { ROUTE_COLOR, structureColor, TYPE_COLOR, zoneTint } from './render';
 import { cam, city, cityLineage, clampCamera, flightCount, moveCount, overlay, overlayType, redraw, renderer, setSelected, stopFlight } from './state';
 import { closeInfo, showTab } from './tabs';
-import { $, escapeHtml, flash, fmt, glue, hours, josa, pct } from './util';
+import { $, ask, escapeHtml, flash, fmt, glue, hours, josa, pct } from './util';
 import { refreshTaxes } from './controls';
 import { structureStat, toolGlyph, TOOLS } from './tools';
 import { choice } from './choices';
@@ -497,8 +497,13 @@ ${paths}${voice}
     flash(bname.value.trim() ? `이름을 "${bname.value.trim()}"${josa(bname.value, '으로', '로')} 바꿨습니다` : '이름을 지웠습니다');
   };
   const demolishBtn = el.querySelector<HTMLButtonElement>('#info-bulldoze');
-  if (demolishBtn) demolishBtn.onclick = () => {
+  if (demolishBtn) demolishBtn.onclick = async () => {
     const what = title;
+    // A facility is asked first: what it cost to build is lost, and nothing puts it back (a building grows again).
+    if (q.structure) {
+      const plan = city.previewBulldoze(x, y, x, y);
+      if (!plan.message && !(await ask(`${what}${josa(what, '을', '를')} 헐까요? 철거비 §${fmt(plan.cost)} · 되돌릴 수 없습니다.`, '철거'))) return;
+    }
     const res = city.bulldoze(x, y, x, y);
     if (!res.ok) {
       flash(ko(res.message ?? ''), 'bad');

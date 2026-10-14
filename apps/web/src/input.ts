@@ -877,6 +877,23 @@ function dezoning(): boolean {
   return tool.kind === 'bulldoze' && !!drag && !drag.pan && emptyZone(drag.start[0], drag.start[1]);
 }
 
+/** What a bulldozing that takes facilities (or, tapped, one building) down is asked as: what goes, and its price. */
+function bulldozeQuestion(x0: number, y0: number, x1: number, y1: number, buildings: number, cost: number): string {
+  const kinds = new Map<StructureKind, number>();
+  const seen = new Set<number>();
+  for (let y = Math.min(y0, y1); y <= Math.max(y0, y1); y++) for (let x = Math.min(x0, x1); x <= Math.max(x0, x1); x++) {
+    const occ = city.state.occupant[y * city.size + x] ?? 0;
+    const st = occ < 0 && !seen.has(-occ) ? city.state.structures.get(-occ) : undefined;
+    if (!st) continue;
+    seen.add(st.id);
+    kinds.set(st.kind, (kinds.get(st.kind) ?? 0) + 1);
+  }
+  const names = [...kinds].map(([k, n]) => `${STRUCTURE_NAME[k]}${n > 1 ? ` ${n}곳` : ''}`);
+  const what = !names.length ? '이 건물' : names.length > 2 ? `${names.slice(0, 2).join('·')} 외 ${names.length - 2}종` : names.join('·');
+  const also = names.length && buildings ? ` 건물 ${fmt(buildings)}채와 함께` : '';
+  return `${what}${josa(what, '을', '를')}${also} 헐까요? 철거비 §${fmt(cost)} · 되돌릴 수 없습니다.`;
+}
+
 export function applyTool(): void {
   if (!drag || drive) return; // no building under the car while driving
   const [x0, y0] = drag.start;
@@ -910,18 +927,17 @@ export function applyTool(): void {
         res = city.zone(x0, y0, x1, y1, 'none');
         break;
       }
-      // A finger's single tap on a building or a facility is asked first: taken down it can't be put back, and a tap
-      // has no hover to show it beforehand (a drag shows what it takes while it is drawn).
-      const occ = x0 === x1 && y0 === y1 ? city.state.occupant[y0 * city.size + x0] ?? 0 : 0;
-      if (touchFirst() && !tapConfirmed && occ) {
-        const plan = city.previewBulldoze(x0, y0, x0, y0);
-        if (!plan.message && (plan.buildings || plan.structures)) {
-          const st = occ < 0 ? city.state.structures.get(-occ) : undefined;
-          const name = st ? STRUCTURE_NAME[st.kind] : '이 건물';
-          void ask(`${name}${josa(name, '을', '를')} 헐까요? §${fmt(plan.cost)} · 되돌릴 수 없습니다.`, '철거').then((go) => {
+      // Asked first when it takes a facility down (what it cost to build is lost, and nothing puts it back), and a
+      // finger's single tap on a building too (a tap has no hover to show it beforehand; a drag shows what it takes
+      // while it is drawn, and a building grows again on its zone).
+      if (!tapConfirmed) {
+        const plan = city.previewBulldoze(x0, y0, x1, y1);
+        const tap = touchFirst() && x0 === x1 && y0 === y1;
+        if (!plan.message && (plan.structures || (tap && plan.buildings))) {
+          void ask(bulldozeQuestion(x0, y0, x1, y1, plan.buildings, plan.cost), '철거').then((go) => {
             if (!go || tool.kind !== 'bulldoze') return;
             tapConfirmed = true;
-            setDrag({ start: [x0, y0], end: [x0, y0] });
+            setDrag({ start: [x0, y0], end: [x1, y1] });
             try {
               applyTool();
             } finally {
