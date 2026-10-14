@@ -87,6 +87,12 @@ function css(name: string): string {
 
 // A point is recorded as a month ends (the date has just turned): it holds the month before.
 const date = (month: number) => `${2000 + Math.floor((month - 1) / 12)}년 ${((month - 1) % 12) + 1}월`;
+/** The months a span covers, short: 2000년 1–10월 within a year, else 2000년 1월 – 2003년 6월. */
+const spanText = (from: number, to: number) => {
+  const y = (m: number) => 2000 + Math.floor((m - 1) / 12);
+  const mo = (m: number) => ((m - 1) % 12) + 1;
+  return y(from) === y(to) ? `${y(from)}년 ${mo(from)}–${mo(to)}월` : `${date(from)} – ${date(to)}`;
+};
 
 export class Graphs {
   private hover: { key: string; index: number } | null = null;
@@ -102,25 +108,35 @@ export class Graphs {
     }
   })();
 
+  /** The span's buttons and the months shown, moved to the section's heading. */
+  private readonly rangeEl: HTMLElement;
+  private readonly spanEl: HTMLElement;
+
   constructor(private readonly el: HTMLElement) {
     el.innerHTML = `<div class="segmented graph-range" role="group" aria-label="기간">
       ${RANGES.map(([m, label]) => `<button type="button" data-range="${m}" class="${m === this.range ? 'active' : ''}">${label}</button>`).join('')}
-    </div><p class="legend graph-span"></p>` + GRAPHS.map((g) => `${g.group ? `<h3 class="sub" data-goal="${g.goal}" data-stem="${g.key.split('-')[0]}">${g.group}</h3>` : ''}
+    </div><small class="sec-note graph-span"></small>` + GRAPHS.map((g) => `${g.group ? `<h3 class="sub" data-goal="${g.goal}" data-stem="${g.key.split('-')[0]}">${g.group}</h3>` : ''}
       <figure class="graph" data-key="${g.key}" data-goal="${g.goal}">
         <figcaption><span>${g.title}${g.names ? ` <span class="graph-key"><i style="background:var(${(g.colors ?? ['--accent', '--muted'])[0]})"></i>${g.names[0]} <i class="dash" style="border-color:var(${(g.colors ?? ['--accent', '--muted'])[1]})"></i>${g.names[1]}</span>` : ''}</span><span class="graph-value"></span></figcaption>
         <canvas width="${W}" height="${H}" aria-label="${g.title} 추이"></canvas>
       </figure>`).join('');
+    this.rangeEl = el.querySelector<HTMLElement>('.graph-range')!;
+    this.spanEl = el.querySelector<HTMLElement>('.graph-span')!;
     el.querySelectorAll<HTMLButtonElement>('[data-range]').forEach((b) => {
       b.onclick = () => {
         this.range = Number(b.dataset.range);
         try {
           localStorage.setItem(RANGE_KEY, String(this.range));
         } catch { /* storage unavailable */ }
-        el.querySelectorAll('[data-range]').forEach((o) => o.classList.toggle('active', o === b));
+        this.rangeEl.querySelectorAll('[data-range]').forEach((o) => o.classList.toggle('active', o === b));
         this.lastLength = -1;
         this.update(this.history);
       };
     });
+    // The span's buttons and its months on the section's heading row (추이 · 2000년 1–10월 · 1년 10년 전체), not two rows
+    // of their own over the first graph, which put the screen's 추천 조치 under the fold.
+    const head = el.closest('.mg-sec')?.querySelector<HTMLElement>(':scope > h3');
+    if (head) head.append(this.spanEl, this.rangeEl);
     // Opening a goal or resizing the window changes the graphs' width.
     let width = 0;
     // Redrawn in the next frame: drawing shows or hides graphs, which changes the
@@ -165,6 +181,7 @@ export class Graphs {
       any ||= shown;
     });
     this.el.hidden = !any;
+    this.rangeEl.hidden = this.spanEl.hidden = !any;
     this.redraw();
   }
 
@@ -194,16 +211,15 @@ export class Graphs {
     // A span no shorter than the record shows the same as 전체: not offered until there is more (10년 beside 전체 drew
     // the same lines for a city of 35 months), and 전체 lit while it is so.
     const span = this.range && all.length > this.range ? this.range : 0;
-    for (const b of this.el.querySelectorAll<HTMLButtonElement>('[data-range]')) {
+    for (const b of this.rangeEl.querySelectorAll<HTMLButtonElement>('[data-range]')) {
       const m = Number(b.dataset.range);
       b.disabled = m > 0 && all.length <= m;
       b.title = b.disabled ? `기록이 ${all.length}개월이라 전체와 같습니다` : '';
       b.classList.toggle('active', m === span);
     }
     // The months every graph below spans (they share one time axis).
-    this.el.querySelector('.graph-span')!.textContent = history.length >= 2
-      ? `${date(history[0]!.month)} – ${date(history.at(-1)!.month)} (${history.length}개월)`
-      : '';
+    this.spanEl.textContent = history.length >= 2 ? spanText(history[0]!.month, history.at(-1)!.month) : '';
+    this.spanEl.title = history.length >= 2 ? `아래 그래프가 보여 주는 ${history.length}개월` : '';
     const ink = css('--muted') || '#9aa1ad';
     const line = css('--accent') || '#5fb0ff';
     const grid = css('--border') || '#363b46';
@@ -348,9 +364,9 @@ export class Graphs {
       ctx.beginPath();
       ctx.arc(x(k), y(vals[k]!), 4, 0, Math.PI * 2);
       ctx.fill();
-      // The latest value (the span above dates them all); a pointed-at month says which.
+      // The month read, said (the latest by its month: beside the screen's live figures, 92,110 / 99,919 read as now's).
       const hovered = this.hover?.key === g.key;
-      const when = hovered ? ` · ${date(history[k]!.month)}` : '';
+      const when = ` · ${hovered ? date(history[k]!.month) : `${((history[k]!.month - 1) % 12) + 1}월`}`;
       label.textContent = other ? `${g.format(vals[k]!)} / ${g.format(other[k]!)}${when}` : `${g.format(vals[k]!)}${when}`;
       // Not pointed at: how far it moved over the months shown, coloured by which way is better
       // (the line's shape said rising or falling; the size of it took reading the axis).

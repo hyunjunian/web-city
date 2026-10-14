@@ -370,8 +370,9 @@ function guideHtml(id: GoalId): { head: string; act: string } {
   const wait = p ? `<p class="g-wait">${icon('check')}<span>${escapeHtml(p.text)} · ${Math.max(1, FOLLOW_DAYS - (city.state.day - p.day))}일 뒤 결과를 알려 드립니다</span></p>` : '';
   // (The screen's head names the goal: the card starts with what is wrong.)
   return {
+    // (With the way down to what to do about it: under a tab's figures and graphs it was often out of sight.)
     head: `<section class="lead ${s.tone} mg-lead" aria-label="지금 문제"><p class="lead-title">${icon('alert')}<span>${title}</span></p>
-      <p class="lead-risk">${(st.riskCode && RISK_OF[st.riskCode]) || (!offGrid && !st.said && worst && RISK_OF[worst.code]) || RISK[id]}</p></section>`,
+      <p class="lead-risk">${(st.riskCode && RISK_OF[st.riskCode]) || (!offGrid && !st.said && worst && RISK_OF[worst.code]) || RISK[id]}${action ? ' <button type="button" class="link mg-jump" data-jump-guide>추천 조치 ↓</button>' : ''}</p></section>`,
     act: `<section class="mg-sec mg-guide ${s.tone}" aria-label="추천 조치"><h3>${icon('target')}추천 조치</h3>${action}${wait}</section>`,
   };
 }
@@ -2375,7 +2376,7 @@ function operations(id: GoalId): Operations {
     const fragile = networks.filter((network) => network.demand > 0 && network.contingencyShortfall > 0);
     const worst = [...fragile].sort((a, b) => b.contingencyShortfall - a.contingencyShortfall)[0];
     if (networks.length) ops.outlook = `<section class="mg-sec"><h3>${icon('info')}공급 여유와 예비 시설</h3><p class="${fragile.length ? 'muted' : 'pos'}">${fragile.length ? `가장 큰 공급원 하나가 멈추면 부족해지는 망 ${fmt(fragile.length)}개` : '현재 수요에서 최대 공급원 하나가 멈춰도 용량이 충분합니다'}</p>${worst ?
-      `<p>가장 취약한 망: ${fmt(worst.contingencyShortfall)} ${id === 'power' ? 'MWh' : 'm³'} 부족 <button type="button" class="advice-view" data-at="${worst.x},${worst.y}">망 보기</button></p>` : ''}<small class="muted">현재 수요·이용 배정 기준입니다. 개보수 전 예비 시설이나 수입 거래를 확보하세요.</small></section>`;
+      `<p>가장 취약한 망: ${fmt(worst.contingencyShortfall)} ${id === 'power' ? 'MWh' : 'm³'} 부족 <button type="button" class="advice-view" data-at="${worst.x},${worst.y}">망 보기</button></p>` : ''}<small class="muted">현재 수요·이용 배정 기준입니다.</small></section>`;
   }
   const departments: RepairDepartment[] = id === 'power' ? ['power'] : id === 'water' ? ['water'] : id === 'traffic' ? ['roads', 'transit'] : [];
   for (const dept of departments) {
@@ -2905,6 +2906,10 @@ export function setupGoals(): void {
     const t = e.target as HTMLElement;
     if (t.closest('.mg-back')) {
       closeGoal();
+      return;
+    }
+    if (t.closest('[data-jump-guide]')) {
+      el.querySelector('.mg-guide')?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
       return;
     }
     // A tab: its part of the goal, and its view on the map.

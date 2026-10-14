@@ -1722,6 +1722,13 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 
 /* Under its screen: the graphs of its figures and the reports that go with it. */
 #goal-stats { gap: 10px; }
+/* The graphs' months and their span's buttons on the 추이 heading (graphs.ts puts them there): 추이 · 2000년 1–10월 at
+   the left, 1년 10년 전체 at the right — two rows over the first graph before. */
+#goal-stats > h3 { flex-wrap: wrap; row-gap: 6px; min-height: 28px; }
+#goal-stats > h3 .graph-span { margin-left: 2px; }
+#goal-stats > h3 .graph-range { margin: 0 0 0 auto; padding: 2px; }
+#goal-stats > h3 .graph-range button { min-height: 24px; padding: 2px 10px; font-size: 12px; font-weight: 600; }
+@media (pointer: coarse) { #goal-stats > h3 .graph-range button { min-height: 34px; padding: 2px 12px; } }
 #goal-stats h4 { margin: 4px 0 8px; color: var(--muted); font-size: 12.5px; font-weight: 600; }
 #goal-stats > :not(h3):not([hidden]) ~ .gs:not([hidden]) { padding-top: 10px; border-top: 1px solid var(--line); }
 #goal-stats .gs, #policy > * { scroll-margin-top: 76px; } /* (brought into sight from the summary — 다음 보상, 시장 평점 — its heading clears the sticky head) */
@@ -2307,6 +2314,8 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 /* (Its own section now, under the scoreboard: the step outlined as the recommended build cards are, so it reads as
    the one to press first — on its own surface, not the problem's amber or red, which read as a second warning.) */
 #pane .mg-guide .g-act { box-shadow: inset 0 0 0 1.5px var(--accent); }
+.mg-guide { scroll-margin-top: 120px; } /* (brought into sight by the problem's 추천 조치 ↓: clear of the sticky head) */
+.lead-risk .mg-jump { margin-left: 4px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .mg-lead { margin-top: 2px; }
 .mg-guide > .g-act, .mg-guide > .g-label, .mg-guide > .g-wait { grid-column: 1 / -1; }
 /* (A flex column: the lead's grid placed the cost line after the label.) */
