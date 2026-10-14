@@ -242,17 +242,15 @@ export function starterCity(): City {
 
 paintIcons();
 // What belongs to one city is dropped when another opens (its news and journal travel with its save).
-onCityChange((undo) => {
+onCityChange(() => {
   closeInfo();
   cancelMySimAction();
   abandonDrive();
-  if (!undo) resetSpeedChoice();
-  // Another city opens with the query tool in hand (not a disaster or a reward left armed); an undo keeps the tool.
-  if (!undo) {
-    selectTool('query');
-    forgetPreviousTool();
-  }
-  refreshEdgeHint(); // (an undo keeps the road in hand: its edge outline follows the restored town)
+  resetSpeedChoice();
+  // Another city opens with the query tool in hand (not a disaster or a reward left armed).
+  selectTool('query');
+  forgetPreviousTool();
+  refreshEdgeHint();
 });
 setupRangeFill();
 setupTouchTitles((text) => flash(text, 'info'));

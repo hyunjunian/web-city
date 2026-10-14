@@ -262,15 +262,16 @@ export function clampCamera(): void {
   cam.y = Math.min(Math.max(n - h / 2, 0), Math.max(Math.min(-h / 2, n - h), cam.y));
 }
 
-/** Per-city UI state elsewhere resets itself here (registered by each module; `undo` keeps the view). */
-const cityHooks: ((undo: boolean) => void)[] = [];
-export function onCityChange(fn: (undo: boolean) => void): void {
+/** Per-city UI state elsewhere resets itself here (registered by each module). */
+const cityHooks: (() => void)[] = [];
+export function onCityChange(fn: () => void): void {
   cityHooks.push(fn);
 }
 
 /** Bumped whenever another city opens, so slow work started for an earlier one can tell. */
 export let cityGeneration = 0;
-/** Bumped for another city, not for undo's restored copy of the same one (what was done in it carries on). */
+/** Bumped for another city (with cityGeneration: nothing reopens a city as itself now that there is no undo; what
+ *  asks whether it is still the same city reads this). */
 export let cityLineage = 0;
 
 /**
@@ -326,25 +327,25 @@ function guard(c: City): City {
   });
 }
 
-/** Opens a city. `keepSlot`: the same city again (undo), still saved to the same slot. */
-export function setCity(c: City, opts: { keepCamera?: boolean; keepSlot?: boolean; sameCity?: boolean } = {}): void {
-  if (!opts.keepSlot) saveSlotId = null;
+/** Opens a city. */
+export function setCity(c: City): void {
+  saveSlotId = null;
   city?.settle(); // the old one finishes its day (a region keeps it)
   c.realTimeDisasters = true; // live.ts moves them about eight steps a second, at any game speed
   city = guard(c);
   cityGeneration++;
-  if (!opts.sameCity) cityLineage++;
+  cityLineage++;
   selected = null;
   drag = null; // a drag (or a keyboard build's start) belongs to the old map
   renderer.cursor = null;
   renderer.routes = null; // a route query's lines belong to the old map
-  for (const fn of cityHooks) fn(!!opts.keepCamera);
+  for (const fn of cityHooks) fn();
   graphs.invalidate(); // the same number of months would otherwise keep the old city's lines
   setPollMonth(-1);
   setAgeMonth(-1);
   setRewardMonth(-1);
   setLastAutosave(Math.floor(c.state.day / 30));
-  if (!opts.keepCamera) fitCamera();
+  fitCamera();
   buildTaxes();
   buildOrdinances();
   dirty = true;

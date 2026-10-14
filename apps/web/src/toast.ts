@@ -55,8 +55,11 @@ function placeToasts(): void {
   const v = view.getBoundingClientRect();
   const b = box.getBoundingClientRect();
   let low = 0;
-  for (const id of ['mapbar', 'goal-strip', 'manage-chip', 'map-layer']) {
-    const part = document.getElementById(id);
+  // (The top buttons, not their row: while a sheet is up they are away, the row left where it was — and the notices
+  // sat a row lower than they needed to.)
+  const away = document.documentElement.matches(':has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden])))');
+  const top = away ? [] : [...document.querySelectorAll<HTMLElement>('#mapbar > :not(#map-layer)')];
+  for (const part of [...top, ...['goal-strip', 'manage-chip', 'map-layer'].map((id) => document.getElementById(id))]) {
     if (!part || part.hidden) continue;
     const cs = getComputedStyle(part);
     if (cs.display === 'none' || cs.visibility === 'hidden') continue;
@@ -65,8 +68,8 @@ function placeToasts(): void {
     if (!r.width || !r.height || r.top - v.top > v.height / 2 || r.right <= b.left || r.left >= b.right) continue;
     low = Math.max(low, r.bottom - v.top);
   }
-  const top = `${Math.round(low + 8)}px`;
-  if (box.style.getPropertyValue('--toasts-top') !== top) box.style.setProperty('--toasts-top', top);
+  const at = `${Math.round(low + 8)}px`;
+  if (box.style.getPropertyValue('--toasts-top') !== at) box.style.setProperty('--toasts-top', at);
 }
 let watching = false;
 

@@ -687,7 +687,7 @@ kbd {
   /* The sheet's padding is taller here: the sticky head starts at its edge, and keeps clear of the close button. */
   .mg-head { top: -26px; margin-top: -26px; padding-top: 22px; padding-right: 52px; }
   /* Half the screen: the goal's map view stays in sight above it. */
-  #pane.managing { max-height: min(calc(60dvh - var(--dock-h)), calc(100dvh - var(--bar-h) - var(--dock-h) - 16px)); }
+  #pane.managing { max-height: min(60dvh, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)); }
 }
 
 .card { padding: 14px 14px; /* one inset with the KPIs and gauges */ background: var(--surface); border-radius: var(--r-lg); }
@@ -1420,10 +1420,10 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   /* (A card over the foot bar, which stays: 도시 상태 in the top bar puts it away, a building category swaps it for the
      tools.) */
   #pane {
-    position: fixed; left: 8px; right: 8px; bottom: calc(var(--dock-h) + 8px); z-index: 20;
-    max-height: min(calc(80dvh - var(--dock-h)), calc(100dvh - var(--bar-h) - var(--dock-h) - 16px)); padding-top: 26px; padding-bottom: 24px;
+    position: fixed; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom) + 8px); z-index: 20;
+    max-height: min(80dvh, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)); padding-top: 26px; padding-bottom: 24px;
     border: 1px solid var(--line); border-radius: var(--r-xl); box-shadow: var(--shadow);
-    transform: translateY(calc(100% + var(--dock-h) + 8px)); visibility: hidden;
+    transform: translateY(calc(100% + env(safe-area-inset-bottom) + 8px)); visibility: hidden;
     transition: transform 0.26s var(--ease), visibility 0s 0.26s;
   }
   #app.pane-open #pane { transform: none; visibility: visible; transition: transform 0.26s var(--ease); }
@@ -1461,13 +1461,13 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 
   /* The tools, a building's card and 지역: cards over the foot bar too, at the bars' width. */
   #tray, #info-card, #sheet {
-    left: 8px; right: 8px; bottom: calc(var(--dock-h) + 8px); top: auto; width: auto; transform: none;
+    left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom) + 8px); top: auto; width: auto; transform: none;
     border: 1px solid var(--line); border-radius: var(--r-xl); box-shadow: var(--shadow);
     animation: rise 0.24s var(--ease);
   }
-  #tray { max-height: min(62%, calc(100% - var(--bar-h) - var(--dock-h) - 16px)); }
-  #info-card { max-height: min(56%, calc(100% - var(--bar-h) - var(--dock-h) - 16px)); } /* the spot it describes stays in sight above it */
-  #sheet { top: calc(var(--bar-h) + 8px); grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); } /* (under the top bar on a short phone too) */
+  #tray { max-height: min(62%, calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)); }
+  #info-card { max-height: min(56%, calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)); } /* the spot it describes stays in sight above it */
+  #sheet { top: calc(env(safe-area-inset-top) + 8px); grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
   #sheet[data-tab='region'] { width: auto; }
   #tabs { flex-direction: row; gap: 4px; padding: 10px 10px 0; border-right: 0; overflow-x: auto; }
   #tabs button { flex: 1 0 auto; justify-content: center; gap: 8px; min-height: 42px; padding: 0 12px; font-size: 14px; }
@@ -1505,11 +1505,11 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   /* Sideways there is width to spare and little height: cards become side panels
      (the city pane from the left, the rest from the right) and the map stays in view. */
   #tray, #info-card, #sheet {
-    left: auto; right: max(8px, env(safe-area-inset-right)); top: calc(var(--bar-h) + 6px); bottom: calc(var(--dock-h) + 6px); width: min(420px, 58%); max-height: none;
+    left: auto; right: max(8px, env(safe-area-inset-right)); top: calc(env(safe-area-inset-top) + 6px); bottom: calc(env(safe-area-inset-bottom) + 6px); width: min(420px, 58%); max-height: none;
     animation: slide-left 0.22s var(--ease);
   }
   #pane {
-    left: max(8px, env(safe-area-inset-left)); right: auto; top: calc(var(--bar-h) + 6px); bottom: calc(var(--dock-h) + 6px); width: min(380px, 50%); max-height: none;
+    left: max(8px, env(safe-area-inset-left)); right: auto; top: calc(env(safe-area-inset-top) + 6px); bottom: calc(env(safe-area-inset-bottom) + 6px); width: min(380px, 50%); max-height: none;
     padding-top: 18px;
     transform: translateX(calc(-100% - 16px));
   }
@@ -1634,9 +1634,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @media (hover: hover) { .info-more > summary:hover { color: var(--text); } }
 #info .info-more > h3.sub:first-of-type { border-top: 0; margin-top: 6px; }
 .info-more #bname { margin: 10px 0 8px; }
-/* Undo stays in its place, dimmed while there is nothing to take back: the top bar floats centred on the map,
-   and undo appearing moved the clock under the pointer. */
-
 /* The city pane is one surface: its parts are set apart by space and a hairline, not by boxes on grey. */
 #pane { background: var(--surface); }
 #pane :is(.card, .summary) { background: transparent; border-radius: 0; padding-left: 4px; padding-right: 4px; box-shadow: none; }
@@ -2017,7 +2014,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
    bar, where the build button was). */
 @media (max-width: 860px) and (orientation: portrait), (max-width: 860px) and (min-height: 521px) {
   #tray {
-    top: auto; bottom: calc(var(--dock-h) + 8px); left: 8px; right: 8px; max-height: calc(100% - var(--bar-h) - var(--dock-h) - 24px);
+    top: auto; bottom: calc(env(safe-area-inset-bottom) + 8px); left: 8px; right: 8px; max-height: calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);
     animation: rise 0.22s var(--ease);
   }
 }
@@ -2371,7 +2368,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 /* ================================================================== the map's chrome
 
    No bar above the map: the pane is headed by where the city is (its region › its name), and the map carries its
-   controls, floating — along its top the date and the clock (the speeds, undo), the view's card hanging under it; down
+   controls, floating — in its top left corner the date and the speeds, the view's card hanging under them; down
    its left the building categories alone, their tools' card opening beside them, and under them the menu, a button of
    its own; the tool in hand at the foot; 전체 보기 and the minimap in the top right corner. Wide, the city pane is
    always beside the map. On a phone both bars float at the screen's edges: 도시 상태, the date, the clock and the menu
@@ -2701,6 +2698,12 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) #mapbar > :not(#map-layer) { transform: translateY(calc(-100% - 16px - env(safe-area-inset-top))); }
   :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) #dock-col { transform: translateY(calc(100% + 16px + env(safe-area-inset-bottom))); }
   :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) #view #mapbar #map-layer { top: 0; }
+  /* (Under a goal's chip, there: it stayed 114px down, over the map below the chip.) */
+  :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) #view:has(#manage-chip:not([hidden])) #mapbar #map-layer { top: 46px; }
+  /* (The sheets themselves are placed by the screen's edges, not by the bars: they are up only while the bars are
+     away — placed by the bars, the city pane jumped as it went, the bars coming back before it slid down.) The tools'
+     card and 지역 reach the top: the chips that float there wait for them (slivers of them peeked over the card). */
+  #view:is(:has(#tray:not([hidden])), .sheet-open) :is(#goal-strip, #manage-chip, #map-controls) { visibility: hidden; }
 }
 /* Held upright, the city pane rising over the map puts the view's card away (its top peeked out above the pane) — not
    an area's screen, which leaves the map its upper half: its tab's view needs its key there (folded to its name). */
@@ -2747,7 +2750,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   /* (The count by the icon: at the tile's corner it sat on the name beside it.) */
   .dock-btn[data-alerts]::after { top: 0; right: auto; left: 20px; }
   .dock-btn.suggest::after { top: 4px; left: 24px; }
-  #tray, #info-card, #sheet, #pane { top: calc(var(--bar-h) + 6px); }
+  #tray, #info-card, #sheet, #pane { top: calc(env(safe-area-inset-top) + 6px); }
   /* The city pane open on the left: the view's card beside it (and gone if a card is open on the right too). */
   #app.pane-open #view #mapbar #map-layer { left: calc(min(380px, 50vw) + 8px); } /* (50% would be the bar's) */
   /* Little height: the pane's head and figures tighter, so 도시 상태 starts in sight (it began at the pane's foot,

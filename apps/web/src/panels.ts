@@ -404,7 +404,9 @@ export function updatePanels(): void {
     dateEl.classList.add('turned');
   }
   dateEl.style.setProperty('--month-pct', `${((city.state.day % 30) / 30) * 100}%`);
-  dateEl.title = `${d.year}년 ${d.month}월 ${d.day}일 · 밑줄: 이달이 지나간 만큼`;
+  // (Not in a phone's clock button, which has its own: a second tooltip came up over it with a mouse.)
+  if (dateEl.closest('#btn-time')) dateEl.removeAttribute('title');
+  else dateEl.title = `${d.year}년 ${d.month}월 ${d.day}일 · 밑줄: 이달이 지나간 만큼`;
   // (The wind — where a fire spreads — is not on the web screen for now. The top bar keeps the date and the clock:
   // population and money are read in the city pane.)
   // The advisors first: the watch list reads their latest word (a row lagged an update behind).

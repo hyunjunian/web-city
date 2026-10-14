@@ -70,6 +70,9 @@ export function closeSheet(): boolean {
   const was = sheetTab;
   sheetTab = null;
   $('#sheet').hidden = true;
+  // (First: a phone's top buttons come back with it — still away, the menu's button took no focus.)
+  $('#view').classList.remove('sheet-open');
+  markOpen();
   // Back to the button that opened it, if it is in sight (지역 in a closed or busy pane, or the menu's line while it
   // is shut): else the menu's.
   if (hadFocus) {
@@ -78,8 +81,6 @@ export function closeSheet(): boolean {
     const shown = [...document.querySelectorAll<HTMLElement>(`[data-sheet-btn="${was}"]`)].find(seen);
     (shown ?? document.querySelector<HTMLElement>('#menu > summary'))?.focus();
   }
-  $('#view').classList.remove('sheet-open');
-  markOpen();
   return true;
 }
 
@@ -143,7 +144,16 @@ export function closeTopLayer(): boolean {
     flash('My Sim 지정을 취소했습니다');
     return true;
   }
-  return closeInfo() || closeSheet() || closePane();
+  return closeInfo() || closeSheet() || dismissPane();
+}
+
+/** The city pane put away by the player (its ×, Esc): on a phone the keyboard goes back to 도시 상태, which opened it
+ *  (it was left on the hidden pane, and the next Tab went to the map's corner). */
+function dismissPane(): boolean {
+  const had = phone() && $('#pane').contains(document.activeElement);
+  if (!closePane()) return false;
+  if (had) document.querySelector<HTMLElement>('#mapbar .mb-city')?.focus({ preventScroll: true });
+  return true;
 }
 
 /** The buttons for the pane and the sheets light up while theirs is open. */
@@ -179,10 +189,12 @@ export function setupTabs(): void {
   // A phone's 도시 상태 (the top bar's first): it opens the pane's sheet on its overview, and again, the sheet goes.
   // (Wide, the pane is always beside the map: the button isn't shown.)
   const city = document.querySelector<HTMLButtonElement>('#mapbar [data-app="city"]');
-  if (city) city.onclick = () => {
+  if (city) city.onclick = (e) => {
     if (!closePane()) {
       closeGoal();
       openPane();
+      // (From the keyboard, into it: the button goes away with the bars, and the focus fell to the page.)
+      if (e.detail === 0) $('#pane-close').focus({ preventScroll: true });
     }
   };
   document.querySelectorAll<HTMLButtonElement>('[data-sheet-btn]').forEach((b) => (b.onclick = () => toggleSheet(b.dataset.sheetBtn as SheetTab)));
@@ -203,6 +215,6 @@ export function setupTabs(): void {
     e.preventDefault();
   });
   $('#info-close').onclick = closeInfo;
-  $('#pane-close').onclick = closePane;
+  $('#pane-close').onclick = () => dismissPane();
   markOpen();
 }

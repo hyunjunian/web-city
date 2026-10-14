@@ -868,6 +868,9 @@ function emptyZone(x: number, y: number): boolean {
   return s.zone[i]! > 0 && s.occupant[i] === 0 && s.net[i] === 0 && !s.elevated[i] && !s.rubble[i] && !(s.landfill[i]! > 0);
 }
 
+/** A finger's tap with the bulldozer, once its question was answered yes (see applyTool's 철거). */
+let tapConfirmed = false;
+
 /** Whether the bulldozer's drag unzones: it started on an empty zone (one 철거 for both — the zones a drag across
  *  them takes away, what stands on the land another drag takes down). */
 function dezoning(): boolean {
@@ -906,6 +909,28 @@ export function applyTool(): void {
       if (dz) {
         res = city.zone(x0, y0, x1, y1, 'none');
         break;
+      }
+      // A finger's single tap on a building or a facility is asked first: taken down it can't be put back, and a tap
+      // has no hover to show it beforehand (a drag shows what it takes while it is drawn).
+      const occ = x0 === x1 && y0 === y1 ? city.state.occupant[y0 * city.size + x0] ?? 0 : 0;
+      if (touchFirst() && !tapConfirmed && occ) {
+        const plan = city.previewBulldoze(x0, y0, x0, y0);
+        if (!plan.message && (plan.buildings || plan.structures)) {
+          const st = occ < 0 ? city.state.structures.get(-occ) : undefined;
+          const name = st ? STRUCTURE_NAME[st.kind] : '이 건물';
+          void ask(`${name}${josa(name, '을', '를')} 헐까요? §${fmt(plan.cost)} · 되돌릴 수 없습니다.`, '철거').then((go) => {
+            if (!go || tool.kind !== 'bulldoze') return;
+            tapConfirmed = true;
+            setDrag({ start: [x0, y0], end: [x0, y0] });
+            try {
+              applyTool();
+            } finally {
+              tapConfirmed = false;
+              setDrag(null);
+            }
+          });
+          return;
+        }
       }
       // (Stations taken down: what only they reached, said with the result — a touch screen has no hover to warn first.)
       city.settle();

@@ -368,6 +368,9 @@ export function buildTools(): void {
       if (b.dataset.cat === 'bulldoze') {
         closeTray();
         selectTool(tool.id === 'bulldoze' ? 'query' : 'bulldoze');
+        // (From the keyboard, on to the map, where Enter takes down at the cursor: left here, the next Enter pressed
+        // 철거 again and put it down.)
+        if (e.detail === 0 && tool.id === 'bulldoze') $('#map').focus({ preventScroll: true });
         return;
       }
       const inTray = !!b.closest('#tray-cats');
@@ -1106,6 +1109,7 @@ function wordsFor(t: Tool, d?: (typeof STRUCTURES)[StructureKind]): string {
     : d.fire ? '불 화재 소방' : d.health ? '병원 건강 보건' : d.school ? '학교 교육' : d.category === 'park' ? '공원 녹지 놀이터' : d.station ? '대중교통 정류장 역' : '';
   if (t.kind === 'zone') return t.zone[0] === 'R' ? '집 주택 아파트 주거' : t.zone[0] === 'C' ? '상가 가게 상점 사무실 상업' : t.zone[0] === 'I' ? '공장 산업 일자리' : t.zone === 'A' ? '농장 농사 밭' : t.zone === 'landfill' ? '쓰레기' : '';
   if (t.kind === 'pipe') return '물 수도';
+  if (t.kind === 'bulldoze') return '구역 해제 해제 헐기 부수기 허물기 잔해'; // (구역 해제 is a drag of it now: it is found under its old name)
   if (t.kind === 'powerline') return '전기 전력 전선';
   if (t.kind === 'network' && (t.network === 'road' || t.network === 'street' || t.network === 'avenue' || t.network === 'highway')) return '다리 길 차';
   return '';
@@ -1161,7 +1165,9 @@ function findables(): Found[] {
         }
       } else {
         // (Terrain and disasters are listed after the rest: Enter on 물 dug a lake.)
-        out.push({ key: t.id, name: toolName(t), where: `${cat.label} · ${g.title}`, words: wordsFor(t), glyph: toolGlyph(t), sub: t.kind === 'terraform' && !city.established() ? '무료' : toolPrice(t), locked: usable(t) ? '' : '잠김', pick: () => selectTool(t.id),
+        // (철거 and 조회 are their categories' only tools: "철거 · 철거" said nothing.)
+        const where = t.kind === 'bulldoze' ? '끌어서 헐기 · 빈 구역은 해제' : cat.label === g.title ? cat.label : `${cat.label} · ${g.title}`;
+        out.push({ key: t.id, name: toolName(t), where, words: wordsFor(t), glyph: toolGlyph(t), sub: t.kind === 'terraform' && !city.established() ? '무료' : toolPrice(t), locked: usable(t) ? '' : '잠김', pick: () => selectTool(t.id),
           ...(t.kind === 'terraform' || t.kind === 'disaster' || t.kind === 'level' || t.kind === 'trees' ? { aside: true as const } : {}) });
       }
     }
