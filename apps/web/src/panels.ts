@@ -408,11 +408,18 @@ export function updatePanels(): void {
     dateEl.classList.add('turned');
   }
   dateEl.style.setProperty('--month-pct', `${((city.state.day % 30) / 30) * 100}%`);
-  $('#sb-wind').innerHTML = `${icon('wind')}<span>${wind}</span>`;
-  // The wind matters where fire spreads: in sight in a gale or while something burns, else unseen — its room kept, so
-  // the clock beside it doesn't move as it comes and goes (the speeds shifted 52px just as a fire had pause wanted).
-  $('#sb-wind').classList.toggle('calm', !(city.state.wind.strength > 0.5 || city.state.fires.length || city.state.treeFires.length));
-  // (The map's top bar keeps the date and the clock: population and money are read in the city pane.)
+  // The weather beside the date, always (the bar is theirs): the wind's way is where a fire spreads, a gale in amber —
+  // a fire then leaps further.
+  const windEl = $('#sb-wind');
+  if (windEl.dataset.wind !== wind) {
+    windEl.dataset.wind = wind;
+    windEl.innerHTML = `${icon('wind')}<span>${wind}</span>`;
+  }
+  const gale = city.state.wind.strength > 0.5;
+  windEl.classList.toggle('gale', gale);
+  windEl.title = city.state.fires.length || city.state.treeFires.length ? `${wind}: 지금 타는 불이 바람 쪽으로 번집니다`
+    : gale ? `${wind}: 불이 나면 바람 쪽으로 멀리 번집니다` : `${wind}: 불이 번지는 방향`;
+  // (The map's top bar keeps the date and the weather: population and money are read in the city pane.)
   // The advisors first: the watch list reads their latest word (a row lagged an update behind).
   const adv = advice();
   watchGoals(); // a goal turning to 조치 필요 may stop the clock; an action's result is told

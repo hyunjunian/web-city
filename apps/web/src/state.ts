@@ -57,19 +57,22 @@ export function builtArea(whole = false): { cx: number; cy: number; span: number
 export type Band = { left: number; top: number; right: number; bottom: number };
 
 /**
- * The part of the map nothing covers: below the top bar, right of the build bar down the left, and on a phone above
- * the city sheet when it is up — or beside it, where a phone held sideways has it as a side panel. Framing on a
- * phone, the edge arrows and their flights keep to it (an arrow under the sheet, a target landing there).
+ * The part of the map nothing covers: below the top bar, right of the controls' bar down the left (on a phone, above
+ * it across the foot), and on a phone above the city sheet when it is up — or beside it, where a phone held sideways
+ * has it as a side panel. Framing on a phone, the edge arrows and their flights keep to it (an arrow under the sheet,
+ * a target landing there).
  */
 export function mapBand(): Band {
   const r = renderer.canvas.getBoundingClientRect();
   let [left, top, right, bottom] = [0, 0, r.width, r.height];
   const bar = document.getElementById('mapbar')?.getBoundingClientRect();
   if (bar?.height) top = Math.max(top, Math.min(r.height / 3, bar.bottom - r.top));
-  // (The build bar takes the left edge from the top down: the band starts beside it, where it doesn't step back.)
+  // (The controls' bar takes the left edge from the top down — the band starts beside it, where it doesn't step back
+  // — or, across a phone's foot, the bottom.)
   const dock = document.getElementById('dock');
   const d = dock && getComputedStyle(dock).visibility !== 'hidden' ? dock.getBoundingClientRect() : null;
-  if (d?.width) left = Math.max(left, Math.min(r.width / 3, d.right - r.left));
+  if (d?.width && d.width > d.height) bottom = Math.min(bottom, Math.max(r.height * 2 / 3, d.top - r.top));
+  else if (d?.width) left = Math.max(left, Math.min(r.width / 3, d.right - r.left));
   const pane = document.getElementById('pane');
   const app = document.getElementById('app');
   if (pane && app?.classList.contains('pane-open') && matchMedia('(max-width: 860px)').matches) {

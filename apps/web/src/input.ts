@@ -2,7 +2,7 @@
 
 import { active as activeGoal, closeGoal, handedPlaced, noteAction, stepTab, toggleFinance, toggleGrowthTab, toggleUrgentGoal } from './manage';
 import { DEV_TYPES, GROWTH_CODES, isLocalNet, Net, linePath, type Rect, LIVE_KINDS, NETWORK_KINDS, STRUCTURES, Terrain, ZONES, type StructureKind } from '@web-city/engine';
-import { chooseSpeed, isHeld, resumeAfterBuilding, runningSpeed, showHelp, speedChosen, toggleFocus, toggleNight } from './controls';
+import { chooseSpeed, closeClock, isHeld, resumeAfterBuilding, runningSpeed, showHelp, speedChosen, toggleFocus, toggleNight } from './controls';
 import { aloneReached, cancelGlide, keepInView, showInfo, showRoutes } from './info';
 import { grabDisaster, setSteering, steering } from './live';
 import { ko } from './messages';
@@ -18,7 +18,7 @@ import { drive, SPECIAL } from './udi';
 import { closeTopLayer, toggleSheet } from './tabs';
 import { chosen, closeTray, dockArmed, openFind, previousTool, stepAlt, refreshToolChip, selectTool, STATION_HINT, tool, TOOL_KEYS, toolName, toolUsed, refreshEdgeHint } from './tools';
 import { remember } from './undo';
-import { $, ask, askText, escapeHtml, keyForControl, onHintRestore, flash, flashing, fmt, josa, touchFirst, flashYields, endFlash } from './util';
+import { $, ask, askText, escapeHtml, keyForControl, onHintRestore, flash, flashing, fmt, josa, touchFirst, flashYields, endFlash, undoHint } from './util';
 
 /** What each cheat did, for the toast. */
 const CHEAT_DONE: Record<string, string> = {
@@ -971,7 +971,7 @@ export function applyTool(): void {
         // line already, while two stations elsewhere wait for theirs.)
         const placed = city.query(sx, sy)?.structure;
         const track = kind === 'subwayStation' && !warn && placed && subwayAlone(placed.id) && subwayGap() ? ' · 다른 역과 지하철 선로로 이어야 탑니다 (교통 › 지하철)' : '';
-        built = [`${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 지었습니다 · −§${fmt(res.cost)}${reached}${warn}${track}${warn || track ? '' : touchFirst() ? ' · 위쪽 ↶로 되돌리기' : ' · Ctrl+Z로 되돌리기'}`, warn ? 'bad' : 'info'];
+        built = [`${STRUCTURE_NAME[kind]}${josa(STRUCTURE_NAME[kind], '을', '를')} 지었습니다 · −§${fmt(res.cost)}${reached}${warn}${track}${warn || track ? '' : ` · ${undoHint()}`}`, warn ? 'bad' : 'info'];
         flash(...built);
       }
       break;
@@ -1004,7 +1004,7 @@ export function applyTool(): void {
   if (forget && !res?.ok) forget();
   // What was done where the map shows little of it: a word that it happened, and its cost.
   const lost = tool.kind === 'bulldoze' && lostCover ? ` · ⚠ 혼자 맡던 ${lostCover.what} ${fmt(lostCover.n)}채가 범위 밖이 됨` : '';
-  if (res?.ok && !res.message && QUIET_KINDS.has(tool.kind)) flash(`${tool.label} 완료${res.cost ? ` · −§${fmt(res.cost)}` : ''}${lost}${tool.kind === 'bulldoze' ? (touchFirst() ? ' · 위쪽 ↶로 되돌리기' : ' · Ctrl+Z로 되돌리기') : ''}`, 'info'); // (taken down by mistake: the way back)
+  if (res?.ok && !res.message && QUIET_KINDS.has(tool.kind)) flash(`${tool.label} 완료${res.cost ? ` · −§${fmt(res.cost)}` : ''}${lost}${tool.kind === 'bulldoze' ? ` · ${undoHint()}` : ''}`, 'info'); // (taken down by mistake: the way back)
   lostCover = null;
   if (res && !res.ok && res.message) flash(ko(res.message), 'bad');
   // A new city's clock starts with its first zone (the game opened paused).
@@ -1408,7 +1408,7 @@ export function setupInput(): void {
     if (plain && (e.key === ',' || e.key === '.') && !drag) stepAlt(e.key === '.' ? 1 : -1);
     // `: back to the tool before (a road, then the bulldozer, then the road again).
     if (plain && e.key === '`' && !drag) selectTool(previousTool);
-    // B: the pane's 재정·정책 (or back from it); U 주민, J 지역: the sheets of the top bar and the pane's head (open, or close when showing).
+    // B: the pane's 재정·정책 (or back from it); U 주민, J 지역: the sheets of the controls' bar and the pane's head (open, or close when showing).
     if (plain && letter === 'b') toggleFinance();
     if (plain && letter === 'u') toggleSheet('sims');
     if (plain && letter === 'j') toggleSheet('region');
@@ -1418,6 +1418,7 @@ export function setupInput(): void {
     if (e.key === 'Escape') {
       if (proposal) dropProposal();
       else if (drag) setDrag(null);
+      else if (document.querySelector('.dock-time.open')) closeClock(); // (a phone's speeds' card, first: it is the topmost)
       else if (!closeTray(true) && !closeTopLayer()) {
         // Then the tool goes down, then the goal's screen gives way to the overview.
         if (tool.id !== 'query') selectTool('query');

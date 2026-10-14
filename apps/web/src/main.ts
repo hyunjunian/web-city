@@ -3,7 +3,7 @@
 import { setupGoals } from './manage';
 import { setupBack } from './back';
 import { City, sampleCity } from '@web-city/engine';
-import { buildOverlay, buildSpeed, resetSpeedChoice, restoreNight, setSpeed } from './controls';
+import { buildOverlay, buildSpeed, markCity, resetSpeedChoice, restoreNight, setSpeed, setupClock } from './controls';
 import { followTag, preview, refreshTag, setupInput } from './input';
 import { tickDisasters } from './live';
 import { setupMenu } from './menu';
@@ -265,12 +265,14 @@ setupPointerBlur();
 renderer.resize();
 buildTools();
 buildSpeed();
+setupClock();
 buildOverlay();
 setupInput();
 setupGoals();
 setupMenu();
 setupDriving();
 setupTabs();
+markCity();
 // (The skip link's jump: a fragment alone scrolls, it doesn't hand the canvas the keys.)
 document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click', (e) => {
   e.preventDefault();

@@ -1328,12 +1328,16 @@ function clearOfCards(): void {
   });
   // (Its label runs beside it and above: some room around.)
   if (!cards.some((c) => sx > c.left - 80 && sx < c.right + 80 && sy > c.top - 16 && sy < c.bottom + 28)) return;
-  // A card across the middle (the top bar, the view's card) keeps the target below it; one to a side, beside it.
+  // A card across the middle keeps the target below it (the top bar, the view's card) or above it (a phone's controls
+  // across the foot); one to a side, beside it.
   const middle = (c: DOMRect) => c.left - r.left < r.width / 2 && c.right - r.left > r.width / 2;
-  const top = Math.max(0, ...cards.filter(middle).map((c) => c.bottom - r.top));
+  const low = (c: DOMRect) => c.top - r.top > r.height / 2;
+  const top = Math.max(0, ...cards.filter((c) => middle(c) && !low(c)).map((c) => c.bottom - r.top));
+  const bottom = Math.min(r.height, ...cards.filter((c) => middle(c) && low(c)).map((c) => c.top - r.top));
   const left = Math.max(0, ...cards.filter((c) => !middle(c) && c.left - r.left < r.width / 2).map((c) => c.right - r.left));
   const right = Math.min(r.width, ...cards.filter((c) => !middle(c) && c.left - r.left >= r.width / 2).map((c) => c.left - r.left));
-  centerOn(spot.x + (spot.w >> 1), spot.y + (spot.h >> 1), cam.scale, { left, top: Math.min(top, r.height / 2), right: Math.max(left + 1, right), bottom: r.height });
+  const top0 = Math.min(top, r.height / 2);
+  centerOn(spot.x + (spot.w >> 1), spot.y + (spot.h >> 1), cam.scale, { left, top: top0, right: Math.max(left + 1, right), bottom: Math.max(top0 + 1, bottom) });
 }
 
 /** 재정·정책: opens it, or on it already brings its policy into sight (an advisor's "재정 열기", the policy links). */

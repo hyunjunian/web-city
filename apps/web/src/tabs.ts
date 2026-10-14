@@ -1,8 +1,9 @@
 // What sits beside and over the map besides tools: the city pane on the left (the
 // city's state, 재정·정책, each goal's screen with its statistics), the sheets (주민 from
-// the map's top bar, 지역 from the pane's head), the info card (what the query tool found) and, on small
+// the controls' bar, 지역 from the pane's head), the info card (what the query tool found) and, on small
 // screens, the pane as a bottom sheet. Esc closes the topmost.
 
+import { markCity, toggleFocus } from './controls';
 import { closeGoal, openFinance, paneClosed } from './manage';
 import { redraw, renderer, setSelected } from './state';
 import { closeTray } from './tools';
@@ -74,7 +75,7 @@ export function closeSheet(): boolean {
     // (checkVisibility also rules out the menu's lines while it is shut.)
     const seen = (b: HTMLElement) => (b.checkVisibility ? b.checkVisibility({ checkVisibilityCSS: true }) : !!b.offsetParent && getComputedStyle(b).visibility !== 'hidden');
     const shown = [...document.querySelectorAll<HTMLElement>(`[data-sheet-btn="${was}"]`)].find(seen);
-    (shown ?? document.querySelector<HTMLElement>('#mapbar .dropdown > summary'))?.focus();
+    (shown ?? document.querySelector<HTMLElement>('#dock .dropdown > summary'))?.focus();
   }
   $('#view').classList.remove('sheet-open');
   markOpen();
@@ -148,11 +149,7 @@ export function closeTopLayer(): boolean {
 function markOpen(): void {
   const pane = $('#app').classList.contains('pane-open');
   $('#dock').classList.toggle('sheet-open', !!sheetTab || (phone() && pane));
-  const city = document.querySelector<HTMLButtonElement>('#dock [data-app="city"]');
-  if (city) {
-    city.classList.toggle('open', pane);
-    city.setAttribute('aria-pressed', String(pane));
-  }
+  markCity();
   document.querySelectorAll<HTMLButtonElement>('[data-sheet-btn]').forEach((b) => {
     const on = b.dataset.sheetBtn === sheetTab;
     b.classList.toggle('open', on);
@@ -177,13 +174,14 @@ export function setupTabs(): void {
     watch.observe(pane);
     for (const part of pane.children) watch.observe(part);
   }
-  // Phones: the build menu's 도시 opens the pane on its overview; again, it goes. (Wide, it shows only with the map
-  // alone: pressed, the pane comes back.)
+  // The bar's 도시: wide, it puts the pane away (the map alone, F) and brings it back; on a phone it opens the pane's
+  // sheet on its overview, and again, the sheet goes.
   const city = document.querySelector<HTMLButtonElement>('#dock [data-app="city"]');
   if (city) city.onclick = () => {
-    if (!phone() && $('#app').classList.contains('focus')) {
-      $('#btn-focus').click();
-      $('#city-title').focus({ preventScroll: true }); // (this button goes with the map alone: the keyboard lands at the pane's head)
+    if (!phone()) {
+      const back = $('#app').classList.contains('focus');
+      toggleFocus();
+      if (back) $('#city-title').focus({ preventScroll: true }); // (the keyboard lands at the pane's head)
       return;
     }
     if (!closePane()) {

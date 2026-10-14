@@ -10,7 +10,7 @@ import { updatePanels } from './panels';
 import { ROUTE_COLOR, structureColor, TYPE_COLOR, zoneTint } from './render';
 import { cam, city, cityLineage, clampCamera, flightCount, moveCount, overlay, overlayType, redraw, renderer, setSelected, stopFlight } from './state';
 import { closeInfo, showTab } from './tabs';
-import { $, escapeHtml, flash, fmt, glue, hours, josa, pct, touchFirst } from './util';
+import { $, escapeHtml, flash, fmt, glue, hours, josa, pct, undoHint } from './util';
 import { refreshTaxes } from './controls';
 import { structureStat, toolGlyph, TOOLS } from './tools';
 import { choice, remember } from './undo';
@@ -523,7 +523,7 @@ ${paths}${voice}
     city.refreshIfDirty();
     redraw();
     updatePanels();
-    flash(`${what} 철거 · −§${fmt(res.cost)} · ${touchFirst() ? '위쪽 ↶' : 'Ctrl+Z'}로 되돌리기`, 'info');
+    flash(`${what} 철거 · −§${fmt(res.cost)} · ${undoHint()}`, 'info');
   };
   const historical = el.querySelector<HTMLInputElement>('#historical');
   if (historical) historical.onchange = () => {
@@ -555,7 +555,7 @@ ${paths}${voice}
           return;
         }
         // (주민 is on the top bar, or in its ⋯ menu when the bar is short of room.)
-        const sims = document.getElementById('btn-sims')?.offsetParent ? "위쪽 막대의 '주민'" : "위쪽 ⋯ 메뉴의 '주민'";
+        const sims = document.getElementById('btn-sims')?.offsetParent ? "왼쪽 막대의 '주민'" : "아래 막대 메뉴의 '주민'";
         flash(`${res.sim!.name}${josa(res.sim!.name, '이', '가')} 입주했습니다 — ${sims}에서 생각을 들어 보세요`);
         renderMySims(true);
         showInfo(x, y);

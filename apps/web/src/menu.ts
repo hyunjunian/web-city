@@ -1,7 +1,7 @@
 // New / save / load / export / import, and heightmap images.
 
 import { City, type Difficulty, type Heightmap, type HistoryPoint, loadCity, saveCity, type SavedCity, Terrain } from '@web-city/engine';
-import { showHelp, toggleFocus, toggleNight } from './controls';
+import { showHelp, toggleNight } from './controls';
 import { openSample } from './main';
 import { autoPause, setAutoPause } from './manage';
 import { ko } from './messages';
@@ -24,6 +24,13 @@ export function setupMenu(): void {
     if (!dropdown.open) return;
     const m = lastAutosave + 6;
     $('#autosave-note').textContent = `다음 자동 저장: ${2000 + Math.floor(m / 12)}년 ${(m % 12) + 1}월 (탭을\u00a0떠날\u00a0때도\u00a0저장)`;
+    // It rises from its button (the bar's foot, wide or on a phone): no taller than the room up to the window's top —
+    // on a phone, to the top bar's foot — scrolling the rest (on a short window its first lines were off the top).
+    const menu = dropdown.querySelector<HTMLElement>('.dropdown-menu')!;
+    menu.style.maxHeight = '';
+    const r = menu.getBoundingClientRect();
+    const roof = matchMedia('(max-width: 860px)').matches ? $('#mapbar').getBoundingClientRect().bottom + 8 : 8;
+    if (r.top < roof) menu.style.maxHeight = `${Math.max(160, r.bottom - roof)}px`;
   });
   document.addEventListener('pointerdown', (e) => {
     if (dropdown.open && !dropdown.contains(e.target as Node)) dropdown.open = false;
@@ -149,7 +156,6 @@ export function setupMenu(): void {
     }
   };
   $('#btn-help').onclick = showHelp;
-  $('#btn-focus').onclick = $('#btn-focus-menu').onclick = toggleFocus; // (the menu's, when the bar is short of room)
   dialog.addEventListener('close', async () => {
     if (dialog.returnValue !== 'sample' && dialog.returnValue !== 'ok') return;
     // The city on screen gives way: its progress since the last save goes with it.

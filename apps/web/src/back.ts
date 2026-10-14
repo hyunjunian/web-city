@@ -2,6 +2,7 @@
 // does, instead of leaving the game. While anything is out, one history entry stands in front of the
 // page for back to take; it is taken back once nothing is.
 
+import { closeClock } from './controls';
 import { active } from './manage';
 import { tool } from './tools';
 import { $ } from './util';
@@ -12,9 +13,9 @@ let guarded = false;
 /** We are taking our entry back ourselves (its popstate is ours to ignore). */
 let consuming = false;
 
-/** Whether anything Esc would put away is out: a dialog or the ⋯ menu, the tool card, a card, a sheet, the pane, a goal's screen, a tool in hand. */
+/** Whether anything Esc would put away is out: a dialog, the menu or the speeds' card, the tool card, a card, a sheet, the pane, a goal's screen, a tool in hand. */
 function anythingOpen(): boolean {
-  return !!document.querySelector('dialog[open], details.dropdown[open]') || !$('#tray').hidden || !$('#info-card').hidden || !$('#sheet').hidden
+  return !!document.querySelector('dialog[open], details.dropdown[open], .dock-time.open') || !$('#tray').hidden || !$('#info-card').hidden || !$('#sheet').hidden
     || $('#app').classList.contains('pane-open') || active !== null || tool.id !== 'query';
 }
 
@@ -50,6 +51,7 @@ export function setupBack(): void {
     const menu = document.querySelector<HTMLDetailsElement>('details.dropdown[open]');
     if (dialog) dialog.close();
     else if (menu) menu.open = false;
+    else if (document.querySelector('.dock-time.open')) closeClock(); // (the speeds' card over 시간)
     else document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     later();
   });

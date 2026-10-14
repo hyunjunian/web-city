@@ -54,6 +54,10 @@ export function keyForControl(e: KeyboardEvent): boolean {
 
 export const touchFirst = (): boolean => matchMedia('(pointer: coarse) and (hover: none)').matches;
 
+/** How a notice says to take something back: Ctrl+Z, or on a touch screen the controls' bar's ↶ (down the left; on a
+ *  phone across the foot). */
+export const undoHint = (): string => (touchFirst() ? `${matchMedia('(max-width: 860px)').matches ? '아래' : '왼쪽'} 막대의 ↶로 되돌리기` : 'Ctrl+Z로 되돌리기');
+
 /** Ends a flash message now (another tool's hints take the bar). */
 export function endFlash(): void {
   if (!flashTimer) return;
