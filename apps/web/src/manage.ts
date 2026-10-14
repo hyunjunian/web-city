@@ -39,14 +39,15 @@ function refreshBadge(bad = GOAL_ORDER.filter((id) => goalStatus(id).tone === 'b
 }
 
 /** The pane's watch list: one row per goal, problems marked; a row opens its goal. */
-/** Each goal's figure over time (its direction on the watch list), and whether up is better. */
+/** Each goal's figure over time (its direction on the watch list), and whether up is better: the figure its row
+ *  shows — power and water their use of what is made (92k / 100k m³ with a red ▼ beside it, for its 여유 shrinking,
+ *  read as demand falling); 보건 none, its 건강 지수 having no record (its arrow was 기대 수명's). */
 const DRIFT: Partial<Record<GoalId, [(p: HistoryPoint) => number | undefined, 1 | -1, string]>> = {
   finance: [(p) => p.funds, 1, '자금'], // (the money itself: a falling balance on rising funds read ▼)
   growth: [(p) => p.population, 1, '인구'],
-  power: [(p) => (p.powerSupply !== undefined && p.powerDemand !== undefined ? p.powerSupply - p.powerDemand : undefined), 1, '전력 여유'],
-  water: [(p) => (p.waterSupply !== undefined && p.waterDemand !== undefined ? p.waterSupply - p.waterDemand : undefined), 1, '물 여유'],
+  power: [(p) => (p.powerSupply && p.powerDemand !== undefined ? p.powerDemand / p.powerSupply : undefined), -1, '전력 사용률'],
+  water: [(p) => (p.waterSupply && p.waterDemand !== undefined ? p.waterDemand / p.waterSupply : undefined), -1, '물 사용률'],
   police: [(p) => p.crimes, -1, '범죄'],
-  health: [(p) => p.lifeExpectancy, 1, '기대 수명'],
   education: [(p) => p.eq, 1, '교육 지수'],
   traffic: [(p) => p.commute, -1, '통근 시간'],
   environment: [(p) => p.air, -1, '대기 오염'],

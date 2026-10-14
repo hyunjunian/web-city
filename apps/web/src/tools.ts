@@ -9,7 +9,7 @@ import { firstStepTool } from './onboarding';
 import { DISASTER_NAME, plainCodes, STRUCTURE_NAME } from './names';
 import { holdForBuilding, isHeld, showHelp, showOverlay, viewProblem } from './controls';
 import { structureMark } from './render';
-import { city, redraw, renderer, setDrag } from './state';
+import { city, cityLineage, redraw, renderer, setDrag } from './state';
 import { closeInfo, closePane, closeSheet, showTab } from './tabs';
 import { cancelMySimAction } from './mysims';
 import { $, endFlash, flash, fmt, touchFirst } from './util';
@@ -593,8 +593,19 @@ function markScroll(): void {
   el.classList.toggle('more-below', el.scrollHeight - el.scrollTop - el.clientHeight > 4);
 }
 
+/** The next step's tool its dot points to now, and the one the player last looked at (in which city). */
+let shownAct = '';
+let seen = { act: '', city: -1 };
+/** The player looked where the dot pointed: it goes until the next step is another. */
+function sawSuggestion(cat: CategoryId | null, id?: string): void {
+  if (!shownAct || (id ? id !== shownAct : categoryOf(shownAct) !== cat)) return;
+  seen = { act: shownAct, city: cityLineage };
+  markSuggested();
+}
+
 export function openTray(cat: CategoryId, fromDock = false): void {
   openCat = cat;
+  sawSuggestion(cat);
   // Opened from the tool's bar (a tool in hand), the card goes when that tool is put down.
   $('#tray').classList.toggle('from-bar', !fromDock && tool.id !== 'query');
   // One card at a time where they share the space: the app sheet and info card (the tray
@@ -970,6 +981,7 @@ const WATCHING = new Set(['query', 'route', 'mic', 'dispatch', 'disaster', 'thro
 export let toolPicks = 0;
 
 export function selectTool(id: string): void {
+  sawSuggestion(null, id);
   toolPicks++;
   armedByDock = false;
   armedUnasked = false;
@@ -1302,7 +1314,10 @@ export function stepAlt(dir: 1 | -1): void {
 export function markSuggested(): void {
   // One dot at a time: the category of the one next step (what the most troubled goal's screen recommends) (more dots said nothing).
   const act = firstStepTool ?? (city ? nextStep().act : '');
-  const cats = new Set(act && categoryOf(act) !== 'inspect' ? [categoryOf(act)] : []);
+  // Not once the player has looked (its category opened, or its tool picked) until the next step is another: there is
+  // always a next step, and a dot always on read as unread, and went unread.
+  shownAct = act && categoryOf(act) !== 'inspect' && !(seen.act === act && seen.city === cityLineage) ? act : '';
+  const cats = new Set(shownAct ? [categoryOf(shownAct)] : []);
   document.querySelectorAll<HTMLElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) => {
     const on = cats.has(b.dataset.cat as CategoryId) || (b.dataset.cat === 'build' && cats.size > 0);
     if (b.classList.contains('suggest') === on) return;
