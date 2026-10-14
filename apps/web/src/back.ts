@@ -50,8 +50,6 @@ export function setupBack(): void {
     const menu = document.querySelector<HTMLDetailsElement>('details.dropdown[open]');
     if (dialog) dialog.close();
     else if (menu) menu.open = false;
-    // (The views' list answers Esc only from inside it: its own button closes it.)
-    else if ($('#map-layer').classList.contains('picking')) $<HTMLButtonElement>('#view-pick').click();
     else document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     later();
   });

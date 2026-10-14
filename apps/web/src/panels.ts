@@ -2,10 +2,10 @@
 
 import { DEV_TYPES, type DevType, GROWTH_CODES, STRUCTURES, ZONES, type PollTopic, type StructureKind } from '@web-city/engine';
 import { icon } from './icons';
-import { chooseSpeed, refreshTaxes, refreshViewSummary, showOverlay } from './controls';
+import { chooseSpeed, refreshTaxes, refreshViewSummary } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
 import { adviceFor, capped as atCap, deptEmpty, deptFunded, freshLandfill, newReadings, readStats, stormHolds } from './readings';
-import { active, autoPause, markToolSite, openGoal, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
+import { active, autoPause, markToolSite, openGoal, openViewTab, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
 import { buildOrdinances, ordinanceMonth, ordinanceSignature, refreshInfo, setOrdinanceMonth } from './info';
 import { ko } from './messages';
 import { renderMySims } from './mysims';
@@ -65,8 +65,9 @@ document.addEventListener('click', (e) => {
     updatePanels();
     return;
   }
+  // (A view's 보기: the goal's tab that shows it, then the map.)
+  if (b.dataset.overlay) openViewTab(b.dataset.overlay);
   revealMap();
-  if (b.dataset.overlay) showOverlay(b.dataset.overlay);
   if (b.dataset.at) {
     const [x, y] = b.dataset.at.split(',').map(Number);
     centerOn(x!, y!);

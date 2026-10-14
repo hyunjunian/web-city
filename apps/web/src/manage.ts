@@ -7,7 +7,7 @@
 import { placeAt } from './input';
 import { DEV_TYPES, type DevType, Net, NETWORK_KINDS, ORDINANCES, POWER_DISPATCHES, STRUCTURES, type HistoryPoint, type OrdinanceId, type PowerDispatch, type RepairDepartment, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
 import { icon } from './icons';
-import { chooseSpeed, refreshTaxes, runningSpeed, showOverlay, toggleFocus, viewEmpty } from './controls';
+import { chooseSpeed, refreshTaxes, runningSpeed, showOverlay, toggleFocus, viewEmpty, viewName } from './controls';
 import { redrawInfo, refreshInfo, riotNear, showInfo } from './info';
 import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
@@ -15,12 +15,13 @@ import { whyNoDeals } from './region';
 import { journal } from './journal';
 import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, updatePanels } from './panels';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
+import { GRAPH_KEYS } from './graphs';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
 import { categoryOf, chosen, kindsFor, openTray, panTipAt, pickStructure, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice, remember } from './undo';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
-import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type Metric, type Tone } from './goals';
+import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type GoalTab, type Metric, type TabPart, type Tone } from './goals';
 import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
@@ -241,11 +242,15 @@ function guideSaid(id: GoalId): { said: string; worst?: ReturnType<typeof advice
  * for it, 추천 자리에 짓기. Once something was done here, when its result will be told.
  * (A fire or a riot has its banner instead; a sound goal shows nothing here.)
  */
-function guideHtml(id: GoalId): string {
+/**
+ * The guide's card in two: what is wrong and what it costs (the head of the screen's scoreboard, on every tab), and the
+ * step to take for it (the first of its actions, on every tab: the goal's next step whichever part is being looked at).
+ */
+function guideHtml(id: GoalId): { head: string; act: string } {
   guideSite = null;
   markSite = null;
   const s = goalStatus(id);
-  if (!s.tone || incidents().some((x) => x.goal === id)) return '';
+  if (!s.tone || incidents().some((x) => x.goal === id)) return { head: '', act: '' };
   const st = goalStep(id);
   // What is wrong as its advisor says it; with no advisor's word, the figure itself and its note.
   const { said: told, worst } = guideSaid(id);
@@ -263,7 +268,7 @@ function guideHtml(id: GoalId): string {
     // Nothing to build or press for it: where it is worst, and the views that show why.
     const at = worst?.at ?? (spot ? [spot.x, spot.y] : null);
     action = `<div class="g-act"><p class="g-act-head">${icon('search')}<b>원인부터 살펴보세요</b></p>
-      <p class="g-act-why">아래 진단과 지도 보기(${GOALS[id].views.map(([, label]) => label).join(' · ')})에서 원인이 보입니다</p>
+      <p class="g-act-why">${GOALS[id].tabs.length > 1 ? `위의 탭(${GOALS[id].tabs.map((t) => t.label).join(' · ')})을 차례로 눌러 지도와 ` : '지도와 '}아래 진단에서 원인을 찾으세요</p>
       ${at ? `<div class="g-act-btns"><button type="button" class="primary" data-spot="${at.join(',')}">${icon('target')}가장 심한 곳 보기</button></div>` : ''}</div>`;
   } else if (st.widen) {
     // A stretch to widen, shown on the map from end to end before it is widened.
@@ -363,8 +368,11 @@ function guideHtml(id: GoalId): string {
   const p = journal().pending[id];
   const wait = p ? `<p class="g-wait">${icon('check')}<span>${escapeHtml(p.text)} · ${Math.max(1, FOLLOW_DAYS - (city.state.day - p.day))}일 뒤 결과를 알려 드립니다</span></p>` : '';
   // (The screen's head names the goal: the card starts with what is wrong.)
-  return `<section class="lead ${s.tone} mg-guide" aria-label="추천 조치"><p class="lead-title">${icon('alert')}<span>${title}</span></p>
-    <p class="lead-risk">${(st.riskCode && RISK_OF[st.riskCode]) || (!offGrid && !st.said && worst && RISK_OF[worst.code]) || RISK[id]}</p><p class="g-label">추천 조치</p>${action}${wait}</section>`;
+  return {
+    head: `<section class="lead ${s.tone} mg-lead" aria-label="지금 문제"><p class="lead-title">${icon('alert')}<span>${title}</span></p>
+      <p class="lead-risk">${(st.riskCode && RISK_OF[st.riskCode]) || (!offGrid && !st.said && worst && RISK_OF[worst.code]) || RISK[id]}</p></section>`,
+    act: `<section class="mg-sec mg-guide ${s.tone}" aria-label="추천 조치"><h3>${icon('target')}추천 조치</h3>${action}${wait}</section>`,
+  };
 }
 
 /**
@@ -1105,6 +1113,122 @@ function showGoalView(id: GoalId, view: string): void {
   refreshInfo();
 }
 
+// ------------------------------------------------------------------ a goal's tabs
+
+/** The open goal's tab (among those shown), and the view picked under a tab of several (traffic's networks). */
+let tabAt = 0;
+const subView = new Map<string, string>();
+
+/** A goal's tabs as they stand: one whose view has nothing to show yet (radiation where there is none) left out. */
+export function goalTabs(id: GoalId): GoalTab[] {
+  return GOALS[id].tabs.filter((t) => !t.optional || !viewEmpty(t.view));
+}
+
+/** The open goal's tab now (the first, if the one picked has gone). */
+function tabNow(id: GoalId): GoalTab {
+  const tabs = goalTabs(id);
+  return tabs[Math.min(tabAt, tabs.length - 1)] ?? GOALS[id].tabs[0]!;
+}
+
+/** The view a tab puts on: its own, or the one picked under it. */
+function tabView(id: GoalId, t: GoalTab): string {
+  const picked = subView.get(`${id}:${t.label}`);
+  return picked && t.views?.some(([v]) => v === picked) ? picked : t.view;
+}
+
+/**
+ * Whether an item of the goal's is on this tab: named by it, or named by none of the goal's tabs and this the first
+ * (so nothing the goal has is left off its screen).
+ */
+function onTab<T>(id: GoalId, t: GoalTab, item: T, list: (x: GoalTab) => readonly T[] | undefined, match: (named: T, item: T) => boolean = (a, b) => a === b): boolean {
+  const named = (x: GoalTab) => !!list(x)?.some((v) => match(v, item));
+  return named(t) || (t === GOALS[id].tabs[0] && !GOALS[id].tabs.some(named));
+}
+/** The residents' poll among a goal's figures (named so at its end). */
+const isPoll = (label: string) => /주민 불만$|불만 없는 주민$/.test(label);
+const figOn = (id: GoalId, t: GoalTab, label: string) => onTab(id, t, label, (x) => x.figs, (p, l) => (p === 'poll' ? isPoll(l) : l.startsWith(p)));
+const partOn = (id: GoalId, t: GoalTab, part: TabPart) => onTab(id, t, part, (x) => x.parts);
+const codeOn = (id: GoalId, t: GoalTab, code: string) => onTab(id, t, code, (x) => x.codes);
+
+/** The code an incident is read by (a fire: 'fires'; a riot or an arsonist: 'riot'). */
+const incidentCode = (x: { goal: string }) => (x.goal === 'fire' ? 'fires' : 'riot');
+
+/** A tab's mark: red where an advisor's alarm about its part stands, or a fire or a riot it shows. */
+function tabTone(id: GoalId, t: GoalTab): '' | 'bad' {
+  if (incidents().some((x) => x.goal === id && codeOn(id, t, incidentCode(x)))) return 'bad';
+  return adviceFor(id).some((a) => a.level === 'bad' && codeOn(id, t, a.code)) ? 'bad' : '';
+}
+
+/**
+ * The tab a goal's screen opens on, by what is the matter now: a fire or a riot, then the trouble its card leads with,
+ * then the worst said; else the first. (The map's view comes with it: what the trouble is seen in.)
+ */
+function openingTab(id: GoalId): number {
+  const tabs = goalTabs(id);
+  const by = (code: string | undefined) => (code ? tabs.findIndex((t) => t.codes?.includes(code)) : -1);
+  const inc = incidents().find((x) => x.goal === id);
+  const lead = inc ? incidentCode(inc) : (capFirst(id) ?? guideSaid(id).worst)?.code;
+  const k = by(lead);
+  if (k >= 0) return k;
+  const bad = adviceFor(id).find((a) => a.level === 'bad' && by(a.code) >= 0);
+  return bad ? by(bad.code) : 0;
+}
+
+/** Puts a tab of the open goal on: its view on the map, its figures, graphs and actions on the screen. */
+function selectTab(k: number, focus = false): void {
+  if (!active) return;
+  const tabs = goalTabs(active);
+  if (k < 0 || k >= tabs.length) return;
+  tabAt = k;
+  showGoalView(active, tabView(active, tabs[k]!));
+  showGoalStats(active);
+  renderGoal(true);
+  // (Back in sight if the screen was scrolled down: its new part starts under the tabs, which stay at the top.)
+  $('#pane').scrollTop = 0;
+  if (focus) document.getElementById(`mg-tab-${k}`)?.focus({ preventScroll: true });
+  redraw();
+}
+
+/** [ and ]: the open goal's tab before or after (the map's view goes with it); with none open, how to get one. */
+export function stepTab(by: number): void {
+  if (!active) {
+    flash('도시 상태에서 항목을 열면 [ ]로 그 탭을 넘깁니다 · 탭마다 알맞은 지도 보기가 켜집니다', 'info');
+    return;
+  }
+  const n = goalTabs(active).length;
+  if (n > 1) selectTab((Math.min(tabAt, n - 1) + by + n) % n);
+  flash(`${GOALS[active].name} › ${tabNow(active).label}`, 'info');
+}
+
+/**
+ * Opens a goal on the tab that shows a view (an advisor's or a legend's 보기, the getting-started list's 개발 막힘, the
+ * summary's 시장 평점): the goal's own tab with it, among its kinds if need be.
+ */
+export function openGoalView(id: GoalId, view: string): void {
+  openGoal(id);
+  const tabs = goalTabs(id);
+  const k = tabs.findIndex((t) => t.view === view || t.views?.some(([v]) => v === view));
+  if (k < 0) return;
+  if (tabs[k]!.view !== view) subView.set(`${id}:${tabs[k]!.label}`, view);
+  if (k !== tabAt || currentView() !== view) selectTab(k);
+}
+
+/**
+ * A view asked for by a 보기 (a legend's, the getting-started list's): the open goal's tab with it, else the first
+ * goal's that has one.
+ */
+export function openViewTab(view: string): void {
+  const holds = (g: GoalId) => GOALS[g].tabs.some((t) => t.view === view || t.views?.some(([v]) => v === view));
+  const id = active && holds(active) ? active : GOAL_ORDER.find(holds);
+  if (id) openGoalView(id, view);
+}
+
+/** G: 개발·수요 on its 개발 막힘 tab, or back to the city from there. */
+export function toggleGrowthTab(): void {
+  if (active === 'growth' && tabNow('growth').view === 'growth') closeGoal();
+  else openGoalView('growth', 'growth');
+}
+
 /** Opens a goal's screen: its view on the map, its panel in the pane. */
 export function openGoal(id: GoalId, at?: [number, number], fromMap = false): void {
   const fresh = !active;
@@ -1124,7 +1248,9 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
     baseline.clear();
     baselineCity = cityLineage;
     for (const [label, , , n] of metrics(id)) if (n !== undefined) baseline.set(label, n);
-    showGoalView(id, GOALS[id].views[0]![0]);
+    // On the tab about what is the matter (the first when nothing is), its view on the map.
+    tabAt = openingTab(id);
+    showGoalView(id, tabView(id, tabNow(id)));
   }
   $('#pane').classList.add('managing');
   showGoalStats(id);
@@ -1194,23 +1320,40 @@ export function toggleFinance(): void {
 
 /** Under a goal's screen, its statistics: graphs of its figures and the reports that go with it (filled by the panels while shown). */
 function showGoalStats(id: GoalId | null): void {
-  $('#policy').hidden = id !== 'finance';
+  const t = id ? tabNow(id) : null;
+  // 재정's levers, each on its own tab (taxes; departments and loans; ordinances).
+  const policy = $('#policy');
+  policy.hidden = id !== 'finance';
+  const [taxes, depts, ords] = policy.querySelectorAll<HTMLElement>(':scope > .mg-sec');
+  if (id === 'finance' && t) for (const [sec, part] of [[taxes, 'taxes'], [depts, 'depts'], [ords, 'ords']] as const) if (sec) sec.hidden = !partOn(id, t, part);
   const el = $('#goal-stats');
   let any = false;
   el.querySelectorAll<HTMLElement>('.gs[data-goals]').forEach((s) => {
-    s.hidden = !id || !s.dataset.goals!.split(' ').includes(id);
+    // (A report the tab names, or the goal's own that no tab names, on its first.)
+    const rid = s.querySelector('[id]')?.id ?? '';
+    const own = !!id && s.dataset.goals!.split(' ').includes(id);
+    s.hidden = !id || !t || !(t.reports?.includes(rid) || (own && onTab(id, t, rid, (x) => x.reports)));
     any ||= !s.hidden;
   });
-  graphs.setGoal(id);
+  graphs.setGoal(id, id && t ? tabGraphs(id, t) : null);
   el.hidden = !any && $('#graphs').hidden;
+}
+
+/** The graphs on a tab: those it names (a family by its stem: 'trips' for each kind of trip), and the goal's own that no tab names, on its first. */
+function tabGraphs(id: GoalId, t: GoalTab): string[] {
+  const named = (x: GoalTab, key: string) => !!x.graphs?.some((g) => key === g || key.startsWith(`${g}-`));
+  return GRAPH_KEYS.filter(({ key, goal }) => named(t, key) || (goal === id && t === GOALS[id].tabs[0] && !GOALS[id].tabs.some((x) => named(x, key)))).map((g) => g.key);
 }
 
 /** Opens a goal's screen and brings one of its reports into sight (the summary's 시장 평점 and 다음 보상), on a view of its own. */
 function openGoalAt(id: GoalId, part: string, view?: string): void {
-  openGoal(id);
-  if (view && currentView() !== view) {
-    showGoalView(id, view);
-    renderGoal(true);
+  if (view) openGoalView(id, view);
+  else {
+    openGoal(id);
+    // (On the tab that holds it.)
+    const rid = part.replace(/^#/, '');
+    const k = goalTabs(id).findIndex((t) => t.reports?.includes(rid) || onTab(id, t, rid, (x) => x.reports));
+    if (k >= 0 && k !== tabAt) selectTab(k);
   }
   requestAnimationFrame(() => $(part).closest<HTMLElement>('.gs')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
 }
@@ -1263,9 +1406,9 @@ export function closeGoal(): boolean {
   const inPanel = $('#manage').contains(document.activeElement);
   active = null;
   $('#pane').classList.remove('managing');
-  $('#mg-body').innerHTML = '';
+  for (const sel of ['#mg-body', '#mg-acts', '#mg-more']) $(sel).innerHTML = '';
   showGoalStats(null);
-  drawn = '';
+  drawn.top = drawn.acts = drawn.more = '';
   $('#manage-chip').hidden = true;
   renderer.marks = [];
   renderer.guidePath = null;
@@ -1348,7 +1491,8 @@ function transitBegun(): boolean {
 }
 
 /** The goal's build actions: each kind of facility it may place, and its other tools. */
-function buildActions(g: Goal): string {
+/** What to build for a goal (the tools of the tab showing, `tools`; the goal's own by default). */
+function buildActions(g: Goal, tools: readonly string[] = g.tools): string {
   const items: string[] = [];
   const dem = city.demand.demand;
   // The kind that gives the most for its price among those the funds cover (output, water, patients or students).
@@ -1377,7 +1521,7 @@ function buildActions(g: Goal): string {
   const idleName = idle.length ? `${STRUCTURE_NAME[idle[0]!.kind]}${idle.length > 1 ? ` 외 ${idle.length - 1}곳` : ''}` : '';
   // Zones without power while the plants make plenty: the line is the fix.
   const lineFirst = g === GOALS.power && (!short_ || !!connect) && (unpoweredZones().off >= 10 || !!connect);
-  const candidates = g.tools.flatMap((id) => {
+  const candidates = tools.flatMap((id) => {
     const t = TOOLS.find((x) => x.id === id);
     return t?.kind === 'structure' ? kindsFor(t).filter((k) => city.isUnlocked(k) && city.placementsLeft(k) > 0) : [];
   });
@@ -1439,7 +1583,7 @@ function buildActions(g: Goal): string {
     const cls = t?.kind === 'zone' && t.zone !== 'landfill' && t.zone !== 'none' ? (t.zone === 'A' ? 'IA' : t.zone[0]) : null;
     return cls ? Math.max(...DEV_TYPES.filter((x) => (cls === 'IA' ? x === 'IA' : cls === 'I' ? x[0] === 'I' && x !== 'IA' : x[0] === cls)).map((x) => dem[x])) : null;
   };
-  let order = lineFirst ? ['powerline', ...g.tools.filter((x) => x !== 'powerline')] : connect === 'pipe' ? ['pipe', ...g.tools.filter((x) => x !== 'pipe')] : g.tools;
+  let order = lineFirst && tools.includes('powerline') ? ['powerline', ...tools.filter((x) => x !== 'powerline')] : connect === 'pipe' && tools.includes('pipe') ? ['pipe', ...tools.filter((x) => x !== 'pipe')] : [...tools];
   // The zones most wanted first (a list of "수요 없음" buried the one that was).
   // With no road yet the road comes before them all: nothing develops off one.
   const roadFirst = g === GOALS.growth && !city.state.net.some((v) => v !== 0);
@@ -1550,13 +1694,13 @@ function dealActions(id: GoalId): string {
 }
 
 /** Budgets that bear on the goal: its departments, and one slider for all its facilities. */
-function budgetActions(g: Goal, list: Structure[]): string {
+function budgetActions(g: Goal, list: Structure[], depts: Goal['depts'] = g.depts): string {
 
   const d = city.state.departments;
   // A department with nothing to fund yet (no jail): said so, with the way to build one, not a slider that can't move.
   const empty = (k: string, name: string) => `<div class="funding dept">${name} <em class="dept-none">아직 없음</em>${k === 'corrections' && city.isUnlocked('cityJail')
     ? `<button type="button" class="link" data-act="police" data-kind="cityJail" title="${STRUCTURE_NAME.cityJail} 짓기">짓기</button>` : '<span></span>'}</div>`;
-  const rows = g.depts.map(([k, name]) => deptEmpty(k) ? empty(k, name) : `<label class="funding dept">${name} <input data-mg-dept="${k}" type="range" min="0" max="${k === 'parks' || k === 'landmarks' ? 100 : 120}" step="5" value="${d[k]}" data-mark="100"><span>${d[k]}%</span></label>`);
+  const rows = depts.map(([k, name]) => deptEmpty(k) ? empty(k, name) : `<label class="funding dept">${name} <input data-mg-dept="${k}" type="range" min="0" max="${k === 'parks' || k === 'landmarks' ? 100 : 120}" step="5" value="${d[k]}" data-mark="100"><span>${d[k]}%</span></label>`);
   // (Water, garbage and transit buildings go by their department's budget above; only the rest have their own.)
   list = list.filter((f) => !deptFunded(f.kind));
   if (list.length) {
@@ -1568,9 +1712,9 @@ function budgetActions(g: Goal, list: Structure[]): string {
   return rows.length ? `<section class="mg-sec"><h3>${icon('wallet')}예산</h3>${rows.join('')}</section>` : '';
 }
 
-/** The goal's ordinances: what each does, its cost, and whether it can be enacted. */
-function ordinanceActions(g: Goal): string {
-  if (!g.ordinances.length) return '';
+/** The ordinances on a goal's tab: what each does, its cost, and whether it can be enacted. */
+function ordinanceActions(list: readonly OrdinanceId[]): string {
+  if (!list.length) return '';
   const row = (id: OrdinanceId) => {
     const on = city.state.ordinances.includes(id);
     const avail = on || city.ordinanceAvailable(id);
@@ -1579,8 +1723,8 @@ function ordinanceActions(g: Goal): string {
       <span><b>${ORDINANCE_NAME[id]}</b> <span class="muted">월 ${cost < 0 ? `+§${fmt(-cost)}` : `§${fmt(cost)}`}</span><br><small>${ORDINANCES[id].description}${avail ? '' : ' · 아직 조건이 안 됨'}</small></span></label>`;
   };
   // Those in force in sight; the others to enact fold under one line (a column of switches, mostly off).
-  const on = g.ordinances.filter((id) => city.state.ordinances.includes(id));
-  const off = g.ordinances.filter((id) => !on.includes(id));
+  const on = list.filter((id) => city.state.ordinances.includes(id));
+  const off = list.filter((id) => !on.includes(id));
   const open = document.querySelector<HTMLDetailsElement>('#manage .ord-more')?.open ? ' open' : '';
   return `<section class="mg-sec"><h3>${icon('civic')}조례${on.length ? ` <span class="muted">${on.length}개 시행 중</span>` : ''}</h3>${on.map(row).join('')}
     ${off.length ? `<details class="acts-more ord-more"${open}><summary>${on.length ? '다른 조례' : '시행할 수 있는 조례'} ${off.length}개</summary>${off.map(row).join('')}</details>` : ''}</section>`;
@@ -2154,32 +2298,39 @@ function diagnosis(a: ReturnType<typeof adviceFor>[number], lead: ReturnType<typ
   return `<p class="advice ${level}${echo ? ' echo' : ''}">${icon(a.level === 'bad' ? 'alert' : a.level === 'good' ? 'award' : 'info', 'adv-i')}<b class="adv-who">${ADVISOR_NAME[a.advisor]}</b> ${echo ? `<span class="adv-echo" title="${escapeHtml(lead.said)}">위의 문제:</span> ` : ''}${text}${more}${acts}</p>`;
 }
 
-/** The goal's panel. */
+/** The ways of running the plants, and the networks a repair mends, in words. */
 const DISPATCH_NAME: Record<PowerDispatch, string> = { balanced: '가동률 균등', economical: '발전비 우선', clean: '저오염 우선' };
 const REPAIR_NAME: Record<RepairDepartment, string> = { roads: '도로', transit: '철로', power: '송전선', water: '수도관' };
-let operationsMemo: { key: string; goal: GoalId; html: string } | null = null;
+
+/**
+ * A goal's operating sections: its outlook (for the scoreboard: what the month ahead holds as things stand) and its
+ * running choices (for the actions: the plants' dispatch, and a repair for each department's damaged network).
+ */
+type Operations = { outlook: string; dispatch: string; repairs: Partial<Record<RepairDepartment, string>> };
+const NO_OPERATIONS: Operations = { outlook: '', dispatch: '', repairs: {} };
+let operationsMemo: { key: string; goal: GoalId; ops: Operations } | null = null;
 
 /** Operating decisions are read only for the open management screen and cached between city changes. */
-function operationsHtml(id: GoalId): string {
-  if (!['power', 'water', 'traffic', 'finance', 'garbage'].includes(id)) return '';
-  if (city.stepping) return operationsMemo?.goal === id ? operationsMemo.html : '';
+function operations(id: GoalId): Operations {
+  if (!['power', 'water', 'traffic', 'finance', 'garbage'].includes(id)) return NO_OPERATIONS;
+  if (city.stepping) return operationsMemo?.goal === id ? operationsMemo.ops : NO_OPERATIONS;
   const key = `${changeKey()}|${id}|${city.state.funds}|${city.state.powerDispatch}`;
-  if (operationsMemo?.key === key) return operationsMemo.html;
+  if (operationsMemo?.key === key) return operationsMemo.ops;
+  const ops: Operations = { outlook: '', dispatch: '', repairs: {} };
   if (id === 'garbage') {
     const preview = city.previewGarbage();
-    const html = `<section class="mg-sec"><h3>${icon('trash')}지금 조건의 수거 전망</h3>
+    ops.outlook = `<section class="mg-sec"><h3>${icon('trash')}지금 조건의 수거 전망</h3>
       <p>소각 ${fmt(preview.incinerated)} t · 매립 ${fmt(preview.landfilled)} t · 반출 ${fmt(preview.exported ?? 0)} t</p>
       <p class="${preview.uncollected > 1 ? 'neg' : 'pos'}">못 치울 새 쓰레기 ${fmt(preview.uncollected)} t · 수거 후 쌓인 양 ${fmt(preview.piled)} t</p>
       ${(preview.routeCutOff ?? 0) > 1 ? `<p class="muted">${fmt(preview.routeCutOff!)} t의 수거망이 처리장·반출 도로와 끊겨 있습니다. 같은 망에 처리장을 마련하거나 도로를 이으세요.</p>` : ''}
       <small class="muted">현재 인구와 설비 상태 기준입니다. 공사가 끝나거나 도시가 자라면 바뀝니다.</small></section>`;
-    operationsMemo = { key, goal: id, html };
-    return html;
+    operationsMemo = { key, goal: id, ops };
+    return ops;
   }
   const infrastructure = city.infrastructureReport();
-  let html = '';
   if (id === 'power' && infrastructure.power.some((network) => network.sources.length)) {
     const reports = POWER_DISPATCHES.map((strategy) => city.energyReport(strategy)!);
-    html += `<section class="mg-sec"><h3>${icon('zap')}발전 운영</h3><div class="mg-views" role="group" aria-label="발전 운영 전략">${reports.map((report) =>
+    ops.dispatch = `<section class="mg-sec"><h3>${icon('zap')}발전 운영</h3><div class="mg-chips" role="group" aria-label="발전 운영 전략">${reports.map((report) =>
       `<button type="button" class="vchip" data-power-dispatch="${report.strategy}" aria-pressed="${(city.state.powerDispatch ?? 'balanced') === report.strategy}" title="지금 전력 수요에서의 발전비 · 정비비는 별도">${DISPATCH_NAME[report.strategy]} · 발전비 월 §${fmt(report.generationCost)}</button>`).join('')}</div>
       <p class="muted">부하를 맡은 발전소는 더 빨리 늙습니다. 저오염 운전은 오염을 줄이는 대신 발전비가 늘 수 있습니다.</p></section>`;
   }
@@ -2187,33 +2338,67 @@ function operationsHtml(id: GoalId): string {
     const networks = infrastructure[id];
     const fragile = networks.filter((network) => network.demand > 0 && network.contingencyShortfall > 0);
     const worst = [...fragile].sort((a, b) => b.contingencyShortfall - a.contingencyShortfall)[0];
-    if (networks.length) html += `<section class="mg-sec"><h3>${icon('info')}공급 여유와 예비 시설</h3><p class="${fragile.length ? 'muted' : 'pos'}">${fragile.length ? `가장 큰 공급원 하나가 멈추면 부족해지는 망 ${fmt(fragile.length)}개` : '현재 수요에서 최대 공급원 하나가 멈춰도 용량이 충분합니다'}</p>${worst ?
+    if (networks.length) ops.outlook = `<section class="mg-sec"><h3>${icon('info')}공급 여유와 예비 시설</h3><p class="${fragile.length ? 'muted' : 'pos'}">${fragile.length ? `가장 큰 공급원 하나가 멈추면 부족해지는 망 ${fmt(fragile.length)}개` : '현재 수요에서 최대 공급원 하나가 멈춰도 용량이 충분합니다'}</p>${worst ?
       `<p>가장 취약한 망: ${fmt(worst.contingencyShortfall)} ${id === 'power' ? 'MWh' : 'm³'} 부족 <button type="button" class="advice-view" data-at="${worst.x},${worst.y}">망 보기</button></p>` : ''}<small class="muted">현재 수요·이용 배정 기준입니다. 개보수 전 예비 시설이나 수입 거래를 확보하세요.</small></section>`;
   }
   const departments: RepairDepartment[] = id === 'power' ? ['power'] : id === 'water' ? ['water'] : id === 'traffic' ? ['roads', 'transit'] : [];
-  const damaged = departments.filter((dept) => infrastructure.repairs[dept].tiles > 0);
-  if (damaged.length) html += `<section class="mg-sec"><h3>${icon('road')}손상 구간 수리</h3><div class="mg-views">${damaged.map((dept) => {
+  for (const dept of departments) {
     const repair = infrastructure.repairs[dept];
-    return `<button type="button" class="vchip" data-repair-network="${dept}"${repair.cost > city.state.funds ? ' disabled' : ''}>${REPAIR_NAME[dept]} ${fmt(repair.tiles)}칸 · §${fmt(repair.cost)}</button>`;
-  }).join('')}</div><p class="muted">손상된 구간만 고칩니다. 부서 예산이 부족하면 다시 닳습니다.</p></section>`;
+    if (repair.tiles > 0) ops.repairs[dept] = `<button type="button" class="vchip" data-repair-network="${dept}"${repair.cost > city.state.funds ? ' disabled' : ''}>${REPAIR_NAME[dept]} ${fmt(repair.tiles)}칸 · §${fmt(repair.cost)}</button>`;
+  }
   if (id === 'finance') {
     const current = city.budgetForecast(12);
     const stress = city.budgetForecast(12, { taxIncomeMultiplier: 0.8 });
     const capital = infrastructure.capitalNeeded;
-    html += `<section class="mg-sec"><h3>${icon('wallet')}12개월 자금 전망</h3><p>최저 자금 <b class="${current.minimumFunds < 0 ? 'neg' : ''}">§${fmt(current.minimumFunds)}</b>${current.firstNegativeMonth !== null ? ` · ${current.firstNegativeMonth === 0 ? '지금' : `${current.firstNegativeMonth}개월 후`} 자금 부족` : ''}</p>
+    ops.outlook = `<section class="mg-sec"><h3>${icon('wallet')}12개월 자금 전망</h3><p>최저 자금 <b class="${current.minimumFunds < 0 ? 'neg' : ''}">§${fmt(current.minimumFunds)}</b>${current.firstNegativeMonth !== null ? ` · ${current.firstNegativeMonth === 0 ? '지금' : `${current.firstNegativeMonth}개월 후`} 자금 부족` : ''}</p>
       <p class="muted">세입이 20% 줄면 최저 §${fmt(stress.minimumFunds)} · 1년 안에 수명이 끝날 시설의 개보수 비용 §${fmt(capital)}</p>
       <small class="muted">지금 세입·운영비·거래 가격을 유지한 전망입니다. 대출 만기는 반영하고 성장·노후화·재해는 제외합니다.</small></section>`;
   }
-  operationsMemo = { key, goal: id, html };
-  return html;
+  operationsMemo = { key, goal: id, ops };
+  return ops;
 }
 
-function goalHtml(id: GoalId): string {
+/** The repairs of a tab's departments (the damaged stretches of their networks, each mended in one press). */
+function repairActions(ops: Operations, depts: readonly Dept[]): string {
+  const chips = depts.map((k) => ops.repairs[k as RepairDepartment] ?? '').join('');
+  return chips ? `<section class="mg-sec"><h3>${icon('road')}손상 구간 수리</h3><div class="mg-chips">${chips}</div><p class="muted">손상된 구간만 고칩니다. 부서 예산이 부족하면 다시 닳습니다.</p></section>` : '';
+}
+
+/**
+ * The goal's tabs under its name: each a part of it with the map's view for it (marked red where its part is in
+ * trouble); under a tab of several views, its kinds.
+ */
+function tabsHtml(id: GoalId): string {
+  const tabs = goalTabs(id);
+  const now = tabNow(id);
+  const view = currentView();
+  const row = tabs.map((x, k) => {
+    const on = x === now;
+    const tone = tabTone(id, x);
+    const shows = x.view === 'none' ? '지도 보기 없음 (도시 그대로)' : `지도: ${viewName(tabView(id, x)) || x.label}`;
+    return `<button type="button" role="tab" class="mg-tab${on ? ' on' : ''}" id="mg-tab-${k}" data-mg-tabk="${k}" aria-selected="${on}" aria-controls="manage" tabindex="${on ? 0 : -1}" title="${escapeHtml(shows)}${tone ? ' · 문제 있음' : ''}">${escapeHtml(x.label)}${tone ? '<i class="mg-tab-dot" aria-hidden="true"></i>' : ''}</button>`;
+  }).join('');
+  // (Only the kinds the city has, and the one showing: six networks opened on a blank map and "아직 없습니다".)
+  const kinds = now.views?.filter(([v]) => v === now.view || v === view || !viewEmpty(v)) ?? [];
+  const sub = kinds.length > 1 ? `<div class="mg-kinds" role="group" aria-label="${escapeHtml(now.label)}: 무엇의">${kinds.map(([v, label]) => `<button type="button" class="vchip" data-mg-view="${v}" aria-pressed="${view === v}">${label}</button>`).join('')}</div>` : '';
+  return `<div class="mg-tabs" role="tablist" aria-label="${GOALS[id].name}: 탭마다 지도 보기가 바뀝니다">${row}</div>${sub}`;
+}
+
+/**
+ * The goal's screen, top down: its name and tabs; the tab's scoreboard (what is wrong, its figures; the graphs and
+ * reports follow, kept apart); what can be done about it (the guide's step, then building, deals, budgets,
+ * ordinances, the facilities); and the rest (the advisors' words on it, what was done here).
+ */
+function goalParts(id: GoalId): { top: string; acts: string; more: string } {
   const g = GOALS[id];
+  const t = tabNow(id);
   const s = goalStatus(id);
   const list = facilities(g);
-  const view = currentView();
-  const advice = adviceFor(id).filter((a) => a.level !== 'good' || adviceFor(id).every((x) => x.level === 'good'));
+  const guide = guideHtml(id);
+  const has = (part: TabPart) => partOn(id, t, part);
+  // The advisors' words about this tab's part (all good: the good ones).
+  const own = adviceFor(id).filter((a) => codeOn(id, t, a.code));
+  const advice = own.filter((a) => a.level !== 'good' || own.every((x) => x.level === 'good'));
   // (What the card leads with, which 진단 then gives as 위의 문제: the cap's word when its park comes first.)
   const capped = capFirst(id);
   const lead = capped ? { said: firstSentence(adviceText(capped)), worst: capped } : guideSaid(id);
@@ -2233,45 +2418,55 @@ function goalHtml(id: GoalId): string {
   const shown = [...list].sort((a, b) => rank(a) - rank(b)).slice(0, allFacilities ? list.length : 6);
   // (All run on the department's budget: said once by the heading, not as the same pill on every row.)
   const allDept = list.length > 0 && list.every((f) => deptFunded(f.kind));
-  return `<header class="mg-head">
+  // The tab's own share of the goal's tools, budgets and ordinances (and any it names besides).
+  const tools = [...new Set([...g.tools.filter((x) => onTab(id, t, x, (y) => y.tools)), ...(t.tools ?? [])])];
+  const depts = g.depts.filter(([k]) => onTab(id, t, k, (y) => y.depts));
+  const ords = [...new Set([...g.ordinances.filter((o) => onTab(id, t, o, (y) => y.ordinances)), ...(t.ordinances ?? [])])];
+  const figs = metrics(id).filter(([label]) => figOn(id, t, label));
+  const ops = operations(id);
+  const top = `<header class="mg-head">
       <button type="button" class="icon-btn mg-back" title="도시로 돌아가기 (Esc)" aria-label="도시로 돌아가기">${icon('back')}</button>
       <h2 title="${g.aim}">${icon(g.icon)}<span>${g.name}</span></h2>${timeButton()}${!s.tone && !readStats().population && !city.state.buildings.size
       ? '<span class="chip" title="아직 사는 사람이 없습니다: 판단은 도시가 생긴 뒤에">시작 전</span>' // (an empty map isn't "good")
       : `<span class="chip ${s.tone || 'good'}">${s.tone === 'bad' ? '조치 필요' : s.tone === 'warn' ? '주의' : '양호'}</span>`}
+      ${tabsHtml(id)}
     </header>
     ${incidentBanner(id)}
-    ${guideHtml(id)}
-    <div class="mg-metrics">${metrics(id).map(([label, value, tone, n, better, title]) => {
+    ${guide.head}
+    ${figs.length ? `<div class="mg-metrics">${figs.map(([label, value, tone, n, better, title]) => {
       // How it moved since this screen opened: the result of what was done here, read where it was done.
       const was = baseline.get(label);
       const d = n !== undefined && was !== undefined ? Math.round(n - was) : 0;
       const dir = d && better ? (Math.sign(d) === better ? 'up' : 'down') : '';
       const delta = d ? `<small class="delta ${dir}" title="이 화면을 연 뒤의 변화 (조치 말고도 도시가 저절로 바뀐 몫 포함)">${d > 0 ? '▲' : '▼'} ${withUnit(Math.abs(d), value, label)}</small>` : '';
       return `<div class="mg-m ${tone ?? ''}"${title ? ` title="${escapeHtml(title.trim())}"` : ''}><span>${label}</span><b>${value}</b>${delta}</div>`;
-    }).join('')}</div>
-    ${usageBar(id)}
-    ${airCauses(id)}
-    <div class="mg-views" role="group" aria-label="지도 보기">${icon('layers')}${g.views.map(([v, label]) => `<button type="button" class="vchip${viewEmpty(v) ? ' empty" title="지금은 지도에 보여 줄 것이 없습니다' : ''}" data-mg-view="${v}" aria-pressed="${view === v}">${label}</button>`).join('')}</div>
-    ${((said) => (said ? `<section class="mg-sec"><h3>${icon('info')}진단</h3>${said}</section>` : ''))(advice.map((a) => diagnosis(a, lead, id)).join(''))}
-    ${id === 'finance' ? financeActions() : ''}
-    ${spotLine(id)}
-    ${id === 'growth' && $('#demand').innerHTML.trim() ? `<section class="mg-sec mg-rci"><h3>${icon('zones')}구역별 수요 <span class="sec-note">막대가 위로 길수록 수요가 큼</span></h3>${$('#demand').innerHTML.replace('id="demand-detail"', 'class="demand-detail-mg"')}</section>` : ''}
-    ${buildActions(g)}
-    ${dealActions(id)}
-    ${budgetActions(g, list)}
-    ${operationsHtml(id)}
-    ${id === 'finance' ? '' : ordinanceActions(g)}
-    ${log(id)}
-    ${list.length ? `<section class="mg-sec"><h3>${icon('landmark')}시설 ${list.length}곳${allDept ? '<small class="sec-note">부서 예산으로 운영</small>' : ''}</h3><div class="mg-facs">${shown.map((f) => {
+    }).join('')}</div>` : ''}
+    ${has('usage') ? usageBar(id) : ''}
+    ${has('air') ? airCauses(id) : ''}
+    ${has('rci') && id === 'growth' && $('#demand').innerHTML.trim() ? `<section class="mg-sec mg-rci"><h3>${icon('zones')}구역별 수요 <span class="sec-note">막대가 위로 길수록 수요가 큼</span></h3>${$('#demand').innerHTML.replace('id="demand-detail"', 'class="demand-detail-mg"')}</section>` : ''}
+    ${has('outlook') ? ops.outlook : ''}`;
+  const facs = has('facilities') && list.length ? `<section class="mg-sec"><h3>${icon('landmark')}시설 ${list.length}곳${allDept ? '<small class="sec-note">부서 예산으로 운영</small>' : ''}</h3><div class="mg-facs">${shown.map((f) => {
       const [line, tone] = facilityLine(f);
       // Each its own budget, a step either way, and what it costs a month (per-building funding).
       const u = city.structureUpkeep(f.id);
       const cost = u ? u.running + u.overcapacity : 0;
       return `<div class="fac ${tone}"><button type="button" class="fac-main" data-fac="${f.id}" title="지도에서 보고 정보 카드 열기"><span class="fac-name">${facName(f)}</span><span class="fac-line">${line}</span>${facBar(f)}</button>
         ${allDept ? '' : deptFunded(f.kind) ? `<span class="fac-fund dept-note" title="이 시설은 부서 예산으로 운영됩니다">부서 예산</span>` : `<span class="fac-fund" title="이 시설의 예산 · 월 §${fmt(cost)}"><button type="button" class="tax-step" data-fund="${f.id}" data-d="-10" aria-label="${STRUCTURE_NAME[f.kind]} 예산 줄이기"${f.funding <= 0 ? ' disabled' : ''}>−</button><span><b>${f.funding}%</b><small>월 §${fmt(cost)}</small></span><button type="button" class="tax-step" data-fund="${f.id}" data-d="10" aria-label="${STRUCTURE_NAME[f.kind]} 예산 늘리기"${f.funding >= FUNDING_MAX(f.kind) ? ' disabled' : ''}>+</button></span>`}</div>`;
-    }).join('')}</div>${list.length > 6 ? `<button type="button" class="link mg-more">${allFacilities ? '줄여 보기' : `${list.length - 6}곳 더 보기`}</button>` : ''}</section>` : ''}
-    ${g.links?.length ? `<section class="mg-sec mg-links">${g.links.map(([tab, label]) => `<button type="button" class="link" data-mg-tab="${tab}">${label} ${icon('chevronRight')}</button>`).join('')}</section>` : ''}
-    `;
+    }).join('')}</div>${list.length > 6 ? `<button type="button" class="link mg-more">${allFacilities ? '줄여 보기' : `${list.length - 6}곳 더 보기`}</button>` : ''}</section>` : '';
+  const acts = `${guide.act}
+    ${has('spot') ? spotLine(id) : ''}
+    ${id === 'finance' && has('fix') ? financeActions() : ''}
+    ${buildActions(g, tools)}
+    ${has('deals') ? dealActions(id) : ''}
+    ${budgetActions(g, has('facilities') ? list : [], depts)}
+    ${repairActions(ops, depts.map(([k]) => k))}
+    ${has('dispatch') ? ops.dispatch : ''}
+    ${id === 'finance' ? '' : ordinanceActions(ords)}
+    ${facs}`;
+  const more = `${((said) => (said ? `<section class="mg-sec"><h3>${icon('info')}진단</h3>${said}</section>` : ''))(advice.map((a) => diagnosis(a, lead, id)).join(''))}
+    ${log(id)}
+    ${g.links?.length ? `<section class="mg-sec mg-links">${g.links.map(([tab, label]) => `<button type="button" class="link" data-mg-tab="${tab}">${label} ${icon('chevronRight')}</button>`).join('')}</section>` : ''}`;
+  return { top, acts, more };
 }
 
 /** The open goal's tone at the last update (to tell when it comes good). */
@@ -2279,8 +2474,8 @@ let toneSeen: { goal: GoalId | null; lineage: number; tone: Tone } = { goal: nul
 const saidGood = new Map<GoalId, number>();
 let saidGoodLineage = -1;
 
-/** What the panel last drew (redrawn only when it would change, and never under a press). */
-let drawn = '';
+/** What each part of the panel last drew (redrawn only when it would change, and never under a press). */
+const drawn = { top: '', acts: '', more: '' };
 let holding = false;
 /** Whether a press in the pane is under way (its panels wait to be redrawn). */
 export const paneHeld = () => holding;
@@ -2306,20 +2501,23 @@ export function renderGoal(force = false): void {
     for (const [label, , , n] of metrics(active)) if (n !== undefined) baseline.set(label, n);
   }
   refreshChip();
-  const el = $('#mg-body');
   // A slider in hand (or focused for the arrow keys) is never rebuilt under the player.
-  if (!force && (holding || (document.activeElement as HTMLElement | null)?.matches?.('#mg-body input[type=range]'))) return;
-  const html = goalHtml(active);
+  if (!force && (holding || (document.activeElement as HTMLElement | null)?.matches?.('#manage :is(#mg-body, #mg-acts, #mg-more) input[type=range]'))) return;
+  const parts = goalParts(active);
   refreshMarks(active, facilities(GOALS[active])); // (after the screen: its guide picks the site to mark)
-  if (!force && html === drawn) return;
-  const sel = el.contains(document.activeElement) ? focusKey(document.activeElement) : '';
-  drawn = html;
-  el.innerHTML = html; // (the policy and the statistics below it are kept: a slider in hand, a graph's pointer)
-  if (sel) el.querySelector<HTMLElement>(sel)?.focus({ preventScroll: true });
+  // Each part redrawn only when it changed (the policy and the statistics between them are kept: a slider in hand, a
+  // graph's pointer).
+  for (const [key, el] of [['top', $('#mg-body')], ['acts', $('#mg-acts')], ['more', $('#mg-more')]] as const) {
+    if (!force && parts[key] === drawn[key]) continue;
+    const sel = el.contains(document.activeElement) ? focusKey(document.activeElement) : '';
+    drawn[key] = parts[key];
+    el.innerHTML = parts[key];
+    if (sel) el.querySelector<HTMLElement>(sel)?.focus({ preventScroll: true });
+  }
 }
 
 /** Attributes that pick out a control again after the panel is redrawn. */
-const KEYS = ['data-spot', 'data-spot-build', 'data-widen', 'data-line-path', 'data-landfill', 'data-zone', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-goal', 'data-mg-tab', 'data-at', 'data-power-dispatch', 'data-repair-network'];
+const KEYS = ['data-spot', 'data-spot-build', 'data-widen', 'data-line-path', 'data-landfill', 'data-zone', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-mg-tabk', 'data-goal', 'data-mg-tab', 'data-at', 'data-power-dispatch', 'data-repair-network'];
 
 /** A selector for the focused control inside the goal panel, to give focus back after a redraw ('' if none). */
 function focusKey(el: Element | null): string {
@@ -2675,8 +2873,16 @@ export function setupGoals(): void {
       chooseSpeed(speed > 0 ? 0 : runningSpeed);
       return;
     }
+    // A tab: its part of the goal, and its view on the map.
+    const tab = t.closest<HTMLElement>('[data-mg-tabk]');
+    if (tab) {
+      selectTab(Number(tab.dataset.mgTabk));
+      return;
+    }
+    // A kind under a tab of several (traffic's networks): its view, kept for the tab.
     const view = t.closest<HTMLElement>('[data-mg-view]');
     if (view) {
+      subView.set(`${active!}:${tabNow(active!).label}`, view.dataset.mgView!);
       showGoalView(active!, view.dataset.mgView!);
       renderGoal(true);
       return;
@@ -2892,11 +3098,23 @@ export function setupGoals(): void {
       renderGoal(true);
       return;
     }
-    const tab = t.closest<HTMLElement>('[data-mg-tab]');
-    if (tab) {
-      showTab(tab.dataset.mgTab as 'budget' | 'region');
+    const link = t.closest<HTMLElement>('[data-mg-tab]');
+    if (link) {
+      showTab(link.dataset.mgTab as 'budget' | 'region');
       return;
     }
+  });
+  // The tabs as one control: ← → move along them (each putting its view on), Home and End to the ends.
+  el.addEventListener('keydown', (e) => {
+    const tab = (e.target as HTMLElement).closest?.<HTMLElement>('[data-mg-tabk]');
+    if (!tab || !active) return;
+    const n = goalTabs(active).length;
+    const k = Number(tab.dataset.mgTabk);
+    const to = e.key === 'ArrowRight' ? (k + 1) % n : e.key === 'ArrowLeft' ? (k - 1 + n) % n : e.key === 'Home' ? 0 : e.key === 'End' ? n - 1 : -1;
+    if (to < 0) return;
+    e.preventDefault();
+    e.stopPropagation(); // (not the map's arrows)
+    selectTab(to, true);
   });
   el.addEventListener('input', (e) => {
     const input = e.target as HTMLInputElement;

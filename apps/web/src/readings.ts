@@ -372,7 +372,8 @@ function goalMetrics(id: GoalId): Metric[] {
       const spare = p.supply - p.demand;
       return [['수요', `${fmt(p.demand)} MWh`, '', p.demand, 0], ['공급', `${fmt(p.supply)} MWh`, '', p.supply, 1],
         ['여유', `${spare < 0 ? '−' : ''}${fmt(Math.abs(spare))} MWh`, spare < 0 ? 'bad' : spare < p.demand * 0.15 ? 'warn' : 'good', spare, 1],
-        ['정전', p.blackedOut ? `${fmt(p.blackedOut)}채` : '없음', p.blackedOut ? 'bad' : '', p.blackedOut, -1], ['발전소', `${list.length}곳`, '', list.length, 0]];
+        ['정전', p.blackedOut ? `${fmt(p.blackedOut)}채` : '없음', p.blackedOut ? 'bad' : '', p.blackedOut, -1], ['발전소', `${list.length}곳`, '', list.length, 0],
+        wornMetric('낡은 송전선', 'power')];
     }
     case 'water': {
       const w = st.water;
@@ -392,7 +393,11 @@ function goalMetrics(id: GoalId): Metric[] {
         // (With no water at all there are no "shortages" yet: the buildings going without are the count.)
         // (Red as the row is, from 3,000 people — or with some past the stage that needs water; amber before: a small
         // town's red figure stood beside the view's 아직은 물 없이 자라는 단계.)
-        ...(w.supply <= 0 && dry() ? [['물 없는 건물', `${fmt(dry())}채`, st.population > 3000 || thirsty() ? 'bad' : 'warn', dry(), -1] as Metric] : [['단수', w.shortages ? `${fmt(w.shortages)}곳` : '없음', w.shortages ? 'bad' : '', w.shortages, -1] as Metric]), ['수도 시설', `${list.length}곳`, '', list.length, 0]];
+        ...(w.supply <= 0 && dry() ? [['물 없는 건물', `${fmt(dry())}채`, st.population > 3000 || thirsty() ? 'bad' : 'warn', dry(), -1] as Metric] : [['단수', w.shortages ? `${fmt(w.shortages)}곳` : '없음', w.shortages ? 'bad' : '', w.shortages, -1] as Metric]), ['수도 시설', `${list.length}곳`, '', list.length, 0],
+        // (For its 수질 tab: how foul the water runs, and the pumps it has stopped.)
+        ...((h) => (h?.waterPollution !== undefined ? [['수질 오염', h.waterPollution.toFixed(0), '', Math.round(h.waterPollution), -1, '도시 평균 · 주거지에서 100을 넘으면 건강과 시장 평점이 떨어집니다'] as Metric] : []))(s.history.at(-1)),
+        ['오염으로 멈춘 펌프', fouledPumps() ? `${fmt(fouledPumps())}곳` : '없음', fouledPumps() ? 'bad' : '', fouledPumps(), -1, `땅의 수질 오염이 ${fmt(city.cfg.services.pumpPollutionLimit)}을 넘은 양수 펌프는 물을 뽑지 못합니다`],
+        wornMetric('낡은 수도관', 'pipe')];
     }
     case 'garbage': {
       const g = st.garbage;
@@ -409,9 +414,11 @@ function goalMetrics(id: GoalId): Metric[] {
         ['재활용', `${fmt(g.recycled)} t`, '', Math.round(g.recycled), 1, '이번 달 재활용으로 줄인 양'], ['소각', `${fmt(g.incinerated)} t`, '', Math.round(g.incinerated), 0, '이번 달 소각 발전소가 태운 양'], ['못 치움', g.uncollected > 1 ? `${fmt(g.uncollected)} t` : '없음', g.uncollected > 1 && !toCome ? 'bad' : '', g.uncollected, -1],
         ...((g.routeCutOff ?? 0) > 1 ? [['처리장과 끊긴 수거망', `${fmt(g.routeCutOff!)} t`, 'bad', g.routeCutOff!, -1, '같은 도로망의 처리장 또는 계약한 반출 도로로 이어 주세요'] as Metric] : [])];
     }
-    case 'police':
+    case 'police': {
+      const stations = list.filter((f) => (STRUCTURES[f.kind].police?.radius ?? 0) > 0).length;
       return [['범죄 (지난달)', fmt(st.safety.crimes), '', st.safety.crimes, -1, crimeKinds(st.safety.byType)], ['체포', fmt(st.safety.arrests), '', st.safety.arrests, 1], ['예방', fmt(st.safety.prevented), '', st.safety.prevented, 1],
-        ['수감', c ? `${fmt(l)} / ${fmt(c)}` : '—', c && l >= c ? 'bad' : ''], ['풀려남 (감방 부족)', fmt(st.safety.paroled), st.safety.paroled ? 'warn' : '', st.safety.paroled, -1], ['폭동', s.mobs.length ? `${s.mobs.length} 진행 중` : '없음', s.mobs.length ? 'bad' : '']];
+        ['경찰서', `${stations}곳`, '', stations, 0], ['수감', c ? `${fmt(l)} / ${fmt(c)}` : '—', c && l >= c ? 'bad' : ''], ['풀려남 (감방 부족)', fmt(st.safety.paroled), st.safety.paroled ? 'warn' : '', st.safety.paroled, -1], ['폭동', s.mobs.length ? `${s.mobs.length} 진행 중` : '없음', s.mobs.length ? 'bad' : '']];
+    }
     case 'fire':
       return [['지금 불', st.safety.burning ? `${st.safety.burning}곳` : '없음', st.safety.burning ? 'bad' : ''], ['지난달 화재', fmt(st.safety.fires), '', st.safety.fires, -1], ['전소', fmt(st.safety.burned), '', st.safety.burned, -1], ['소방서', `${list.length}곳`, '', list.length, 0],
         ['출동 가능', `${city.freeUnits('fire')}대`]];
@@ -431,7 +438,9 @@ function goalMetrics(id: GoalId): Metric[] {
       const total = sum(Object.values(trips).map((v) => v ?? 0));
       const transit = sum(['bus', 'subway', 'passengerTrain', 'monorail', 'ferry'].map((k) => trips[k] ?? 0));
       const share = total ? Math.round((transit / total) * 100) : undefined;
-      return [['평균 통근', h?.commute ? minutes(h.commute) : '—', h?.commute && h.commute > 1 ? 'warn' : '', h?.commute ? Math.round(h.commute * 60) : undefined, -1], ['하루 통행', total ? fmt(total) : '—'],
+      const jams = jammedTiles();
+      return [['평균 통근', h?.commute ? minutes(h.commute) : '—', h?.commute && h.commute > 1 ? 'warn' : '', h?.commute ? Math.round(h.commute * 60) : undefined, -1],
+        ['막힌 길', jams ? `${fmt(jams)}칸` : '없음', jams >= 10 ? 'warn' : '', jams, -1, '용량을 넘어 차가 몰린 도로·철도 칸 · 넓히거나 대중교통으로 나누면 줄어듭니다'], ['하루 통행', total ? fmt(total) : '—'],
         ['대중교통 비중', share !== undefined ? `${share}%` : '—', '', share, 1],
         // Long commutes with no stop at all: transit is the step not yet taken.
         ['정류장·역', `${list.length}곳`, !list.length && (h?.commute ?? 0) > 1 ? 'warn' : '', list.length, 0, !list.length && (h?.commute ?? 0) > 1 ? '통근이 깁니다: 버스 정류장부터 놓아 보세요' : undefined]];
@@ -454,6 +463,39 @@ function goalMetrics(id: GoalId): Metric[] {
         ['공원', `${parks}곳`, '', parks, 1], ratingRated() ? ['시장 평점', String(st.mayorRating), st.mayorRating < 0 ? 'bad' : '', st.mayorRating, 1] : ['시장 평점', '—', '', undefined, 1, '주민이 든 달이 지나면 매겨집니다']];
     }
   }
+}
+
+/**
+ * Lines or pipes worn to where they spark or burst (50 and up, as the wear view marks them), as a figure: their
+ * department's budget at 100% or more mends them. Counted once a week or after an edit.
+ */
+function wornMetric(label: string, what: 'power' | 'pipe'): Metric {
+  const key = `${what}|${changeKey()}`;
+  let n = wornMemo.get(what)?.key === key ? wornMemo.get(what)!.n : -1;
+  if (n < 0) {
+    const s = city.state;
+    const [on, wear] = what === 'power' ? [s.power, s.lineWear] : [s.pipe, s.pipeWear];
+    n = 0;
+    for (let i = 0; i < on.length; i++) if (on[i] && wear[i]! >= 50) n++;
+    wornMemo.set(what, { key, n });
+  }
+  return [label, n ? `${fmt(n)}칸` : '없음', n ? 'warn' : '', n, -1, `노후도 50을 넘어 ${what === 'power' ? '불꽃이 튈' : '터질'} 수 있는 칸 · ${what === 'power' ? '송전선 유지' : '수도'} 예산이 100% 이상이면 고쳐집니다`];
+}
+const wornMemo = new Map<string, { key: string; n: number }>();
+
+/** Pumps standing on ground too foul to draw from (any tile of their lot past the engine's limit). */
+function fouledPumps(): number {
+  const f = city.fields;
+  const n = city.size;
+  const limit = city.cfg.services.pumpPollutionLimit;
+  let k = 0;
+  for (const st of city.state.structures.values()) {
+    if (!STRUCTURES[st.kind].pump) continue;
+    let over = false;
+    for (let y = st.y; y < st.y + st.h && !over; y++) for (let x = st.x; x < st.x + st.w; x++) if (f.waterPollution[y * n + x]! > limit) over = true;
+    if (over) k++;
+  }
+  return k;
 }
 
 /** A facility's line: its figure and anything wrong with it. */

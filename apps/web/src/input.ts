@@ -1,8 +1,8 @@
 // Map input: pointer and keyboard handling, tool previews and applying tools.
 
-import { active as activeGoal, closeGoal, handedPlaced, noteAction, toggleFinance, toggleUrgentGoal } from './manage';
+import { active as activeGoal, closeGoal, handedPlaced, noteAction, stepTab, toggleFinance, toggleGrowthTab, toggleUrgentGoal } from './manage';
 import { DEV_TYPES, GROWTH_CODES, isLocalNet, Net, linePath, type Rect, LIVE_KINDS, NETWORK_KINDS, STRUCTURES, Terrain, ZONES, type StructureKind } from '@web-city/engine';
-import { chooseSpeed, closeViewPicker, isHeld, resumeAfterBuilding, runningSpeed, showHelp, speedChosen, stepOverlay, toggleFocus, toggleGrowth, toggleNight, toggleOverlay } from './controls';
+import { chooseSpeed, isHeld, resumeAfterBuilding, runningSpeed, showHelp, speedChosen, toggleFocus, toggleNight } from './controls';
 import { aloneReached, cancelGlide, keepInView, showInfo, showRoutes } from './info';
 import { grabDisaster, setSteering, steering } from './live';
 import { ko } from './messages';
@@ -1361,12 +1361,14 @@ export function setupInput(): void {
     const letter = /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
     if (letter === 'n' && !e.ctrlKey && !e.metaKey) toggleNight();
     if (letter === 'f' && !e.ctrlKey && !e.metaKey) toggleFocus();
-    if (letter === 'o' && !e.ctrlKey && !e.metaKey) toggleOverlay();
-    if (letter === 'g' && !e.ctrlKey && !e.metaKey) toggleGrowth();
+    // G: 개발·수요 on its 개발 막힘 tab (what keeps zones empty), or back. (No key of its own for the map's view: a goal's
+    // tab puts it on.)
+    if (letter === 'g' && !e.ctrlKey && !e.metaKey) toggleGrowthTab();
     // M: the goal most in need of action (its screen), or back to the overview.
     // (By the key's place, so it works with the Korean keyboard on too; not held down, nor while driving.)
     if (e.code === 'KeyM' && plain0(e) && !e.repeat && !drive) toggleUrgentGoal();
-    if ((e.key === '[' || e.key === ']') && !e.ctrlKey && !e.metaKey) stepOverlay(e.key === ']' ? 1 : -1);
+    // [ and ]: the open goal's tab before or after, its map view with it.
+    if ((e.key === '[' || e.key === ']') && !e.ctrlKey && !e.metaKey) stepTab(e.key === ']' ? 1 : -1);
     // Home: the whole city in view (like the ⤢ button).
     if (e.key === 'Home') fitGlide();
     // + / − zoom about the view's centre (Ctrl with them is the browser's own zoom).
@@ -1416,7 +1418,7 @@ export function setupInput(): void {
     if (e.key === 'Escape') {
       if (proposal) dropProposal();
       else if (drag) setDrag(null);
-      else if (!closeViewPicker() && !closeTray(true) && !closeTopLayer()) {
+      else if (!closeTray(true) && !closeTopLayer()) {
         // Then the tool goes down, then the goal's screen gives way to the overview.
         if (tool.id !== 'query') selectTool('query');
         else closeGoal();

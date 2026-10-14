@@ -63,6 +63,9 @@ const GRAPHS: GraphDef[] = [
   })),
 ];
 
+/** Each graph's key and the goal it is of (a goal's tabs share them out). */
+export const GRAPH_KEYS = GRAPHS.map(({ key, goal }) => ({ key, goal }));
+
 const RANGE_KEY = 'web-city:graph-range';
 
 /** One decimal, but a plain 0 (axes read 0.0 beside whole numbers). */
@@ -102,7 +105,7 @@ export class Graphs {
   constructor(private readonly el: HTMLElement) {
     el.innerHTML = `<div class="segmented graph-range" role="group" aria-label="기간">
       ${RANGES.map(([m, label]) => `<button type="button" data-range="${m}" class="${m === this.range ? 'active' : ''}">${label}</button>`).join('')}
-    </div><p class="legend graph-span"></p>` + GRAPHS.map((g) => `${g.group ? `<h3 class="sub" data-goal="${g.goal}">${g.group}</h3>` : ''}
+    </div><p class="legend graph-span"></p>` + GRAPHS.map((g) => `${g.group ? `<h3 class="sub" data-goal="${g.goal}" data-stem="${g.key.split('-')[0]}">${g.group}</h3>` : ''}
       <figure class="graph" data-key="${g.key}" data-goal="${g.goal}">
         <figcaption><span>${g.title}${g.names ? ` <span class="graph-key"><i style="background:var(${(g.colors ?? ['--accent', '--muted'])[0]})"></i>${g.names[0]} <i class="dash" style="border-color:var(${(g.colors ?? ['--accent', '--muted'])[1]})"></i>${g.names[1]}</span>` : ''}</span><span class="graph-value"></span></figcaption>
         <canvas width="${W}" height="${H}" aria-label="${g.title} 추이"></canvas>
@@ -152,13 +155,14 @@ export class Graphs {
     });
   }
 
-  /** Shows only the graphs of this goal (a goal's screen), or none. */
-  setGoal(goal: string | null): void {
+  /** Shows only the graphs of this goal (a goal's screen) — or of these keys, its tab's — or none. */
+  setGoal(goal: string | null, keys: readonly string[] | null = null): void {
     let any = false;
+    const on = (f: HTMLElement) => (keys ? (f.dataset.key ? keys.includes(f.dataset.key) : keys.some((k) => k.startsWith(`${f.dataset.stem}-`))) : f.dataset.goal === goal);
     this.el.querySelectorAll<HTMLElement>('[data-goal]').forEach((f) => {
-      const on = f.dataset.goal === goal;
-      f.classList.toggle('off', !on);
-      any ||= on;
+      const shown = !!goal && on(f);
+      f.classList.toggle('off', !shown);
+      any ||= shown;
     });
     this.el.hidden = !any;
     this.redraw();

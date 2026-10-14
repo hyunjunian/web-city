@@ -1,8 +1,8 @@
-// Top-bar controls: speed, night view, help, overlay picker and tax sliders.
+// Top-bar controls: speed, night view, help, the map view's legend card and tax sliders.
 
 import { DEV_TYPES, type DevType, GROWTH_CODES, NETWORK_KINDS, STRUCTURES } from '@web-city/engine';
 import { icon, type IconName } from './icons';
-import { nextStep, openGoal } from './manage';
+import { openGoal } from './manage';
 import { fillRange } from './widgets';
 import { TYPE_NAME, TYPE_SHORT } from './names';
 import { updatePanels } from './panels';
@@ -11,10 +11,10 @@ import { ABANDONED_COLOR, buildingRisk, GROWTH_COLOR, GROWTH_LABEL, growthNow, R
 import { centerOn, pingAt, changeKey, city, cityGeneration, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
 import { refreshToolChip, selectTool, SPEEDS, TOOL_KEYS, toolName, TOOLS } from './tools';
 import { drive } from './udi';
-import { closeInfo, closePane, revealMap } from './tabs';
+import { revealMap } from './tabs';
 import { $, flash, fmt } from './util';
 import { choice } from './undo';
-import { type GoalId, GOALS } from './goals';
+import { type GoalId } from './goals';
 import { capped, incidents } from './readings';
 
 /** Day / night view (cosmetic). */
@@ -70,11 +70,11 @@ export function showHelp(): void {
     ['같은 묶음의 다른 도구', '도구를 든 동안 지도 아래쪽 줄에서 다른 도로 종류·밀도·시설 종류로 바로 바꿀 수 있습니다. 도구 카드 위의 찾기 칸에 이름(예: 소방서)을 쓰면 어느 묶음에 있든 찾아 주고, 최근 쓴 도구도 거기 모여 있습니다.'],
     ['짓기 메뉴와 도구 카드', `${wide ? '지도 왼쪽 막대에서 교통·구역·공공시설 같은 묶음을 누르면 그 옆으로 도구 카드가 열리고, 종류를 누르면 됩니다.' : '지도 왼쪽 막대의 <b>짓기</b>를 누르면 도구 카드가 열립니다. 카드 맨 위에서 교통·구역·공공시설 같은 묶음을 고르고 종류를 누르세요.'} 지도를 누르기 시작하면 카드는 접힙니다. 묶음 이름 옆에는 지금 모자란 것(닿지 않는 건물 수, 구역 수요)이 나옵니다. 시설을 고르면 지도에 <b>추천 자리</b> 과녁이(구역은 블록 테두리, 송전선·수도관은 점선 길이) 나오고, 화면 밖이거나 시트 아래면 가장자리의 파란 화살표를 눌러 그곳으로 갑니다. 놓을 자리를 누르면 아래 막대에 그 자리에서 새로 닿는 건물 수가 나옵니다.`],
     ['칸 정보 보기', `도구를 들지 않은 채 칸을 살짝 누르면 ${wide ? '오른쪽에 정보 카드가 나옵니다' : '아래에서 정보 카드가 올라옵니다'}. 건물·길을 누르면 그곳을 오가는 길이 지도에 그려지고, 집이면 주민 생각도 함께 나옵니다. 문제가 있는 시설의 카드에는 고치는 버튼(옆에 하나 더 짓기, 예산 100%로 등)이 함께 나옵니다.`],
-    ['조언의 보기·+ 버튼', '조언·알림의 <b>보기</b>를 누르면 문제를 보여 주는 지도 보기로 바뀌고 그 장소로 옮겨 갑니다. <b>+ 학교</b>처럼 생긴 버튼은 그 문제를 고칠 도구를 바로 골라 줍니다.'],
+    ['조언의 보기·+ 버튼', '조언·알림의 <b>보기</b>를 누르면 지도가 그 장소로 옮겨 갑니다. <b>+ 학교</b>처럼 생긴 버튼은 그 문제를 고칠 도구를 바로 골라 줍니다.'],
     ['건물이 안 들어설 때', '건물이 안 들어서면 빈 구역 칸을 눌러 보세요. 전기·도로·일터 연결·수요·쾌적도 중 무엇이 막는지 알려 줍니다.'],
     ['도시 현황', `${wide ? '왼쪽 <b>도시 현황</b> 맨' : '<b>도시</b>를 열면'} 위에 도시의 크기와 다음 보상이, 그 아래 도시 상태(재정·시장 평점·개발·전력 등 모든 분야)가 보이고, 누르면 그 관리 화면과 통계가 나옵니다. 세율·예산·대출·조례는 도시 상태의 <b>재정·정책</b>에서 바꿉니다. 맨 위의 <b>지역 › 도시 이름</b>에서 지역을 열고 이름을 바꿉니다. ${wide ? `<b>주민</b>은 ${simsAt}에 있고, 지역은 <b>⋯</b> 메뉴에서도 열리며, 저장·불러오기·테마는 <b>⋯</b> 메뉴에 있습니다.` : '<b>주민</b>·<b>지역</b>과 저장·불러오기·테마는 위쪽 막대의 <b>⋯</b> 메뉴에 있습니다.'}`],
     ['도시 상태 읽기', '<b>도시 상태</b>에서 조치가 필요한 곳(빨강·주황)을 누르면 그 화면 맨 위에 무엇이 문제인지와 추천 조치가 나오고, 해 보기를 누르면 그 도구가 손에 들리고, <b>추천 자리에 짓기</b>를 누르면 알맞은 빈 땅(서비스가 닿지 않는 곳, 수도관·전력망에 닿는 곳 등)에 바로 지어집니다(매립지·구역은 알맞은 크기로 <b>추천 자리에 N×N 놓기</b>). 과녁이 화면 밖이면 가장자리의 파란 화살표가 그쪽을 가리키고, 누르면 그곳으로 갑니다. 전기·물·도로가 닿지 않는 곳은 지도에 점선으로 그려 둔 가장 짧은 송전선·수도관·도로를 <b>바로 잇기</b>로 한 번에 놓습니다(위쪽 ↶로 되돌리기). 예산·조례·대출을 바꾸는 추천은 적용하기·시행하기·빌리기로 바로 바뀝니다(불·폭동은 도시 상태 위에 출동 카드가 먼저 뜹니다). 어느 항목이 조치 필요로 바뀌면 시간이 멈추고(⋯ 메뉴에서 끄기), 관리 화면에서 한 조치는 3개월 뒤 결과(핵심 수치의 변화)를 알려 줍니다. 도시 상태는 급한 곳(빨강)·살펴볼 곳(주황)이 위에 이유와 함께, 양호한 곳이 아래에 나오고, ▲▼는 지난 3개월의 흐름, "결과 기다리는 중"은 결과를 기다리는 조치입니다. 지나간 알림은 <b>소식</b>에 남고 도시와 함께 저장됩니다.'],
-    ['관리 화면', `${wide ? '왼쪽' : '<b>도시</b>의'} 도시 상태(개발·전력·수도·교육 등)에서 항목을 누르면 그 분야의 관리 화면이 열립니다: 지도 보기가 맞춰지고, 수치와 변화, 진단, 지을 것·예산·조례가 한곳에 모입니다. 시설 버튼을 누르면 지도로 넘어가고, 지도 위 칩을 누르면 관리 화면으로 돌아옵니다. 지도의 과녁은 서비스가 가장 많이 빠진 곳입니다.`],
+    ['관리 화면과 탭', `${wide ? '왼쪽' : '<b>도시</b>의'} 도시 상태(개발·전력·수도·교육 등)에서 항목을 누르면 그 분야의 관리 화면이 열립니다. 맨 위의 탭(교통이면 혼잡·통근·통행량)을 누를 때마다 지도에 알맞은 보기가 켜지고, 그 아래에 점수판(주요 수치·추이 그래프)과 할 일(추천 조치, 지을 것·예산·조례)이 나옵니다. 탭의 빨간 점은 그 부분에 급한 문제가 있다는 뜻입니다. 시설 버튼을 누르면 지도로 넘어가고, 지도 위 칩을 누르면 관리 화면으로 돌아옵니다. 지도의 과녁은 서비스가 가장 많이 빠진 곳입니다.`],
     ['불·폭동 출동', '불·폭동은 <b>시민 서비스</b>의 소방 출동·경찰 출동 도구로(또는 도시 상태 위 출동 카드의 출동 준비) 그곳을 누르면 가까운 서에서 차가 갑니다(서의 크기만큼 대수 제한). 불난 건물은 지도에 빨간 원으로, 미니맵에 빨간 점(폭동은 주황 점)으로 보이고, 소방·경찰 범위 보기의 <b>찾아가기</b>가 그곳으로 차례로 데려갑니다. 소방서 반경 안의 불 한두 곳은 소방서가 끄므로 소방 줄이 주황으로만 남고, 반경 밖·세 곳 이상·발전소의 불에는 출동 카드가 뜹니다. 폭동은 경찰차 3대 이상이 모여야 진압되니(막다른 길 제외) 같은 곳을 여러 번 누르세요. 아무것도 짓기 전의 새 도시에서는 지형 편집이 무료입니다.'],
     ['발전소', '발전소는 불타거나 수명이 다하면 폭발합니다: 소방서 반경 안에 두세요.'],
     ['알림·세율·시간', '알림 카드는 누르면 그곳으로 가고, 옆으로 밀면 치워집니다. 재정·정책의 세율은 −·+ 버튼으로 0.5%씩 바꿀 수 있습니다. 짓거나 철거하는 도구를 든 동안에는 시간이 잠시 멈춥니다. 제안(해 보기)으로 든 시설은 한 곳에 놓으면 도구가 내려가고 시간이 다시 흐릅니다.'],
@@ -84,14 +84,14 @@ export function showHelp(): void {
     ['같은 묶음의 다른 도구', '도구를 들면 지도 아래쪽에 서는 도구 막대에 그 도구와 같은 묶음의 다른 도구(도로 종류·밀도·시설 종류)가 함께 나와 한 번에 바꿀 수 있습니다(, . 키). 자주 쓰지 않는 도구는 도구 카드의 <b>더 보기</b>에 있습니다. / 키로 도구·시설을 이름으로 찾고 Enter로 바로 고릅니다(세율·대출·범죄처럼 하려는 일을 쓰면 그 관리 화면도 나옵니다).'],
     ['도구 메뉴와 도구 카드', '지도 왼쪽 막대는 위에서부터 철거, 짓기(교통·구역·공공시설·서비스), 보상·지형 순서입니다(도구를 들지 않으면 지도는 그대로 조회). 묶음을 누르면 그 옆으로 도구 카드가 열리고, 도구를 고르면 지도 아래쪽에 든 도구의 막대가 섭니다(카드 안에서는 방향키로 도구를 옮겨 고를 수 있음). 시설은 카드에서 종류를 바로 누르면 됩니다. 지도를 누르기 시작하면 카드는 접힙니다. 둘러보기만 하고 ×나 Esc로 닫으면 묶음이 집어 든 도구도 내려놓습니다. 가장 급한 곳의 추천 조치가 쓰는 도구의 묶음에는 작은 점이 하나 붙습니다. 알림은 지도 오른쪽 아래에 잠시 떴다가 사라집니다(아랫줄이 남은 시간, 가리키고 있으면 기다림).'],
     ['칸 정보 보기', '도구를 들지 않은 채 지도 위에 마우스를 올리면 그 칸이 무엇인지 바로 옆에 나옵니다. 누르면 오른쪽 정보 카드에 자세히 나오고, 두 번 누르면 그곳으로 확대됩니다. 문제가 있는 시설의 카드에는 고치는 버튼(옆에 하나 더 짓기, 예산 100%로 등)이 함께 나옵니다.'],
-    ['조언의 보기·+ 버튼', '조언·알림의 <b>보기</b>를 누르면 문제를 보여 주는 지도 보기로 바뀌고 그 장소로 옮겨 갑니다. <b>+ 학교</b>처럼 생긴 버튼은 그 문제를 고칠 도구를 바로 골라 줍니다. 오른쪽 위 미니맵을 눌러 이동할 수 있습니다.'],
+    ['조언의 보기·+ 버튼', '조언·알림의 <b>보기</b>를 누르면 지도가 그 장소로 옮겨 갑니다. <b>+ 학교</b>처럼 생긴 버튼은 그 문제를 고칠 도구를 바로 골라 줍니다. 오른쪽 위 미니맵을 눌러 이동할 수 있습니다.'],
     ['밀도 올리기 (재개발)', '건물이 선 땅에도 같은 종류의 더 높은 밀도(저 → 중 → 고밀도)를 칠할 수 있습니다. 건물은 그대로 있다가 재개발될 때 새 밀도로 다시 지어집니다.'],
     ['건물이 안 들어설 때', '건물이 안 들어서면 빈 구역 칸을 조회해 보세요. 전기·도로·일터 연결·수요·쾌적도 중 무엇이 막는지 알려 줍니다.'],
-    ['지도 보기와 서비스 범위', '지도 보기를 켠 채로 마우스를 올리면 그 칸의 값이 바로 옆에 나옵니다. 경찰·소방·병원·학교·발전소·수도 시설을 들면 그 서비스가 닿는 범위 보기가 함께 켜져 빈 곳이 보이고, 놓을 자리에는 반경이 원으로, 포인터 옆에는 그 자리에서 새로 닿는 건물 수가 보입니다. 도구를 들면 지을 만한 땅에 파란 <b>추천 자리</b> 과녁이(구역은 블록 테두리, 송전선·수도관은 점선 길이) 나오고, 시설은 그 원 안 어디를 눌러도 그 자리에 놓입니다. 과녁이 화면 밖이거나 카드에 가리면 가장자리의 화살표를 눌러 그곳으로 갑니다(키보드: <b>S</b>로 커서를 그 자리에). 범례 아래에는 빠진 곳의 수(전기 없는 건물, 막힌 길 등)가 나오고 <b>찾아가기</b>를 누를 때마다 다음 곳으로 옮겨 갑니다. 지도 보기 목록에서 점이 붙은 보기는 가장 급한 곳을 보여 주는 보기이고, 흐린 테두리의 보기는 아직 지도에 보여 줄 것이 없는 보기(짓지 않은 교통망 등)입니다.'],
+    ['지도 보기와 서비스 범위', '지도 보기는 관리 화면의 탭이 켭니다(따로 고르는 목록은 없음): 켜진 보기의 이름과 범례는 위 막대 아래 카드에 나오고, 그 위에 마우스를 올리면 그 칸의 값이 바로 옆에 나옵니다. 경찰·소방·병원·학교·발전소·수도 시설을 들면 그 서비스가 닿는 범위 보기가 함께 켜져 빈 곳이 보이고, 놓을 자리에는 반경이 원으로, 포인터 옆에는 그 자리에서 새로 닿는 건물 수가 보입니다. 도구를 들면 지을 만한 땅에 파란 <b>추천 자리</b> 과녁이(구역은 블록 테두리, 송전선·수도관은 점선 길이) 나오고, 시설은 그 원 안 어디를 눌러도 그 자리에 놓입니다. 과녁이 화면 밖이거나 카드에 가리면 가장자리의 화살표를 눌러 그곳으로 갑니다(키보드: <b>S</b>로 커서를 그 자리에). 범례 아래에는 빠진 곳의 수(전기 없는 건물, 막힌 길 등)가 나오고 <b>찾아가기</b>를 누를 때마다 다음 곳으로 옮겨 갑니다.'],
     ['도시 상태 읽기', '<b>도시 상태</b>에서 조치가 필요한 곳(빨강·주황)을 누르면 그 화면 맨 위에 무엇이 문제인지와 추천 조치가 나오고, 해 보기를 누르면 그 도구가 손에 들리고, <b>추천 자리에 짓기</b>를 누르면 알맞은 빈 땅(서비스가 닿지 않는 곳, 수도관·전력망에 닿는 곳 등)에 바로 지어집니다(매립지·구역은 알맞은 크기로 <b>추천 자리에 N×N 놓기</b>). 과녁이 화면 밖이면 가장자리의 파란 화살표가 그쪽을 가리키고, 누르면 그곳으로 갑니다. 전기·물·도로가 닿지 않는 곳은 지도에 점선으로 그려 둔 가장 짧은 송전선·수도관·도로를 <b>바로 잇기</b>로 한 번에 놓습니다(Ctrl+Z로 되돌리기). 예산·조례·대출을 바꾸는 추천은 적용하기·시행하기·빌리기로 바로 바뀝니다(불·폭동은 도시 상태 위에 출동 카드가 먼저 뜹니다). 어느 항목이 조치 필요로 바뀌면 시간이 멈추고(⋯ 메뉴에서 끄기), 관리 화면에서 한 조치는 3개월 뒤 결과(핵심 수치의 변화)를 알려 줍니다. 도시 상태는 급한 곳(빨강)·살펴볼 곳(주황)이 위에 이유와 함께, 양호한 곳이 아래에 나오고, ▲▼는 지난 3개월의 흐름, "결과 기다리는 중"은 결과를 기다리는 조치입니다. 지나간 알림은 <b>소식</b>에 남고 도시와 함께 저장됩니다.'],
-    ['관리 화면', '왼쪽 도시 상태에서 항목(개발·전력·수도·교육 등)을 누르면 그 분야의 관리 화면이 열립니다: 지도 보기가 그에 맞게 바뀌고, 수치와 최근 추세, 조언자의 진단, 지을 수 있는 시설·예산·조례가 한곳에 모입니다. 수치 옆 ▲▼는 화면을 연 뒤의 변화입니다. 지도에는 그 분야의 시설이 테두리로, 문제가 가장 많이 모인 곳(서비스가 닿지 않는 곳, 막힌 길, 공기가 나쁜 주거지, 부유층이 살 만한 땅 등)이 과녁으로 표시되고, 짓기 버튼은 지으면 여유가 얼마나 될지 알려 줍니다. ← 또는 Esc로 돌아갑니다(M: 가장 급한 분야).'],
+    ['관리 화면과 탭', '왼쪽 도시 상태에서 항목(개발·전력·수도·교육 등)을 누르면 그 분야의 관리 화면이 지금 문제가 있는 탭으로 열립니다. 맨 위의 탭(교통이면 혼잡·통근·통행량)을 누를 때마다, 또는 <b>[</b> <b>]</b> 키로 넘길 때마다 지도에 알맞은 보기가 켜지고, 그 아래에 점수판(주요 수치·추이 그래프)과 할 일(추천 조치, 지을 시설·예산·조례)이 나옵니다. 탭의 빨간 점은 그 부분에 급한 문제가 있다는 뜻이고, 수치 옆 ▲▼는 화면을 연 뒤의 변화입니다. 지도에는 그 분야의 시설이 테두리로, 문제가 가장 많이 모인 곳(서비스가 닿지 않는 곳, 막힌 길, 공기가 나쁜 주거지, 부유층이 살 만한 땅 등)이 과녁으로 표시되고, 짓기 버튼은 지으면 여유가 얼마나 될지 알려 줍니다. ← 또는 Esc로 돌아갑니다(M: 가장 급한 분야).'],
     ['불·폭동 출동', '불·폭동은 <b>시민 서비스</b>의 소방 출동·경찰 출동 도구로(또는 도시 상태 위 출동 카드의 출동 준비) 그곳을 누르면 가까운 서에서 차가 갑니다(서의 크기만큼 대수 제한). 불난 건물은 지도에 빨간 원으로, 미니맵에 빨간 점(폭동은 주황 점)으로 보이고, 소방·경찰 범위 보기의 <b>찾아가기</b>가 그곳으로 차례로 데려갑니다. 소방서 반경 안의 불 한두 곳은 소방서가 끄므로 소방 줄이 주황으로만 남고, 반경 밖·세 곳 이상·발전소의 불에는 출동 카드가 뜹니다. 폭동은 경찰차 3대 이상이 모여야 진압되니(막다른 길 제외) 같은 곳을 여러 번 누르세요. 아무것도 짓기 전의 새 도시에서는 지형 편집이 무료입니다.'],
-    ['발전소와 낡은 시설', '발전소는 불타거나 수명이 다하면 폭발합니다: 소방서 반경 안에 두고, 조언자가 수명을 알려 주면 새로 지어 바꾸세요. 송전선·수도관이 낡으면 불꽃·파열이 나니 <b>노후 시설</b> 보기와 부서 예산(위생 포함)을 살피세요.'],
+    ['발전소와 낡은 시설', '발전소는 불타거나 수명이 다하면 폭발합니다: 소방서 반경 안에 두고, 조언자가 수명을 알려 주면 새로 지어 바꾸세요. 송전선·수도관이 낡으면 불꽃·파열이 나니 전력·수도 화면의 <b>노후 송전선</b>·<b>노후 수도관</b> 탭과 부서 예산을 살피세요.'],
     ['재정·주민·지역·저장', `왼쪽 도시 상태의 항목(B: 재정·정책)을 누르면 그 관리 화면과 통계(그래프·보고서)가 나옵니다. 세율·예산·대출·조례는 재정·정책에서 바꿉니다. ${simsAt.replace('위쪽 ', '지도 위 ')}의 <b>주민</b>(U)에서 My Sim을, 도시 현황 맨 위의 지역 이름(J)에서 이웃 도시를 봅니다. 도시 이름은 그 옆을 눌러 바꾸고, 위 막대의 <b>⋯</b> 메뉴에서 저장·불러오기·테마를 고릅니다.`],
   ];
   // The basic loop in five steps (the getting-started list, in short), then the keys by what they are for.
@@ -111,8 +111,8 @@ export function showHelp(): void {
     <h3 class="sub">키보드</h3>
     <div class="key-groups">
       ${group('시간·되돌리기', `${key('Space', '멈춤·이어 하기')}${key('0–3', '속도 (⏸ ▶ ▶▶ ▶▶▶)')}${key('Ctrl+Z', '되돌리기 (20개)')}${key('Ctrl+Shift+Z', '다시 하기')}${key('Ctrl+S', '브라우저에 저장')}`)}
-      ${group('화면', `${key('M', '가장 급한 분야의 관리 화면')}${key('B', '재정·정책 (세율·예산·대출·조례)')}${key('U', '주민 (My Sim·직접 운전)')}${key('J', '지역 (이웃 도시)')}${key('?', '이 도움말')}${key('Ctrl+Shift+X', '치트 콘솔')}`)}
-      ${group('지도 보기', `${key('+ −', '확대·축소')}${key('Home', '도시 전체 보기')}${key('방향키', '지도 이동')}${key('F', '지도만 크게')}${key('O', '지도 보기 켜기·끄기 (영문 O)')}${key('[ ]', '이전·다음 지도 보기')}${key('G', '개발 막힘 보기')}${key('N', '밤 풍경')}`)}
+      ${group('화면', `${key('M', '가장 급한 분야의 관리 화면')}${key('[ ]', '열린 분야의 이전·다음 탭 (지도 보기가 함께 바뀜)')}${key('G', '개발·수요의 개발 막힘 탭')}${key('B', '재정·정책 (세율·예산·대출·조례)')}${key('U', '주민 (My Sim·직접 운전)')}${key('J', '지역 (이웃 도시)')}${key('?', '이 도움말')}${key('Ctrl+Shift+X', '치트 콘솔')}`)}
+      ${group('지도', `${key('+ −', '확대·축소')}${key('Home', '도시 전체 보기')}${key('방향키', '지도 이동')}${key('F', '지도만 크게')}${key('N', '밤 풍경')}`)}
       ${group('도구 다루기', `${key('/', '도구·시설·화면 찾기 (예: 소방서, 세율)')}${key(', .', '같은 묶음의 이전·다음 도구')}${key('`', '직전 도구로 돌아가기')}${key('Shift+끌기', '도로·선로를 곧게')}${key('Enter', '건설 도구: 커서 자리에 짓기 · 그 밖: 가운데 칸 조회')}${key('S', '건설 도구: 커서를 추천 자리(과녁)로')}${key('Esc', '취소 → 카드 닫기 → 도구 내려놓기')}`)}
       ${group('도구 바로 들기', Object.entries(TOOL_KEYS).map(([k, id]) => key(k.toUpperCase(), label(id))).join(''), true)}
     </div>
@@ -283,21 +283,16 @@ const VIEW_GROUPS: [string, IconName, [string, string, string?][]][] = [
 ];
 for (const [, , views] of VIEW_GROUPS) for (const v of views) v[2] ??= v[1];
 
-/** Closes the list of views if it is open (Esc, wherever the keyboard is); whether it was. */
-export const closeViewPicker = (): boolean => closePicker();
-let closePicker = (): boolean => false;
+/** A data view's full name, as its legend card heads it ('' for none). */
+export const viewName = (v: string): string => VIEW_GROUPS.flatMap(([, , views]) => views).find(([x]) => x === v)?.[2] ?? '';
 
+/**
+ * The map's data view, as a goal's tab puts it on (no list of views of its own: each goal's tabs choose theirs, a tool
+ * in hand its own): its legend and count in the card under the top bar, headed by its name.
+ */
 export function buildOverlay(): void {
   const el = $('#overlay');
-  const groups = VIEW_GROUPS.map(([label, ic, views]) => `
-      <div class="vg"><div class="vg-head">${icon(ic)}${label}</div><div class="vg-chips">${views.map(([v, name]) =>
-        `<button type="button" class="vchip" data-v="${v}" aria-pressed="false">${name}</button>`).join('')}</div></div>`).join('');
   el.innerHTML = `
-    <div class="view-current">
-      <button type="button" id="view-pick" aria-expanded="false" aria-controls="view-grid" title="지도에 보여 줄 데이터 고르기 (O 켜기·끄기, [ ] 앞뒤로 넘기기)">${icon('layers')}<span id="view-name">지도 보기</span>${icon('chevronDown')}</button>
-      <button type="button" class="icon-btn" id="view-off" title="지도 보기 끄기 (O)" aria-label="지도 보기 끄기" hidden>${icon('close')}</button>
-    </div>
-    <div id="view-grid" hidden>${groups}</div>
     <select id="overlay-kind" hidden aria-hidden="true" tabindex="-1">
       <option value="none">없음</option>
       ${VIEW_GROUPS.map(([label, , views]) => `<optgroup label="${label}">${views.map(([v, , full]) => `<option value="${v}">${full ?? ''}</option>`).join('')}</optgroup>`).join('')}
@@ -306,8 +301,6 @@ export function buildOverlay(): void {
     <div class="overlay-scale" id="overlay-scale" hidden><div class="scale-bar"></div><div class="ends"><span></span><span></span></div></div>
     <div class="legend" id="overlay-legend"></div>
     <p class="overlay-sum" id="overlay-sum" hidden></p>`;
-  // (The view's button in the map's top bar; its list, legend and count in the card under it.)
-  $('#mb-view').append(el.querySelector('.view-current')!);
   const kind = $<HTMLSelectElement>('#overlay-kind');
   const type = $<HTMLSelectElement>('#overlay-type');
   const title = $<HTMLButtonElement>('#layer-title');
@@ -318,7 +311,6 @@ export function buildOverlay(): void {
     title.setAttribute('aria-expanded', String(open));
   };
   const apply = () => {
-    if (kind.value !== 'none') lastView = kind.value; // O brings back whatever was shown last, however it was picked
     setOverlayType(type.value as DevType);
     setOverlay(kind.value === 'desirability'
       ? { kind: 'desirability', type: overlayType }
@@ -327,20 +319,18 @@ export function buildOverlay(): void {
         : ({ kind: kind.value } as Overlay));
     type.style.display = kind.value === 'desirability' ? '' : 'none';
     const off = kind.value === 'none';
-    // The chip's short name on the card; the full one as its tooltip.
-    const chip = el.querySelector<HTMLButtonElement>(`.vchip[data-v="${kind.value}"]`);
-    // The chip's name in the card's head; what it leaves out (보건 → 병원이 닿는 범위; 개발 막힘 → 빈 구역·버려진 건물)
+    // The view's short name heads the card; what it leaves out (보건 → 병원이 닿는 범위; 개발 막힘 → 빈 구역·버려진 건물)
     // as a quiet line over the legend, not the name said again.
-    $('#view-name').textContent = $('#layer-name').textContent = off ? '지도 보기' : chip?.textContent ?? ''; // (the card says it on a phone, where the bar shows the icon)
+    const short = VIEW_GROUPS.flatMap(([, , views]) => views).find(([v]) => v === kind.value)?.[1] ?? '';
+    $('#layer-name').textContent = off ? '' : short;
     const full = kind.selectedOptions[0]?.textContent ?? '';
-    const aside = /^.+? \((.+)\)$/.exec(full)?.[1] ?? (full !== chip?.textContent ? full : '');
+    // (Only what the name leaves out, in brackets: "통행량: 도로" under 도로 통행량 said it again.)
+    const aside = /^.+? \((.+)\)$/.exec(full)?.[1] ?? '';
     const legendEl = $('#overlay-legend');
     if (!off && aside) legendEl.dataset.title = aside;
     else delete legendEl.dataset.title;
-    $('#view-name').title = off ? '' : kind.selectedOptions[0]?.textContent ?? '';
+    $('#layer-title').title = off ? '' : `지도 보기: ${full} · 범례 펼치기·접기`;
     $('#map-layer').classList.toggle('off', off);
-    $('#view-off').hidden = kind.value === 'none';
-    el.querySelectorAll<HTMLButtonElement>('.vchip').forEach((c) => c.setAttribute('aria-pressed', String(c.dataset.v === kind.value)));
     $('#overlay-legend').textContent = ({
       desirability: '빨강 = 낮음, 노랑 = 50 (이 이상이어야 개발됨), 초록 = 150 이상.',
       power: '노랑 = 전력망에 연결됨, 빨강 = 전기가 없는 구역·건물.',
@@ -442,67 +432,6 @@ export function buildOverlay(): void {
     fitMapbar(); // (a longer name may want the room)
   };
   kind.onchange = apply;
-  const pick = $<HTMLButtonElement>('#view-pick');
-  const showGrid = (on: boolean) => {
-    // Phones: the bottom cards step aside for the list (it opened behind the city pane).
-    if (on && matchMedia('(max-width: 860px)').matches) {
-      closePane();
-      closeInfo();
-    }
-    // The views that show what needs a look now (a goal in trouble): a small dot, as the dock marks a 추천.
-    if (on) {
-      // (Only the view of the one goal the next step is for: a dot on every troubled goal's view said nothing.)
-      const hint = new Map<string, string>();
-      const lead = nextStep();
-      const v = lead.problem && lead.goal ? GOALS[lead.goal].views[0]?.[0] : undefined;
-      if (v) hint.set(v, GOALS[lead.goal!].name);
-      el.querySelectorAll<HTMLButtonElement>('.vchip').forEach((c) => {
-        const g = hint.get(c.dataset.v!);
-        c.classList.toggle('hint', !!g);
-        // (Those with nothing to show yet, dimmed: six transit views opened on a blank map and "아직 없습니다".)
-        const empty = !g && viewEmpty(c.dataset.v!);
-        c.classList.toggle('empty', empty);
-        c.title = g ? `${g}: 지금 살펴볼 만한 보기` : empty ? ({ radiation: '지금은 방사능이 남은 땅이 없습니다', landValue: '물가나 주변보다 높은 땅이 없어 어디나 0입니다' } as Record<string, string>)[c.dataset.v!] ?? '이 도시에는 아직 이 교통망이 없습니다' : '';
-      });
-      let note = el.querySelector<HTMLElement>('.vg-note');
-      if (!note) {
-        note = document.createElement('p');
-        note.className = 'vg-note';
-        note.innerHTML = '<i></i>지금 살펴볼 만한 보기';
-        $('#view-grid').prepend(note);
-      }
-      note.hidden = !hint.size;
-    }
-    $('#view-grid').hidden = !on;
-    pick.setAttribute('aria-expanded', String(on));
-    $('#map-layer').classList.toggle('picking', on);
-  };
-  pick.onclick = () => showGrid(pick.getAttribute('aria-expanded') !== 'true');
-  closePicker = () => {
-    if (pick.getAttribute('aria-expanded') !== 'true') return false;
-    showGrid(false);
-    return true;
-  };
-  $('#view-off').onclick = $('#layer-off').onclick = () => showOverlay('none'); // (the bar's ×; on a phone, the card's)
-  document.addEventListener('pointerdown', (e) => {
-    if (!$('#map-layer').contains(e.target as Node) && !$('#mb-view').contains(e.target as Node)) showGrid(false);
-  }, true); // capture: the map handles its own presses
-  el.querySelectorAll<HTMLButtonElement>('.vchip').forEach((c) => (c.onclick = (e) => {
-    // A second tap on the view showing turns it off.
-    showOverlay(c.dataset.v === kind.value ? 'none' : c.dataset.v!);
-    showGrid(false);
-    // The keyboard carries on at the picker; after a click, Space is the game's (pause), not the picker's.
-    if (e.detail === 0) pick.focus();
-    else (document.activeElement as HTMLElement | null)?.blur();
-  }));
-  // (Esc on the list or on its button in the bar.)
-  for (const box of [el, $('#mb-view')]) box.addEventListener('keydown', (e) => {
-    if ((e as KeyboardEvent).key === 'Escape' && pick.getAttribute('aria-expanded') === 'true') {
-      showGrid(false);
-      pick.focus();
-      e.stopPropagation();
-    }
-  });
   type.onchange = () => {
     apply();
     type.blur();
@@ -691,32 +620,6 @@ export function viewEmpty(v: string): boolean {
   }
   return v === 'subway' ? !city.state.subway.some((x) => x > 0) : v === 'radiation' ? !city.state.radiation.some((x) => x > 0)
     : v === 'landValue' ? !city.fields.landValue.some((x) => x >= 1) : false;
-}
-
-/** The data view O brings back (the last one shown). */
-let lastView = 'desirability';
-
-/** O: shows the last data view, or hides the one showing. */
-export function toggleOverlay(): void {
-  const kind = $<HTMLSelectElement>('#overlay-kind');
-  if (kind.value !== 'none') lastView = kind.value;
-  showOverlay(kind.value === 'none' ? lastView : 'none');
-}
-
-/** [ and ]: the view before or after the one showing, in the picker's order. */
-export function stepOverlay(by: number): void {
-  const views = [...document.querySelectorAll<HTMLButtonElement>('#view-grid .vchip')].map((c) => c.dataset.v!);
-  if (!views.length) return;
-  const at = views.indexOf($<HTMLSelectElement>('#overlay-kind').value);
-  const next = views[at < 0 ? (by > 0 ? 0 : views.length - 1) : (at + by + views.length) % views.length]!;
-  showOverlay(next);
-  flash(`지도 보기: ${document.querySelector(`#view-grid .vchip[data-v="${next}"]`)?.textContent ?? next}`, 'info');
-}
-
-/** G: the growth view (what keeps zones empty), or back to no view. */
-export function toggleGrowth(): void {
-  const kind = $<HTMLSelectElement>('#overlay-kind');
-  showOverlay(kind.value === 'growth' ? 'none' : 'growth');
 }
 
 /** What the view on shows, counted in a line under its legend (how many go without, how much is jammed). */

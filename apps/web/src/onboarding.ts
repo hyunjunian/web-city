@@ -12,9 +12,8 @@ import { EDGE_NAME, STRUCTURE_NAME } from './names';
 import { dropToasts, toast } from './toast';
 import { GOALS, type GoalId } from './goals';
 import { cheapestOf, cityEdges, citySides, edgeRoad, fillSpan, landfillSite, layCost, lineToDark, plantSite, powerToSpare, roadLinked, siteNear, siteOnPipes, suggestSpot, unpoweredZones, smokeClear, zoneSite } from './readings';
-import { bestBuild, buildAtSite, layPath, layZone, openGoal } from './manage';
+import { bestBuild, buildAtSite, layPath, layZone, openGoal, openViewTab } from './manage';
 import { updatePanels } from './panels';
-import { showOverlay } from './controls';
 import { unsavedProgress } from './saves';
 
 let shownTip = false;
@@ -318,9 +317,9 @@ function takeStep(step: string): void {
     openGoal(step.slice(5) as GoalId);
     return;
   }
+  // (A view: the goal's tab that shows it — 개발·수요's 개발 막힘 — with the map.)
   if (step.startsWith('view:')) {
-    showOverlay(step.slice(5));
-    closePane();
+    openViewTab(step.slice(5));
     return;
   }
   // The tool alone, the map left clear to build on; the chip on the map opens its kinds.

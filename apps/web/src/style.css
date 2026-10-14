@@ -540,6 +540,27 @@ kbd {
 @container (min-width: 520px) { .mg-time > span { display: inline; } .mg-time { padding: 0 10px; } }
 @media (pointer: coarse) { .mg-time { min-height: 36px; min-width: 36px; justify-content: center; } }
 .mg-back { flex: none; }
+/* The goal's tabs, a row of their own in its sticky head: each a part of the goal, putting its map view on (the
+   underline is the one showing; a red dot, a part in trouble). Scrolled sideways where they don't fit. */
+.mg-head { flex-wrap: wrap; row-gap: 0; padding-bottom: 0; }
+.mg-tabs {
+  flex: 1 0 100%; display: flex; gap: 2px; margin: 8px -4px 0; overflow-x: auto; scrollbar-width: none;
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+.mg-tabs::-webkit-scrollbar { display: none; }
+.mg-tab {
+  position: relative; flex: none; min-height: 38px; padding: 0 11px; border-radius: 8px 8px 0 0;
+  background: transparent; color: var(--muted); font-size: 13.5px; font-weight: 600; white-space: nowrap;
+}
+.mg-tab.on { color: var(--text); box-shadow: inset 0 -2.5px 0 var(--accent); }
+@media (hover: hover) { .mg-tab:not(.on):hover { background: var(--surface-2); color: var(--text); } }
+.mg-tab-dot { position: absolute; top: 8px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }
+/* A tab of several views (traffic's networks): its kinds under the tabs. */
+.mg-kinds { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 10px; }
+.mg-kinds .vchip, .mg-chips .vchip { min-height: 30px; padding: 0 11px; font-size: 12.5px; }
+/* A section's choices in a row (the plants' dispatch, the repairs). */
+.mg-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.mg-head:not(:has(.mg-kinds)) { padding-bottom: 0; }
 /* (A 288px pane, and a phone: closer together, so the longest name, 부유층·고급화, keeps whole beside the clock and
    the goal's state; the back arrow narrower too where a mouse aims it.) */
 @media (max-width: 1180px) { .mg-head { gap: 5px; } .mg-head h2 { gap: 5px; font-size: 16px; } }
@@ -576,9 +597,6 @@ kbd {
 .mg-sec .funding.mg-group span { grid-column: auto; white-space: nowrap; text-align: right; font-variant-numeric: tabular-nums; }
 .mg-sec .funding.mg-group span.note { grid-column: 2 / -1; text-align: left; margin-top: -4px; font-size: 11.5px; }
 .mg-sec .ordinance { margin-bottom: 4px; }
-.mg-views { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.mg-views > .i { width: 16px; height: 16px; color: var(--muted); margin-right: 2px; }
-.mg-views .vchip { min-height: 30px; padding: 0 11px; font-size: 12.5px; }
 .acts { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 6px; }
 /* In the pane's width two columns wrapped every line: one wide row each, name and price across, what it gives below. */
 #manage .acts { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px; }
@@ -802,40 +820,21 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
   backdrop-filter: blur(18px) saturate(1.3);
 }
 
-#map-layer:not(.off) #overlay > :not(.view-current, #view-grid) { width: auto; margin: 0 6px; }
+#map-layer:not(.off) #overlay > * { width: auto; margin: 0 6px; }
+/* Headed by the view's name — the one a goal's tab put on, or a tool in hand — so the map says what it shows. */
 #map-layer .layer-title {
-  display: none; align-items: center; justify-content: flex-start; gap: 6px; width: 100%; min-height: 0; margin: 0 0 8px; padding: 0;
-  background: none; color: var(--muted); font-size: 12.5px; font-weight: 600; cursor: default; transform: none;
+  display: none; align-items: center; justify-content: flex-start; gap: 7px; width: 100%; min-height: 0; height: 28px; margin: -2px 0 6px; padding: 0 8px;
+  background: none; color: var(--text); font-size: 13.5px; font-weight: 650; cursor: default; transform: none;
 }
+#map-layer:not(.off) .layer-title { display: flex; }
 #map-layer .layer-title .i { width: 16px; height: 16px; }
+#map-layer .layer-title > .i:first-child { color: var(--accent-hi); }
 #map-layer .legend-toggle { display: none; margin-left: auto; }
 #overlay { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 #overlay select { width: 100%; }
-.view-current { display: flex; gap: 6px; }
-#view-pick {
-  flex: 1; min-width: 0; justify-content: flex-start; gap: 8px; min-height: 40px; padding: 0 12px;
-  background: transparent; color: var(--text); font-weight: 600; border-radius: var(--r-sm);
-}
-@media (hover: hover) { #view-pick:hover { background: var(--surface-2); } } /* one frame, not a box in a box */
-#mapbar:has(#map-layer.off) #view-pick span { color: var(--text); font-weight: 600; }
-#view-pick span { flex: 1; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-#view-pick .i { width: 16px; height: 16px; color: var(--muted); transition: transform 0.2s var(--ease); }
-#view-pick .i:first-child { width: 18px; height: 18px; }
-#mapbar:has(#map-layer:not(.off)) #view-pick .i:first-child { color: var(--accent-hi); }
-#view-pick[aria-expanded='true'] .i:last-child { transform: rotate(180deg); }
-#view-off { width: 40px; height: 40px; flex: none; }
-#view-grid {
-  display: grid; gap: 10px; max-height: min(calc(100dvh - 120px), 640px); overflow-y: auto; padding: 2px 2px 24px; overscroll-behavior: contain;
-  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); /* (more below fades out, not cut through a row) */
-}
-#view:has(#tool-chip:not([hidden])) #view-grid { max-height: min(calc(100dvh - 190px), 640px); } /* (clear of the tool's bar at the foot) */
 /* A drag that starts on the view's card selected its text; with a building tool in hand its legend steps aside (the map is the work). */
 #map-layer { -webkit-user-select: none; user-select: none; }
-#view.holding #map-layer:not(.picking) #overlay-legend { display: none !important; }
-#map-layer.picking #overlay-legend, #map-layer.picking #overlay-scale, #map-layer.picking #overlay-type { display: none !important; }
-.vg-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; color: var(--muted); font-size: 12px; font-weight: 600; }
-.vg-head .i { width: 14px; height: 14px; }
-.vg-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+#view.holding #map-layer #overlay-legend { display: none !important; }
 .vchip { min-height: 34px; padding: 0 12px; border-radius: 999px; background: var(--surface-2); color: var(--text); font-size: 13px; font-weight: 550; }
 .vchip[aria-pressed='true'] { background: var(--accent-soft); color: var(--active-ink); box-shadow: inset 0 0 0 1.5px var(--accent); }
 /* Nothing on the map for it yet (a network not built): there, but quieter. */
@@ -1498,8 +1497,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 
   #minimap { display: none; }
   /* The view list takes the room there is, and fades at the foot when more is below. */
-  #view-grid { max-height: calc(100dvh - 150px); }
-  #view:has(#tool-chip:not([hidden])) #view-grid { max-height: calc(100dvh - 210px); }
 
   #tray, #info-card, #sheet {
     left: 0; right: 0; bottom: 0; top: auto; width: auto; transform: none;
@@ -1559,7 +1556,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #pane.managing { max-height: none; } /* (beside the map, an area's screen keeps the full height: held upright it is half, to leave the map above) */
   .pane-grip { display: none; }
   /* Little height: the view list takes what there is; the hint sits beside the tool's bar's end, not mid-map. */
-  #view-grid { max-height: calc(100dvh - var(--bar-h) - var(--dock-h) - 90px); }
   /* The city pane on the left: the hint and toasts keep to the map beside it. */
   #app.pane-open #hint { left: calc(min(380px, 50%) + 10px); right: 10px; width: auto; max-width: none; transform: none; }
   #app.pane-open #toasts { left: calc(min(380px, 50%) + 10px); width: auto; right: 84px; }
@@ -1600,15 +1596,15 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .gear-compact button::after { content: ''; position: absolute; inset: -8px 0; } /* taller to hit, same row */
   #tool-chip .icon-btn { width: 40px; height: 40px; }
   #tool-chip #tool-alts button { min-height: 36px; }
-  .graph-range button, #view-grid button { min-height: 40px; }
+  .graph-range button { min-height: 40px; }
   /* (Not the folds that draw their chevron with ::after: on phones it was thrown off to a corner. They are whole rows to hit anyway.) */
   button.link, details:not(.watch-rest, .acts-more, .info-more, .tip) > summary { position: relative; }
   button.link::after, details:not(.watch-rest, .acts-more, .info-more, .tip) > summary::after { content: ''; position: absolute; inset: -12px -8px; }
   .tile kbd { display: none; }
   /* The goal screens' small controls: a finger's margin, the rows unchanged. */
-  :is(.watch-sort, .advice-view, .mg-views .vchip, .mg-tax .tax-step, .fac-fund .tax-step, #manage-chip .icon-btn) { position: relative; }
+  :is(.watch-sort, .advice-view, .mg-kinds .vchip, .mg-chips .vchip, .mg-tax .tax-step, .fac-fund .tax-step, #manage-chip .icon-btn) { position: relative; }
   .mg-time { position: relative; }
-  :is(.watch-sort, .advice-view, .mg-views .vchip, #manage-chip .icon-btn, .mg-time)::after { content: ''; position: absolute; inset: -7px 0; }
+  :is(.watch-sort, .advice-view, .mg-kinds .vchip, .mg-chips .vchip, #manage-chip .icon-btn, .mg-time)::after { content: ''; position: absolute; inset: -7px 0; }
   #pane .mg-time::after { inset: -7px; } /* (its icon alone is 27px across: a finger's width to hit, not to take from the goal's name) */
   :is(.mg-tax .tax-step, .fac-fund .tax-step)::after { content: ''; position: absolute; inset: -7px -3px; }
   .mg-switch button { height: 40px; }
@@ -1732,7 +1728,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .sec-head .chip + .sec-go { margin-left: 0; }
 
 /* Its screen: the books and graphs below the policy, the policy kept across redraws. */
-#mg-body, #policy { display: contents; }
+#mg-body, #mg-acts, #mg-more, #policy { display: contents; }
 #policy .tax-row:first-child { margin-top: 0; }
 
 /* ------------------------------------------------------------------ the overview, top down */
@@ -1983,11 +1979,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .toast-look .i { width: 14px; height: 14px; }
 @media (hover: hover) { .toast-look:hover { background: var(--surface-3); } }
 /* A view showing what needs a look now: a small dot by its name. */
-.vchip.hint { position: relative; }
-.vchip.hint::after { content: ''; position: absolute; top: 3px; right: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--float-solid, var(--surface)); }
-.vg-note { display: flex; align-items: center; gap: 6px; margin: 0 0 -2px; color: var(--muted); font-size: 12px; }
-.vg-note[hidden] { display: none; }
-.vg-note i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
 /* The view's count under its legend: how many go without (red), or that none do (green). */
 .overlay-sum { margin: 2px 0 0; font-size: 12.5px; font-weight: 650; }
 .overlay-sum.bad { color: var(--danger-ink); }
@@ -1999,8 +1990,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 #info button.chip { border: 0; font: inherit; }
 @media (hover: hover) { #info .info-glance [data-row-goal]:hover { text-decoration: underline; text-underline-offset: 3px; } #info button.chip:hover { filter: brightness(0.97); } }
 /* With a tool in hand the view's card folds, but its count stays: where the service is missing is where to place. */
-#view.holding #map-layer:not(.picking) #overlay > #overlay-sum:not([hidden]) { display: flex !important; margin: 4px 8px 2px; }
-#view.holding #map-layer:not(.picking):has(#overlay-sum:not([hidden])) { width: 220px; }
+#view.holding #map-layer #overlay > #overlay-sum:not([hidden]) { display: flex !important; margin: 4px 8px 2px; }
+#view.holding #map-layer:has(#overlay-sum:not([hidden])) { width: 220px; }
 /* Notices: small cards stacked in the map's lower right corner, clear of the bar, the tool and the town's middle. */
 @media (min-width: 861px) {
   #toasts { top: auto; bottom: 14px; left: auto; right: 14px; transform: none; width: min(360px, calc(100% - 28px)); align-content: end; }
@@ -2284,6 +2275,12 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 .g-wait { display: flex; align-items: flex-start; gap: 6px; margin: 4px 0 0 !important; color: var(--muted); font-size: 12px; line-height: 1.4; }
 .g-wait .i { flex: none; width: 14px; height: 14px; margin-top: 1px; color: var(--good); }
 .mg-guide { display: grid; grid-template-columns: minmax(0, 1fr); }
+/* (Its own section now, under the scoreboard: the step outlined as the recommended build cards are, on the goal's
+   tint where it is in trouble, so it reads as the one to press first.) */
+#pane .mg-guide .g-act { box-shadow: inset 0 0 0 1.5px var(--accent); }
+#pane .mg-guide.warn .g-act { background: var(--warn-soft); box-shadow: none; }
+#pane .mg-guide.bad .g-act { background: var(--danger-soft); box-shadow: none; }
+.mg-lead { margin-top: 2px; }
 .mg-guide > .g-act, .mg-guide > .g-label, .mg-guide > .g-wait { grid-column: 1 / -1; }
 /* (A flex column: the lead's grid placed the cost line after the label.) */
 .mg-guide { display: flex; flex-direction: column; align-items: stretch; }
@@ -2400,7 +2397,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #advice .advice.news .advice-view { background: var(--surface); }
 @media (hover: hover) { #advice .advice.news .advice-view:hover { background: var(--surface-3); } }
 /* Driving: the building tools and the views step back (they wait for the drive to end). */
-#view.driving :is(#dock, #mb-view, #map-layer) { opacity: 0.35; pointer-events: none; filter: saturate(0.4); transition: opacity 0.2s; }
+#view.driving :is(#dock, #map-layer) { opacity: 0.35; pointer-events: none; filter: saturate(0.4); transition: opacity 0.2s; }
 /* The info card's one-press fixes (옆에 하나 더 짓기, 예산 100%로) read as actions, apart from the status chips beside them. */
 #info button.chip:is([data-relieve], [data-fund-full]) { background: var(--accent-soft); color: var(--accent-hi); font-weight: 650; }
 /* The narrowest phones: 출발 under the mission's words (beside them it squeezed 성공 into three lines). */
@@ -2450,8 +2447,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   background: var(--float-solid); box-shadow: var(--shadow-sm); white-space: nowrap;
   -webkit-user-select: none; user-select: none;
   /* No layer of its own (no z-index, no backdrop blur on a solid bar): what hangs from it takes its place among
-     the map's floating parts — the view's card under the cards that open over the map, the list of views and
-     the menu above them all. Nothing opens over the bar itself. */
+     the map's floating parts — the view's card under the cards that open over the map, the menu above them all.
+     Nothing opens over the bar itself. */
   -webkit-backdrop-filter: none; backdrop-filter: none;
 }
 #mapbar.measuring { width: max-content; } /* (fitMapbar reads the width it would take) */
@@ -2465,18 +2462,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 @media (hover: hover) { .mb-btn:hover { background: var(--surface-2); } }
 .mb-btn.open { background: var(--accent-soft); color: var(--accent-hi); }
 .mb-btn.open .i { color: var(--accent-hi); }
-/* What the map shows: its name, and × to turn it off. */
-#mb-view .view-current { gap: 6px; }
-/* One width whatever the view (its name cut short if need be, whole in its tooltip); with none on, the button
-   takes the ×'s room too: turning a view on or off doesn't move the clock beside it. */
-#mb-view #view-pick { flex: none; width: 164px; min-height: 40px; border-radius: 12px; }
-#mapbar:not(.fit4):has(#map-layer.off) #mb-view #view-pick { width: 206px; } /* (164, the gap, the × and its margin) */
-#mb-view #view-off { width: 34px; height: 34px; min-height: 0; padding: 0; margin-right: 2px; border-radius: 10px; }
-#mb-view #view-off .i { width: 16px; height: 16px; }
 /* The menu from the bar's end, down the map. */
 #mapbar .dropdown-menu { top: calc(100% + 10px); max-height: calc(100dvh - 96px); }
 .menu-phone, .menu-fit2 { display: none !important; }
-.layer-off { display: none; } /* (the view's × is in the bar; short of room, in its card) */
 
 /* Short of room the bar gives up, in turn (fitMapbar; a phone takes all four):
    1. its words: 주민 and the wind as their icons, the speeds narrower; */
@@ -2487,7 +2475,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 /* 2. help and the map alone, both found in the menu; */
 #mapbar.fit2 :is(#btn-help, #btn-focus) { display: none; }
 #mapbar.fit2 .menu-fit2 { display: flex !important; }
-/* 3. the date stacked, 주민 to the menu, the view's button narrower (at 1024px the bar kept the view's name so); */
+/* 3. the date stacked, 주민 to the menu; */
 #mapbar.fit3 #btn-sims { display: none; }
 #mapbar.fit3 .menu-phone { display: flex !important; }
 #mapbar.fit3 hr.menu-phone { display: block !important; }
@@ -2495,18 +2483,12 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #mapbar.fit3 .sb-date .d-y { font-size: 10.5px; font-weight: 600; color: var(--muted); }
 #mapbar.fit3 .sb-date .d-m { font-size: 14.5px; font-weight: 700; }
 #mapbar.fit3 #sb-date::after { bottom: -3px; }
-#mapbar.fit3:not(.fit4) #mb-view #view-pick { width: 150px; }
-#mapbar.fit3:not(.fit4):has(#map-layer.off) #mb-view #view-pick { width: 192px; }
-/* 4. the view's name (its card says it, and has the ×). */
-#mapbar.fit4 #mb-view #view-pick { width: 40px; padding: 0; justify-content: center; }
-#mapbar.fit4 #mb-view #view-pick > :not(.i:first-child) { display: none; }
-#mapbar.fit4 #view-off { display: none; }
-/* (The card then heads with the name, its fold and the ×; the legend unfolds under it.) */
+/* 4. (a phone's) the view's card folded to its name and fold, the legend unfolding under it. */
 #mapbar.fit4 #map-layer { display: flex; flex-wrap: wrap; align-items: center; }
-#view #mapbar.fit4 #map-layer:not(.picking) { padding: 3px 3px 8px; }
-@media (min-width: 861px) { #view #mapbar.fit4 #map-layer:not(.picking) { width: 260px; } } /* (clear of the minimap on the narrowest map) */
-#view #mapbar.fit4 #map-layer.open:not(.off):not(.picking) { padding-bottom: 12px; }
-#mapbar.fit4 #map-layer:not(.off):not(.picking) .layer-title {
+#view #mapbar.fit4 #map-layer { padding: 3px 3px 8px; }
+@media (min-width: 861px) { #view #mapbar.fit4 #map-layer { width: 260px; } } /* (clear of the minimap on the narrowest map) */
+#view #mapbar.fit4 #map-layer.open:not(.off) { padding-bottom: 12px; }
+#mapbar.fit4 #map-layer:not(.off) .layer-title {
   display: flex; order: 0; flex: 1 1 0; min-width: 0; height: 36px; margin: 0; padding: 0 6px 0 9px; gap: 5px;
   border-radius: 11px; color: var(--text); font-size: 13.5px; font-weight: 650; cursor: pointer;
 }
@@ -2514,31 +2496,25 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #layer-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #mapbar.fit4 #map-layer .legend-toggle { display: inline-flex; margin-left: 0; color: var(--muted); transition: transform 0.2s var(--ease); }
 #mapbar.fit4 #map-layer.open .legend-toggle { transform: rotate(180deg); }
-#mapbar.fit4 #map-layer:not(.off):not(.picking) .layer-off { display: inline-flex; order: 0; flex: none; width: 36px; height: 36px; }
-/* (A goal's chip in sight has its own ×: two alike that did different things. In sight on a wide screen only map-only
-   (F); on a phone while its sheet is down.) */
-@media (min-width: 861px) { #app.focus #view:has(#manage-chip:not([hidden])) #mapbar.fit4 #map-layer .layer-off { display: none; } }
-@media (max-width: 860px) { #app:not(.pane-open) #view:has(#manage-chip:not([hidden])) #mapbar.fit4 #map-layer .layer-off { display: none; } }
 #mapbar.fit4 #overlay { order: 1; flex: 1 0 100%; min-width: 0; }
-#mapbar.fit4 #map-layer:not(.off):not(.picking) #overlay { gap: 6px; }
+#mapbar.fit4 #map-layer:not(.off) #overlay { gap: 6px; }
 #mapbar.fit4 #map-layer:not(.open) :is(#overlay-legend, #overlay-scale) { display: none !important; }
 /* (With a tool in hand the legend steps aside: no unfolding then.) */
 #view.holding #mapbar.fit4 #map-layer .legend-toggle { display: none; }
 #view.holding #mapbar.fit4 #map-layer .layer-title { pointer-events: none; }
 
-/* ---- the view's card, hanging from the bar's left end: the list of views while picking, else the legend and the count */
+/* ---- the view's card, hanging from the bar's left end: the view's name, its legend and the count */
 #view #mapbar #map-layer {
   top: calc(100% + 8px); left: 0; z-index: 3; width: 300px; padding: 10px 6px 12px;
   background: var(--float-solid); border-radius: 16px; box-shadow: var(--shadow); white-space: normal;
   animation: drop-in 0.18s var(--ease);
 }
-#view #mapbar #map-layer.off:not(.picking) { display: none; }
-#view #mapbar #map-layer.picking { z-index: 31; width: 400px; padding: 10px; }
+#view #mapbar #map-layer.off { display: none; }
 /* The tools' card and the 주민 · 지역 sheet open where the view's card hangs: it waits for them to close. */
-#view:has(#tray:not([hidden])) #mapbar #map-layer:not(.picking), #view.sheet-open #mapbar #map-layer:not(.picking) { display: none; }
+#view:has(#tray:not([hidden])) #mapbar #map-layer, #view.sheet-open #mapbar #map-layer { display: none; }
 /* (A tool in hand: the legend steps aside; the count stays, where the service is missing being where to place.) */
-#view.holding #mapbar #map-layer:not(.picking):not(:has(#overlay-sum:not([hidden]))) { display: none; }
-#view.holding #mapbar #map-layer:not(.picking) { width: auto; max-width: 300px; padding: 6px; }
+#view.holding #mapbar #map-layer:not(:has(#overlay-sum:not([hidden]))) { display: none; }
+#view.holding #mapbar #map-layer { width: auto; max-width: 300px; padding: 6px; }
 
 /* ---- the build bar, down the map's left */
 #dock {
@@ -2604,7 +2580,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 /* ---- map only (F): the pane gone, the open goal's chip under the top row */
 #app.focus #manage-chip:not([hidden]) { top: 70px; left: calc(var(--dock-w) + 24px); right: auto; }
 /* (The view's card, hanging from the bar, drops below that chip.) */
-#app.focus #view:has(#manage-chip:not([hidden])) #mapbar.near-chip #map-layer:not(.picking) { top: calc(100% + 52px); }
+#app.focus #view:has(#manage-chip:not([hidden])) #mapbar.near-chip #map-layer { top: calc(100% + 52px); }
 
 /* ---- what steps back while a drag lays something down, or while driving */
 #view :is(#mapbar) { transition: opacity 0.2s var(--ease); }
@@ -2631,7 +2607,6 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #mapbar .dropdown-menu { max-height: calc(100dvh - 80px); }
   /* The view's card beside the build bar, clear of 전체 보기; its list as wide as the top bar. */
   #view #mapbar #map-layer { left: calc(var(--dock-w) + 7px); right: 54px; width: auto; max-width: none; top: calc(100% + 6px); } /* (8px from the build bar, in line with a goal's chip: the bar's 1px border counts) */
-  #view #mapbar #map-layer.picking { left: 0; right: 0; width: auto; padding: 10px; }
 
   /* The build bar: 도시, 철거 and 짓기 down the left under the top bar (put away while the city pane is up: it
      cut through the bar's middle; the pane closes with its ×, a swipe down or back). */
@@ -2657,7 +2632,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   /* (Under whatever hangs from the top bar: toast.ts measures it, as the view's card is as tall as its count.) */
   #toasts { top: var(--toasts-top, calc(66px + env(safe-area-inset-top))); bottom: auto; align-content: start; left: calc(var(--dock-w) + 16px); right: 64px; width: auto; transform: none; animation: none; } /* (clear of 전체 by a gap, not 1px) */
   /* A goal's chip (its screen put away) under the top bar: the view's card below it. */
-  #app:not(.pane-open) #view:has(#manage-chip:not([hidden])) #mapbar #map-layer:not(.picking) { top: calc(100% + 56px); }
+  #app:not(.pane-open) #view:has(#manage-chip:not([hidden])) #mapbar #map-layer { top: calc(100% + 56px); }
   .toast { animation-name: drop-in; }
   .toast.leaving { transform: translateY(-6px); }
   /* The tool in hand at the foot, the hint over it; its card drops under the top bar. */
@@ -2684,12 +2659,12 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 }
 /* Held upright, the city pane rising over the map puts the view's card away (its top peeked out above the pane). */
 @media (max-width: 860px) and (orientation: portrait) {
-  #app.pane-open #view #mapbar #map-layer:not(.picking) { display: none; }
+  #app.pane-open #view #mapbar #map-layer { display: none; }
 }
 /* A phone held upright: with a tool in hand the card keeps between the build bar and 전체 보기 (at 220px its × lay
    under 전체 on a 320px screen). */
 @media (max-width: 639px) and (orientation: portrait) {
-  #view.holding #mapbar #map-layer:not(.picking):has(#overlay-sum:not([hidden])) { width: auto; }
+  #view.holding #mapbar #map-layer:has(#overlay-sum:not([hidden])) { width: auto; }
 }
 /* Wider than a phone held upright (a tablet; a phone sideways): the top bar at its own width in the corner,
    전체 보기 in the other. */
@@ -2697,8 +2672,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #mapbar { right: auto; }
   .mb-time { flex: none; }
   #map-controls, #view.info-open #map-controls { top: calc(8px + env(safe-area-inset-top)); right: 8px; }
-  #view #mapbar #map-layer:not(.picking) { right: auto; width: 300px; }
-  #view #mapbar #map-layer.picking { right: auto; width: min(560px, calc(100vw - 16px)); }
+  #view #mapbar #map-layer { right: auto; width: 300px; }
   #toasts { right: auto; width: min(440px, calc(100% - var(--dock-w) - 72px)); } /* (a card, not a banner across the map) */
   /* The tool's bar at its own width in the middle of the foot. */
   #tool-chip { left: 50%; right: auto; transform: translateX(-50%); max-width: min(720px, calc(100% - 16px)); animation-name: chip-in; }
@@ -2707,7 +2681,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 @media (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
   #tray, #info-card, #sheet, #pane { top: calc(62px + env(safe-area-inset-top)); }
   /* The city pane open on the left: the view's card beside it (and gone if a card is open on the right too). */
-  #app.pane-open #view #mapbar #map-layer:not(.picking) { left: calc(min(380px, 50vw) - 2px); } /* (50% would be the bar's) */
+  #app.pane-open #view #mapbar #map-layer { left: calc(min(380px, 50vw) - 2px); } /* (50% would be the bar's) */
   /* Little height: the pane's head and figures tighter, so 도시 상태 starts in sight (it began at the pane's foot,
      under a 40px count and a reward card of three lines). The residents and the stage on one line, the reward tighter. */
   #pane:not(.managing) { gap: 10px; }
@@ -2725,7 +2699,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #status { gap: 8px; }
   #pane .watch-card { padding-top: 4px; }
 
-  #app.pane-open #view.info-open #mapbar #map-layer:not(.picking) { display: none; }
+  #app.pane-open #view.info-open #mapbar #map-layer { display: none; }
 }
 /* Narrower phones: the speeds a little narrower; at 320px the buttons too (undo, redo and the menu with the date whole). */
 @media (max-width: 380px) {
@@ -2735,7 +2709,6 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 @media (max-width: 359px) {
   #mapbar.fit1 .gear-compact button { min-width: 22px; }
   #mapbar .icon-btn, #mapbar .dropdown > summary { width: 34px; }
-  #mapbar.fit4 #mb-view #view-pick { width: 36px; }
 }
 
 /* ---- touch: a finger's size for what the map's chrome took down to a mouse's (later rules had won over the touch
