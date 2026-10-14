@@ -13,6 +13,7 @@ import { city, redraw, renderer, setDrag } from './state';
 import { closeInfo, closePane, closeSheet, showTab } from './tabs';
 import { cancelMySimAction } from './mysims';
 import { $, endFlash, flash, fmt, touchFirst } from './util';
+import { SUGGEST_NOTE } from './tips';
 import { GOAL_ORDER, GOALS, type GoalId } from './goals';
 import { capped, cityEdges, goalStatus, readStats, roadLinked } from './readings';
 
@@ -1306,7 +1307,7 @@ export function markSuggested(): void {
     b.classList.toggle('suggest', on);
     // (Said in words too, for a tooltip and a screen reader.)
     b.dataset.title0 ??= b.title;
-    b.title = on ? `${b.dataset.title0} · 다음에 지을 것이 여기 있음` : b.dataset.title0;
+    b.title = on ? `${b.dataset.title0} · ${SUGGEST_NOTE}` : b.dataset.title0;
   });
 }
 

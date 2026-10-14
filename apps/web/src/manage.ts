@@ -477,7 +477,7 @@ interface GuideStep {
  * The types whose tax is over neutral and eats their demand, as the finance advisor judges it (demand wanted, the cut
  * past 30%, not held at a cap anyway).
  */
-function taxesCutting(): DevType[] {
+export function taxesCutting(): DevType[] {
   const d = city.demand;
   return DEV_TYPES.filter((t) => city.state.taxRates[t] > d.neutralTax && d.raw[t]! > 0 && d.taxEffect[t]! <= -0.3
     && !(Number.isFinite(d.cap[t]) && d.capPopulation[t]! >= 0.95 * d.cap[t]!));

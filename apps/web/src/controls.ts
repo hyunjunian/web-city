@@ -3,7 +3,7 @@
 
 import { DEV_TYPES, type DevType, GROWTH_CODES, NETWORK_KINDS, STRUCTURES } from '@web-city/engine';
 import { icon, type IconName } from './icons';
-import { openGoal } from './manage';
+import { openGoal, taxesCutting } from './manage';
 import { fillRange } from './widgets';
 import { TYPE_NAME, TYPE_SHORT } from './names';
 import { updatePanels } from './panels';
@@ -266,7 +266,7 @@ export function setSpeed(i: number): void {
   }
   setSpeedValue(i);
   if (i > 0) runningSpeed = i;
-  window.dispatchEvent(new Event('speedchange')); // (the goal screen's clock)
+  window.dispatchEvent(new Event('speedchange')); // (a notice that stopped the clock goes when it runs again)
   document.querySelectorAll<HTMLElement>('.gear').forEach((el) => {
     el.querySelectorAll<HTMLButtonElement>('button').forEach((b, k) => {
       b.classList.toggle('active', k === i);
@@ -523,6 +523,9 @@ export function buildOverlay(): void {
 
 /** Whether the per-type tax rates are shown (the classes are always). */
 let taxDetail = false;
+/** The types whose rates cut their demand when the player last folded the per-type rates away: they open by
+ *  themselves again only for others. */
+let taxShutFor = '';
 
 /** Each tax row's redraw (rate and its demand effect, which moves month to month). */
 const rows = new Map<string, () => void>();
@@ -532,6 +535,13 @@ export function refreshTaxes(): void {
   rows.forEach((f) => f());
   const note = document.getElementById('tax-note');
   if (note) note.textContent = taxNote();
+  // A type's own rate cutting its demand (the problem and its 추천 name 농업 세율): its row in sight and marked,
+  // under the classes (folded away, the screen named a rate that wasn't on it).
+  const detail = document.querySelector<HTMLDetailsElement>('#taxes > details');
+  if (!detail) return;
+  const cutting = taxesCutting();
+  if (cutting.length && !detail.open && cutting.join() !== taxShutFor) detail.open = true;
+  detail.querySelectorAll<HTMLElement>('.tax-row[data-type]').forEach((r) => r.classList.toggle('cutting', cutting.includes(r.dataset.type as DevType)));
 }
 
 // (One line; the rest is its tooltip: a paragraph under the rates said it every time the screen opened.)
@@ -608,10 +618,17 @@ export function buildTaxes(): void {
   }
   const detail = document.createElement('details');
   detail.open = taxDetail;
-  detail.ontoggle = () => (taxDetail = detail.open);
+  detail.ontoggle = () => {
+    taxDetail = detail.open;
+    if (!detail.open) taxShutFor = taxesCutting().join();
+  };
   detail.innerHTML = '<summary>소득·유형별 세율</summary>';
   // (In words, as the demand bars name them: the codes R$, Cs$$ led each row with the words small under them.)
-  for (const t of DEV_TYPES) detail.append(row(TYPE_SHORT[t], TYPE_NAME[t], () => city.state.taxRates[t], (v) => choice('세율', () => city.setTaxRate(t, v)), undefined, () => city.demand.taxEffect[t], [t]));
+  for (const t of DEV_TYPES) {
+    const r = row(TYPE_SHORT[t], TYPE_NAME[t], () => city.state.taxRates[t], (v) => choice('세율', () => city.setTaxRate(t, v)), undefined, () => city.demand.taxEffect[t], [t]);
+    r.dataset.type = t;
+    detail.append(r);
+  }
   el.append(detail);
   const note = document.createElement('p');
   note.className = 'legend';

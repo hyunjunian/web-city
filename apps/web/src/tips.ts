@@ -26,9 +26,15 @@ export function readTitle(title: string): { name: string; desc: string; keys: st
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
 
+/** What the dot on a build category means: its title says it after the rest (tools.ts), the tooltip by a dot. */
+export const SUGGEST_NOTE = '다음에 지을 것이 여기 있음';
+
 let tip: HTMLElement | null = null;
-/** The control the tooltip speaks for (its title kept aside meanwhile, so the browser's doesn't show as well). */
-let owner: HTMLElement | null = null;
+/** The control pointed at or focused, its title kept aside from the moment the pointer is on it (kept aside only
+ *  once the tooltip showed, the browser had read it already and showed its own beside ours). */
+let kept: HTMLElement | null = null;
+/** Whether the tooltip shows for it yet (it waits a moment for a pointer just arrived). */
+let shown = false;
 let timer = 0;
 /** Until when the next shows at once: moving down the bar, tile to tile. */
 let warmUntil = 0;
@@ -36,18 +42,17 @@ let warmUntil = 0;
 function render(el: HTMLElement, title: string): void {
   if (!tip) return;
   const t = readTitle(title);
-  if (!t.name) return hide();
+  if (!t.name) return release();
   // Keys each by the tool it picks, where a tile holds several (data-keys: "도로 R · 골목 T"), else by the name.
   const named = (el.dataset.keys ?? '').split(' · ').map((k) => k.match(/^(.+) (\S+)$/)).filter((m) => !!m);
   const kbd = (k: string) => `<kbd>${esc(k)}</kbd>`;
-  // What the dot on a build category means, by a dot of its colour (its title says it after the rest).
-  const NOTE = '다음에 지을 것이 여기 있음';
-  const note = el.classList.contains('suggest') && t.desc.endsWith(NOTE);
-  const desc = note ? t.desc.slice(0, -NOTE.length).replace(/\s*·\s*$/, '') : t.desc;
+  const note = el.classList.contains('suggest') && t.desc.endsWith(SUGGEST_NOTE);
+  const desc = note ? t.desc.slice(0, -SUGGEST_NOTE.length).replace(/\s*·\s*$/, '') : t.desc;
   tip.innerHTML = `<span class="tip-head"><b>${esc(t.name)}</b>${named.length ? '' : t.keys.map(kbd).join('')}</span>`
     + (desc ? `<span class="tip-desc">${esc(desc)}</span>` : '')
     + (named.length ? `<span class="tip-keys">${named.map((m) => `<span>${esc(m[1]!)} ${kbd(m[2]!)}</span>`).join('')}</span>` : '')
-    + (note ? `<span class="tip-note">${NOTE}</span>` : '');
+    + (note ? `<span class="tip-note">${SUGGEST_NOTE}</span>` : '');
+  shown = true;
   place(el);
 }
 
@@ -80,8 +85,8 @@ function place(el: HTMLElement): void {
   tip.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
 }
 
-/** Its title aside while the tooltip shows: read and written as before (a title set meanwhile shows at once). Left
- *  empty, not taken away — taken away, the browser showed the title of what holds it (the speeds' when held). */
+/** Its title aside: read and written as before (a new one shows at once). Left empty, not taken away — taken away,
+ *  the browser showed the title of what holds it (the speeds' when held). */
 function keep(el: HTMLElement): void {
   let text = el.getAttribute('title') ?? '';
   el.setAttribute('title', '');
@@ -89,11 +94,15 @@ function keep(el: HTMLElement): void {
     configurable: true,
     get: () => text,
     set: (v: string) => {
-      text = String(v);
-      if (owner === el) render(el, text);
+      const next = String(v);
+      if (next === text) return; // (the date, the wind and 도시 say theirs again each update)
+      text = next;
+      if (kept === el && shown) render(el, text);
     },
   });
   el.setAttribute('aria-describedby', 'tip');
+  kept = el;
+  shown = false;
 }
 
 function giveBack(el: HTMLElement): void {
@@ -104,26 +113,36 @@ function giveBack(el: HTMLElement): void {
   if (el.getAttribute('aria-describedby') === 'tip') el.removeAttribute('aria-describedby');
 }
 
-function show(el: HTMLElement): void {
-  clearTimeout(timer);
-  if (owner === el) return;
-  hide(false);
-  // (Not for the menu's button while its menu is out beside it, nor for a control gone from sight.)
-  if (!el.isConnected || !el.offsetParent || el.closest('details[open]')) return;
-  const title = el.getAttribute('title');
-  if (!title) return;
-  owner = el;
+/** Whether a control has a tooltip to show now (not the menu's button while its menu is out beside it). */
+const tipped = (el: HTMLElement) => el.isConnected && !!el.offsetParent && !el.closest('details[open]') && !!el.getAttribute('title');
+
+/** The tooltip for a control: at once, or after a moment (a pointer just arrived, not moving along the bar). */
+function take(el: HTMLElement, wait: boolean): void {
+  if (kept === el) {
+    if (!wait && !shown) {
+      clearTimeout(timer);
+      render(el, el.title);
+    }
+    return;
+  }
+  release(false);
+  if (!tipped(el)) return;
   keep(el);
-  render(el, title);
+  if (!wait) return render(el, el.title);
+  timer = window.setTimeout(() => {
+    if (kept === el) render(el, el.title);
+  }, 380);
 }
 
-export function hide(cool = true): void {
+/** Away with the tooltip, and the title back. */
+export function release(cool = true): void {
   clearTimeout(timer);
-  if (owner) {
-    giveBack(owner);
-    owner = null;
-    if (cool) warmUntil = performance.now() + 500;
+  if (kept) {
+    giveBack(kept);
+    if (cool && shown) warmUntil = performance.now() + 500;
+    kept = null;
   }
+  shown = false;
   if (tip) tip.hidden = true;
 }
 
@@ -136,32 +155,32 @@ export function setupTips(): void {
   document.addEventListener('pointerover', (e) => {
     if (e.pointerType !== 'mouse') return;
     const el = (e.target as Element).closest?.<HTMLElement>(SCOPE);
-    if (!el || el === owner) return;
-    clearTimeout(timer);
-    if (owner || performance.now() < warmUntil) show(el);
-    else timer = window.setTimeout(() => show(el), 380);
+    if (el) take(el, !shown && performance.now() >= warmUntil);
   });
   document.addEventListener('pointerout', (e) => {
     const to = e.relatedTarget as Node | null;
     const el = (e.target as Element).closest?.<HTMLElement>(SCOPE);
-    if (!el || (to && el.contains(to))) return;
-    if (el === owner) hide();
-    else clearTimeout(timer);
+    if (el && el === kept && !(to && el.contains(to))) release();
   });
-  // The keyboard's way along the bar shows each control's keys as well (a press of the mouse puts it away).
+  // The keyboard's way along the bar shows each control's keys as well (a press of the mouse puts it away). Focus
+  // moved by the page (a pane redrawn hands it back) leaves a tooltip under the pointer be.
   document.addEventListener('focusin', (e) => {
     const el = (e.target as Element).closest?.<HTMLElement>(SCOPE);
-    if (el && el.matches(':focus-visible')) show(el);
-    else if (owner && !owner.contains(e.target as Node)) hide(false);
+    if (el && el.matches(':focus-visible')) take(el, false);
+    else if (kept && !kept.contains(e.target as Node) && !kept.matches(':hover')) release(false);
   });
   document.addEventListener('focusout', (e) => {
-    if (owner && e.target === owner && !owner.matches(':hover')) hide(false);
+    if (kept && e.target === kept && !kept.matches(':hover')) release(false);
   });
-  document.addEventListener('pointerdown', () => hide(false), true);
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') hide(false);
+  // (The menu opened from the keyboard, its button keeping focus: the tooltip went on over the menu.)
+  document.addEventListener('toggle', (e) => {
+    if ((e.target as HTMLDetailsElement).open) release(false);
   }, true);
-  addEventListener('scroll', () => hide(false), true);
-  addEventListener('resize', () => hide(false));
-  addEventListener('blur', () => hide(false));
+  document.addEventListener('pointerdown', () => release(false), true);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') release(false);
+  }, true);
+  addEventListener('scroll', () => release(false), true);
+  addEventListener('resize', () => release(false));
+  addEventListener('blur', () => release(false));
 }

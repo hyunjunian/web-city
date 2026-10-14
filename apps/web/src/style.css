@@ -546,10 +546,6 @@ kbd {
 .mg-head h2 > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* (재정·/정책 broke over two lines in a 288px pane) */
 .mg-head h2 .i { width: 20px; height: 20px; color: var(--accent-hi); }
 .mg-head .chip { margin-left: auto; }
-/* The clock beside the goal's name: a quiet pill while time runs, amber when paused (the city waits). */
-/* (Where the head has the room — a tablet's 600px sheet — the word comes back: a bare ▶ beside 주의 read as "do the
-   recommendation", and touch has no tooltip to say it is the clock. A finger's size there too, clear of the ×.) */
-.mg-head { container-type: inline-size; }
 .mg-back { flex: none; }
 /* The goal's tabs, a row of their own in its sticky head: each a part of the goal, putting its map view on (the
    underline is the one showing; a red dot, a part in trouble). Scrolled sideways where they don't fit. */
@@ -1273,6 +1269,9 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
   .tax-step { display: inline-grid; place-items: center; }
 }
 #taxes details summary { margin: 8px 0 4px; color: var(--muted); font-size: 12.5px; cursor: pointer; }
+/* The type whose own rate cuts its demand, as the problem names it: its name in the warning's ink, a dot before it. */
+.tax-row.cutting > span:first-child { color: var(--warn-ink); font-weight: 650; }
+.tax-row.cutting > span:first-child::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: var(--warn); vertical-align: 2px; }
 .funding { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 10px; margin-top: 10px; }
 .funding span { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
 .funding input { width: 100%; min-width: 0; }
@@ -1951,6 +1950,17 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .pick-name > .pick-swatch { margin-top: 0.5px; }
 .pick-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .pick-cost { flex: none; }
+/* A phone's two narrow columns: the name has its line to itself and the price goes under it, after what the facility
+   does (beside the name, 석탄 발전소 and 대형 양수 펌프 broke over two lines). */
+@media (max-width: 860px) {
+  /* (Of no more weight than a class: the folded and the locked ones stay hidden.) */
+  :where(.tray-section) .pick { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: 'mark name name' 'use use cost'; column-gap: 5px; row-gap: 2px; align-items: start; }
+  .tray-section .pick-name { display: contents; }
+  .tray-section .pick-name > :first-child { grid-area: mark; }
+  .tray-section .pick-title { grid-area: name; }
+  .tray-section .pick-cost { grid-area: cost; align-self: end; padding-left: 6px; }
+  .tray-section .pick :is(.pick-stat, .pick-sub) { grid-area: use; }
+}
 /* A facility's catches, a line each (then what it does). */
 #cursor-tag span { white-space: pre-line; -webkit-line-clamp: 8; }
 /* A pale facility colour (a hospital's white) keeps its square on a pale card: a hairline round it. */
@@ -2726,9 +2736,10 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #drive-hud { bottom: var(--bb); }
   #view:has(#drive-hud:not([hidden])) #hint { bottom: calc(var(--bb) + 182px); }
 }
-/* Held upright, the city pane rising over the map puts the view's card away (its top peeked out above the pane). */
+/* Held upright, the city pane rising over the map puts the view's card away (its top peeked out above the pane) — not
+   an area's screen, which leaves the map its upper half: its tab's view needs its key there (folded to its name). */
 @media (max-width: 860px) and (orientation: portrait) {
-  #app.pane-open #view #mapbar #map-layer { display: none; }
+  #app.pane-open:not(:has(#pane.managing)) #view #mapbar #map-layer { display: none; }
 }
 /* A phone held upright: with a tool in hand the card keeps clear of 전체 보기 (at 220px its × lay under 전체 on a 320px
    screen). */
