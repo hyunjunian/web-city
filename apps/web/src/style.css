@@ -955,6 +955,14 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow: clip; overflow-clip-margin: content-box; max-height: calc(4.35em + 18px); /* no sliver of a 4th line in the padding */
 }
 #hint:empty { display: none; }
+/* Wide, with a building's card open: what stands over the bar keeps to the map between the pane and the card (in line
+   with the bar, a long reading ran on under the card). */
+@media (min-width: 861px) {
+  #view.info-open :is(#hint, #tool-chip, #confirm-bar) { left: var(--mid); }
+  #view.info-open #hint { max-width: calc(100% - var(--free-l) - var(--free-r) - 32px); }
+  #view.info-open #tool-chip { max-width: min(860px, calc(100% - var(--free-l) - var(--free-r) - 28px)); }
+  #view.info-open #confirm-bar { width: min(440px, calc(100% - var(--free-l) - var(--free-r) - 24px)); }
+}
 /* Touch: a facility waiting for 짓기. */
 #confirm-bar {
   position: absolute; left: var(--bar-x, var(--mid)); bottom: var(--bb); z-index: 7; transform: translateX(-50%);
@@ -1029,12 +1037,14 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 .card-head h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 15.5px; font-weight: 650; }
 .card-head h2 .i { width: 20px; height: 20px; color: var(--muted); }
 
-/* The tool tray: rising from the building bar, in the middle of the map that shows, up to the top buttons' row. */
+/* The tool tray: rising from the building bar, up to the top rows — over the bar's middle (the city pane open beside
+   it in a window too narrow for both, in the middle of the map it leaves). */
 #tray {
   left: var(--mid); bottom: var(--bb); z-index: 6; transform: translateX(-50%);
   display: flex; flex-direction: column; width: min(860px, calc(100% - var(--free-l) - var(--free-r) - 28px)); max-height: calc(100% - var(--bb) - var(--bar-h) - 12px);
   animation: tray-in 0.2s var(--ease);
 }
+@media (min-width: 861px) { #app:not(.pane-open) #tray { left: var(--bar-x, var(--mid)); } }
 #tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(370px, 100%), 1fr)); column-gap: 22px; align-items: start; padding: 0 18px 2px; overflow-y: auto; } /* row by row, so groups keep their places (columns rebalanced them as their text changed) */
 #tools.more-below { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); }
 /* (And a word for it: at 1280×720 the fade alone took the 공원 heading, and the card looked finished.) */
@@ -1877,7 +1887,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* ------------------------------------------------------------------ the tool in hand: one bar */
 
 /* The tool's name and price, its siblings after a hairline, and the way out — one bar, not two. */
-#tool-chip { gap: 8px; max-width: min(860px, calc(100% - 28px)); }
+#tool-chip { gap: 8px; max-width: min(860px, calc(2 * min(var(--bar-x, var(--mid)) - var(--free-l), 100% - var(--bar-x, var(--mid)) - 14px))); } /* (as wide as it may be in line with the bar: wider, it ran under the city pane) */
 #tool-chip #tool-alts { flex: 0 1 auto; min-width: 0; padding: 0 0 0 8px; border-left: 1px solid var(--line); }
 #tool-chip #tool-alts button.active { display: none; } /* the bar's name already says it */
 #tool-chip #tool-alts button { min-height: 28px; padding: 0 9px; }

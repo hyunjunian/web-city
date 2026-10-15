@@ -1153,15 +1153,20 @@ function minScale(): number {
   return Math.max(1, Math.min(r.width, r.height) / city.size * 0.85);
 }
 
+/** A Mac's mouse wheel, in Chrome and Safari: its steps come in multiples of this. */
+const MAC_NOTCH = 4.000244140625;
+
 /**
- * A wheel event from a touchpad's two fingers rather than a mouse's wheel: the browsers step a mouse's wheel in lines
- * (Firefox) or in whole notches of 50 px or more straight up and down; a touchpad moves by the pixel, sideways too
- * (and Chrome and Safari give its old wheelDelta as exactly three times the delta, a wheel's notch being 120).
+ * Whether a wheel event is a touchpad's two fingers rather than a mouse's wheel. Firefox steps a wheel in lines; a
+ * Mac's wheel moves in multiples of {@link MAC_NOTCH}; Chrome and Safari count a wheel's notches in the old
+ * wheelDelta (120 each, a fine wheel's quarter notches 30) where a touchpad's is three times its delta; failing those,
+ * a wheel moves in whole notches of 50 px or more straight up and down, a touchpad by the pixel and sideways too.
  */
 function fromTouchpad(e: WheelEvent): boolean {
   if (e.deltaMode !== 0) return false;
+  if (e.deltaY !== 0 && e.deltaY % MAC_NOTCH === 0) return false;
   const w = (e as WheelEvent & { wheelDeltaY?: number }).wheelDeltaY;
-  if (w && w === -3 * e.deltaY) return true;
+  if (w) return Math.abs(w + 3 * e.deltaY) <= 1; // (Safari's is rounded)
   if (e.deltaX !== 0) return true;
   return !(Number.isInteger(e.deltaY) && Math.abs(e.deltaY) >= 50);
 }
@@ -1386,14 +1391,23 @@ export function setupInput(): void {
     glideTo(wx + (r.width / 2 - px) / to, wy + (r.height / 2 - py) / to, to, 240);
   });
   // A touchpad as on a phone: two fingers moving move the map, pinched they zoom it (the browser sends a pinch as a
-  // wheel with Ctrl; Safari as gestures, below). A mouse's wheel zooms, and with Ctrl or ⌘ any wheel does.
+  // wheel with Ctrl; Safari as gestures, below). A mouse's wheel zooms, and with Ctrl or ⌘ any wheel does. Which it
+  // is, is told once for a run of events (a pause of 300 ms ends one): a fast flick of two fingers went on to look
+  // like a wheel's notches, and the map began to zoom in the middle of a pan.
+  let wheelRun = { pad: false, at: -Infinity };
   canvas.addEventListener('wheel', (e) => {
     stopFlight();
     e.preventDefault();
     const [px, py] = pos(e);
-    if (e.ctrlKey || e.metaKey || !fromTouchpad(e)) {
-      const step = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 800 : 1; // (lines and pages in pixels' worth)
-      zoomAt(Math.exp(-e.deltaY * step * (e.ctrlKey && fromTouchpad(e) ? 0.01 : 0.0015)), px, py);
+    const now = performance.now();
+    if (now - wheelRun.at > 300) wheelRun.pad = fromTouchpad(e);
+    wheelRun.at = now;
+    if (e.ctrlKey || e.metaKey || !wheelRun.pad) {
+      // (Lines and pages in pixels' worth; a Mac's wheel by its notches, each as a notch elsewhere (100 px); a burst
+      // of them no more than three notches at once.)
+      const step = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 800 : !wheelRun.pad && e.deltaY % MAC_NOTCH === 0 ? 100 / MAC_NOTCH : 1;
+      const d = Math.max(-300, Math.min(300, e.deltaY * step));
+      zoomAt(Math.exp(-d * (e.ctrlKey && wheelRun.pad ? 0.01 : 0.0015)), px, py);
       return;
     }
     cam.x += e.deltaX / cam.scale;
@@ -1404,10 +1418,11 @@ export function setupInput(): void {
   let gestureScale = 1;
   const gesture = (e: Event) => {
     e.preventDefault();
+    // (Each pinch starts from its own 1, even one begun with a press held, which skipped the reset.)
+    if (e.type !== 'gesturechange') gestureScale = 1;
     if (pointers.size) return;
     const g = e as Event & { scale?: number; clientX?: number; clientY?: number };
-    if (e.type === 'gesturestart') gestureScale = 1;
-    else if (g.scale && g.clientX !== undefined && g.clientY !== undefined) {
+    if (e.type === 'gesturechange' && g.scale && g.clientX !== undefined && g.clientY !== undefined) {
       const r = canvas.getBoundingClientRect();
       stopFlight();
       zoomAt(g.scale / gestureScale, g.clientX - r.left, g.clientY - r.top);

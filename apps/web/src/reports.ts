@@ -72,8 +72,21 @@ export function rewardShare(checks: readonly UnlockCheck[]): number {
 
 const checkPart = (c: UnlockCheck) => (c.met ? 1 : c.below || c.need <= 0 ? 0 : Math.max(0, Math.min(1, c.have / c.need)));
 
-/** The order rewards are listed in: the nearest first, by {@link rewardShare}, and of those as near, the furthest along in all. */
-export const rewardRank = (checks: readonly UnlockCheck[]) => rewardShare(checks) + (checks.length ? checks.reduce((a, c) => a + checkPart(c), 0) / checks.length / 1000 : 0);
+/** Conditions counted in people (residents, workers too, of a kind, of the region's cities together). */
+const PEOPLE = new Set(['population', 'residents', 'typePopulation', 'combined']);
+
+/**
+ * The order rewards are listed in: the nearest first, by {@link rewardShare}; of those as near, the one wanting the
+ * fewest more people, then the furthest along in all. (A new map has every reward at 0%: 사립학교 led it, its "school
+ * grade under 85" met by having no school, though 시장 관저 comes at 500 people.)
+ */
+export const rewardRank = (checks: readonly UnlockCheck[]) => {
+  const people = checks.filter((c) => !c.met && !c.below && PEOPLE.has(c.key.split('.')[0]!));
+  const want = Math.min(1e6, people.length ? Math.max(...people.map((c) => Math.ceil(c.need - c.have))) : 1e6);
+  const along = checks.length ? checks.reduce((a, c) => a + checkPart(c), 0) / checks.length : 0;
+  // (The ties in order: a person more weighs 1e-6, all of "along" less than that.)
+  return rewardShare(checks) + (1 - want / 1e6 + along * 1e-7) / 1000;
+};
 
 /** What a condition still wants, as an amount to go: "총인구 3,816 더", "범죄 40 아래로". */
 export function checkLeft(c: UnlockCheck): string {
