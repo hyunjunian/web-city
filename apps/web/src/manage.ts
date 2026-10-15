@@ -149,12 +149,15 @@ export function refreshStrip(): void {
   const el = $('#goal-strip');
   if (!phone()) {
     if (!el.hidden) el.hidden = true;
+    stripSeen = '';
     return;
   }
   const st = readStats();
   // (A lone fire the stations are putting out is its row's amber, not red.)
   const inc = new Set(incidents().filter((x) => x.urgent).map((x) => x.goal as GoalId));
   const rank = (t: Tone) => (t === 'bad' ? 0 : t === 'warn' ? 1 : 2);
+  // (One stop for Tab in the row, the chip last in hand; the arrows go along it: a toolbar.)
+  const tab = (k: string) => `tabindex="${k === stripAt ? 0 : -1}" data-tk="${k}"`;
   type Chip = { key: string; tone: Tone; weight: number; html: (on: boolean) => string };
   const chips: Chip[] = GOAL_ORDER.map((id) => {
     const g = GOALS[id];
@@ -165,7 +168,7 @@ export function refreshStrip(): void {
     const said = tone === 'bad' ? ', 조치 필요' : tone === 'warn' ? ', 주의' : '';
     return {
       key: id, tone, weight: WEIGHT[id],
-      html: (on: boolean) => `<button type="button" class="${tone || 'ok'}${tone === 'bad' || on ? '' : ' bare'}" data-strip-goal="${id}" title="${g.name}: ${escapeHtml(s.value)}${tone ? ` · ${escapeHtml(glue(s.note))}` : ''} · 눌러서 ${g.name} 화면" aria-label="${g.name}${said}: ${escapeHtml(s.value)}"${on ? ' aria-pressed="true"' : ''}>${glyph}${tone === 'bad' || on ? g.name : ''}</button>`,
+      html: (on: boolean) => `<button type="button" class="${tone || 'ok'}${tone === 'bad' || on ? '' : ' bare'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${g.name}: ${escapeHtml(s.value)}${tone ? ` · ${escapeHtml(glue(s.note))}` : ''} · 눌러서 ${g.name} 화면" aria-label="${g.name}${said}: ${escapeHtml(s.value)}"${on ? ' aria-pressed="true"' : ''}>${glyph}${tone === 'bad' || on ? g.name : ''}</button>`,
     };
   });
   // 시장 평점: no goal of its own, a chip all the same (pressed, the polls); a sound one second, after 재정.
@@ -173,7 +176,7 @@ export function refreshStrip(): void {
   const rated = ratingRated();
   chips.push({
     key: 'rating', tone: rTone, weight: 4,
-    html: () => `<button type="button" class="${rTone || 'ok'}${rTone === 'bad' ? '' : ' bare'}" data-strip-polls title="시장 평점: ${rated ? st.mayorRating : '아직 없음'} · 눌러서 주제별 여론" aria-label="시장 평점${rTone === 'bad' ? ', 조치 필요' : rTone === 'warn' ? ', 주의' : ''}: ${rated ? st.mayorRating : '아직 없음'}">${icon('approval')}${rTone === 'bad' ? '시장 평점' : ''}</button>`,
+    html: () => `<button type="button" class="${rTone || 'ok'}${rTone === 'bad' ? '' : ' bare'}" data-k="rating" ${tab('rating')} data-strip-polls title="시장 평점: ${rated ? st.mayorRating : '아직 없음'} · 눌러서 주제별 여론" aria-label="시장 평점${rTone === 'bad' ? ', 조치 필요' : rTone === 'warn' ? ', 주의' : ''}: ${rated ? st.mayorRating : '아직 없음'}">${icon('approval')}${rTone === 'bad' ? '시장 평점' : ''}</button>`,
   });
   const sorted = chips.map((c, k) => ({ c, k: c.key === 'rating' ? 0.5 : k }))
     .sort((a, b) => rank(a.c.tone) - rank(b.c.tone) || (a.c.tone ? b.c.weight - a.c.weight : a.k - b.k)).map(({ c }) => c);
@@ -181,16 +184,76 @@ export function refreshStrip(): void {
   const stage = stageOf(st.population);
   const list = checklist && !st.population ? checklist : null;
   const score = list
-    ? `<button type="button" class="strip-score" data-strip-score title="도시 현황 열기 · 시작하기 ${list.done}/${list.of} 완료" aria-label="도시 현황: 시작하기 ${list.done}/${list.of} 완료">${icon('sparkles')}시작하기 <small>${list.done}/${list.of}</small></button>`
-    : `<button type="button" class="strip-score" data-strip-score title="도시 현황 열기 · ${stage.name} (${stage.step}단계) · 인구 ${fmt(st.population)}명${stage.next ? ` · 다음 단계 ${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명` : ''}" aria-label="도시 현황: ${stage.name}, 인구 ${fmt(st.population)}명">${icon('trophy')}${fmt(st.population)}</button>`;
+    ? `<button type="button" class="strip-score" data-k="score" ${tab('score')} data-strip-score title="도시 현황 열기 · 시작하기 ${list.done}/${list.of} 완료" aria-label="도시 현황: 시작하기 ${list.done}/${list.of} 완료">${icon('sparkles')}<span>시작하기 <small>${list.done}/${list.of}</small></span></button>`
+    : `<button type="button" class="strip-score" data-k="score" ${tab('score')} data-strip-score title="도시 현황 열기 · ${stage.name} (${stage.step}단계) · 인구 ${fmt(st.population)}명${stage.next ? ` · 다음 단계 ${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명` : ''}" aria-label="도시 현황: ${stage.name}, 인구 ${fmt(st.population)}명">${icon('trophy')}<span>${fmt(st.population)}</span></button>`;
   // The open screen's chip first after the score, lit, with its ×.
   const on = active ? sorted.find((c) => c.key === active) : undefined;
   const html = score
-    + (on && active ? `<span class="strip-on" role="group" aria-label="열린 화면: ${GOALS[active].name}">${on.html(true)}<button type="button" data-strip-end title="${GOALS[active].name} 화면 닫기 (지도 보기도 꺼짐)" aria-label="${GOALS[active].name} 화면 닫기">${icon('close')}</button></span>` : '')
+    + (on && active ? `<span class="strip-on" data-k="on" role="group" aria-label="열린 화면: ${GOALS[active].name}">${on.html(true)}<button type="button" ${tab('end')} data-strip-end title="${GOALS[active].name} 화면 닫기 (지도 보기도 꺼짐)" aria-label="${GOALS[active].name} 화면 닫기">${icon('close')}</button></span>` : '')
     + sorted.filter((c) => c !== on).map((c) => c.html(false)).join('');
-  if (el.innerHTML !== html) el.innerHTML = html;
   el.hidden = false;
+  if (html !== stripSeen) {
+    stripSeen = html;
+    const had = el.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.tk : undefined;
+    patchRow(el, html);
+    // (The chip in hand gone — an area sound again, a screen closed — the row's stop is its first.)
+    if (!el.querySelector('[tabindex="0"]')) {
+      const first = el.querySelector<HTMLElement>('button');
+      first?.setAttribute('tabindex', '0');
+      stripAt = first?.dataset.tk ?? 'score';
+    }
+    // (Moved, a chip lets go of the focus: back on it — or on the row's stop, its chip gone.)
+    if (had !== undefined && !el.contains(document.activeElement)) (el.querySelector<HTMLElement>(`[data-tk="${had}"]`) ?? el.querySelector<HTMLElement>('[tabindex="0"]'))?.focus({ preventScroll: true });
+  }
   edgeFade(el);
+}
+/** The chips' markup as last drawn (what the row shows, unless it changed). */
+let stripSeen = '';
+/** The chip the row's Tab stop is on (its data-tk): the one last focused or arrowed to. */
+let stripAt = 'score';
+
+/**
+ * Brings a row of keyed chips (data-k) to `html` in place: a chip kept is the same element, brought to its new look
+ * (its words, its title) rather than made anew, and moved only if its place changed. (Rebuilt whole every update,
+ * the row lost a press between its down and its up, and the keyboard's place with it.)
+ */
+function patchRow(row: HTMLElement, html: string): void {
+  const t = document.createElement('template');
+  t.innerHTML = html;
+  const old = new Map([...row.children].map((c) => [(c as HTMLElement).dataset.k ?? '', c]));
+  let prev: Element | null = null;
+  for (const n of [...t.content.children]) {
+    const k = (n as HTMLElement).dataset.k ?? '';
+    const o = old.get(k);
+    let node = n;
+    if (o && o.tagName === n.tagName) {
+      morph(o, n);
+      old.delete(k);
+      node = o;
+    }
+    if ((prev ? prev.nextElementSibling : row.firstElementChild) !== node) {
+      if (prev) prev.after(node);
+      else row.prepend(node);
+    }
+    prev = node;
+  }
+  for (const o of old.values()) o.remove();
+}
+
+/** `old` made to look like `next`, keeping its nodes where they line up (only their attributes and words change). */
+function morph(old: Element, next: Element): void {
+  for (const a of [...old.attributes]) if (!next.hasAttribute(a.name)) old.removeAttribute(a.name);
+  for (const a of [...next.attributes]) if (old.getAttribute(a.name) !== a.value) old.setAttribute(a.name, a.value);
+  const [oc, nc] = [[...old.childNodes], [...next.childNodes]];
+  if (oc.length !== nc.length || oc.some((c, i) => c.nodeName !== nc[i]!.nodeName)) {
+    old.replaceChildren(...nc);
+    return;
+  }
+  oc.forEach((c, i) => {
+    const n = nc[i]!;
+    if (c.nodeType === Node.ELEMENT_NODE) morph(c as Element, n as Element);
+    else if (c.nodeValue !== n.nodeValue) c.nodeValue = n.nodeValue;
+  });
 }
 
 // ------------------------------------------------------------------ the next step
@@ -804,11 +867,12 @@ export function layPath(lay: Lay, path: [number, number][], owner: GoalId | null
   if (owner && owner === active) noteAction(`${LAY_WORD[lay]} ${fmt(path.length)}칸 · −§${fmt(laid)}`);
   flash(`${LAY_WORD[lay]} ${fmt(path.length)}칸을 이었습니다 · −§${fmt(laid)}`, 'info');
   for (const [x, y] of path) renderer.effect('flash', x, y);
-  // (Laid off the screen, the map goes to it, at the zoom it had: what was laid is seen.)
+  // (Laid out of sight — off the screen, or under the city pane or a bar — the map goes to it, at the zoom it had: what
+  // was laid is seen.)
   const [mx, my] = path[path.length >> 1]!;
-  const v = renderer.canvas.getBoundingClientRect();
+  const b = mapBand();
   const [sx, sy] = [(mx + 0.5 - cam.x) * cam.scale, (my + 0.5 - cam.y) * cam.scale];
-  if (sx < 0 || sy < 0 || sx > v.width || sy > v.height) centerOn(mx, my, 0);
+  if (sx < b.left || sy < b.top || sx > b.right || sy > b.bottom) centerOn(mx, my, 0, b);
   redraw();
   updatePanels();
   return true;
@@ -2701,29 +2765,57 @@ export function setupGoals(): void {
   // The phone's row of chips over the map: the score opens the city pane on its overview (an open screen put away
   // ends), an area its screen (the open one's back up), its × ends it, the rating the polls. (Scrolled, its cut edges
   // fade.)
-  $('#goal-strip').addEventListener('scroll', () => edgeFade($('#goal-strip')), { passive: true });
-  $('#goal-strip').addEventListener('click', (e) => {
+  const strip = $('#goal-strip');
+  strip.addEventListener('scroll', () => edgeFade(strip), { passive: true });
+  strip.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
+    // (From the keyboard, on into what opened: the chips go away with the bars, and the focus fell to the page.)
+    const keyboard = (e as MouseEvent).detail === 0;
+    const intoScreen = () => keyboard && $('#manage').querySelector<HTMLElement>('.mg-back')?.focus({ preventScroll: true });
     if (t.closest('[data-strip-score]')) {
       closeGoal();
       openPane();
-      // (From the keyboard, into it: the chip goes away with the bars, and the focus fell to the page.)
-      if ((e as MouseEvent).detail === 0) $('#pane-close').focus({ preventScroll: true });
+      if (keyboard) $('#pane-close').focus({ preventScroll: true });
       return;
     }
     if (t.closest('[data-strip-end]')) {
       closeGoal();
+      if (keyboard) strip.querySelector<HTMLElement>('[data-strip-score]')?.focus({ preventScroll: true });
       return;
     }
     if (t.closest('[data-strip-polls]')) {
       openGoalAt('environment', '#polls', 'mayor');
+      intoScreen();
       return;
     }
     const b = t.closest<HTMLElement>('[data-strip-goal]');
     if (!b) return;
     const id = b.dataset.stripGoal as GoalId;
     openGoal(id, incidents().find((x) => x.goal === id)?.at);
+    intoScreen();
   });
+  // A toolbar: one Tab stop, the chip last in hand; the arrows (Home, End) go along the row. (Not the map's arrows
+  // too: they panned it, or moved a building tool's cursor, under the chip being stepped through.)
+  strip.addEventListener('keydown', (e) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    const all = [...strip.querySelectorAll<HTMLElement>('button')];
+    const at = all.indexOf(document.activeElement as HTMLElement);
+    if (at < 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const to = all[e.key === 'Home' ? 0 : e.key === 'End' ? all.length - 1 : Math.max(0, Math.min(all.length - 1, at + (e.key === 'ArrowRight' ? 1 : -1)))]!;
+    to.focus();
+    to.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
+  strip.addEventListener('focusin', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-tk]');
+    if (!b) return;
+    stripAt = b.dataset.tk!;
+    for (const x of strip.querySelectorAll<HTMLElement>('[data-tk]')) x.tabIndex = x === b ? 0 : -1;
+  });
+  // Across a phone's width the row comes or goes (wide, the city pane says it all) — at once, not at the next month:
+  // with the clock stopped there was no other way to the pane.
+  matchMedia('(max-width: 860px)').addEventListener('change', () => refreshStrip());
   // A goal named beside a lever elsewhere (an ordinance in the budget sheet): its screen.
   document.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-goal-open]');

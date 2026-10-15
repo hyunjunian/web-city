@@ -8,7 +8,7 @@ import { thoughtChips } from './mysims';
 import { ABANDON_NAME, FACTOR_NAME, GROWTH_FIX, MAYOR_NAME, MEANS_NAME, NETWORK_NAME, ORDINANCE_NAME, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { updatePanels } from './panels';
 import { ROUTE_COLOR, structureColor, TYPE_COLOR, zoneTint } from './render';
-import { cam, city, cityLineage, clampCamera, flightCount, moveCount, overlay, overlayType, redraw, renderer, setSelected, stopFlight } from './state';
+import { cam, city, cityLineage, clampCamera, flightCount, mapBand, moveCount, overlay, overlayType, redraw, renderer, setSelected, stopFlight } from './state';
 import { closeInfo, showTab } from './tabs';
 import { $, ask, escapeHtml, flash, fmt, glue, hours, josa, pct } from './util';
 import { refreshTaxes } from './controls';
@@ -78,7 +78,7 @@ export function refreshInfo(): void {
 
 /**
  * Pans the map so a tapped spot isn't left under the card that opened for it
- * (a bottom sheet on phones, the right-hand card on wide screens).
+ * (a bottom sheet on phones, the right-hand card on wide screens) — nor, wide, under the city pane along the left.
  */
 export function keepInView(r: { x: number; y: number; w: number; h: number }): void {
   const card = $('#info-card');
@@ -97,10 +97,13 @@ export function keepInView(r: { x: number; y: number; w: number; h: number }): v
   const margin = 64;
   const far = (r.x + r.w - cam.x) * cam.scale + v.left + margin;
   const low = (r.y + r.h - cam.y) * cam.scale + v.top + margin;
-  if (below ? low < c.top || sy > c.bottom : far < c.left || sx > c.right || sy < c.top || sy > c.bottom) return;
+  // Beside the card, the map left of it starts at the city pane's edge (wide; on a phone held sideways, the screen's).
+  const from = below ? 0 : mapBand(false).left;
+  const underCard = below ? !(low < c.top || sy > c.bottom) : !(far < c.left || sx > c.right || sy < c.top || sy > c.bottom);
+  if (!underCard && (below || sx > v.left + from)) return;
   // (To where the map may go: past its edge the frame's clamp moved it back, and it didn't end where it was sent.)
   const [ox, oy] = [cam.x, cam.y];
-  cam.x += below ? 0 : (sx - (v.left + (c.left - v.left) / 2)) / cam.scale;
+  cam.x += below ? 0 : (sx - (v.left + (from + c.left - v.left) / 2)) / cam.scale;
   cam.y += below ? (sy - (v.top + (c.top - v.top) / 2)) / cam.scale : 0;
   clampCamera();
   const [dx, dy] = [cam.x - ox, cam.y - oy];

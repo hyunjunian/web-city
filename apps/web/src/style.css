@@ -899,11 +899,12 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #view:has(#tray:not([hidden])) #tool-alts { display: none; }
 
 /* 전체 보기 and the minimap in the top right corner — under the top buttons' row where it reaches them (fitMapbar:
-   controls-low), and then left of a building's card while it is open. */
+   controls-low); there, a building's card open takes their place (beside it they lay over the view's card, the
+   wheel, a pinch and Home still zoom). */
 #map-controls { position: absolute; top: 14px; right: 14px; z-index: 3; display: grid; gap: 10px; justify-items: end; transition: right 0.22s var(--ease), top 0.22s var(--ease); pointer-events: none; }
 #map-controls > * { pointer-events: auto; } /* (the column is as wide as the minimap: its empty corner beside 전체 보기 lies over the map) */
 #view.controls-low #map-controls { top: calc(var(--bar-h) + 12px); }
-#view.controls-low.info-open #map-controls { right: calc(var(--info-w) + 28px); }
+#view.controls-low.info-open #map-controls { visibility: hidden; }
 #map-zoom { position: static; display: grid; gap: 2px; padding: 0; border-radius: var(--r-lg); } /* (± are not shown: the box is 전체 보기's, 50px as the clearances around it assume) */
 #map-zoom .icon-btn { width: 40px; height: 40px; color: var(--text); }
 /* 전체 보기 says so under its icon (the corners alone read as full screen), as the build bar's buttons do. */
@@ -1188,8 +1189,10 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 #sheet [data-pane] > .card { display: block; margin: 0 0 14px; break-inside: avoid; background: var(--surface); }
 /* One card (지역): one column. */
 #sheet[data-tab='region'] [data-pane] { columns: 1; }
-/* (전체 보기 under the top row, where the sheet may reach it: it steps back while the sheet is open.) */
+/* (전체 보기 and the minimap step back while the sheet is open where it reaches their corner: under the top row, or
+   — up to 1330px — beside it, the sheet in the middle of the map wide enough to touch the minimap.) */
 #view.sheet-open.controls-low #map-controls { visibility: hidden; }
+@media (max-width: 1330px) { #view.sheet-open #map-controls { visibility: hidden; } }
 
 /* Budget, taxes, ordinances, loans */
 #budget b.good { color: var(--good); }
@@ -2692,7 +2695,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   /* A sheet up — the city pane or an area's screen, the tools, a building's card, 지역 — the top rows go off the screen
      upward and the foot bar downward, and the sheet takes the room they had (its own × and back close it; the tools'
      card heads itself with the build categories meanwhile). The view's card stays, up in their place. */
-  #mapbar, #dock-col { transition: transform 0.24s var(--ease), opacity 0.24s var(--ease); }
+  #view #mapbar, #view #dock-col { transition: transform 0.24s var(--ease), opacity 0.24s var(--ease); } /* (#view: over the drag's fade, which took the slide back) */
   :root:has(:is(#app.pane-open, #view.info-open, #view.sheet-open, #tray:not([hidden]))) {
     --bar-h: env(safe-area-inset-top);
     --dock-h: env(safe-area-inset-bottom);
@@ -2742,9 +2745,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   :root { --mb-h: 42px; --mb-top: calc(env(safe-area-inset-top) + 6px); --bar-h: calc(var(--mb-top) + var(--mb-h)); --dock-h: calc(env(safe-area-inset-bottom) + 56px); }
   #mapbar { flex-wrap: nowrap; }
   #btn-place { flex: 0 0 auto; max-width: min(240px, 28vw); }
-  /* (The chips between the clock and the menu, which keeps the row's end: they take what the buttons leave.) */
-  #goal-strip:not([hidden]) { flex: 1 1 0; margin: -4px 0 -10px; padding: 4px 2px 10px; }
-  #mapbar > #menu { order: 2; }
+  /* (The chips after the three buttons, as Tab goes: they take what the buttons leave.) */
+  #goal-strip:not([hidden]) { flex: 1 1 0; margin: -4px -8px -10px 0; padding: 4px 8px 10px 2px; }
   #goal-strip button { height: 32px; }
   #goal-strip button.bare { width: 32px; }
   #goal-strip .strip-on { height: 32px; }

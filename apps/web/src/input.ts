@@ -1380,10 +1380,15 @@ export function setupInput(): void {
   }, { passive: false });
   // The map's zoom buttons: about the view's centre.
   const centre = (): [number, number] => [canvas.clientWidth / 2, canvas.clientHeight / 2];
-  // Buttons and keys glide (a wheel or a pinch follows the hand as it is).
+  // Buttons and keys glide (a wheel or a pinch follows the hand as it is) — about the middle of the map that shows
+  // (beside the city pane, between the bars), not the canvas's, much of which lies under them. (glideTo places the
+  // tile at the canvas's middle: the band's middle tile stays put.)
   const zoomBy = (factor: number) => {
     const [px, py] = centre();
-    glideTo(cam.x + px / cam.scale, cam.y + py / cam.scale, Math.max(minScale(), Math.min(48, cam.scale * factor)));
+    const b = mapBand();
+    const [bx, by] = [(b.left + b.right) / 2, (b.top + b.bottom) / 2];
+    const to = Math.max(minScale(), Math.min(48, cam.scale * factor));
+    glideTo(cam.x + bx / cam.scale - (bx - px) / to, cam.y + by / cam.scale - (by - py) / to, to);
   };
   const fitGlide = () => {
     const was = { ...cam };
@@ -1451,10 +1456,11 @@ export function setupInput(): void {
       return;
     }
     // Enter (not on a control): look at the tile in the middle of the view — arrows move the map to it.
-    // (The map itself takes focus now — the skip link, a click on it — and is no control.)
+    // (The map itself takes focus now — the skip link, a click on it — and is no control.) The middle of the map that
+    // shows: the canvas's lies near the city pane's edge.
     if (e.key === 'Enter' && plain0(e) && tool.kind === 'query' && !(e.target as Element).closest?.('button, a, summary, input, select, textarea, [tabindex]:not(#map)')) {
-      const r = renderer.canvas.getBoundingClientRect();
-      const [cx, cy] = renderer.toTile(cam, r.width / 2, r.height / 2);
+      const b = mapBand();
+      const [cx, cy] = renderer.toTile(cam, (b.left + b.right) / 2, (b.top + b.bottom) / 2);
       if (cx >= 0 && cy >= 0 && cx < city.size && cy < city.size) {
         showInfo(cx, cy);
         redraw();
@@ -1588,24 +1594,26 @@ function keyBuild(e: KeyboardEvent): boolean {
   if (e.key === 'Enter' && e.repeat) return true; // held down: one build, not one per repeat
   if (arrow) stopFlight(); // the cursor's own following moves the map from here
   const n = city.size;
-  const W = renderer.canvas.width / renderer.dpr;
-  const H = renderer.canvas.height / renderer.dpr;
-  // The cursor: where the pointer left it if that is on screen, else the middle of the view.
+  // The part of the map that shows — beside the city pane, between the bars (on the canvas's edges the cursor went
+  // under the pane and stayed there).
+  const b = mapBand();
+  const [L, T, R, B] = [b.left / cam.scale, b.top / cam.scale, b.right / cam.scale, b.bottom / cam.scale];
+  // The cursor: where the pointer left it if that is in sight, else the middle of the view.
   const seen = (t: readonly [number, number] | null) =>
-    !!t && t[0] >= Math.ceil(cam.x) && t[1] >= Math.ceil(cam.y) && t[0] < Math.floor(cam.x + W / cam.scale) && t[1] < Math.floor(cam.y + H / cam.scale);
-  let at: [number, number] = seen(hover) ? [hover![0], hover![1]] : renderer.toTile(cam, W / 2, H / 2);
+    !!t && t[0] >= Math.ceil(cam.x + L) && t[1] >= Math.ceil(cam.y + T) && t[0] < Math.floor(cam.x + R) && t[1] < Math.floor(cam.y + B);
+  let at: [number, number] = seen(hover) ? [hover![0], hover![1]] : renderer.toTile(cam, (b.left + b.right) / 2, (b.top + b.bottom) / 2);
   if (arrow) {
     // Off the dock button that picked the tool, so the next Enter builds rather than pressing it again (or opening the
     // notice in focus).
     if ((document.activeElement as Element | null)?.closest('button, a, summary, [role=button], .toast')) (document.activeElement as HTMLElement).blur();
     const k = e.shiftKey ? 5 : 1;
     at = [Math.max(0, Math.min(n - 1, at[0] + arrow[0] * k)), Math.max(0, Math.min(n - 1, at[1] + arrow[1] * k))];
-    // The map follows, keeping two tiles of room.
+    // The map follows, keeping two tiles of room inside the part that shows.
     const m = 2;
-    if (at[0] < cam.x + m) cam.x = at[0] - m;
-    if (at[0] + 1 > cam.x + W / cam.scale - m) cam.x = at[0] + 1 + m - W / cam.scale;
-    if (at[1] < cam.y + m) cam.y = at[1] - m;
-    if (at[1] + 1 > cam.y + H / cam.scale - m) cam.y = at[1] + 1 + m - H / cam.scale;
+    if (at[0] < cam.x + L + m) cam.x = at[0] - m - L;
+    if (at[0] + 1 > cam.x + R - m) cam.x = at[0] + 1 + m - R;
+    if (at[1] < cam.y + T + m) cam.y = at[1] - m - T;
+    if (at[1] + 1 > cam.y + B - m) cam.y = at[1] + 1 + m - B;
     if (drag) {
       drag.end = tool.kind === 'network' ? toEdge(drag.start, at) : at;
       if (at[0] === drag.start[0] && at[1] === drag.start[1]) drag.vertical = undefined;

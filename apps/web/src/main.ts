@@ -146,18 +146,19 @@ function frameBody(now: number): void {
   if (dirty) {
     const t0 = performance.now();
     clampCamera();
-    // (The edge arrows keep to the part nothing covers: measured now and then, not each frame — it reads the layout.)
-    if (renderer.marks.length && (t0 - bandAt > 300 || !renderer.band)) {
+    // (The edge arrows keep to the part nothing covers, and the whole city is in sight when it is all in that part:
+    // measured now and then, not each frame — it reads the layout.)
+    if (t0 - bandAt > 300 || !renderer.band) {
       renderer.band = mapBand();
       renderer.covers = mapCovers();
       bandAt = t0;
     }
     renderer.draw(city, cam, overlay, preview, selected);
     followTag();
-    // With the whole city on screen, the minimap and 전체 보기 have nothing to add: they fade out until zoomed in.
-    const vw = renderer.canvas.width / renderer.dpr / cam.scale;
-    const vh = renderer.canvas.height / renderer.dpr / cam.scale;
-    const whole = cam.x <= 0.5 && cam.y <= 0.5 && cam.x + vw >= city.size - 0.5 && cam.y + vh >= city.size - 0.5;
+    // With the whole city in sight — in the part nothing floats over — the minimap and 전체 보기 have nothing to add:
+    // they fade out until zoomed in. (On the whole canvas, a city half under the city pane counted as whole.)
+    const b = renderer.band;
+    const whole = cam.x + b.left / cam.scale <= 0.5 && cam.y + b.top / cam.scale <= 0.5 && cam.x + b.right / cam.scale >= city.size - 0.5 && cam.y + b.bottom / cam.scale >= city.size - 0.5;
     if (whole !== wholeShown) document.getElementById('view')?.classList.toggle('whole-view', (wholeShown = whole));
     drawMinimap();
     setDirty(false);
