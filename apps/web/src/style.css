@@ -2628,7 +2628,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 
 /* ---- what steps back while a drag lays something down */
 #view #mapbar { transition: opacity 0.2s var(--ease), left 0.26s var(--ease); } /* (the bars' middle moves with the pane, as it slides) */
-#view #dock-col { transition: left 0.26s var(--ease); }
+#view #dock-col { transition: opacity 0.2s var(--ease), left 0.26s var(--ease); } /* (with the drag's fade, below) */
 #view.drawing #mapbar { opacity: 0.25; }
 
 /* ---- 지역's first card: the city's own name, and a way to change it */

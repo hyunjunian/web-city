@@ -740,9 +740,10 @@ export function fitMapbar(): void {
   const narrow = matchMedia('(max-width: 860px)').matches;
   const strip = document.getElementById('goal-strip');
   // Wide, the top buttons, the chips' row under them and the building bar stand in the middle of the screen, one above
-  // another — moved right only as far as they must to clear the city pane while it is open (a narrow window): what
-  // rises from the bar (the tool in hand, the hint) and the 지역 sheet under the buttons keep to the same line. The
-  // chips take the room the middle leaves them there, and scroll past it (--strip-w).
+  // another — moved right only as far as the buttons and the bar must to clear the city pane while it is open (a narrow
+  // window): what rises from the bar (the tool in hand, the hint) and the 지역 sheet under the buttons keep to the same
+  // line. The chips take the room that middle leaves them, and scroll past it (--strip-w): sized by them, the bars
+  // shifted sideways whenever an area turned red.
   let right = 0;
   if (narrow) {
     view.style.removeProperty('--bar-x');
@@ -755,7 +756,7 @@ export function fitMapbar(): void {
     const to = v.width - 14;
     const row = Math.max(bar.offsetWidth, document.getElementById('dock-col')?.offsetWidth ?? 0); // (the chips' row is out of the bar's flow)
     const chips = strip && !strip.hidden ? strip.scrollWidth : 0;
-    const half = Math.max(row, Math.min(chips, to - from)) / 2;
+    const half = row / 2;
     const x = Math.round(Math.max(from + half, Math.min(v.width / 2, to - half)));
     const room = Math.max(0, Math.floor(2 * Math.min(x - from, to - x)));
     if (view.style.getPropertyValue('--bar-x') !== `${x}px`) view.style.setProperty('--bar-x', `${x}px`);

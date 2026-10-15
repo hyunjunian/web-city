@@ -21,6 +21,8 @@ const SHEET_TITLE: Record<SheetTab, string> = { sims: '주민', region: '지역'
 
 /** The sheet open, if any. */
 let sheetTab: SheetTab | null = null;
+/** What had the keyboard when the sheet opened (J pressed on the map, the pane's 지역): it gets it back. */
+let sheetOpener: HTMLElement | null = null;
 
 /** Phones: the city pane and a sheet are both bottom sheets, one at a time. */
 const phone = () => matchMedia('(max-width: 860px)').matches;
@@ -58,6 +60,7 @@ function openSheet(tab: SheetTab): void {
   document.dispatchEvent(new CustomEvent('sheet-open'));
   // Into the sheet, so the keyboard carries on there.
   if (!$('#sheet').contains(document.activeElement)) {
+    sheetOpener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
     const title = $('#sheet-title');
     title.tabIndex = -1;
     title.focus({ preventScroll: true });
@@ -70,16 +73,18 @@ export function closeSheet(): boolean {
   const was = sheetTab;
   sheetTab = null;
   $('#sheet').hidden = true;
-  // (First: a phone's top buttons come back with it — still away, the menu's button took no focus.)
+  // (First: a phone's top buttons come back with it — still away, the city button took no focus.)
   $('#view').classList.remove('sheet-open');
   markOpen();
-  // Back to the button that opened it, if it is in sight (지역 in a closed or busy pane, or the menu's line while it
-  // is shut): else the menu's.
+  // Back to the button that opened it, if it is in sight (지역 in a closed pane is not), else to what had the keyboard
+  // when it opened (the map, for J), else to the city button at the top. (The menu's was the way back once: it no
+  // longer holds 지역, and Space there opened the menu instead of stopping the clock.)
+  const opener = sheetOpener;
+  sheetOpener = null;
   if (hadFocus) {
-    // (checkVisibility also rules out the menu's lines while it is shut.)
-    const seen = (b: HTMLElement) => (b.checkVisibility ? b.checkVisibility({ checkVisibilityCSS: true }) : !!b.offsetParent && getComputedStyle(b).visibility !== 'hidden');
+    const seen = (b: HTMLElement) => b.isConnected && (b.checkVisibility ? b.checkVisibility({ checkVisibilityCSS: true }) : !!b.offsetParent && getComputedStyle(b).visibility !== 'hidden');
     const shown = [...document.querySelectorAll<HTMLElement>(`[data-sheet-btn="${was}"]`)].find(seen);
-    (shown ?? document.querySelector<HTMLElement>('#menu > summary'))?.focus();
+    (shown ?? (opener && seen(opener) && !$('#sheet').contains(opener) ? opener : null) ?? document.getElementById('btn-city'))?.focus();
   }
   return true;
 }
@@ -149,18 +154,20 @@ export function revealMap(): void {
   if (phone()) closePane();
 }
 
-/** Esc: drops a pending My Sim pick, else closes the info card, else the sheet, else the city pane. */
-export function closeTopLayer(): boolean {
+/** Esc: drops a pending My Sim pick, else closes the info card, else the sheet, else the city pane (`pane`: on a
+ *  phone, where it is a sheet over the map; wide, a tool in hand goes down first and an area's screen gives way to the
+ *  overview — input.ts). */
+export function closeTopLayer(pane = true): boolean {
   if (cancelMySimAction()) {
     flash('My Sim 지정을 취소했습니다');
     return true;
   }
-  return closeInfo() || closeSheet() || dismissPane();
+  return closeInfo() || closeSheet() || (pane && dismissPane());
 }
 
 /** The city pane put away by the player (its ×, Esc, the city button): the keyboard goes back to the city button at
  *  the top, which opens it (it was left on the hidden pane, and the next Tab went to the map's corner). */
-function dismissPane(): boolean {
+export function dismissPane(): boolean {
   const had = $('#pane').contains(document.activeElement);
   if (!closePane()) return false;
   if (had) document.getElementById('btn-city')?.focus({ preventScroll: true });
@@ -216,10 +223,11 @@ export function setupTabs(): void {
   });
   $('#info-close').onclick = closeInfo;
   $('#pane-close').onclick = () => dismissPane();
-  // (From the keyboard on a phone, on into the risen pane: the button goes away with the bars.)
+  // (From the keyboard, on into the pane it opened: on a phone the button goes away with the bars; wide, the pane comes
+  // before the map in the page, and Tab went on to the clock.)
   $('#btn-city').onclick = (e) => {
     togglePane();
-    if (e.detail === 0 && phone() && paneShown()) $('#pane-close').focus({ preventScroll: true });
+    if (e.detail === 0 && paneShown()) $('#pane-close').focus({ preventScroll: true });
   };
   markOpen();
 }

@@ -15,7 +15,7 @@ import { facilityLine, newlyReached, plantsReached, roadLinked, smokeClear, subw
 import { goalOfStructure } from './goals';
 import { cam, centerOn, city, drag, fitCamera, glideTo, hover, mapBand, overlay, redraw, renderer, selected, setDrag, setHover, speed, stopFlight } from './state';
 import { drive, SPECIAL } from './udi';
-import { closeTopLayer, toggleSheet } from './tabs';
+import { closeTopLayer, dismissPane, paneShown, toggleSheet } from './tabs';
 import { chosen, closeTray, openFind, previousTool, stepAlt, refreshToolChip, selectTool, STATION_HINT, tool, TOOL_KEYS, toolName, toolUsed, refreshEdgeHint } from './tools';
 import { $, ask, askText, escapeHtml, keyForControl, onHintRestore, flash, flashing, fmt, josa, touchFirst, flashYields, endFlash } from './util';
 
@@ -99,6 +99,8 @@ function rampWarning(tiles: [number, number][]): string {
 }
 
 const plain0 = (e: KeyboardEvent) => !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey;
+/** Wide: the city pane is beside the map, not a sheet over it (the stylesheet's own test). */
+const wideScreen = () => !matchMedia('(max-width: 860px)').matches;
 
 /** Zone tools a zone key steps through when pressed again. */
 const DENSITY_CYCLE = [['R-low', 'R-medium', 'R-high'], ['C-low', 'C-medium', 'C-high'], ['I-medium', 'I-high', 'A']];
@@ -1546,10 +1548,12 @@ export function setupInput(): void {
       else if (drag) setDrag(null);
       else if (menu) menu.open = false; // (opened by a press, which leaves focus outside it: its own Esc didn't hear)
       else if (document.querySelector('.mb-time.open')) closeClock(); // (a phone's speeds' card, first: it is the topmost)
-      else if (!closeTray(true) && !closeTopLayer()) {
-        // Then the tool goes down, then the goal's screen gives way to the overview.
+      else if (!closeTray(true) && !closeTopLayer(!wideScreen())) {
+        // Then the tool goes down, then the goal's screen gives way to the overview — and wide, where the pane is
+        // beside the map rather than a sheet over it, then the pane goes (a screen put away with it ends after).
         if (tool.id !== 'query') selectTool('query');
-        else closeGoal();
+        else if (wideScreen() && activeGoal && paneShown()) closeGoal();
+        else if (!(wideScreen() && dismissPane())) closeGoal();
       }
       updatePreview();
       redraw();

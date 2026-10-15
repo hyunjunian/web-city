@@ -189,7 +189,7 @@ export function refreshStrip(): void {
     if (!el.querySelector('[tabindex="0"]')) {
       const first = el.querySelector<HTMLElement>('button');
       first?.setAttribute('tabindex', '0');
-      stripAt = first?.dataset.tk ?? 'score';
+      stripAt = first?.dataset.tk ?? 'start';
     }
     // (Moved, a chip lets go of the focus: back on it — or on the row's stop, its chip gone.)
     if (had !== undefined && !el.contains(document.activeElement)) (el.querySelector<HTMLElement>(`[data-tk="${had}"]`) ?? el.querySelector<HTMLElement>('[tabindex="0"]'))?.focus({ preventScroll: true });
@@ -1348,7 +1348,7 @@ export function openViewTab(view: string): void {
 
 /** G: 개발·수요 on its 개발 막힘 tab, or back to the city from there. */
 export function toggleGrowthTab(): void {
-  if (active === 'growth' && tabNow('growth').view === 'growth') closeGoal();
+  if (active === 'growth' && tabNow('growth').view === 'growth' && $('#app').classList.contains('pane-open')) closeGoal();
   else openGoalView('growth', 'growth');
 }
 
@@ -2655,10 +2655,12 @@ function focusKey(el: Element | null): string {
 /** Phones: the pane is a sheet over the map (the same test as the stylesheet's). */
 const phone = () => matchMedia('(max-width: 860px)').matches;
 
-/** M: the goal most in need (else the first), or back to the overview when one is open. */
+/** M: the goal most in need (else the first), or back to the overview when one is open — or, one open but put away
+ *  with the pane, the pane back on it (it ended unseen). */
 export function toggleUrgentGoal(): void {
   if (active) {
-    closeGoal();
+    if ($('#app').classList.contains('pane-open')) closeGoal();
+    else openPane();
     return;
   }
   // (The first row of 도시 상태, as the list orders them: by GOAL_ORDER alone, M opened 재정·정책 under a list that
