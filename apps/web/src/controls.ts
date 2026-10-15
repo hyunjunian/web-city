@@ -542,7 +542,7 @@ export function buildOverlay(): void {
 let monthAt = -1;
 export function markMonth(pct: number): void {
   const path = document.querySelector<SVGPathElement>('#clock .month-ring path');
-  if (!path) return;
+  if (!path || pct === monthAt) return; // (asked every update: the day moves less often)
   // (A new month starts from the top again at once: eased, the ring ran back round the wrong way.)
   const back = pct < monthAt;
   monthAt = pct;

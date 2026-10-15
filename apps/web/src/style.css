@@ -2465,6 +2465,11 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
     radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.16), transparent) center bottom / 100% 10px no-repeat scroll,
     var(--float-solid);
 }
+/* A narrow window: the menu by its icon alone, its room to the place's names. */
+@media (min-width: 861px) and (max-width: 1100px) {
+  #menu > summary { width: var(--mb-h); padding: 0; }
+  #menu > summary .mb-label { display: none; }
+}
 /* A touch screen wider than a phone: the top buttons at a finger's size. */
 @media (min-width: 861px) and (pointer: coarse) and (hover: none) {
   :root { --mb-h: 52px; }
@@ -2820,4 +2825,5 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   /* (The chips stay low, a row's worth: a finger's reach past their edges instead, into the row's margin.) */
   #view #goal-strip button::before { content: ''; position: absolute; inset: -4px -2px -6px; }
   #pane .g-act-btns :is(.primary, button) { min-height: 40px; }
+  .city-rename { min-height: 40px; }
 }
