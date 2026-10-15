@@ -36,7 +36,7 @@ function settle(): void {
 export function setupBack(): void {
   const later = () => requestAnimationFrame(settle);
   for (const type of ['pointerup', 'click', 'keyup'] as const) window.addEventListener(type, later, true);
-  setTimeout(settle, 0); // (a first visit opens the pane by itself, with no press)
+  setTimeout(settle, 0); // (the page as it opens, before any press)
   window.addEventListener('popstate', () => {
     if (consuming) {
       consuming = false;

@@ -19,6 +19,9 @@ import { unsavedProgress } from './saves';
 let shownTip = false;
 export const ONBOARDING_KEY = 'web-city-onboarding-done';
 
+/** Phones: the city pane is a sheet over the map. */
+const phone = () => matchMedia('(max-width: 860px)').matches;
+
 /** First steps for a new mayor, ticked off from the city itself (hidden once all are done or dismissed). */
 let onboardingKey = '';
 /** While the checklist shows: how many of its steps are done, of how many (a phone's score chip says so). */
@@ -178,8 +181,8 @@ export function renderOnboarding(): void {
     + (plant ? `g${plant.kind}${plant.at.join(',')}` : '')
     + (station ? `s${station.kind}${station.at.join(',')}` : '') + (tower ? `t${tower.kind}${tower.at.join(',')}` : '') + (fill ? `l${fill.x0},${fill.y0},${fill.side}${fillSpan(fill.months)}` : '');
   if (el.dataset.sig === sig) return;
-  // Phones: the checklist sits in the city pane, so the score chip that opens it gets a dot until it is opened.
-  if (!el.dataset.sig && !paneShown()) document.getElementById('goal-strip')?.classList.add('unread');
+  // The checklist sits in the city pane: while that is put away, the city button that opens it gets a dot until it is.
+  if (!el.dataset.sig && !paneShown()) document.getElementById('btn-city')?.classList.add('unread');
   el.dataset.sig = sig;
   // The next three steps; the rest fold away (the whole list pushed the RCI meter off the pane). One that waits on growth
   // goes last.
@@ -255,7 +258,7 @@ export function renderOnboarding(): void {
       const now = lineToDark();
       if (!now) return gone();
       if (layPath('powerline', now, null)) {
-        closePane();
+        if (phone()) closePane(); // (the line laid, seen)
         updatePanels();
       }
       return;
@@ -269,7 +272,7 @@ export function renderOnboarding(): void {
     const now = edgeRoad('road');
     if (!now) return gone();
     if (!layPath('road', now.path, null)) return;
-    closePane(); // phones: the road laid, seen
+    if (phone()) closePane(); // (the road laid, seen)
     updatePanels();
   }));
   const sample = document.querySelector<HTMLButtonElement>('#onboarding-sample');
@@ -336,7 +339,7 @@ function takeStep(step: string): void {
   // (Said once: the bar under the map repeats the tool's own reading, and two banners covered the drag.)
   const tipShown = shownTip;
   shownTip = true;
-  closePane(); // phones: the pane holding the checklist steps aside for the map
+  if (phone()) closePane(); // (the sheet holding the checklist steps aside for the map: wide, it is beside it)
   // A toast, not the hint: the hint is where the tool's own reading (cost, ⚠ no road) must show at once.
   // (Not the one-finger tip again when the bar under the map has just said it.)
   const panTold = performance.now() - panTipAt < 1000;

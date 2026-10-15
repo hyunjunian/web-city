@@ -13,7 +13,7 @@ import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { whyNoDeals } from './region';
 import { journal } from './journal';
-import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, stageOf, updatePanels } from './panels';
+import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, updatePanels } from './panels';
 import { checklist } from './onboarding';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { GRAPH_KEYS } from './graphs';
@@ -135,20 +135,14 @@ let listOrder: { keys: string[]; split: number } | null = null;
 const hoverable = () => matchMedia('(hover: hover)').matches;
 
 /**
- * Phones: under the top buttons, the city's score and each area's state, a row of chips over the map — the score first
- * (the residents, or 시작하기 while its checklist shows; pressed, the city pane), the area whose screen is open (put
- * away to work on the map: lit, its × beside it), then the areas needing a hand (anything burning first: by name while
- * urgent, by a tinted icon while amber), then the sound ones by their icons alone — in the city pane's order, the
- * mayor's rating among them. Compact, so the row stays short; what it can't show scrolls in, its cut edge faded.
- * (Wide, the pane is always there: no row.)
+ * Under the top buttons, each area's state, a row of chips over the map — 시작하기 first while its checklist shows
+ * (pressed, the city pane, which holds it), the area whose screen is open (lit, its × beside it), then the areas
+ * needing a hand (anything burning first: by name while urgent, by a tinted icon while amber), then the sound ones by
+ * their icons alone — in the city pane's order, the mayor's rating among them. Compact, so the row stays short; what it
+ * can't show scrolls in, its cut edge faded. (The city's stage is the city button's, above.)
  */
 export function refreshStrip(): void {
   const el = $('#goal-strip');
-  if (!phone()) {
-    if (!el.hidden) el.hidden = true;
-    stripSeen = '';
-    return;
-  }
   const st = readStats();
   // (A lone fire the stations are putting out is its row's amber, not red.)
   const inc = new Set(incidents().filter((x) => x.urgent).map((x) => x.goal as GoalId));
@@ -177,15 +171,13 @@ export function refreshStrip(): void {
   });
   const sorted = chips.map((c, k) => ({ c, k: c.key === 'rating' ? 0.5 : k }))
     .sort((a, b) => rank(a.c.tone) - rank(b.c.tone) || (a.c.tone ? b.c.weight - a.c.weight : a.k - b.k)).map(({ c }) => c);
-  // The score: the residents (the stage in its title), or 시작하기 and how far along while its checklist shows.
-  const stage = stageOf(st.population);
-  const list = checklist && !st.population ? checklist : null;
-  const score = list
-    ? `<button type="button" class="strip-score" data-k="score" ${tab('score')} data-strip-score title="도시 현황 열기 · 시작하기 ${list.done}/${list.of} 완료" aria-label="도시 현황: 시작하기 ${list.done}/${list.of} 완료">${icon('sparkles')}<span>시작하기 <small>${list.done}/${list.of}</small></span></button>`
-    : `<button type="button" class="strip-score" data-k="score" ${tab('score')} data-strip-score title="도시 현황 열기 · ${stage.name} (${stage.step}단계) · 인구 ${fmt(st.population)}명${stage.next ? ` · 다음 단계 ${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명` : ''}" aria-label="도시 현황: ${stage.name}, 인구 ${fmt(st.population)}명">${icon('trophy')}<span>${fmt(st.population)}</span></button>`;
-  // The open screen's chip first after the score, lit, with its ×.
+  // 시작하기 and how far along, while its checklist shows (the city pane holds it).
+  const start = checklist
+    ? `<button type="button" class="strip-start" data-k="start" ${tab('start')} data-strip-start title="시작하기: ${checklist.done}/${checklist.of} 완료 · 눌러서 도시 현황의 시작하기 목록" aria-label="시작하기: ${checklist.done}/${checklist.of} 완료 · 도시 현황">${icon('sparkles')}<span>시작하기 <small>${checklist.done}/${checklist.of}</small></span></button>`
+    : '';
+  // The open screen's chip first after it, lit, with its ×.
   const on = active ? sorted.find((c) => c.key === active) : undefined;
-  const html = score
+  const html = start
     + (on && active ? `<span class="strip-on" data-k="on" role="group" aria-label="열린 화면: ${GOALS[active].name}">${on.html(true)}<button type="button" ${tab('end')} data-strip-end title="${GOALS[active].name} 화면 닫기 (지도 보기도 꺼짐)" aria-label="${GOALS[active].name} 화면 닫기">${icon('close')}</button></span>` : '')
     + sorted.filter((c) => c !== on).map((c) => c.html(false)).join('');
   el.hidden = false;
@@ -207,7 +199,7 @@ export function refreshStrip(): void {
 /** The chips' markup as last drawn (what the row shows, unless it changed). */
 let stripSeen = '';
 /** The chip the row's Tab stop is on (its data-tk): the one last focused or arrowed to. */
-let stripAt = 'score';
+let stripAt = 'start';
 
 /**
  * Brings a row of keyed chips (data-k) to `html` in place: a chip kept is the same element, brought to its new look
@@ -237,10 +229,17 @@ function patchRow(row: HTMLElement, html: string): void {
   for (const o of old.values()) o.remove();
 }
 
-/** `old` made to look like `next`, keeping its nodes where they line up (only their attributes and words change). */
+/** `old` made to look like `next`, keeping its nodes where they line up (only their attributes and words change).
+ *  (A title by its property: a chip under the pointer has its title kept aside by its tooltip, tips.ts, which shows
+ *  the new one — set as an attribute, the browser's own came up beside it.) */
 function morph(old: Element, next: Element): void {
-  for (const a of [...old.attributes]) if (!next.hasAttribute(a.name)) old.removeAttribute(a.name);
-  for (const a of [...next.attributes]) if (old.getAttribute(a.name) !== a.value) old.setAttribute(a.name, a.value);
+  for (const a of [...old.attributes]) if (!next.hasAttribute(a.name) && a.name !== 'aria-describedby') old.removeAttribute(a.name);
+  for (const a of [...next.attributes]) {
+    if (a.name === 'title' && old instanceof HTMLElement) {
+      if (old.title !== a.value) old.title = a.value;
+    }
+    else if (old.getAttribute(a.name) !== a.value) old.setAttribute(a.name, a.value);
+  }
   const [oc, nc] = [[...old.childNodes], [...next.childNodes]];
   if (oc.length !== nc.length || oc.some((c, i) => c.nodeName !== nc[i]!.nodeName)) {
     old.replaceChildren(...nc);
@@ -1377,10 +1376,11 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
   }
   $('#pane').classList.add('managing');
   showGoalStats(id);
-  // Phones: the pane rises with it. (Not on wide screens, where it is always there:
-  // marked open, the first Esc went on closing what never was.)
-  // (From an alert about a place: on a phone the place shows, the goal's chip in the row at the top brings its screen.)
-  if (phone() && !fromMap) {
+  // The pane comes with it: wide, beside the map (from an alert about a place too, which the map then shows); on a
+  // phone it rises over the map — not from an alert about a place: there the place shows, the goal's chip in the row
+  // at the top brings its screen.
+  if (!phone()) openPane();
+  else if (!fromMap) {
     // The goal's view is on the map: the city moves into the strip above the risen pane (it was under it).
     // (Also when the pane comes back up on a goal still open: it had gone down, and the city with it.)
     if ((fresh || !$('#app').classList.contains('pane-open')) && !at) setTimeout(cityAbovePane, 320);
@@ -1409,9 +1409,14 @@ function clearOfCards(): void {
   const r = renderer.canvas.getBoundingClientRect();
   const [sx, sy] = [(spot.x + spot.w / 2 - cam.x) * cam.scale + r.left, (spot.y + spot.h / 2 - cam.y) * cam.scale + r.top];
   if (sx < r.left || sx > r.right || sy < r.top || sy > r.bottom) return; // (off the map: its edge arrow points there)
-  const cards = ['mapbar', 'map-layer', 'dock-col', 'map-zoom', 'minimap', 'pane', 'info-card'].flatMap((k) => {
+  const cards = ['mapbar', 'goal-strip', 'map-layer', 'dock-col', 'map-zoom', 'minimap', 'pane', 'info-card'].flatMap((k) => {
     const el = document.getElementById(k);
-    const c = el && !el.hidden && el.offsetParent && getComputedStyle(el).visibility !== 'hidden' ? el.getBoundingClientRect() : null;
+    let c = el && !el.hidden && el.offsetParent && getComputedStyle(el).visibility !== 'hidden' ? el.getBoundingClientRect() : null;
+    // (The pane where it comes to rest: it is sliding in with the screen just opened.)
+    if (c && k === 'pane') {
+      const at = $('#app').getBoundingClientRect();
+      c = new DOMRect(at.left + el!.offsetLeft, at.top + el!.offsetTop, el!.offsetWidth, el!.offsetHeight);
+    }
     return c && c.width > 0 ? [c] : [];
   });
   // (Its label runs beside it and above: some room around.)
@@ -1440,7 +1445,7 @@ export function openFinance(): void {
 
 /** B: 재정·정책, or back to the overview from it. */
 export function toggleFinance(): void {
-  if (active === 'finance' && ($('#app').classList.contains('pane-open') || !phone())) closeGoal();
+  if (active === 'finance' && $('#app').classList.contains('pane-open')) closeGoal();
   else openFinance();
 }
 
@@ -2759,9 +2764,8 @@ export function setupGoals(): void {
     const row = (e.target as HTMLElement).closest<HTMLElement>('[data-goal]');
     if (row) openGoal(row.dataset.goal as GoalId);
   });
-  // The phone's row of chips over the map: the score opens the city pane on its overview (an open screen put away
-  // ends), an area its screen (the open one's back up), its × ends it, the rating the polls. (Scrolled, its cut edges
-  // fade.)
+  // The row of chips under the top buttons: 시작하기 opens the city pane on its overview (an open screen put away ends),
+  // an area its screen (the open one's back up), its × ends it, the rating the polls. (Scrolled, its cut edges fade.)
   const strip = $('#goal-strip');
   strip.addEventListener('scroll', () => edgeFade(strip), { passive: true });
   strip.addEventListener('click', (e) => {
@@ -2769,15 +2773,16 @@ export function setupGoals(): void {
     // (From the keyboard, on into what opened: the chips go away with the bars, and the focus fell to the page.)
     const keyboard = (e as MouseEvent).detail === 0;
     const intoScreen = () => keyboard && $('#manage').querySelector<HTMLElement>('.mg-back')?.focus({ preventScroll: true });
-    if (t.closest('[data-strip-score]')) {
+    if (t.closest('[data-strip-start]')) {
       closeGoal();
       openPane();
-      if (keyboard) $('#pane-close').focus({ preventScroll: true });
+      $('#pane').scrollTop = 0; // (the checklist heads the overview)
+      if (keyboard) $('#onboarding').querySelector<HTMLElement>('button, a[href]')?.focus({ preventScroll: true });
       return;
     }
     if (t.closest('[data-strip-end]')) {
       closeGoal();
-      if (keyboard) strip.querySelector<HTMLElement>('[data-strip-score]')?.focus({ preventScroll: true });
+      if (keyboard) (strip.querySelector<HTMLElement>('button') ?? $('#btn-city')).focus({ preventScroll: true });
       return;
     }
     if (t.closest('[data-strip-polls]')) {
@@ -2810,8 +2815,7 @@ export function setupGoals(): void {
     stripAt = b.dataset.tk!;
     for (const x of strip.querySelectorAll<HTMLElement>('[data-tk]')) x.tabIndex = x === b ? 0 : -1;
   });
-  // Across a phone's width the row comes or goes (wide, the city pane says it all) — at once, not at the next month:
-  // with the clock stopped there was no other way to the pane.
+  // Across a phone's width the row changes its place: fitted again at once, not at the next month.
   matchMedia('(max-width: 860px)').addEventListener('change', () => refreshStrip());
   // A goal named beside a lever elsewhere (an ordinance in the budget sheet): its screen.
   document.addEventListener('click', (e) => {

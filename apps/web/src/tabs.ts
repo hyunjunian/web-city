@@ -1,10 +1,11 @@
 // What floats over the map besides tools: the city pane along its left (the city's state, 재정·정책, each goal's
-// screen with its statistics — always there on a wide screen), the sheet (지역, from the top's place button and the
-// menu), the info card along its right (what the query tool found) and, on small screens, the pane as a bottom sheet.
-// Esc closes the topmost.
+// screen with its statistics — there when called for: the city button at the top brings it and puts it away), the
+// sheet (지역, from the pane's head), the info card along its right (what the query tool found) and, on small screens,
+// the pane as a bottom sheet. Esc closes the topmost.
 // (주민 — My Sim, 직접 운전 — is not on the web screen for now: its sheet type stays for its unwired modules.)
 
-import { openFinance, paneClosed } from './manage';
+import { closeGoal, openFinance, paneClosed } from './manage';
+import { fitMapbar } from './controls';
 import { redraw, renderer, setSelected } from './state';
 import { closeTray } from './tools';
 import { cancelMySimAction } from './mysims';
@@ -13,7 +14,7 @@ import { $, flash } from './util';
 
 /** 'budget': the pane's 재정·정책 (taxes, budgets, loans, ordinances and the books). */
 export type Tab = 'city' | 'info' | 'budget' | SheetTab;
-/** The sheets: 지역 (the city's name, neighbours, deals; the top's place button, the menu) — and 주민 (My Sim, U-Drive-It), off the screen for now. */
+/** The sheets: 지역 (the city's name, neighbours, deals; the city pane's head, J) — and 주민 (My Sim, U-Drive-It), off the screen for now. */
 export type SheetTab = 'sims' | 'region';
 
 const SHEET_TITLE: Record<SheetTab, string> = { sims: '주민', region: '지역' };
@@ -24,8 +25,8 @@ let sheetTab: SheetTab | null = null;
 /** Phones: the city pane and a sheet are both bottom sheets, one at a time. */
 const phone = () => matchMedia('(max-width: 860px)').matches;
 
-/** Whether the city pane is in sight (always beside the map on wide screens). */
-export const paneShown = () => (phone() ? $('#app').classList.contains('pane-open') : true);
+/** Whether the city pane is in sight (beside the map on wide screens, a sheet over it on a phone). */
+export const paneShown = () => $('#app').classList.contains('pane-open');
 
 /** Whether this sheet is on screen now (the panels skip rendering hidden ones). */
 export function sheetShown(tab: SheetTab): boolean {
@@ -108,27 +109,38 @@ export function closeInfo(): boolean {
   return true;
 }
 
-/** Small screens: the city pane slides up over the map (wide screens always show it). */
+/** The city pane: in beside the map on wide screens (from the left), up over it on a phone. */
 export function openPane(): void {
   if (phone()) {
     closeTray(); // both rise from the bottom
     closeSheet();
   }
   const was = paneShown();
-  // (It rises at its head — the region › city, the stage — not wherever it was last left scrolled.)
-  if (!was && phone() && !$('#pane').classList.contains('managing')) $('#pane').scrollTop = 0;
+  // (It comes at its head — the region › city, the stage — not wherever it was last left scrolled.)
+  if (!was && !$('#pane').classList.contains('managing')) $('#pane').scrollTop = 0;
   $('#app').classList.add('pane-open');
-  document.getElementById('goal-strip')?.classList.remove('unread'); // (news unread: read now)
+  document.getElementById('btn-city')?.classList.remove('unread'); // (news unread: read now)
   markOpen();
-  if (!was) document.dispatchEvent(new CustomEvent('sheet-open'));
+  if (!was) {
+    fitMapbar(); // (wide, the bars' middle clears it)
+    document.dispatchEvent(new CustomEvent('sheet-open'));
+  }
 }
 
 export function closePane(): boolean {
   if (!$('#app').classList.contains('pane-open')) return false;
   $('#app').classList.remove('pane-open');
   markOpen();
+  fitMapbar();
   paneClosed();
   return true;
+}
+
+/** The city button: the city pane comes, on its overview (an area's screen left open ends), or goes. */
+export function togglePane(): void {
+  if (dismissPane()) return;
+  closeGoal();
+  openPane();
 }
 
 /** Something to look at on the map: the sheet goes, and on phones the city pane (both cover it). */
@@ -146,12 +158,12 @@ export function closeTopLayer(): boolean {
   return closeInfo() || closeSheet() || dismissPane();
 }
 
-/** The city pane put away by the player (its ×, Esc): on a phone the keyboard goes back to the city's score at the
- *  top, which opens it (it was left on the hidden pane, and the next Tab went to the map's corner). */
+/** The city pane put away by the player (its ×, Esc, the city button): the keyboard goes back to the city button at
+ *  the top, which opens it (it was left on the hidden pane, and the next Tab went to the map's corner). */
 function dismissPane(): boolean {
-  const had = phone() && $('#pane').contains(document.activeElement);
+  const had = $('#pane').contains(document.activeElement);
   if (!closePane()) return false;
-  if (had) document.querySelector<HTMLElement>('#goal-strip [data-strip-score]')?.focus({ preventScroll: true });
+  if (had) document.getElementById('btn-city')?.focus({ preventScroll: true });
   return true;
 }
 
@@ -160,6 +172,7 @@ function markOpen(): void {
   const pane = $('#app').classList.contains('pane-open');
   // (The tool in hand's tile is not lit as well meanwhile: the open card is what is on.)
   $('#dock').classList.toggle('sheet-open', !!sheetTab || (phone() && pane));
+  document.getElementById('btn-city')?.setAttribute('aria-expanded', String(pane));
   document.querySelectorAll<HTMLButtonElement>('[data-sheet-btn]').forEach((b) => {
     const on = b.dataset.sheetBtn === sheetTab;
     b.classList.toggle('open', on);
@@ -167,7 +180,7 @@ function markOpen(): void {
   });
 }
 
-/** Opens a sheet, or closes it when it is the one open (지역: the pane's head, the menu; J). */
+/** Opens a sheet, or closes it when it is the one open (지역: the pane's head; J). */
 export function toggleSheet(tab: SheetTab): void {
   if (sheetTab === tab) closeSheet();
   else openSheet(tab);
@@ -203,5 +216,10 @@ export function setupTabs(): void {
   });
   $('#info-close').onclick = closeInfo;
   $('#pane-close').onclick = () => dismissPane();
+  // (From the keyboard on a phone, on into the risen pane: the button goes away with the bars.)
+  $('#btn-city').onclick = (e) => {
+    togglePane();
+    if (e.detail === 0 && phone() && paneShown()) $('#pane-close').focus({ preventScroll: true });
+  };
   markOpen();
 }

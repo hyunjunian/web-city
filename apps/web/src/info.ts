@@ -97,8 +97,9 @@ export function keepInView(r: { x: number; y: number; w: number; h: number }): v
   const margin = 64;
   const far = (r.x + r.w - cam.x) * cam.scale + v.left + margin;
   const low = (r.y + r.h - cam.y) * cam.scale + v.top + margin;
-  // Beside the card, the map left of it starts at the city pane's edge (wide; on a phone held sideways, the screen's).
-  const from = below ? 0 : mapBand(false).left;
+  // Beside the card, the map left of it starts at the city pane's edge (wide, while it is open; on a phone held
+  // sideways, the screen's).
+  const from = below ? 0 : mapBand(!matchMedia('(max-width: 860px)').matches).left;
   const underCard = below ? !(low < c.top || sy > c.bottom) : !(far < c.left || sx > c.right || sy < c.top || sy > c.bottom);
   if (!underCard && (below || sx > v.left + from)) return;
   // (To where the map may go: past its edge the frame's clamp moved it back, and it didn't end where it was sent.)

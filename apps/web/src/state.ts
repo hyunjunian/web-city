@@ -57,17 +57,21 @@ export function builtArea(whole = false): { cx: number; cy: number; span: number
 export type Band = { left: number; top: number; right: number; bottom: number };
 
 /**
- * The part of the map nothing covers: below the top buttons (a phone's two rows), above the building bar across the
- * foot, right of the city pane floating along the left (wide: always there) and left of a building's card along the
- * right while it is open — and on a phone above the city sheet when it is up, or beside it, where a phone held
- * sideways has it as a side panel. Framing, centring, the edge arrows and their flights keep to it (an arrow under the
- * pane, a target landing there).
+ * The part of the map nothing covers: below the top buttons and the chips' row under them, above the building bar
+ * across the foot, right of the city pane floating along the left while it is open (`withPane`) and left of a
+ * building's card along the right while it is open — and on a phone above the city sheet when it is up, or beside it,
+ * where a phone held sideways has it as a side panel. Framing, centring, the edge arrows and their flights keep to it
+ * (an arrow under the pane, a target landing there).
  */
 export function mapBand(withPane = true): Band {
   const r = renderer.canvas.getBoundingClientRect();
   let [left, top, right, bottom] = [0, 0, r.width, r.height];
   const bar = document.getElementById('mapbar')?.getBoundingClientRect();
   if (bar?.height) top = Math.max(top, Math.min(r.height / 3, bar.bottom - r.top));
+  // (Wide, the chips' row under the top buttons hangs below the bar's own box.)
+  const strip = document.getElementById('goal-strip');
+  const s = strip && !strip.hidden && getComputedStyle(strip).position === 'absolute' ? strip.getBoundingClientRect() : null;
+  if (s?.height) top = Math.max(top, Math.min(r.height / 3, s.bottom - 10 - r.top)); // (less its padding, there for the chips' shadows)
   // (The building bar across the foot, where it doesn't step back.)
   const dock = document.getElementById('dock');
   const d = dock && getComputedStyle(dock).visibility !== 'hidden' ? dock.getBoundingClientRect() : null;
@@ -75,9 +79,12 @@ export function mapBand(withPane = true): Band {
   const pane = document.getElementById('pane');
   const app = document.getElementById('app');
   if (!matchMedia('(max-width: 860px)').matches) {
-    // Wide: the city pane floats along the left, a building's card along the right while it is open.
-    const p = pane?.getBoundingClientRect();
-    if (p?.width) left = Math.max(left, Math.min(r.width / 2, p.right - r.left));
+    // Wide: the city pane floats along the left while it is open (where it comes to rest, not where its slide has got
+    // to), a building's card along the right while it is open.
+    if (withPane && pane && app?.classList.contains('pane-open')) {
+      const at = app.getBoundingClientRect();
+      left = Math.max(left, Math.min(r.width / 2, at.left + pane.offsetLeft + pane.offsetWidth - r.left));
+    }
     const info = document.getElementById('info-card');
     const q = info && !info.hidden ? info.getBoundingClientRect() : null;
     if (q?.width) right = Math.min(right, Math.max(left + r.width / 4, q.left - r.left));
@@ -91,8 +98,8 @@ export function mapBand(withPane = true): Band {
 }
 
 /** The cards over the map's top — the view's legend under the top buttons, 전체 보기 and the minimap (not while they
- *  fade, the whole city in sight), a phone's chips under the top buttons — in CSS px from its top left: a target under
- *  one is out of sight. Only those shown; the chips' row by its chips, not the row they may not fill. */
+ *  fade, the whole city in sight), the chips under the top buttons — in CSS px from its top left: a target under one
+ *  is out of sight. Only those shown; the chips' row by its chips, not the row they may not fill. */
 const COVERS = ['map-layer', 'goal-strip', 'map-zoom', 'minimap'];
 let coverWatch: ResizeObserver | null = null;
 export function mapCovers(): Band[] {
@@ -166,7 +173,7 @@ export function takeBandFraming(): { x: number; y: number; scale: number } | nul
 
 /**
  * Moves the view to centre a tile, zooming in to at least `minScale` pixels per tile — in the middle of `band`
- * when given (the part nothing covers), else of the map (wide: of the part beside the city pane, which is always there).
+ * when given (the part nothing covers), else of the map (wide: of the part the bars and an open pane leave).
  */
 export function centerOn(x: number, y: number, minScale = 8, band?: Band): void {
   const r = renderer.canvas.getBoundingClientRect();

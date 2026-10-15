@@ -2,7 +2,7 @@
 
 import { DEV_TYPES, type DevType, GROWTH_CODES, STRUCTURES, ZONES, type PollTopic, type StructureKind } from '@web-city/engine';
 import { icon } from './icons';
-import { chooseSpeed, fitMapbar, markDate, markPaneClock, refreshTaxes, refreshViewSummary } from './controls';
+import { chooseSpeed, fitMapbar, markDate, markPaneClock, markStage, refreshTaxes, refreshViewSummary } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
 import { adviceFor, capped as atCap, deptEmpty, deptFunded, freshLandfill, newReadings, readStats, stormHolds } from './readings';
 import { active, autoPause, markToolSite, openGoal, openViewTab, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
@@ -130,15 +130,18 @@ const STAGES: [number, string][] = [
   [50_000, '중견 도시'], [100_000, '대도시'], [250_000, '광역 도시'], [500_000, '거대 도시'], [1_000_000, '메트로폴리스'],
 ];
 
-/** The place button's region and name as last written (a rename, a region made or left). */
+/** The city button and the overview's head as last written (a rename, a region made or left, the residents). */
 let placeSeen = '';
 /** The month the pane's clock last said. */
 let dateSeen = '';
 
-/** The stage a city of `population` residents has reached (counted from 1), and the next one if any. */
-export function stageOf(population: number): { name: string; step: number; next?: [number, string] } {
+/** The stage a city of `population` residents has reached (counted from 1), the next one if any, and how far it has
+ *  come from this one toward it (0–1; 1 at the last). */
+export function stageOf(population: number): { name: string; step: number; next?: [number, string]; share: number } {
   const i = Math.max(0, STAGES.filter(([n]) => population >= n).length - 1);
-  return { name: STAGES[i]![1], step: i + 1, next: STAGES[i + 1] };
+  const [from, name] = STAGES[i]!;
+  const next = STAGES[i + 1];
+  return { name, step: i + 1, next, share: next ? Math.max(0, Math.min(1, (population - from) / (next[0] - from))) : 1 };
 }
 
 /** Population milestones announced as they are passed (not for the level a city opens at): the city's stages. */
@@ -246,12 +249,9 @@ function stalled(): string {
 }
 
 function scoreboard(population: number, trend: string): string {
-  const i = STAGES.filter(([n]) => population >= n).length - 1;
-  const [from, name] = STAGES[i]!;
-  const next = STAGES[i + 1];
-  const share = next ? (population - from) / (next[0] - from) : 1;
+  const { name, step, next, share } = stageOf(population);
   return `<div class="summary score" title="도시 단계는 주거 인구로 매깁니다: ${STAGES.map(([n, t]) => `${t} ${fmt(n)}`).join(' · ')}">
-    <p class="score-stage">${icon('trophy')}<b>${name}</b><span>${i + 1}단계</span></p>
+    <p class="score-stage">${icon('trophy')}<b>${name}</b><span>${step}단계</span></p>
     <p class="score-main"><span class="sum-value">${fmt(population)}</span><span class="score-unit">명</span>${trend}</p>
     <span class="score-bar"><i style="width:${(share * 100).toFixed(1)}%"></i></span>
     <p class="score-next">${next ? `<span>다음 단계 <b>${next[1]}</b>까지 ${fmt(next[0] - population)}명${stalled()}</span><span class="score-pct">${Math.floor(share * 100)}%</span>` : '<span>가장 높은 단계에 올랐습니다</span>'}</p></div>`;
@@ -391,21 +391,29 @@ export function updatePanels(): void {
     const delta = prev === undefined ? 0 : now - prev;
     return Math.abs(delta) >= 1 ? `<span class="k-sub ${delta < 0 ? 'neg' : 'pos'}">${delta < 0 ? '▼' : '▲'}${fmt(Math.abs(delta))}</span>` : '';
   };
-  // Where the city is, at the top: the region (or none: a city of its own, which the 지역 sheet can make one of) › the
-  // city; pressed, 지역 — with the city's name in it to change.
+  // The city at the top: its name and stage, how near the next stage round its edge (the residents in its tooltip);
+  // pressed, the city pane. Where it is heads the overview: the region (or none: a city of its own, which the 지역 sheet
+  // can make one of; pressed, 지역) › the city's name (pressed, to change it).
   const regionName = region ? region.name : '지역 없음';
-  if (placeSeen !== `${regionName}\n${city.state.name}`) {
-    placeSeen = `${regionName}\n${city.state.name}`;
+  const stage = stageOf(st.population);
+  const placeKey = `${regionName}\n${city.state.name}\n${stage.step}\n${st.population}`;
+  if (placeSeen !== placeKey) {
+    placeSeen = placeKey;
+    const pct = Math.floor(stage.share * 100);
+    const named = $('#city-name').textContent !== city.state.name || $('#city-stage').textContent !== stage.name;
     $('#city-name').textContent = city.state.name;
+    $('#city-stage').textContent = stage.name;
+    const btn = $('#btn-city');
+    btn.title = `${city.state.name}: ${stage.name}(${stage.step}단계) · 인구 ${fmt(st.population)}명${stage.next ? ` · 다음 단계 ${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명 — 테두리의 금색 선이 ${pct}%` : ' · 가장 높은 단계'} · 눌러서 도시 현황 열기·닫기`;
+    btn.setAttribute('aria-label', `${city.state.name}, ${stage.name} ${stage.step}단계, 인구 ${fmt(st.population)}명${stage.next ? `, 다음 단계까지 ${pct}%` : ''} · 도시 현황`);
+    markStage(stage.share * 100);
+    $('#pane-city-name').textContent = city.state.name;
     $('#sheet-city-name').textContent = city.state.name;
     $('#place-region').textContent = regionName;
-    const place = $('#btn-place');
-    place.classList.toggle('none', !region);
-    place.title = region
-      ? `${region.name} › ${city.state.name}: 지역의 도시·이웃·거래, 도시 이름 바꾸기 (J)`
-      : `${city.state.name}: 지역에 속하지 않은 도시 · 이웃 도시·거래, 새 지역 만들기, 도시 이름 바꾸기 (J)`;
-    place.setAttribute('aria-label', `${region ? `${region.name} 지역` : '지역 없음'}, ${city.state.name} · 지역과 도시 이름`);
-    fitMapbar(); // (the names' room: the region's may have to go)
+    const where = $('#pane-region');
+    where.classList.toggle('none', !region);
+    where.title = region ? `${region.name}: 지역의 도시·이웃·거래 (J)` : '지역에 속하지 않은 도시 · 이웃 도시·거래, 새 지역 만들기 (J)';
+    if (named) fitMapbar(); // (the button's room: the bars' middle may move)
   }
   // The date: in the clock's tooltips and names (not written on it: its ring shows the month going by, main.ts), and
   // a phone's clock in the pane says the month.

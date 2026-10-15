@@ -29,7 +29,14 @@
         <!-- A phone's clock while the top buttons are away under the pane: the month and the speed; pressed, it stops
              or goes on (the speeds are picked from the top button). -->
         <button type="button" id="pane-clock" class="pane-clock"></button>
-        <button id="pane-close" class="icon-btn pane-close" aria-label="도시 현황 닫기"><span data-icon="close"></span></button>
+        <button id="pane-close" class="icon-btn pane-close" aria-label="도시 현황 닫기" title="도시 현황 닫기 (Esc)"><span data-icon="close"></span></button>
+        <!-- The overview's head: where the city is — its region (pressed, 지역: the neighbours, deals, a region to make)
+             › its name (pressed, to change it). -->
+        <nav id="pane-place" class="pane-place" aria-label="지역과 도시 이름">
+          <button type="button" id="pane-region" class="place-link" data-sheet-btn="region" aria-pressed="false"><span data-icon="globe"></span><span id="place-region" class="place-region"></span></button>
+          <span class="place-sep" aria-hidden="true"><span data-icon="chevronRight"></span></span>
+          <button type="button" id="pane-city" class="place-link place-city" title="도시 이름 바꾸기"><b id="pane-city-name"></b><span data-icon="pencil"></span></button>
+        </nav>
         <section id="manage" aria-label="분야별 관리" aria-live="off">
         <!-- A goal's screen, top down: its name and tabs (each tab puts its map view on) with the tab's figures; their
              graphs and reports; what can be done about it; then the advisors' words and what was done here. -->
@@ -73,18 +80,18 @@
         <canvas id="map" tabindex="0" role="application" aria-label="도시 지도" aria-describedby="map-keys"></canvas>
         <p id="map-keys" class="sr-only">방향키로 지도를 옮기고, 도구를 든 채 Enter로 커서 자리에 짓습니다. S는 추천 자리로, 0에서 3은 속도, Space는 멈춤과 이어 하기, 물음표는 조작법입니다.</p>
 
-        <!-- The map's bars, floating over it. Along the top in the middle three buttons of their own: where the city is
-             (its region › its name; pressed, 지역 — the region, the neighbours and the city's name), the clock (the four
-             speeds, the month's progress running clockwise round its edge — the date in its tooltip; on a phone one
-             button, its speeds in a card under it) and the menu; on a phone, a row of chips under them: the city's score
-             and each area's state. Along the foot in the middle the building categories (dock-col, below), their tools'
-             card opening over them. (First in the map's parts: Tab goes the way the eye does, top down.) -->
+        <!-- The map's bars, floating over it. Along the top in the middle three buttons of their own: the city (its name
+             and stage, how near the next stage running clockwise round its edge; pressed, the city pane comes or goes),
+             the clock (the four speeds, the month's progress round its edge — the date in its tooltip; on a phone one
+             button, its speeds in a card under it) and the menu; under them a row of chips, each area's state. Along the
+             foot in the middle the building categories (dock-col, below), their tools' card opening over them. (First in
+             the map's parts: Tab goes the way the eye does, top down.) -->
         <div id="mapbar" role="group" aria-label="도시·시간·메뉴">
-          <button type="button" id="btn-place" class="mb-btn mb-place" data-sheet-btn="region" aria-pressed="false"><span data-icon="globe"></span><span id="place-region" class="place-region"></span><span class="place-sep" aria-hidden="true"><span data-icon="chevronRight"></span></span><b id="city-name" class="place-city"></b></button>
+          <button type="button" id="btn-city" class="mb-btn mb-city" aria-expanded="false" aria-controls="pane"><svg class="edge-ring stage-ring" aria-hidden="true" focusable="false"><path pathLength="100" /></svg><span data-icon="trophy"></span><b id="city-name" class="city-title"></b><span id="city-stage" class="city-stage"></span></button>
           <!-- The clock: the speeds in a row (a phone's one button, by the speed's icon, its speeds in a card it only
                opens), the month going by round its edge. -->
           <div id="clock" class="mb-clock">
-            <svg class="month-ring" aria-hidden="true" focusable="false"><path pathLength="100" /></svg>
+            <svg class="edge-ring month-ring" aria-hidden="true" focusable="false"><path pathLength="100" /></svg>
             <div class="mb-time">
               <button type="button" id="btn-time" class="mb-btn" aria-haspopup="true" aria-expanded="false" aria-controls="speed" title="시간: 속도 고르기"><span class="time-glyph" aria-hidden="true"></span></button>
               <div id="speed" class="gear" role="radiogroup" aria-label="시뮬레이션 속도"></div>

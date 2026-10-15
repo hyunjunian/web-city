@@ -76,6 +76,7 @@ export function setupMenu(): void {
     updatePanels();
   };
   $('#sheet-rename').onclick = rename; // (지역's city row)
+  $('#pane-city').onclick = rename; // (the city pane's head)
   $('#btn-rename').onclick = rename;
   const hm = document.querySelector<HTMLInputElement>('#new-dialog input[name="heightmap"]')!;
   hm.onchange = async () => {

@@ -608,7 +608,7 @@ export function openTray(cat: CategoryId, fromDock = false): void {
   // One card at a time where they share the space: the app sheet and info card (the tray
   // reaches across under it on wide screens too), and on phones the pane.
   closeSheet();
-  closePane();
+  if (matchMedia('(max-width: 860px)').matches) closePane();
   closeInfo();
   const c = CATEGORIES.find((x) => x.id === cat)!;
   $('#tray-title').innerHTML = `${icon(c.icon)}${c.label}`;

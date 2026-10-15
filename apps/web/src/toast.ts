@@ -252,7 +252,6 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
   el.onpointerleave = (e) => {
     if (e.pointerType === 'mouse' && !sticky) wait(2500);
   };
-  // Small screens: a dot on the score chip at the top, which opens the city pane, until it is opened (wide, the pane
-  // is always shown).
-  if (unread && !paneShown()) document.getElementById('goal-strip')?.classList.add('unread');
+  // A dot on the city button at the top, which opens the city pane, until it is opened.
+  if (unread && !paneShown()) document.getElementById('btn-city')?.classList.add('unread');
 }
