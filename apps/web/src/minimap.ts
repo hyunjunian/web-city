@@ -2,7 +2,7 @@
 
 import { Net, Terrain } from '@web-city/engine';
 import { TYPE_COLOR } from './render';
-import { cam, city, redraw, renderer } from './state';
+import { type Band, cam, city, mapBand, redraw, renderer } from './state';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#minimap');
 const ctx = canvas?.getContext('2d');
@@ -106,12 +106,12 @@ export function drawMinimap(force = false): void {
   const k = canvas.width / n;
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(base!, 0, 0, canvas.width, canvas.height);
-  // The part of the city on screen.
-  const view = { width: renderer.canvas.width / renderer.dpr, height: renderer.canvas.height / renderer.dpr };
-  const x = Math.round(cam.x * k);
-  const y = Math.round(cam.y * k);
-  const w = Math.max(4, Math.round((view.width / cam.scale) * k));
-  const h = Math.max(4, Math.round((view.height / cam.scale) * k));
+  // The part of the city on screen: what the floating pane and bars leave of it.
+  const b = visible();
+  const x = Math.round((cam.x + b.left / cam.scale) * k);
+  const y = Math.round((cam.y + b.top / cam.scale) * k);
+  const w = Math.max(4, Math.round(((b.right - b.left) / cam.scale) * k));
+  const h = Math.max(4, Math.round(((b.bottom - b.top) / cam.scale) * k));
 
   // Kept within the map (a view wider than it drew stray lines across), and none at all while the whole map
   // is in view; the rest of the map dims around it, so the part on screen stands out.
@@ -170,15 +170,29 @@ export function drawMinimap(force = false): void {
   }
 }
 
+/** The part of the map nothing floats over (mapBand), measured now and then: it reads the layout, and the view box
+ *  is drawn every frame. */
+let band: Band | null = null;
+let bandAt = 0;
+function visible(): Band {
+  const now = performance.now();
+  if (!band || now - bandAt > 400) {
+    band = mapBand();
+    bandAt = now;
+  }
+  return band;
+}
+
 export function setupMinimap(): void {
   if (!canvas) return;
+  // The spot pressed comes to the middle of the map that shows (beside the city pane, between the bars).
   const move = (e: PointerEvent) => {
     const r = canvas.getBoundingClientRect();
     const tx = ((e.clientX - r.left) / r.width) * city.size;
     const ty = ((e.clientY - r.top) / r.height) * city.size;
-    const view = renderer.canvas.getBoundingClientRect();
-    cam.x = tx - view.width / cam.scale / 2;
-    cam.y = ty - view.height / cam.scale / 2;
+    const b = visible();
+    cam.x = tx - (b.left + b.right) / 2 / cam.scale;
+    cam.y = ty - (b.top + b.bottom) / 2 / cam.scale;
     redraw();
   };
   canvas.addEventListener('pointerdown', (e) => {
