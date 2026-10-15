@@ -321,14 +321,6 @@ kbd {
 #tip .tip-note::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
 @keyframes tip-in { from { opacity: 0; } to { opacity: 1; } }
 
-/* ------------------------------------------------------------------ the clock (in the map's top bar) */
-
-#sb-date { position: relative; }
-#sb-date.turned { animation: month-in 0.3s var(--ease); }
-@keyframes month-in { from { opacity: 0.35; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
-.sb-date { font-size: 15px; font-weight: 650; letter-spacing: 0.01em; font-variant-numeric: tabular-nums; }
-/* (As wide in 1월 as in 11월: the speeds beside it moved 10px as the year turned.) */
-#clock > #sb-date { min-width: 6.25em; }
 
 .dropdown { position: relative; }
 .dropdown > summary { list-style: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -377,9 +369,6 @@ kbd {
   background: linear-gradient(to bottom, transparent, var(--surface)); pointer-events: none;
 }
 .pane-grip, .pane-close, .pane-clock { display: none; }
-#pane.fresh #onboarding { order: -1; }
-/* Before anyone lives here the figures all read 0: the checklist says what to do instead. */
-#pane.fresh #onboarding:not([hidden]) ~ #status .summary { display: none; }
 .watch-fold > summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; list-style: none; }
 .watch-fold > summary::-webkit-details-marker { display: none; }
 .watch-fold > summary { padding: 0 6px; }
@@ -866,10 +855,11 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 .overlay-scale .scale-bar { height: 8px; border-radius: 4px; background-color: #cfd8b8; /* the map's ground (render.ts LAND) */ }
 .overlay-scale .ends { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--muted); }
 
-/* What tool is in hand (none shown for 조회): over the building bar, in the middle of the map that shows. */
+/* What tool is in hand (none shown for 조회): over the building bar, in line with it — as wide as it may be there
+   without reaching under the city pane. */
 #tool-chip {
-  bottom: var(--bb); left: var(--mid); transform: translateX(-50%); z-index: 4;
-  display: flex; align-items: center; gap: 10px; max-width: calc(100% - var(--free-l) - var(--free-r) - 28px);
+  bottom: var(--bb); left: var(--bar-x, var(--mid)); transform: translateX(-50%); z-index: 4;
+  display: flex; align-items: center; gap: 10px; max-width: calc(2 * min(var(--bar-x, var(--mid)) - var(--free-l), 100% - var(--bar-x, var(--mid)) - 14px));
   padding: 5px 5px 5px 14px; border-radius: 999px; animation: pop-in 0.18s var(--ease);
 }
 #tool-chip-icon { display: grid; place-items: center; color: var(--accent-hi); }
@@ -924,8 +914,8 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #view:has(#tray:not([hidden])) #minimap { display: none; } /* the open tool tray reaches up beside it */
 
 #hint {
-  position: absolute; left: var(--mid); bottom: var(--bb); z-index: 4; transform: translateX(-50%);
-  width: max-content; max-width: calc(100% - var(--free-l) - var(--free-r) - 32px); padding: 8px 18px;
+  position: absolute; left: var(--bar-x, var(--mid)); bottom: var(--bb); z-index: 4; transform: translateX(-50%);
+  width: max-content; max-width: calc(2 * min(var(--bar-x, var(--mid)) - var(--free-l), 100% - var(--bar-x, var(--mid)) - 16px)); padding: 8px 18px;
   background: var(--float); border: 1px solid var(--line); border-radius: 19px; box-shadow: var(--shadow-sm); /* a pill on one line, not a stretched capsule on three */
   -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
   font-size: 13.5px; line-height: 1.45; text-align: center; word-break: keep-all; font-variant-numeric: tabular-nums; pointer-events: none;
@@ -934,8 +924,8 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #hint:empty { display: none; }
 /* Touch: a facility waiting for 짓기. */
 #confirm-bar {
-  position: absolute; left: var(--mid); bottom: var(--bb); z-index: 7; transform: translateX(-50%);
-  width: min(440px, calc(100% - var(--free-l) - var(--free-r) - 24px)); padding: 12px 14px; border-radius: var(--r-xl);
+  position: absolute; left: var(--bar-x, var(--mid)); bottom: var(--bb); z-index: 7; transform: translateX(-50%);
+  width: min(440px, calc(2 * min(var(--bar-x, var(--mid)) - var(--free-l), 100% - var(--bar-x, var(--mid)) - 12px))); padding: 12px 14px; border-radius: var(--r-xl);
   display: grid; gap: 10px;
 }
 #confirm-bar[hidden] { display: none; }
@@ -1119,6 +1109,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
   top: calc(var(--bar-h) + 12px); right: 14px; z-index: 6; display: flex; flex-direction: column;
   width: var(--info-w); max-height: calc(100% - var(--bar-h) - 12px - var(--bb));
   background: var(--surface);
+  overflow: hidden; /* the name stuck at its top kept inside the rounded corners */
   animation: slide-left 0.22s var(--ease);
 }
 /* The card shows what was found: its own name is the heading, so only the close button floats over it. */
@@ -1165,9 +1156,9 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 /* 지역: the region, its neighbours and the city's name, dropping from the top buttons' row in the middle (the place
    button opens it). As tall as what it holds, down to the building bar's row at most. */
 #sheet {
-  top: calc(var(--bar-h) + 12px); left: var(--mid); translate: -50% 0; z-index: 7;
+  top: calc(var(--bar-h) + 12px); left: var(--bar-x, var(--mid)); translate: -50% 0; z-index: 7;
   display: flex; flex-direction: column; overflow: hidden; background: var(--pane);
-  width: min(640px, calc(100% - var(--free-l) - var(--free-r) - 28px)); max-height: calc(100% - var(--bar-h) - 12px - var(--bb));
+  width: min(640px, calc(2 * min(var(--bar-x, var(--mid)) - var(--free-l), 100% - var(--bar-x, var(--mid)) - 14px))); max-height: calc(100% - var(--bar-h) - 12px - var(--bb));
   animation: drop-in 0.2s var(--ease);
 }
 #sheet .sheet-body { flex: 0 1 auto; min-height: 0; } /* (the sheet's own max-height bounds it; its panes scroll) */
@@ -2129,7 +2120,6 @@ p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #conf
 
 /* 도시: its size and the next reward (money, jobs and the rating are rows of 도시 상태). */
 .city-sum { display: grid; gap: 14px; }
-#pane.fresh #onboarding:not([hidden]) ~ #status .city-sum { display: none; }
 /* The reward as the block's last line: a quiet card, its label before its name. */
 .city-sum .reward { padding: 10px 12px 10px 10px; column-gap: 10px; grid-template-columns: 30px minmax(0, 1fr) auto; }
 .city-sum .rw-icon { width: 30px; height: 30px; border-radius: 9px; }
@@ -2397,7 +2387,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
    screen, the tools, a building's card and 지역 rise as sheets only when called for, the bars going off the screen
    while one is up. */
 
-/* ---- the middle of the map that shows: right of the city pane (--mid-l), and left of a building's card (--mid) */
+/* ---- the middle of the map that shows: right of the city pane (--mid-l), and left of a building's card (--mid); and
+   the bars' middle (--bar-x, fitMapbar): the screen's, moved right only as far as they must to clear the pane */
 #view {
   --free-r: 0px;
   --mid: calc(var(--free-l) + (100% - var(--free-l) - var(--free-r)) / 2);
@@ -2407,7 +2398,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 
 /* ---- along the top in the middle: where the city is, the clock and the menu — three buttons of their own */
 #mapbar {
-  position: absolute; top: 14px; left: var(--mid-l); translate: -50% 0; z-index: 8;
+  position: absolute; top: 14px; left: var(--bar-x, var(--mid-l)); translate: -50% 0; z-index: 8;
   display: flex; align-items: center; gap: 8px; max-width: calc(100% - var(--free-l) - 28px);
   white-space: nowrap; pointer-events: none; -webkit-user-select: none; user-select: none;
 }
@@ -2437,11 +2428,12 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #btn-place.open :is(.i, .place-region) { color: var(--accent-hi); }
 #btn-place.tight :is(.place-region, .place-sep) { display: none; } /* (fitMapbar: too little room for the region's name whole) */
 
-/* The clock: the date, then the four speeds — pause, then slow to fast, the one on lit as in a gear — and round its
-   edge, from the top middle clockwise, how far the month has gone (its path drawn for its size: controls.ts). */
-#clock { position: relative; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 4px 0 15px; }
+/* The clock: the four speeds — pause, then slow to fast, the one on lit as in a gear — and round its edge, from the top
+   middle clockwise, how far the month has gone (its path drawn for its size, its length set every frame: controls.ts,
+   main.ts). The date is in its tooltip, not on it. */
+#clock { position: relative; flex: none; display: flex; align-items: center; padding: 0 4px; }
 .month-ring { position: absolute; left: -1px; top: -1px; width: calc(100% + 2px); height: calc(100% + 2px); overflow: visible; pointer-events: none; }
-.month-ring path { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 0 100; transition: stroke-dasharray 0.5s linear, stroke 0.2s; }
+.month-ring path { fill: none; stroke: var(--accent); stroke-width: 2; stroke-dasharray: 0 100; transition: stroke 0.2s; }
 #clock.stopped .month-ring path { stroke: var(--faint); } /* (stopped, the month stands still: the ring says so, greyed) */
 .mb-time { position: relative; display: flex; align-items: center; }
 #clock .gear { display: flex; gap: 2px; padding: 2px; border-radius: 11px; background: var(--surface-2); }
@@ -2453,10 +2445,10 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .speed-label { display: none; }
 #btn-time { display: none; } /* (a phone's: there the clock is one button, its speeds in a card under it) */
 
-/* The menu: the city's files, the region, help and the screen's settings, dropping from its button. */
+/* The menu: the city's files, help and the screen's settings, dropping from its button — its icon alone. */
 #mapbar > #menu { position: relative; flex: none; }
-#menu > summary { gap: 6px; padding: 0 14px 0 11px; font-size: 13px; font-weight: 600; }
-#menu > summary .i { width: 18px; height: 18px; color: var(--muted); }
+#menu > summary { width: var(--mb-h); padding: 0; }
+#menu > summary .i { width: 20px; height: 20px; color: var(--muted); }
 #menu[open] > summary .i { color: var(--accent-hi); }
 #mapbar > #menu > .dropdown-menu { top: calc(100% + 8px); bottom: auto; left: auto; right: 0; }
 /* A long menu says so as it scrolls: a shadow at the edge with more beyond (sideways, 6 of its 15 lines showed). */
@@ -2467,11 +2459,6 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
     radial-gradient(farthest-side at 50% 0, rgba(0, 0, 0, 0.16), transparent) center top / 100% 10px no-repeat scroll,
     radial-gradient(farthest-side at 50% 100%, rgba(0, 0, 0, 0.16), transparent) center bottom / 100% 10px no-repeat scroll,
     var(--float-solid);
-}
-/* A narrow window: the menu by its icon alone, its room to the place's names. */
-@media (min-width: 861px) and (max-width: 1100px) {
-  #menu > summary { width: var(--mb-h); padding: 0; }
-  #menu > summary .mb-label { display: none; }
 }
 /* A touch screen wider than a phone: the top buttons at a finger's size. */
 @media (min-width: 861px) and (pointer: coarse) and (hover: none) {
@@ -2513,7 +2500,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 /* ---- along the foot in the middle: the building categories — 교통 · 개발 구역 · 에너지 · 서비스 | 보상 · 지형 | 철거 —
    their tools' card rising over them */
 #dock-col {
-  position: absolute; bottom: 14px; left: var(--mid-l); translate: -50% 0; z-index: 5;
+  position: absolute; bottom: 14px; left: var(--bar-x, var(--mid-l)); translate: -50% 0; z-index: 5;
   display: flex; max-width: calc(100% - var(--free-l) - 28px);
   animation: dock-in 0.2s var(--ease);
 }
@@ -2525,8 +2512,6 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 }
 #dock::-webkit-scrollbar { display: none; }
 #dock-tools { display: flex; align-items: stretch; gap: 2px; }
-/* The build categories · rewards and the land · removing: a gap between them, not a line — one family, building. */
-.dock-sep { flex: none; width: 10px; }
 .dock-btn {
   position: relative; flex: none; flex-direction: column; gap: 3px;
   width: 64px; height: 54px; min-height: 0; padding: 0; border-radius: 13px;
@@ -2581,21 +2566,14 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #btn-place { flex: 1 1 0; max-width: none; padding: 0 12px 0 10px; }
   #btn-place > .i { width: 17px; height: 17px; }
   .place-city { font-size: 14px; }
-  /* The clock, one button: the speed now on its chip, the date over the speed's name and a picker's caret — pressed,
-     it brings down the four speeds to pick from (and changes nothing itself). */
-  #clock { padding: 0; gap: 0; }
-  #btn-time {
-    display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: 8px; align-content: center; justify-content: start;
-    height: 100%; padding: 0 12px 0 6px; border-radius: 13px; color: var(--text); font-weight: 650;
-  }
-  #btn-time .time-glyph { grid-row: 1 / 3; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-hi); }
-  #btn-time .time-glyph .i { width: 17px; height: 17px; }
+  /* The clock, one button by the speed's icon alone (its name and the date in its title), the month round its edge —
+     pressed, it brings down the four speeds to pick from (and changes nothing itself). */
+  #clock { padding: 0; }
+  #btn-time { display: grid; place-items: center; width: calc(var(--mb-h) - 2px); height: 100%; padding: 0; border-radius: 13px; color: var(--text); }
+  #btn-time .time-glyph { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-hi); }
+  #btn-time .time-glyph .i { width: 18px; height: 18px; }
   #btn-time.stopped .time-glyph { background: var(--surface-2); color: var(--text); }
   #btn-time.held .time-glyph { box-shadow: inset 0 0 0 1.5px var(--accent); }
-  #btn-time #sb-date { grid-column: 2; grid-row: 1; justify-self: start; font-size: 13.5px; line-height: 16px; }
-  #btn-time #time-label { grid-column: 2; grid-row: 2; justify-self: start; color: var(--muted); font-size: 11px; font-weight: 600; line-height: 13px; }
-  #btn-time.held #time-label { color: var(--accent-hi); }
-  #time-label::after { content: ''; display: inline-block; margin-left: 3px; vertical-align: 1px; border: 3.5px solid transparent; border-top: 4px solid currentColor; border-bottom-width: 0; opacity: 0.7; }
   .mb-time { height: 100%; }
   .mb-time.open #btn-time { background: var(--accent-soft); }
   /* Its card under it, level with its right edge, the four at a finger's size (narrower than the screen leaves). */
@@ -2608,10 +2586,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #clock .mb-time.open .gear button { width: auto; height: 56px; flex-direction: column; gap: 4px; border-radius: 12px; }
   #clock .mb-time.open .gear button .i { width: 20px; height: 20px; }
   .speed-label { display: inline; font-size: 12px; font-weight: 600; }
-  /* The menu: its icon alone, at the row's end; its list drops from it, level with its right edge. */
-  #menu > summary { width: var(--mb-h); padding: 0; }
-  #menu > summary .i { width: 20px; height: 20px; }
-  #menu > summary .mb-label { display: none; }
+  /* (The menu at the row's end: its list drops from it, level with its right edge.) */
 
   /* Under them, the city's score and each area's state: chips in a row — the score first (pressed, the city pane),
      then the areas needing a hand (red, then amber: their names said), then the sound ones by their icons alone —
@@ -2669,7 +2644,6 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   }
   #dock { flex: 1 1 auto; height: 62px; overflow: visible; }
   #dock-tools { flex: 1; }
-  #dock-tools > .dock-sep { display: none; }
   .dock-btn { flex: 1 1 0; width: auto; min-width: 0; height: auto; }
   .dock-btn.suggest::after { top: 6px; left: calc(50% + 7px); }
 
@@ -2722,13 +2696,11 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #view.holding #map-layer:has(#overlay-sum:not([hidden])) { width: auto; }
 }
 /* Wider than a phone held upright (a tablet; a phone sideways): the foot bar at its own width in the middle (spread
-   over 768px its tiles read as strangers), its groups apart by a gap as wide (no lines between them), and the view's
-   card and the notices at a card's width. */
+   over 768px its tiles read as strangers), and the view's card and the notices at a card's width. */
 @media (min-width: 640px) and (max-width: 860px), (max-width: 860px) and (orientation: landscape) and (max-height: 520px) {
   #dock-col { left: 50%; right: auto; translate: -50% 0; }
   #dock { flex: none; }
   .dock-btn { flex: none; width: 64px; }
-  #dock-tools > .dock-sep { display: block; width: 10px; height: auto; margin: 0; }
   #map-layer { right: auto; width: 300px; }
   #toasts { right: auto; width: min(440px, calc(100% - 72px)); } /* (a card, not a banner across the map) */
   /* The tool's bar at its own width in the middle of the foot. */
@@ -2750,9 +2722,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #goal-strip button { height: 32px; }
   #goal-strip button.bare { width: 32px; }
   #goal-strip .strip-on { height: 32px; }
-  #btn-time { grid-template-columns: auto auto auto; grid-template-rows: auto; column-gap: 8px; }
-  #btn-time .time-glyph { grid-row: 1; width: 28px; height: 28px; }
-  #btn-time #time-label { grid-column: 3; grid-row: 1; font-size: 12.5px; }
+  #btn-time .time-glyph { width: 28px; height: 28px; }
   #dock-col { bottom: calc(env(safe-area-inset-bottom) + 6px); }
   #dock { height: 50px; border-radius: 15px; }
   .dock-btn { width: auto; flex-direction: row; gap: 6px; padding: 0 10px; border-radius: 11px; }

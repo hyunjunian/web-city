@@ -3,7 +3,7 @@
 import { setupGoals } from './manage';
 import { setupBack } from './back';
 import { City, sampleCity } from '@web-city/engine';
-import { buildOverlay, buildSpeed, resetSpeedChoice, restoreNight, setSpeed, setupClock } from './controls';
+import { buildOverlay, buildSpeed, markMonth, resetSpeedChoice, restoreNight, setSpeed, setupClock } from './controls';
 import { followTag, preview, refreshTag, setupInput } from './input';
 import { tickDisasters } from './live';
 import { setupMenu } from './menu';
@@ -27,6 +27,8 @@ import { setupTips } from './tips';
 export let last = performance.now();
 
 export let carry = 0;
+/** The day the day under way began on (the engine's count moves on before a month's end is tallied). */
+let stepFrom = 0;
 
 export let panelTimer = 0;
 
@@ -120,6 +122,7 @@ function frameBody(now: number): void {
       // under way when a frame began, and the date and funds froze for seconds).
       if (carry < 1 || daysPerSec <= 0 || city.state.impeached || holdDays || panelTimer > 0.25) break;
       city.beginSteps(1);
+      stepFrom = city.state.day;
       carry -= 1;
     }
     if (!city.resume()) {
@@ -128,6 +131,16 @@ function frameBody(now: number): void {
     }
   }
   carry = Math.min(carry, 3);
+  // The month going by, round the clock's edge: the days gone and the part of the next one run so far — every frame,
+  // so it moves as time does and stops with it, full as the month turns (not past: a day still to run waits at the
+  // circle's close). Never more than the day under way ahead of the city: time owed to a city running behind (up to
+  // three days of it) had the circle full while the date said the 27th. The day under way counts from the day it
+  // began on: the engine counts it done before the month's tally, and the circle began the next month early.
+  {
+    const done = city.stepping ? stepFrom : city.state.day;
+    const start = done - (done % 30);
+    markMonth((Math.min(done + Math.min(1, (city.stepping ? 1 : 0) + carry), start + 30) - start) / 30 * 100);
+  }
   if (panelsDue) {
     panelTimer = 0;
     updatePanels();

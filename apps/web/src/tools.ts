@@ -351,11 +351,9 @@ export function buildTools(): void {
     const opens = c.id === 'bulldoze' ? 'aria-pressed="false"' : 'aria-expanded="false" aria-controls="tray"';
     return `<button class="${cls}" data-cat="${c.id}" ${opens} title="${c.label}${holds}${keyed.length ? ` (${keyed.map((k) => k.key).join('·')})` : ''}"${named ? ` data-keys="${keyed.map((k) => `${k.name} ${k.key}`).join(' · ')}"` : ''}>${icon(c.icon)}<span class="dock-label">${label}</span></button>`;
   };
-  // In three groups: building the city; rewards and the land; taking down, last.
-  const SEP_BEFORE: CategoryId[] = ['special', 'bulldoze'];
+  // Building the city, rewards and the land, taking down last — evenly spaced, one family (no gaps between groups).
   // (Not 살펴보기: with nothing in hand the map looks by itself.)
-  dock.innerHTML = CATEGORIES.filter((c) => c.id !== 'inspect').map((c) => (SEP_BEFORE.includes(c.id) ? '<span class="dock-sep" aria-hidden="true"></span>' : '')
-    + catButton(c, 'dock-btn', 'short' in c ? c.short : c.label)).join('');
+  dock.innerHTML = CATEGORIES.filter((c) => c.id !== 'inspect').map((c) => catButton(c, 'dock-btn', 'short' in c ? c.short : c.label)).join('');
   // A phone's tools' card heads itself with the build categories (the bar is away under the card there).
   // (철거 at its end as on the bar: the bulldozer was out of reach.)
   $('#tray-cats').innerHTML = [...BUILD_CATS, 'bulldoze' as const].map((id) => {

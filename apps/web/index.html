@@ -74,28 +74,26 @@
         <p id="map-keys" class="sr-only">방향키로 지도를 옮기고, 도구를 든 채 Enter로 커서 자리에 짓습니다. S는 추천 자리로, 0에서 3은 속도, Space는 멈춤과 이어 하기, 물음표는 조작법입니다.</p>
 
         <!-- The map's bars, floating over it. Along the top in the middle three buttons of their own: where the city is
-             (its region › its name; pressed, 지역 — the region, the neighbours and the city's name), the clock (the date
-             and the four speeds, the month's progress running clockwise round its edge; on a phone one button, its
-             speeds in a card under it) and the menu; on a phone, a row of chips under them: the city's score and each
-             area's state. Along the foot in the middle the building categories (dock-col, below), their tools' card
-             opening over them. (First in the map's parts: Tab goes the way the eye does, top down.) -->
+             (its region › its name; pressed, 지역 — the region, the neighbours and the city's name), the clock (the four
+             speeds, the month's progress running clockwise round its edge — the date in its tooltip; on a phone one
+             button, its speeds in a card under it) and the menu; on a phone, a row of chips under them: the city's score
+             and each area's state. Along the foot in the middle the building categories (dock-col, below), their tools'
+             card opening over them. (First in the map's parts: Tab goes the way the eye does, top down.) -->
         <div id="mapbar" role="group" aria-label="도시·시간·메뉴">
           <button type="button" id="btn-place" class="mb-btn mb-place" data-sheet-btn="region" aria-pressed="false"><span data-icon="globe"></span><span id="place-region" class="place-region"></span><span class="place-sep" aria-hidden="true"><span data-icon="chevronRight"></span></span><b id="city-name" class="place-city"></b></button>
-          <!-- The clock: the date and the speeds in a row (a phone's one button, its speeds in a card it only opens). -->
+          <!-- The clock: the speeds in a row (a phone's one button, by the speed's icon, its speeds in a card it only
+               opens), the month going by round its edge. -->
           <div id="clock" class="mb-clock">
             <svg class="month-ring" aria-hidden="true" focusable="false"><path pathLength="100" /></svg>
-            <span id="sb-date" class="sb-date"></span>
             <div class="mb-time">
-              <button type="button" id="btn-time" class="mb-btn" aria-haspopup="true" aria-expanded="false" aria-controls="speed" title="시간: 속도 고르기"><span class="time-glyph" aria-hidden="true"></span><span class="mb-label" id="time-label">시간</span></button>
+              <button type="button" id="btn-time" class="mb-btn" aria-haspopup="true" aria-expanded="false" aria-controls="speed" title="시간: 속도 고르기"><span class="time-glyph" aria-hidden="true"></span></button>
               <div id="speed" class="gear" role="radiogroup" aria-label="시뮬레이션 속도"></div>
             </div>
           </div>
-          <!-- The menu: the city's files, the region, help and the screen's settings. -->
+          <!-- The menu, by its icon: the city's files, help and the screen's settings (지역 is the place button's). -->
           <details class="dropdown" id="menu">
-            <summary class="mb-btn mb-menu" title="메뉴: 저장 · 불러오기 · 지역 · 조작법 · 테마" aria-label="메뉴"><span data-icon="more"></span><span class="mb-label">메뉴</span></summary>
+            <summary class="mb-btn mb-menu" title="메뉴: 저장 · 불러오기 · 조작법 · 테마" aria-label="메뉴"><span data-icon="more"></span></summary>
             <div class="dropdown-menu">
-              <button data-sheet-btn="region" title="이웃 도시·거래 (J)"><span data-icon="globe"></span>지역</button>
-              <hr />
               <button id="btn-new"><span data-icon="filePlus"></span>새 도시…</button>
               <button id="btn-save" title="브라우저에 저장"><span data-icon="save"></span>저장</button>
               <button id="btn-load" title="브라우저에 저장된 도시 목록"><span data-icon="folder"></span>불러오기…</button>

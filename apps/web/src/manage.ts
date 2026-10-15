@@ -58,8 +58,6 @@ function drift(id: GoalId): string {
 /** The goals shown as the city's qualities (재정 has a card of its own, with the policy). */
 const WATCHED = GOAL_ORDER; // (재정 included: money is watched with the rest)
 
-const emptyCity = () => !readStats().population && !city.state.buildings.size;
-
 /**
  * 해결할 문제: what is wrong, the most serious first with the one thing to do about it,
  * the rest a row each (their goal's screen says more); an emergency (a fire, a riot, a
@@ -75,7 +73,6 @@ export interface PaneFigs { jobs: number; jobsTrend: string; rating: number; rat
 const ratingTone = (rating: number): Tone => (!ratingRated() ? '' : rating < 0 ? 'bad' : rating < 20 ? 'warn' : '');
 
 export function problemsHtml(alerts: string, figs: PaneFigs): string {
-  if (emptyCity()) return '';
   const step = nextStep();
   const inc = new Set(incidents().map((x) => x.goal as GoalId));
   const all = GOAL_ORDER.map((id) => ({ id, s: goalStatus(id) })).filter(({ id, s }) => s.tone === 'bad' || s.tone === 'warn' || inc.has(id));

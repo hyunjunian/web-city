@@ -1153,6 +1153,19 @@ function minScale(): number {
   return Math.max(1, Math.min(r.width, r.height) / city.size * 0.85);
 }
 
+/**
+ * A wheel event from a touchpad's two fingers rather than a mouse's wheel: the browsers step a mouse's wheel in lines
+ * (Firefox) or in whole notches of 50 px or more straight up and down; a touchpad moves by the pixel, sideways too
+ * (and Chrome and Safari give its old wheelDelta as exactly three times the delta, a wheel's notch being 120).
+ */
+function fromTouchpad(e: WheelEvent): boolean {
+  if (e.deltaMode !== 0) return false;
+  const w = (e as WheelEvent & { wheelDeltaY?: number }).wheelDeltaY;
+  if (w && w === -3 * e.deltaY) return true;
+  if (e.deltaX !== 0) return true;
+  return !(Number.isInteger(e.deltaY) && Math.abs(e.deltaY) >= 50);
+}
+
 export function zoomAt(factor: number, px: number, py: number): void {
   const wx = cam.x + px / cam.scale;
   const wy = cam.y + py / cam.scale;
@@ -1372,12 +1385,36 @@ export function setupInput(): void {
     const [wx, wy] = pressedAt ?? [cam.x + px / cam.scale, cam.y + py / cam.scale];
     glideTo(wx + (r.width / 2 - px) / to, wy + (r.height / 2 - py) / to, to, 240);
   });
+  // A touchpad as on a phone: two fingers moving move the map, pinched they zoom it (the browser sends a pinch as a
+  // wheel with Ctrl; Safari as gestures, below). A mouse's wheel zooms, and with Ctrl or ⌘ any wheel does.
   canvas.addEventListener('wheel', (e) => {
     stopFlight();
     e.preventDefault();
     const [px, py] = pos(e);
-    zoomAt(Math.exp(-e.deltaY * 0.0015), px, py);
+    if (e.ctrlKey || e.metaKey || !fromTouchpad(e)) {
+      const step = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 800 : 1; // (lines and pages in pixels' worth)
+      zoomAt(Math.exp(-e.deltaY * step * (e.ctrlKey && fromTouchpad(e) ? 0.01 : 0.0015)), px, py);
+      return;
+    }
+    cam.x += e.deltaX / cam.scale;
+    cam.y += e.deltaY / cam.scale;
+    redraw();
   }, { passive: false });
+  // Safari's touchpad pinch, as a gesture (not while fingers are down on a touch screen: those pinch above).
+  let gestureScale = 1;
+  const gesture = (e: Event) => {
+    e.preventDefault();
+    if (pointers.size) return;
+    const g = e as Event & { scale?: number; clientX?: number; clientY?: number };
+    if (e.type === 'gesturestart') gestureScale = 1;
+    else if (g.scale && g.clientX !== undefined && g.clientY !== undefined) {
+      const r = canvas.getBoundingClientRect();
+      stopFlight();
+      zoomAt(g.scale / gestureScale, g.clientX - r.left, g.clientY - r.top);
+      gestureScale = g.scale;
+    }
+  };
+  for (const type of ['gesturestart', 'gesturechange', 'gestureend']) canvas.addEventListener(type, gesture);
   // The map's zoom buttons: about the view's centre.
   const centre = (): [number, number] => [canvas.clientWidth / 2, canvas.clientHeight / 2];
   // Buttons and keys glide (a wheel or a pinch follows the hand as it is) — about the middle of the map that shows

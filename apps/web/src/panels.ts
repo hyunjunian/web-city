@@ -2,7 +2,7 @@
 
 import { DEV_TYPES, type DevType, GROWTH_CODES, STRUCTURES, ZONES, type PollTopic, type StructureKind } from '@web-city/engine';
 import { icon } from './icons';
-import { chooseSpeed, fitMapbar, markMonth, markPaneClock, refreshTaxes, refreshViewSummary } from './controls';
+import { chooseSpeed, fitMapbar, markDate, markPaneClock, refreshTaxes, refreshViewSummary } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
 import { adviceFor, capped as atCap, deptEmpty, deptFunded, freshLandfill, newReadings, readStats, stormHolds } from './readings';
 import { active, autoPause, markToolSite, openGoal, openViewTab, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
@@ -132,6 +132,8 @@ const STAGES: [number, string][] = [
 
 /** The place button's region and name as last written (a rename, a region made or left). */
 let placeSeen = '';
+/** The month the pane's clock last said. */
+let dateSeen = '';
 
 /** The stage a city of `population` residents has reached (counted from 1), and the next one if any. */
 export function stageOf(population: number): { name: string; step: number; next?: [number, string] } {
@@ -213,7 +215,7 @@ function nextReward(): string {
   const leftFull = best ? best.checks.filter((c) => !c.met).map(checkText) : [];
   // What it gives, for wanting it (its figure, as the tray shows it).
   const gives = best ? structureStat(best.kind) : '';
-  const html = !best || !city.state.buildings.size ? '' : `<button type="button" class="reward sum-next" title="${escapeHtml(`보상 ${STRUCTURE_NAME[best.kind]}: ${plainCodes(best.description)}${leftFull.length ? ` · 지금 ${leftFull.join(' · ')}` : ''} · 눌러서 보상 진행 모두 보기`)}">
+  const html = !best ? '' : `<button type="button" class="reward sum-next" title="${escapeHtml(`보상 ${STRUCTURE_NAME[best.kind]}: ${plainCodes(best.description)}${leftFull.length ? ` · 지금 ${leftFull.join(' · ')}` : ''} · 눌러서 보상 진행 모두 보기`)}">
     <span class="rw-icon">${icon('award')}</span>
     <span class="rw-name"><small class="rw-label">다음 보상</small><b>${STRUCTURE_NAME[best.kind]}${city.isUnlocked(best.kind) ? ' (다음 단계)' : ''}</b>${gives ? `<small>${gives}</small>` : ''}</span><span class="rw-pct">${Math.round(best.share * 100)}%${icon('chevronRight', 'rw-go')}</span>
     <span class="rw-bar"><i style="width:${(best.share * 100).toFixed(1)}%"></i></span>
@@ -405,23 +407,15 @@ export function updatePanels(): void {
     place.setAttribute('aria-label', `${region ? `${region.name} 지역` : '지역 없음'}, ${city.state.name} · 지역과 도시 이름`);
     fitMapbar(); // (the names' room: the region's may have to go)
   }
-  const dateEl = $('#sb-date');
-  const label = `${d.year}년 ${d.month}월`;
-  // A new month eases in; a hairline under the date fills as the month goes by (time otherwise jumped month to month).
-  if (dateEl.textContent !== label) {
-    // (Year and month apart: on a phone's narrow bar they stack.)
-    dateEl.innerHTML = `<span class="d-y">${d.year}년</span> <span class="d-m">${d.month}월</span>`;
-    dateEl.classList.remove('turned');
-    void dateEl.offsetWidth;
-    dateEl.classList.add('turned');
-    markPaneClock(); // (a phone's clock in the pane says the month too)
+  // The date: in the clock's tooltips and names (not written on it: its ring shows the month going by, main.ts), and
+  // a phone's clock in the pane says the month.
+  if (dateSeen !== `${d.year}.${d.month}`) {
+    dateSeen = `${d.year}.${d.month}`;
+    markPaneClock();
   }
-  markMonth(((city.state.day % 30) / 30) * 100);
-  // (Not in a phone's clock button, which has its own: a second tooltip came up over it with a mouse.)
-  if (dateEl.closest('#btn-time')) dateEl.removeAttribute('title');
-  else dateEl.title = `${d.year}년 ${d.month}월 ${d.day}일 · 테두리의 파란 선: 이달이 지나간 만큼`;
-  // (The wind — where a fire spreads — is not on the web screen for now. The top buttons keep the date and the clock:
-  // population and money are read in the city pane.)
+  markDate();
+  // (The wind — where a fire spreads — is not on the web screen for now. The top buttons keep the clock: population
+  // and money are read in the city pane.)
   // The advisors first: the watch list reads their latest word (a row lagged an update behind).
   const adv = advice();
   watchGoals(); // a goal turning to 조치 필요 may stop the clock; an action's result is told
@@ -438,9 +432,8 @@ export function updatePanels(): void {
   // and monitors; what to do is told on each area's screen.)
   // The city (its size with the next reward under it, then money, jobs and rating), the one thing
   // to do now, and how every area stands (the troubled ones marked and counted).
-  const bare = !city.state.buildings.size && !st.jobs; // (a bare map: no 0s to read)
   const statusHtml = active ? '' : `
-    <section class="card city-sum" aria-label="도시">${scoreboard(st.population, trend('population', st.population))}${bare ? '' : nextReward()}</section>
+    <section class="card city-sum" aria-label="도시">${scoreboard(st.population, trend('population', st.population))}${nextReward()}</section>
     ${problemsHtml(alerts, { jobs: st.jobs, jobsTrend: trend('jobs', st.jobs), rating: st.mayorRating, ratingTrend: trend('mayorRating', st.mayorRating) })}`;
   if (statusHtml && statusHtml !== lastStatus && !paneHeld()) {
     lastStatus = statusHtml;

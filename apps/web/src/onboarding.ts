@@ -142,8 +142,6 @@ export function renderOnboarding(): void {
   const was = firstStepTool;
   firstStepTool = !el.hidden && first && !first.includes(':') ? first : null;
   if (firstStepTool !== was) markSuggested();
-  // Before anyone lives here the gauges all read 0: the checklist leads the pane instead.
-  $('#pane').classList.toggle('fresh', st.population === 0);
   // (In the document too, so Tab meets it first, as the eye does.)
   const status = $('#status');
   // (Above the city's state until it is done: below the watch list it dropped out of sight just as the later steps came up.)
