@@ -30,9 +30,9 @@ export function dropGoalToasts(goal: string): void {
 }
 
 /**
- * Phones: the notices just under what hangs from the top bar — the goal's chip, the goals in trouble, the view's card,
- * whose height goes with its count and 찾아가기. (At set heights, the card's count left while a tool is in hand ran
- * under the notice, its 찾아가기 sticking out below.) Wide, they keep to their corner.
+ * Phones: the notices just under what hangs from the top — the two rows of buttons and chips, the view's card, whose
+ * height goes with its count and 찾아가기. (At set heights, the card's count left while a tool is in hand ran under the
+ * notice, its 찾아가기 sticking out below.) Wide, they keep to their corner.
  */
 function placeToasts(): void {
   const box = document.getElementById('toasts');
@@ -42,7 +42,7 @@ function placeToasts(): void {
     watching = true;
     const again = () => placeToasts();
     const sizes = new ResizeObserver(again);
-    for (const id of ['mapbar', 'goal-strip', 'manage-chip', 'map-layer']) {
+    for (const id of ['mapbar', 'map-layer']) {
       const part = document.getElementById(id);
       if (part) sizes.observe(part);
     }
@@ -59,11 +59,10 @@ function placeToasts(): void {
   const v = view.getBoundingClientRect();
   const b = box.getBoundingClientRect();
   let low = 0;
-  // (The top buttons, not their row: while a sheet is up they are away, the row left where it was — and the notices
-  // sat a row lower than they needed to.)
+  // (Not the top rows while a sheet is up: they are away then, sliding off — measured as they went, the notices sat a
+  // row lower than they needed to.)
   const away = sheetUp();
-  const top = away ? [] : [...document.querySelectorAll<HTMLElement>('#mapbar > :not(#map-layer)')];
-  for (const part of [...top, ...['goal-strip', 'manage-chip', 'map-layer'].map((id) => document.getElementById(id))]) {
+  for (const part of [away ? null : document.getElementById('mapbar'), document.getElementById('map-layer')]) {
     if (!part || part.hidden) continue;
     const cs = getComputedStyle(part);
     if (cs.display === 'none' || cs.visibility === 'hidden') continue;
@@ -253,6 +252,7 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
   el.onpointerleave = (e) => {
     if (e.pointerType === 'mouse' && !sticky) wait(2500);
   };
-  // Small screens: a dot on the dock's 도시 button until the city pane is opened.
-  if (unread && !paneShown()) document.querySelector('.mb-city')?.classList.add('unread'); // (a phone's 도시 상태, its sheet down: wide, the pane is always shown)
+  // Small screens: a dot on the score chip at the top, which opens the city pane, until it is opened (wide, the pane
+  // is always shown).
+  if (unread && !paneShown()) document.getElementById('goal-strip')?.classList.add('unread');
 }

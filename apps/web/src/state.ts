@@ -57,25 +57,31 @@ export function builtArea(whole = false): { cx: number; cy: number; span: number
 export type Band = { left: number; top: number; right: number; bottom: number };
 
 /**
- * The part of the map nothing covers: below the top bar, right of the controls' bar down the left (on a phone, above
- * it across the foot), and on a phone above the city sheet when it is up — or beside it, where a phone held sideways
- * has it as a side panel. Framing on a phone, the edge arrows and their flights keep to it (an arrow under the sheet,
- * a target landing there).
+ * The part of the map nothing covers: below the top buttons (a phone's two rows), above the building bar across the
+ * foot, right of the city pane floating along the left (wide: always there) and left of a building's card along the
+ * right while it is open — and on a phone above the city sheet when it is up, or beside it, where a phone held
+ * sideways has it as a side panel. Framing, centring, the edge arrows and their flights keep to it (an arrow under the
+ * pane, a target landing there).
  */
 export function mapBand(withPane = true): Band {
   const r = renderer.canvas.getBoundingClientRect();
   let [left, top, right, bottom] = [0, 0, r.width, r.height];
   const bar = document.getElementById('mapbar')?.getBoundingClientRect();
   if (bar?.height) top = Math.max(top, Math.min(r.height / 3, bar.bottom - r.top));
-  // (The controls' bar takes the left edge from the top down — the band starts beside it, where it doesn't step back
-  // — or, across a phone's foot, the bottom.)
+  // (The building bar across the foot, where it doesn't step back.)
   const dock = document.getElementById('dock');
   const d = dock && getComputedStyle(dock).visibility !== 'hidden' ? dock.getBoundingClientRect() : null;
-  if (d?.width && d.width > d.height) bottom = Math.min(bottom, Math.max(r.height * 2 / 3, d.top - r.top));
-  else if (d?.width) left = Math.max(left, Math.min(r.width / 3, d.right - r.left));
+  if (d?.width) bottom = Math.min(bottom, Math.max(r.height * 2 / 3, d.top - r.top));
   const pane = document.getElementById('pane');
   const app = document.getElementById('app');
-  if (withPane && pane && app?.classList.contains('pane-open') && matchMedia('(max-width: 860px)').matches) {
+  if (!matchMedia('(max-width: 860px)').matches) {
+    // Wide: the city pane floats along the left, a building's card along the right while it is open.
+    const p = pane?.getBoundingClientRect();
+    if (p?.width) left = Math.max(left, Math.min(r.width / 2, p.right - r.left));
+    const info = document.getElementById('info-card');
+    const q = info && !info.hidden ? info.getBoundingClientRect() : null;
+    if (q?.width) right = Math.min(right, Math.max(left + r.width / 4, q.left - r.left));
+  } else if (withPane && pane && app?.classList.contains('pane-open')) {
     // (Where the sheet comes to rest, not where its slide-in has got to: offsets leave the transform out.)
     const at = app.getBoundingClientRect();
     if (matchMedia('(orientation: landscape) and (max-height: 520px)').matches) left = Math.max(left, Math.min(r.width / 2, at.left + pane.offsetLeft + pane.offsetWidth - r.left));
@@ -84,11 +90,10 @@ export function mapBand(withPane = true): Band {
   return { left, top, right: Math.max(left + 1, right), bottom: Math.max(top + 1, bottom) };
 }
 
-/** The cards over the map's top — the view's legend under the top bar, a goal's chip and (phones) the goals in
- *  trouble under the top bar, 전체 보기 and the minimap (not while they fade, the whole city in sight) — in CSS px
- *  from its top left: a target under one is out of sight. Only those shown (the chip is only made invisible while a
- *  phone's sheet is up); the strip by its chips, not the row they may not fill. */
-const COVERS = ['map-layer', 'manage-chip', 'goal-strip', 'map-zoom', 'minimap'];
+/** The cards over the map's top — the view's legend under the top buttons, 전체 보기 and the minimap (not while they
+ *  fade, the whole city in sight), a phone's chips under the top buttons — in CSS px from its top left: a target under
+ *  one is out of sight. Only those shown; the chips' row by its chips, not the row they may not fill. */
+const COVERS = ['map-layer', 'goal-strip', 'map-zoom', 'minimap'];
 let coverWatch: ResizeObserver | null = null;
 export function mapCovers(): Band[] {
   const r = renderer.canvas.getBoundingClientRect();
@@ -132,12 +137,12 @@ export function fitCamera(whole = false): void {
   // being left, and the sample city opened framed where it had been.)
   flights++;
   moves++;
-  const r = renderer.canvas.getBoundingClientRect();
   // The built-up part with a margin, or the whole map while there is none (or when asked: 전체 보기).
   const { cx, cy, span } = builtArea(whole);
-  // On a phone, in the part of the screen nothing covers: below the tool bar, above the city sheet when it is up
-  // (framed on the whole screen, the town sat half under the sheet with a dark band over it), beside it held sideways.
-  const b = matchMedia('(max-width: 860px)').matches ? mapBand() : { left: 0, top: 0, right: r.width, bottom: r.height };
+  // In the part of the screen nothing covers: beside the city pane, between the top buttons and the building bar, and
+  // on a phone above the city sheet when it is up (framed on the whole screen, the town sat half under the sheet with a
+  // dark band over it), beside it held sideways.
+  const b = mapBand();
   const [w, h] = [b.right - b.left, b.bottom - b.top];
   cam.scale = fitScale(w, h, span, whole);
   cam.x = cx - (b.left + w / 2) / cam.scale;
@@ -161,11 +166,12 @@ export function takeBandFraming(): { x: number; y: number; scale: number } | nul
 
 /**
  * Moves the view to centre a tile, zooming in to at least `minScale` pixels per tile — in the middle of `band`
- * when given (the part nothing covers), else of the map.
+ * when given (the part nothing covers), else of the map (wide: of the part beside the city pane, which is always there).
  */
 export function centerOn(x: number, y: number, minScale = 8, band?: Band): void {
   const r = renderer.canvas.getBoundingClientRect();
-  const [mx, my] = band ? [(band.left + band.right) / 2, (band.top + band.bottom) / 2] : [r.width / 2, r.height / 2];
+  const at = band ?? (matchMedia('(max-width: 860px)').matches ? null : mapBand());
+  const [mx, my] = at ? [(at.left + at.right) / 2, (at.top + at.bottom) / 2] : [r.width / 2, r.height / 2];
   // Flies there (350ms, zoom eased in proportion), so the eye follows where it went.
   const from = { x: cam.x, y: cam.y, scale: cam.scale };
   const scale = Math.max(cam.scale, minScale);

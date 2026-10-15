@@ -70,7 +70,7 @@ export function setupRangeFill(): void {
 export function setupPointerBlur(): void {
   document.addEventListener('click', (e) => {
     if (e.detail === 0) return; // a key press, not a pointer
-    const b = (e.target as Element).closest?.('#mapbar :is(button, summary), #pane .crumbs button, #dock-col :is(button, summary), #tray button, #map-controls button, #tool-chip button');
+    const b = (e.target as Element).closest?.('#mapbar :is(button, summary), #dock-col button, #tray button, #map-controls button, #tool-chip button');
     if (b instanceof HTMLElement) b.blur();
   });
 }

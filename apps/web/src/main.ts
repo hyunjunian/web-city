@@ -3,7 +3,7 @@
 import { setupGoals } from './manage';
 import { setupBack } from './back';
 import { City, sampleCity } from '@web-city/engine';
-import { buildOverlay, buildSpeed, markCity, resetSpeedChoice, restoreNight, setSpeed, setupClock } from './controls';
+import { buildOverlay, buildSpeed, resetSpeedChoice, restoreNight, setSpeed, setupClock } from './controls';
 import { followTag, preview, refreshTag, setupInput } from './input';
 import { tickDisasters } from './live';
 import { setupMenu } from './menu';
@@ -12,13 +12,13 @@ import { cancelMySimAction } from './mysims';
 import { updatePanels } from './panels';
 import { freshLandfill } from './readings';
 import { leaveRegion } from './region';
-import { cam, city, cityLineage, clampCamera, dirty, fitCamera, mapBand, mapCovers, onCityChange, overlay, redraw, renderer, selected, setCity, setDirty, setSaveSlotId, speed } from './state';
+import { cam, city, cityLineage, clampCamera, dirty, mapBand, mapCovers, onCityChange, overlay, redraw, renderer, selected, setCity, setDirty, setSaveSlotId, speed } from './state';
 import { autosave, autosaveSlot, autosaveSteps, lastAutosave, resumeAutosave } from './storage';
 import { buildTools, closeTray, forgetPreviousTool, refreshEdgeHint, selectTool, SPEEDS } from './tools';
 import { abandonDrive, drive, tickDrive } from './udi';
 import { $, flash, onCoveredFlash } from './util';
 import { toast } from './toast';
-import { closeInfo, closePane, closeSheet, openPane, setupTabs } from './tabs';
+import { closeInfo, closePane, closeSheet, setupTabs } from './tabs';
 import { setupTheme } from './theme';
 import { paintIcons } from './icons';
 import { setupPointerBlur, setupRangeFill, setupSwipeDown, setupTouchTitles } from './widgets';
@@ -221,9 +221,8 @@ export function openSample(): void {
       closePane();
       setCity(town);
       // (One thing to do, and what it already earned: the keys are in 도움말.)
-      // (Where they are: the building bar's 보상, across a phone's foot or down the map's left.)
-      const where = matchMedia('(max-width: 860px)').matches ? '아래 막대의 보상' : '왼쪽 막대의 보상';
-      flash(`예시 도시입니다 · 건물을 눌러 살펴보세요${earned ? ` · 보상 ${earned}종을 지을 수 있습니다 (${where})` : ''}`);
+      // (Where they are: the building bar's 보상, along the map's foot.)
+      flash(`예시 도시입니다 · 건물을 눌러 살펴보세요${earned ? ` · 보상 ${earned}종을 지을 수 있습니다 (아래 막대의 보상)` : ''}`);
       finish();
     } catch (e) {
       finish();
@@ -272,7 +271,6 @@ setupMenu();
 // (주민 — My Sim and 직접 운전 — is not on the web screen for now: their modules stay, unwired; the drive's tick and
 // abandoning, below and above, do nothing while no drive can start.)
 setupTabs();
-markCity();
 // (The skip link's jump: a fragment alone scrolls, it doesn't hand the canvas the keys.)
 document.querySelector<HTMLAnchorElement>('.skip-link')?.addEventListener('click', (e) => {
   e.preventDefault();
@@ -288,12 +286,8 @@ setCity(resumed ?? starterCity());
 // (The first zone laid on a new map starts the clock: see input.ts.)
 setSpeed(0);
 if (resumed) setSaveSlotId(autosaveSlot());
-// Phones keep the getting-started list behind the 도시 button: on a first visit, show it.
-// (The map framed again for it: framed first on the whole screen, the town sat half under the sheet.)
-if (!resumed && !$('#onboarding').hidden && matchMedia('(max-width: 860px)').matches) {
-  openPane();
-  fitCamera();
-}
+// (A phone's city pane stays down until called for — the score chip at the top says 시작하기 and how far along, with
+// a dot — so the map is the first thing a new player sees.)
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') autosave();
 });

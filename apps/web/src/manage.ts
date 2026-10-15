@@ -7,17 +7,18 @@
 import { placeAt } from './input';
 import { DEV_TYPES, type DevType, Net, NETWORK_KINDS, ORDINANCES, POWER_DISPATCHES, STRUCTURES, type HistoryPoint, type OrdinanceId, type PowerDispatch, type RepairDepartment, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
 import { icon } from './icons';
-import { chooseSpeed, markCity, refreshTaxes, resumeAfterBuilding, setSpeed, showOverlay, speedChosen, viewEmpty, viewName } from './controls';
+import { chooseSpeed, refreshTaxes, resumeAfterBuilding, setSpeed, showOverlay, speedChosen, viewEmpty, viewName } from './controls';
 import { redrawInfo, refreshInfo, riotNear, showInfo } from './info';
 import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { whyNoDeals } from './region';
 import { journal } from './journal';
-import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, updatePanels } from './panels';
+import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, stageOf, updatePanels } from './panels';
+import { checklist } from './onboarding';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { GRAPH_KEYS } from './graphs';
 import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
-import { categoryOf, chosen, kindsFor, openTray, panTipAt, pickStructure, restView, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
+import { categoryOf, chosen, edgeFade, kindsFor, openTray, panTipAt, pickStructure, restView, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice } from './choices';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
@@ -25,18 +26,6 @@ import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, 
 import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
-
-/** Phones: the list is behind the top bar's 도시 상태, which carries the count of goals needing action (the mayor's
- *  rating counts with them, as in 도시 상태's 급한 일: a goal's screen redrawing it left the rating out). */
-function refreshBadge(bad = GOAL_ORDER.filter((id) => goalStatus(id).tone === 'bad').length + (ratingTone(readStats().mayorRating) === 'bad' ? 1 : 0)): void {
-  const dock = document.querySelector<HTMLElement>('.mb-city');
-  if (!dock) return;
-  if (bad) dock.dataset.alerts = String(bad);
-  else delete dock.dataset.alerts;
-  // (The count is drawn by CSS: the button's name carries it for screen readers, its title for a pointer.)
-  dock.setAttribute('aria-label', bad ? `도시 상태, 조치 필요 ${bad}` : '도시 상태');
-  markCity();
-}
 
 /** The pane's watch list: one row per goal, problems marked; a row opens its goal. */
 /** Each goal's figure over time (its direction on the watch list), and whether up is better: the figure its row
@@ -94,7 +83,6 @@ export function problemsHtml(alerts: string, figs: PaneFigs): string {
   const rTone = ratingTone(figs.rating);
   const bad = all.filter(({ s }) => s.tone === 'bad').length + (rTone === 'bad' ? 1 : 0);
   const warn = all.length - all.filter(({ s }) => s.tone === 'bad').length + (rTone === 'warn' ? 1 : 0);
-  refreshBadge(bad);
   // (Said by colour too: the counts are the red and the amber rows below.)
   const look = warn ? `<span class="sec-note" title="주황으로 표시된 항목: 두면 나빠질 수 있는 분야">살펴볼 것 ${warn}</span>` : '';
   const counts = bad ? `<span class="chip bad" title="빨강으로 표시된 항목: 지금 손봐야 할 분야">급한 일 ${bad}</span>${look}` : look || '<span class="sec-note">모두 양호</span>';
@@ -150,24 +138,59 @@ let listOrder: { keys: string[]; split: number } | null = null;
 const hoverable = () => matchMedia('(hover: hover)').matches;
 
 /**
- * Phones: the goals in trouble (and anything burning) as chips over the map while the
- * pane is down, worst first, so the city's state is in sight while working on the map.
+ * Phones: under the top buttons, the city's score and each area's state, a row of chips over the map — the score first
+ * (the residents, or 시작하기 while its checklist shows; pressed, the city pane), the area whose screen is open (put
+ * away to work on the map: lit, its × beside it), then the areas needing a hand (anything burning first: by name while
+ * urgent, by a tinted icon while amber), then the sound ones by their icons alone — in the city pane's order, the
+ * mayor's rating among them. Compact, so the row stays short; what it can't show scrolls in, its cut edge faded.
+ * (Wide, the pane is always there: no row.)
  */
 export function refreshStrip(): void {
   const el = $('#goal-strip');
-  const tones = GOAL_ORDER.map((id) => [id, goalStatus(id).tone] as const);
+  if (!phone()) {
+    if (!el.hidden) el.hidden = true;
+    return;
+  }
+  const st = readStats();
   // (A lone fire the stations are putting out is its row's amber, not red.)
-  const inc = new Set(incidents().filter((x) => x.urgent).map((x) => x.goal));
-  // In the city pane's order (the worst, then the weightiest): the chip names the list's top row.
-  const byWeight = (a: (typeof tones)[number], b: (typeof tones)[number]) => WEIGHT[b[0]] - WEIGHT[a[0]];
-  const worst = [...tones.filter(([id, t]) => t === 'bad' || inc.has(id as 'fire')).sort(byWeight), ...tones.filter(([id, t]) => t === 'warn' && !inc.has(id as 'fire')).sort(byWeight)].slice(0, 3);
-  // The worst one over the map, and how many more (three chips were a row of noise over a small map); the
-  // count opens the city pane, where they are listed.
-  const more = tones.filter(([id, t]) => t === 'bad' || t === 'warn' || inc.has(id as 'fire')).length - 1;
-  const html = active || !phone() || !worst.length ? '' : worst.slice(0, 1).map(([id, t]) => `<button type="button" class="${inc.has(id as 'fire') ? 'bad' : t}" data-strip-goal="${id}" title="${GOALS[id].name} 화면">${icon(inc.has(id as 'fire') ? (id === 'fire' ? 'flame' : 'megaphone') : GOALS[id].icon)}${GOALS[id].name}</button>`).join('')
-    + (more > 0 ? `<button type="button" class="strip-more" data-strip-more title="다른 항목 ${more}개 · 도시 현황 열기" aria-label="다른 분야 ${more}개 · 도시 현황 열기">+${more} 분야</button>` : '');
+  const inc = new Set(incidents().filter((x) => x.urgent).map((x) => x.goal as GoalId));
+  const rank = (t: Tone) => (t === 'bad' ? 0 : t === 'warn' ? 1 : 2);
+  type Chip = { key: string; tone: Tone; weight: number; html: (on: boolean) => string };
+  const chips: Chip[] = GOAL_ORDER.map((id) => {
+    const g = GOALS[id];
+    const s = goalStatus(id);
+    const fire = inc.has(id);
+    const tone: Tone = fire ? 'bad' : s.tone;
+    const glyph = icon(fire ? (id === 'fire' ? 'flame' : 'megaphone') : g.icon);
+    const said = tone === 'bad' ? ', 조치 필요' : tone === 'warn' ? ', 주의' : '';
+    return {
+      key: id, tone, weight: WEIGHT[id],
+      html: (on: boolean) => `<button type="button" class="${tone || 'ok'}${tone === 'bad' || on ? '' : ' bare'}" data-strip-goal="${id}" title="${g.name}: ${escapeHtml(s.value)}${tone ? ` · ${escapeHtml(glue(s.note))}` : ''} · 눌러서 ${g.name} 화면" aria-label="${g.name}${said}: ${escapeHtml(s.value)}"${on ? ' aria-pressed="true"' : ''}>${glyph}${tone === 'bad' || on ? g.name : ''}</button>`,
+    };
+  });
+  // 시장 평점: no goal of its own, a chip all the same (pressed, the polls); a sound one second, after 재정.
+  const rTone = ratingTone(st.mayorRating);
+  const rated = ratingRated();
+  chips.push({
+    key: 'rating', tone: rTone, weight: 4,
+    html: () => `<button type="button" class="${rTone || 'ok'}${rTone === 'bad' ? '' : ' bare'}" data-strip-polls title="시장 평점: ${rated ? st.mayorRating : '아직 없음'} · 눌러서 주제별 여론" aria-label="시장 평점${rTone === 'bad' ? ', 조치 필요' : rTone === 'warn' ? ', 주의' : ''}: ${rated ? st.mayorRating : '아직 없음'}">${icon('approval')}${rTone === 'bad' ? '시장 평점' : ''}</button>`,
+  });
+  const sorted = chips.map((c, k) => ({ c, k: c.key === 'rating' ? 0.5 : k }))
+    .sort((a, b) => rank(a.c.tone) - rank(b.c.tone) || (a.c.tone ? b.c.weight - a.c.weight : a.k - b.k)).map(({ c }) => c);
+  // The score: the residents (the stage in its title), or 시작하기 and how far along while its checklist shows.
+  const stage = stageOf(st.population);
+  const list = checklist && !st.population ? checklist : null;
+  const score = list
+    ? `<button type="button" class="strip-score" data-strip-score title="도시 현황 열기 · 시작하기 ${list.done}/${list.of} 완료" aria-label="도시 현황: 시작하기 ${list.done}/${list.of} 완료">${icon('sparkles')}시작하기 <small>${list.done}/${list.of}</small></button>`
+    : `<button type="button" class="strip-score" data-strip-score title="도시 현황 열기 · ${stage.name} (${stage.step}단계) · 인구 ${fmt(st.population)}명${stage.next ? ` · 다음 단계 ${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명` : ''}" aria-label="도시 현황: ${stage.name}, 인구 ${fmt(st.population)}명">${icon('trophy')}${fmt(st.population)}</button>`;
+  // The open screen's chip first after the score, lit, with its ×.
+  const on = active ? sorted.find((c) => c.key === active) : undefined;
+  const html = score
+    + (on && active ? `<span class="strip-on" role="group" aria-label="열린 화면: ${GOALS[active].name}">${on.html(true)}<button type="button" data-strip-end title="${GOALS[active].name} 화면 닫기 (지도 보기도 꺼짐)" aria-label="${GOALS[active].name} 화면 닫기">${icon('close')}</button></span>` : '')
+    + sorted.filter((c) => c !== on).map((c) => c.html(false)).join('');
   if (el.innerHTML !== html) el.innerHTML = html;
-  el.hidden = !html;
+  el.hidden = false;
+  edgeFade(el);
 }
 
 // ------------------------------------------------------------------ the next step
@@ -1295,7 +1318,7 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
   showGoalStats(id);
   // Phones: the pane rises with it. (Not on wide screens, where it is always there:
   // marked open, the first Esc went on closing what never was.)
-  // (From an alert about a place: on a phone the place shows, the goal's chip brings its screen.)
+  // (From an alert about a place: on a phone the place shows, the goal's chip in the row at the top brings its screen.)
   if (phone() && !fromMap) {
     // The goal's view is on the map: the city moves into the strip above the risen pane (it was under it).
     // (Also when the pane comes back up on a goal still open: it had gone down, and the city with it.)
@@ -1306,8 +1329,7 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
   $('#pane').scrollTop = 0;
   // From the keyboard, carry on in the panel (the row that was focused is hidden now).
   if (byKeyboard || $('#manage').contains(document.activeElement)) $('#manage').querySelector<HTMLElement>('.mg-back')?.focus({ preventScroll: true });
-  $('#manage-chip').hidden = false;
-  refreshChip();
+  refreshStrip(); // (a phone's: the open screen's chip, lit)
   if (at) centerOn(at[0], at[1]);
   else if (changed && !phone()) requestAnimationFrame(clearOfCards); // (once the view's summary has filled the legend: updatePanels below)
   // Its policy and statistics are drawn only while shown.
@@ -1316,9 +1338,9 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
 }
 
 /**
- * The screen's first target, on the map but under something floating on it (the top bar and the view's card under
- * it, the controls' bar, the minimap): the map moves it out from under, at the zoom it has. (The 개발 막힘 legend hid
- * the 추천 자리's label just beside it.)
+ * The screen's first target, on the map but under something floating on it (the top buttons and the view's card under
+ * them, the building bar, the minimap, the city pane, a building's card): the map moves it out from under, at the zoom
+ * it has. (The 개발 막힘 legend hid the 추천 자리's label just beside it.)
  */
 function clearOfCards(): void {
   const spot = renderer.marks.find((m) => m.tone === 'spot');
@@ -1326,15 +1348,15 @@ function clearOfCards(): void {
   const r = renderer.canvas.getBoundingClientRect();
   const [sx, sy] = [(spot.x + spot.w / 2 - cam.x) * cam.scale + r.left, (spot.y + spot.h / 2 - cam.y) * cam.scale + r.top];
   if (sx < r.left || sx > r.right || sy < r.top || sy > r.bottom) return; // (off the map: its edge arrow points there)
-  const cards = ['mapbar', 'map-layer', 'dock-col', 'map-zoom', 'minimap'].flatMap((k) => {
+  const cards = ['mapbar', 'map-layer', 'dock-col', 'map-zoom', 'minimap', 'pane', 'info-card'].flatMap((k) => {
     const el = document.getElementById(k);
     const c = el && !el.hidden && el.offsetParent && getComputedStyle(el).visibility !== 'hidden' ? el.getBoundingClientRect() : null;
     return c && c.width > 0 ? [c] : [];
   });
   // (Its label runs beside it and above: some room around.)
   if (!cards.some((c) => sx > c.left - 80 && sx < c.right + 80 && sy > c.top - 16 && sy < c.bottom + 28)) return;
-  // A card across the middle keeps the target below it (the top bar, the view's card) or above it (a phone's controls
-  // across the foot); one to a side, beside it.
+  // A card across the middle keeps the target below it (the top buttons, the view's card) or above it (the building
+  // bar across the foot); one to a side, beside it (the city pane, a building's card).
   const middle = (c: DOMRect) => c.left - r.left < r.width / 2 && c.right - r.left > r.width / 2;
   const low = (c: DOMRect) => c.top - r.top > r.height / 2;
   const top = Math.max(0, ...cards.filter((c) => middle(c) && !low(c)).map((c) => c.bottom - r.top));
@@ -1408,11 +1430,11 @@ function cityAbovePane(): void {
   if (!active || !$('#app').classList.contains('pane-open')) return;
   const v = renderer.canvas.getBoundingClientRect();
   const pane = $('#pane').getBoundingClientRect();
-  // Beside the pane (landscape: it stands at the left) or between the top bar (or the view's card under it, when
+  // Beside the pane (landscape: it stands at the left) or between the top rows (or the view's card under them, when
   // shown) and the pane.
   const card = $('#map-layer').getBoundingClientRect();
   const side = pane.top < v.top + v.height * 0.2 && pane.right < v.right - 200;
-  // (Between the bars: sideways the top bar and the foot bar take the band's top and foot, which the box ignored.)
+  // (Between the bars: sideways the top row and the foot bar take the band's top and foot, which the box ignored.)
   const band = mapBand(false);
   const box = side
     ? { left: Math.max(v.left, pane.right + 6), right: v.right - 60, top: Math.max(v.top + band.top + 6, card.height && card.right > pane.right + 6 ? card.bottom + 6 : 0), bottom: v.top + band.bottom - 6 } // (under the view's card beside the pane: it hid the sites' labels)
@@ -1459,7 +1481,6 @@ export function closeGoal(): boolean {
   for (const sel of ['#mg-body', '#mg-acts', '#mg-more']) $(sel).innerHTML = '';
   showGoalStats(null);
   drawn.top = drawn.acts = drawn.more = '';
-  $('#manage-chip').hidden = true;
   renderer.marks = [];
   renderer.guidePath = null;
   marksSig = '';
@@ -1475,16 +1496,6 @@ export function closeGoal(): boolean {
   if (inPanel) $('#status').querySelector<HTMLElement>(`[data-goal="${was}"]`)?.focus({ preventScroll: true });
   redraw();
   return true;
-}
-
-/** The map's chip while a goal is open: its name and state, a way back to its panel, and out. */
-function refreshChip(): void {
-  if (!active) return;
-  const s = goalStatus(active);
-  const html = `${icon(GOALS[active].icon)}<span><b>${GOALS[active].name}</b> ${s.value}</span>`;
-  const label = $('#manage-chip-label');
-  if (label.innerHTML !== html) label.innerHTML = html;
-  $('#manage-chip').className = `floating ${s.tone}`;
 }
 
 /**
@@ -2532,7 +2543,6 @@ export function renderGoal(force = false): void {
     showGoalStats(active);
     force = true;
   }
-  refreshBadge();
   // The result of the work: the goal turning good while its screen is open is said once.
   const tone = goalStatus(active).tone;
   if (toneSeen.goal === active && toneSeen.lineage === cityLineage && (toneSeen.tone === 'bad' || toneSeen.tone === 'warn') && tone === ''
@@ -2549,7 +2559,6 @@ export function renderGoal(force = false): void {
     baseline.clear();
     for (const [label, , , n] of metrics(active)) if (n !== undefined) baseline.set(label, n);
   }
-  refreshChip();
   // A slider in hand (or focused for the arrow keys) is never rebuilt under the player.
   if (!force && (holding || (document.activeElement as HTMLElement | null)?.matches?.('#manage :is(#mg-body, #mg-acts, #mg-more) input[type=range]'))) return;
   const parts = goalParts(active);
@@ -2689,13 +2698,28 @@ export function setupGoals(): void {
     const row = (e.target as HTMLElement).closest<HTMLElement>('[data-goal]');
     if (row) openGoal(row.dataset.goal as GoalId);
   });
-  // A goal from the phone's strip over the map.
+  // The phone's row of chips over the map: the score opens the city pane on its overview (an open screen put away
+  // ends), an area its screen (the open one's back up), its × ends it, the rating the polls. (Scrolled, its cut edges
+  // fade.)
+  $('#goal-strip').addEventListener('scroll', () => edgeFade($('#goal-strip')), { passive: true });
   $('#goal-strip').addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).closest('[data-strip-more]')) {
+    const t = e.target as HTMLElement;
+    if (t.closest('[data-strip-score]')) {
+      closeGoal();
       openPane();
+      // (From the keyboard, into it: the chip goes away with the bars, and the focus fell to the page.)
+      if ((e as MouseEvent).detail === 0) $('#pane-close').focus({ preventScroll: true });
       return;
     }
-    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-strip-goal]');
+    if (t.closest('[data-strip-end]')) {
+      closeGoal();
+      return;
+    }
+    if (t.closest('[data-strip-polls]')) {
+      openGoalAt('environment', '#polls', 'mayor');
+      return;
+    }
+    const b = t.closest<HTMLElement>('[data-strip-goal]');
     if (!b) return;
     const id = b.dataset.stripGoal as GoalId;
     openGoal(id, incidents().find((x) => x.goal === id)?.at);
@@ -2939,7 +2963,7 @@ export function setupGoals(): void {
       handed = act.dataset.act!;
       handedPick = toolPicks;
       handedBy = active;
-      // Phones: the pane steps aside for the map; the goal's chip brings it back.
+      // Phones: the pane steps aside for the map; the goal's chip at the top brings it back.
       if (phone()) {
         closePane();
         // (A unit to send isn't a thing to place: it said "지도에서 놓을 곳을 고르세요" for a fire truck.)
@@ -3188,8 +3212,5 @@ export function setupGoals(): void {
     updatePanels();
     renderGoal(true);
   });
-  // The map's chip (a phone's, its screen put away): back to the goal's panel, or out of it.
-  $('#manage-chip-label').onclick = () => openPane();
-  $('#manage-chip-close').onclick = () => closeGoal();
 }
 

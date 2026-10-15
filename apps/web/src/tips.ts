@@ -1,10 +1,10 @@
-// The bars' own tooltips — the building bar down the map (on a phone-wide window, across its foot) and the menu under
-// it, the top bar (the date, the speeds), 전체 and the zoom: a control's name, what it does and its keys, by it
-// once the pointer rests there, at once along the bar. (The browser's came after a second, small and plain, the keys
-// run into the words.) Elsewhere titles stay the browser's.
+// The bars' own tooltips — the building bar across the map's foot, the top buttons (where the city is, the clock's
+// date and speeds, the menu), 전체 and the zoom: a control's name, what it does and its keys, by it once the pointer
+// rests there, at once along the bar. (The browser's came after a second, small and plain, the keys run into the
+// words.) Elsewhere titles stay the browser's.
 
-// (Not the view's card hanging from the top bar: its name and 찾아가기 keep the browser's.)
-const SCOPE = '#dock-col :is(button, summary), #mapbar > button, #mapbar .mb-time button, #mapbar > #menu > summary, #mapbar > #sb-date, #map-controls button';
+// (Not the view's card under the top buttons: its name and 찾아가기 keep the browser's.)
+const SCOPE = '#dock-col button, #mapbar > button, #mapbar .mb-time button, #mapbar > #menu > summary, #clock > #sb-date, #map-controls button';
 
 /** A key as a title ends with one: "(Ctrl+Z)" (on a Mac "(⌘Z)", "(⇧⌘Z)"), "(R·T·V·H)", "(0 · Space)" — words in
  *  brackets are not keys. */
@@ -57,8 +57,8 @@ function render(el: HTMLElement, title: string): void {
   place(el);
 }
 
-/** Beside the bar down the map (and the menu under it); above a bar across the foot; under the top bar's and the
- *  corner's controls. */
+/** Above the building bar across the foot; under the top buttons and the corner's controls (beside a bar standing
+ *  down the map, were there one). */
 function place(el: HTMLElement): void {
   if (!tip) return;
   tip.hidden = false;

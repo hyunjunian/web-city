@@ -2,7 +2,7 @@
 
 import { DEV_TYPES, type DevType, GROWTH_CODES, STRUCTURES, ZONES, type PollTopic, type StructureKind } from '@web-city/engine';
 import { icon } from './icons';
-import { chooseSpeed, markPaneClock, refreshTaxes, refreshViewSummary } from './controls';
+import { chooseSpeed, fitMapbar, markMonth, markPaneClock, refreshTaxes, refreshViewSummary } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
 import { adviceFor, capped as atCap, deptEmpty, deptFunded, freshLandfill, newReadings, readStats, stormHolds } from './readings';
 import { active, autoPause, markToolSite, openGoal, openViewTab, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
@@ -129,6 +129,15 @@ const STAGES: [number, string][] = [
   [0, '마을'], [1_000, '작은 읍'], [5_000, '읍'], [10_000, '소도시'], [25_000, '도시'],
   [50_000, '중견 도시'], [100_000, '대도시'], [250_000, '광역 도시'], [500_000, '거대 도시'], [1_000_000, '메트로폴리스'],
 ];
+
+/** The place button's region and name as last written (a rename, a region made or left). */
+let placeSeen = '';
+
+/** The stage a city of `population` residents has reached (counted from 1), and the next one if any. */
+export function stageOf(population: number): { name: string; step: number; next?: [number, string] } {
+  const i = Math.max(0, STAGES.filter(([n]) => population >= n).length - 1);
+  return { name: STAGES[i]![1], step: i + 1, next: STAGES[i + 1] };
+}
 
 /** Population milestones announced as they are passed (not for the level a city opens at): the city's stages. */
 let milestoneCity: unknown = null;
@@ -380,18 +389,21 @@ export function updatePanels(): void {
     const delta = prev === undefined ? 0 : now - prev;
     return Math.abs(delta) >= 1 ? `<span class="k-sub ${delta < 0 ? 'neg' : 'pos'}">${delta < 0 ? '▼' : '▲'}${fmt(Math.abs(delta))}</span>` : '';
   };
-  // The pane's head: the region (or none: a city of its own, which the 지역 sheet can make one of) › the city.
-  const cityName = $('#city-name');
-  if (cityName.textContent !== city.state.name) {
-    cityName.textContent = city.state.name;
-    $('#city-title').setAttribute('aria-label', `${city.state.name}: 도시 이름 바꾸기`);
-  }
+  // Where the city is, at the top: the region (or none: a city of its own, which the 지역 sheet can make one of) › the
+  // city; pressed, 지역 — with the city's name in it to change.
   const regionName = region ? region.name : '지역 없음';
-  const regionEl = $('#crumb-region-name');
-  if (regionEl.textContent !== regionName) {
-    regionEl.textContent = regionName;
-    $('#crumb-region').classList.toggle('none', !region);
-    $('#crumb-region').title = region ? `${region.name}: 지역의 도시·이웃·거래 (J)` : '지역에 속하지 않은 도시 · 이웃 도시·거래, 새 지역 만들기 (J)';
+  if (placeSeen !== `${regionName}\n${city.state.name}`) {
+    placeSeen = `${regionName}\n${city.state.name}`;
+    $('#city-name').textContent = city.state.name;
+    $('#sheet-city-name').textContent = city.state.name;
+    $('#place-region').textContent = regionName;
+    const place = $('#btn-place');
+    place.classList.toggle('none', !region);
+    place.title = region
+      ? `${region.name} › ${city.state.name}: 지역의 도시·이웃·거래, 도시 이름 바꾸기 (J)`
+      : `${city.state.name}: 지역에 속하지 않은 도시 · 이웃 도시·거래, 새 지역 만들기, 도시 이름 바꾸기 (J)`;
+    place.setAttribute('aria-label', `${region ? `${region.name} 지역` : '지역 없음'}, ${city.state.name} · 지역과 도시 이름`);
+    fitMapbar(); // (the names' room: the region's may have to go)
   }
   const dateEl = $('#sb-date');
   const label = `${d.year}년 ${d.month}월`;
@@ -404,11 +416,11 @@ export function updatePanels(): void {
     dateEl.classList.add('turned');
     markPaneClock(); // (a phone's clock in the pane says the month too)
   }
-  dateEl.style.setProperty('--month-pct', `${((city.state.day % 30) / 30) * 100}%`);
+  markMonth(((city.state.day % 30) / 30) * 100);
   // (Not in a phone's clock button, which has its own: a second tooltip came up over it with a mouse.)
   if (dateEl.closest('#btn-time')) dateEl.removeAttribute('title');
-  else dateEl.title = `${d.year}년 ${d.month}월 ${d.day}일 · 밑줄: 이달이 지나간 만큼`;
-  // (The wind — where a fire spreads — is not on the web screen for now. The top bar keeps the date and the clock:
+  else dateEl.title = `${d.year}년 ${d.month}월 ${d.day}일 · 테두리의 파란 선: 이달이 지나간 만큼`;
+  // (The wind — where a fire spreads — is not on the web screen for now. The top buttons keep the date and the clock:
   // population and money are read in the city pane.)
   // The advisors first: the watch list reads their latest word (a row lagged an update behind).
   const adv = advice();
@@ -437,7 +449,6 @@ export function updatePanels(): void {
   }
   renderGoal();
   markToolSite(); // (built, the next gap: no screen open)
-  refreshStrip();
   const dem = city.demand;
   // SC4's RCI meter: each class shows its strongest demand (or weakest, when none is positive).
   const summary = RCI_CLASSES.map(([k, label, color]) => {
@@ -502,6 +513,7 @@ export function updatePanels(): void {
   if (goal === 'wealth') renderRewards();
   if (goal === 'growth' || goal === 'education') renderAges();
   renderOnboarding();
+  refreshStrip(); // (after the checklist: its score chip says 시작하기 while it shows)
 }
 document.addEventListener('sheet-open', () => updatePanels());
 

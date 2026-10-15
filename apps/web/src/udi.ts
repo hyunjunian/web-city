@@ -105,8 +105,8 @@ export function startDrive(id: MissionId): void {
 
 export function followVehicle(): void {
   if (!drive) return;
-  // (Centred in the map nothing covers — under the top bar, beside the controls' bar (above it, on a phone) — not the whole canvas: the target
-  // ahead began under the bar.)
+  // (Centred in the map nothing covers — under the top buttons, above the building bar, beside the city pane — not the
+  // whole canvas: the target ahead began under a bar.)
   const b = mapBand();
   cam.x = drive.x + 0.5 - (b.left + b.right) / 2 / cam.scale;
   cam.y = drive.y + 0.5 - (b.top + b.bottom) / 2 / cam.scale;

@@ -21,6 +21,8 @@ export const ONBOARDING_KEY = 'web-city-onboarding-done';
 
 /** First steps for a new mayor, ticked off from the city itself (hidden once all are done or dismissed). */
 let onboardingKey = '';
+/** While the checklist shows: how many of its steps are done, of how many (a phone's score chip says so). */
+export let checklist: { done: number; of: number } | null = null;
 
 export function renderOnboarding(): void {
   const el = $('#onboarding');
@@ -36,6 +38,7 @@ export function renderOnboarding(): void {
   // (Put away: nothing to work out.)
   if (dismissed) {
     el.hidden = true;
+    checklist = null;
     if (firstStepTool) {
       firstStepTool = null;
       markSuggested();
@@ -102,7 +105,7 @@ export function renderOnboarding(): void {
     // The first residents, then the town to a thousand (where the services start to be worth their upkeep), with more
     // homes once those there are all built.
     st.population === 0
-      ? [false, zoned(homeZone) && city.state.day > 60 ? '첫 주민 입주 · 안 들어오면 개발 막힘 보기로 원인 확인' : `첫 주민 입주 (시간이 멈춰 있으면 ${matchMedia('(max-width: 860px)').matches ? '이 창 위의 시계를 누르세요' : '위 막대의 ▶'})`, zoned(homeZone) ? 'view:growth' : null]
+      ? [false, zoned(homeZone) && city.state.day > 60 ? '첫 주민 입주 · 안 들어오면 개발 막힘 보기로 원인 확인' : `첫 주민 입주 (시간이 멈춰 있으면 ${matchMedia('(max-width: 860px)').matches ? '이 창 위의 시계를 누르세요' : '위 가운데 시간 버튼의 ▶'})`, zoned(homeZone) ? 'view:growth' : null]
       : [st.population >= 1000, `주민 1,000명 (지금 ${fmt(st.population)}명)${homesFull ? ' · 주거 구역이 다 찼습니다: 더 칠하면 늘어납니다' : ''}`, homesFull ? 'R-low' : 'view:growth'],
     // Spending runs ahead of a young town's taxes: the step that keeps the books in the black.
     // (Always listed, so the count doesn't change under the player; ticked by a month in the black.)
@@ -130,6 +133,7 @@ export function renderOnboarding(): void {
   // whole list to come back over the city at 12/13.
   if (done === steps.length) doneLineage = cityLineage;
   el.hidden = dismissed || done === steps.length || doneLineage === cityLineage;
+  checklist = el.hidden ? null : { done, of: steps.length };
   // While the list shows, its first step to do (in the order it lists them) with a tool: the dock dots that tool's
   // category, where to go on, on the map's side too. (Only before the first road had it: after that the goal
   // screens' next step had the dot, 에너지, beside a list saying 상업·산업 구역 next.) A step done on a screen
@@ -176,8 +180,8 @@ export function renderOnboarding(): void {
     + (plant ? `g${plant.kind}${plant.at.join(',')}` : '')
     + (station ? `s${station.kind}${station.at.join(',')}` : '') + (tower ? `t${tower.kind}${tower.at.join(',')}` : '') + (fill ? `l${fill.x0},${fill.y0},${fill.side}${fillSpan(fill.months)}` : '');
   if (el.dataset.sig === sig) return;
-  // Phones: the checklist sits in the city pane, so its dock button gets a dot until opened.
-  if (!el.dataset.sig && !paneShown()) document.querySelector('.mb-city')?.classList.add('unread');
+  // Phones: the checklist sits in the city pane, so the score chip that opens it gets a dot until it is opened.
+  if (!el.dataset.sig && !paneShown()) document.getElementById('goal-strip')?.classList.add('unread');
   el.dataset.sig = sig;
   // The next three steps; the rest fold away (the whole list pushed the RCI meter off the pane). One that waits on growth
   // goes last.

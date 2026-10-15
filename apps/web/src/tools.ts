@@ -353,13 +353,11 @@ export function buildTools(): void {
   };
   // In three groups: building the city; rewards and the land; taking down, last.
   const SEP_BEFORE: CategoryId[] = ['special', 'bulldoze'];
-  // (The one 짓기 a window too low gathers the build categories behind stands where they stood, before 철거.)
-  const build = `<button class="dock-btn dock-build" data-cat="build" aria-expanded="false" aria-controls="tray" title="짓기: ${BUILD_CATS.map((id) => CATEGORIES.find((c) => c.id === id)!.label).join('·')}">${icon('hammer')}<span class="dock-label">짓기</span></button>`;
   // (Not 살펴보기: with nothing in hand the map looks by itself.)
-  dock.innerHTML = CATEGORIES.filter((c) => c.id !== 'inspect').map((c) => (c.id === 'bulldoze' ? build : '') + (SEP_BEFORE.includes(c.id) ? '<span class="dock-sep" aria-hidden="true"></span>' : '')
-    + catButton(c, `dock-btn${BUILD_CATS.includes(c.id) ? ' dock-build-cat' : ''}`, 'short' in c ? c.short : c.label)).join('');
-  // A window too low for them all: the build categories as a row at the top of the tray.
-  // (철거 at its end as on the bar: the bar is away under the card on a phone, and the bulldozer was out of reach.)
+  dock.innerHTML = CATEGORIES.filter((c) => c.id !== 'inspect').map((c) => (SEP_BEFORE.includes(c.id) ? '<span class="dock-sep" aria-hidden="true"></span>' : '')
+    + catButton(c, 'dock-btn', 'short' in c ? c.short : c.label)).join('');
+  // A phone's tools' card heads itself with the build categories (the bar is away under the card there).
+  // (철거 at its end as on the bar: the bulldozer was out of reach.)
   $('#tray-cats').innerHTML = [...BUILD_CATS, 'bulldoze' as const].map((id) => {
     const c = CATEGORIES.find((x) => x.id === id)!;
     return catButton(c, 'tray-cat', 'short' in c ? c.short : c.label);
@@ -378,8 +376,8 @@ export function buildTools(): void {
         return;
       }
       const inTray = !!b.closest('#tray-cats');
-      const cat = b.dataset.cat === 'build' ? lastBuildCat : b.dataset.cat as CategoryId;
-      const same = b.dataset.cat === 'build' ? !!openCat && BUILD_CATS.includes(openCat) : openCat === cat;
+      const cat = b.dataset.cat as CategoryId;
+      const same = openCat === cat;
       if (same && !inTray) {
         closeTray(true);
         return;
@@ -631,7 +629,7 @@ export function openTray(cat: CategoryId, fromDock = false): void {
   // (A facility's hidden tile is 'active' too: its card in the list is the one to show.)
   document.querySelector<HTMLElement>('#tools .tray-section:not([hidden]) :is(.tile.active:not([hidden]), .pick.active)')?.scrollIntoView({ block: 'nearest' });
   document.querySelectorAll<HTMLButtonElement>('#dock-tools [aria-controls="tray"], #tray-cats [aria-controls="tray"]').forEach((b) => {
-    const on = b.dataset.cat === cat || (b.dataset.cat === 'build' && BUILD_CATS.includes(cat));
+    const on = b.dataset.cat === cat;
     b.classList.toggle('open', on);
     b.setAttribute('aria-expanded', String(on));
   });
@@ -656,7 +654,7 @@ export function closeTray(byPlayer = false): boolean {
     // again and swap the tool for 도로, where the help says Enter builds at the cursor. Not when it was put away, Esc
     // with a tool already in hand: back to where it was opened from.)
     if (tool.id !== 'query' && !byPlayer) active?.blur();
-    else [...document.querySelectorAll<HTMLButtonElement>(`#dock-tools [data-cat="${cat}"], #dock-tools .dock-build`)].find((b) => b.offsetParent)?.focus();
+    else document.querySelector<HTMLButtonElement>(`#dock-tools [data-cat="${cat}"]`)?.focus();
   }
   document.querySelectorAll<HTMLButtonElement>('#dock-tools [aria-controls="tray"], #tray-cats [aria-controls="tray"]').forEach((b) => {
     b.classList.remove('open');
@@ -973,7 +971,7 @@ function refreshToolAlts(): void {
 }
 
 /** A row cut off at an edge fades there (a narrow screen scrolls the rest into view). */
-function edgeFade(row: HTMLElement): void {
+export function edgeFade(row: HTMLElement): void {
   row.classList.toggle('more-right', row.scrollLeft + row.clientWidth < row.scrollWidth - 2);
   row.classList.toggle('more-left', row.scrollLeft > 2);
 }
@@ -1012,7 +1010,7 @@ export function selectTool(id: string): void {
   });
   // The dock marks the category in use; the chip on the map names the tool (none for 조회).
   document.querySelectorAll<HTMLButtonElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) =>
-    b.classList.toggle('current', b.dataset.cat === cat || (b.dataset.cat === 'build' && BUILD_CATS.includes(cat))));
+    b.classList.toggle('current', b.dataset.cat === cat));
   document.querySelectorAll('#dock-tools [data-cat="bulldoze"], #tray-cats [data-cat="bulldoze"]').forEach((b) => b.setAttribute('aria-pressed', String(tool.id === 'bulldoze')));
   // Building or clearing: time waits while it is planned (and runs on when the tool is put down).
   holdForBuilding(!WATCHING.has(tool.kind));
@@ -1326,7 +1324,7 @@ export function markSuggested(): void {
   shownAct = act && categoryOf(act) !== 'inspect' && !(seen.act === act && seen.city === cityLineage) ? act : '';
   const cats = new Set(shownAct ? [categoryOf(shownAct)] : []);
   document.querySelectorAll<HTMLElement>('#dock-tools [data-cat], #tray-cats [data-cat]').forEach((b) => {
-    const on = cats.has(b.dataset.cat as CategoryId) || (b.dataset.cat === 'build' && cats.size > 0);
+    const on = cats.has(b.dataset.cat as CategoryId);
     if (b.classList.contains('suggest') === on) return;
     b.classList.toggle('suggest', on);
     // (Said in words too, for a tooltip and a screen reader.)

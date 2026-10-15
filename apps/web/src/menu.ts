@@ -20,25 +20,13 @@ export function setupMenu(): void {
     if ((e.target as HTMLElement).closest('button')) dropdown.open = false;
   });
   // No taller than the room it has, scrolling the rest (on a short window its first lines were off the top, then over
-  // the date): on a phone, down from the top bar's end to the building bar's head; wide, out from its button's side
-  // under the building bar, its foot level with the button — or, taller than the room above it, from the top bar's
-  // foot down (up from the button it was cut to half its lines, with the window's lower half empty).
+  // the date): down from its button at the top to the building bar's head at the foot.
   const place = () => {
     const menu = dropdown.querySelector<HTMLElement>('.dropdown-menu')!;
-    menu.style.maxHeight = menu.style.top = menu.style.bottom = '';
+    menu.style.maxHeight = '';
     const r = menu.getBoundingClientRect();
-    if (dropdown.closest('#mapbar')) {
-      const floor = $('#dock').getBoundingClientRect().top - 8;
-      if (r.bottom > floor) menu.style.maxHeight = `${Math.max(160, floor - r.top)}px`;
-    } else {
-      const roof = $('#mapbar').getBoundingClientRect().bottom + 8;
-      const floor = $('#view').getBoundingClientRect().bottom - 14;
-      if (r.top < roof) {
-        menu.style.top = `${roof - dropdown.getBoundingClientRect().top}px`;
-        menu.style.bottom = 'auto';
-        if (roof + r.height > floor) menu.style.maxHeight = `${Math.max(160, floor - roof)}px`;
-      }
-    }
+    const floor = Math.min($('#dock').getBoundingClientRect().top, $('#view').getBoundingClientRect().bottom) - 8;
+    if (r.bottom > floor) menu.style.maxHeight = `${Math.max(160, floor - r.top)}px`;
   };
   // When the menu opens, say when the game is next saved automatically (every six game months).
   dropdown.addEventListener('toggle', () => {
@@ -47,11 +35,9 @@ export function setupMenu(): void {
     $('#autosave-note').textContent = `다음 자동 저장: ${2000 + Math.floor(m / 12)}년 ${(m % 12) + 1}월 (탭을\u00a0떠날\u00a0때도\u00a0저장)`;
     place();
   });
-  // (The window resized with it open: placed again for the room there is now. Across the phone's width it closes
-  // instead, as it moves to the other bar: fitMapbar.)
+  // (The window resized with it open: placed again for the room there is now.)
   addEventListener('resize', () => {
-    const phone = () => matchMedia('(max-width: 860px)').matches;
-    if (dropdown.open) requestAnimationFrame(() => dropdown.open && !!dropdown.closest('#mapbar') === phone() && place());
+    if (dropdown.open) requestAnimationFrame(() => dropdown.open && place());
   });
   document.addEventListener('pointerdown', (e) => {
     if (dropdown.open && !dropdown.contains(e.target as Node)) dropdown.open = false;
@@ -89,7 +75,7 @@ export function setupMenu(): void {
     if (!res.ok) flash(ko(res.message ?? ''), 'bad');
     updatePanels();
   };
-  $('#city-title').onclick = rename;
+  $('#sheet-rename').onclick = rename; // (지역's city row)
   $('#btn-rename').onclick = rename;
   const hm = document.querySelector<HTMLInputElement>('#new-dialog input[name="heightmap"]')!;
   hm.onchange = async () => {

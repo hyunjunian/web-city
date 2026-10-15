@@ -30,12 +30,6 @@
              or goes on (the speeds are picked from the top button). -->
         <button type="button" id="pane-clock" class="pane-clock"></button>
         <button id="pane-close" class="icon-btn pane-close" aria-label="도시 현황 닫기"><span data-icon="close"></span></button>
-        <!-- Where this city is: its region (pressed, the region and neighbours), then the city (pressed, renamed). -->
-        <nav id="crumbs" class="crumbs" aria-label="지역과 도시">
-          <button type="button" id="crumb-region" class="crumb-region" data-sheet-btn="region" aria-pressed="false"><span data-icon="globe"></span><span id="crumb-region-name"></span></button>
-          <span class="crumb-sep" aria-hidden="true"><span data-icon="chevronRight"></span></span>
-          <button type="button" id="city-title" class="crumb-city" title="눌러서 도시 이름 바꾸기"><span id="city-name"></span><span data-icon="pencil"></span></button>
-        </nav>
         <section id="manage" aria-label="분야별 관리" aria-live="off">
         <!-- A goal's screen, top down: its name and tabs (each tab puts its map view on) with the tab's figures; their
              graphs and reports; what can be done about it; then the advisors' words and what was done here. -->
@@ -79,18 +73,26 @@
         <canvas id="map" tabindex="0" role="application" aria-label="도시 지도" aria-describedby="map-keys"></canvas>
         <p id="map-keys" class="sr-only">방향키로 지도를 옮기고, 도구를 든 채 Enter로 커서 자리에 짓습니다. S는 추천 자리로, 0에서 3은 속도, Space는 멈춤과 이어 하기, 물음표는 조작법입니다.</p>
 
-        <!-- The map's bars. Down its left (on a phone, across its foot) the building tools alone, and under them the menu,
-             a button of its own; along its top the date and the speeds (on a phone three buttons: the clock, 도시 상태 and the
-             menu). (First in
-             the map's parts, so Tab reaches building before the date; on a phone fitMapbar puts it after the top bar.) -->
-        <div id="dock-col">
-          <nav id="dock" class="floating" aria-label="짓기">
-            <div id="dock-tools" role="toolbar" aria-label="짓기" aria-orientation="vertical"></div>
-          </nav>
-          <!-- The menu: the city's files, the region, help and the screen's settings — a button of its own under the
-               bar (on a phone, at the top bar's end: fitMapbar moves it). -->
-          <details class="dropdown floating" id="menu">
-            <summary class="dock-btn" title="메뉴: 저장 · 불러오기 · 지역 · 조작법 · 테마" aria-label="메뉴"><span data-icon="more"></span><span class="dock-label">메뉴</span></summary>
+        <!-- The map's bars, floating over it. Along the top in the middle three buttons of their own: where the city is
+             (its region › its name; pressed, 지역 — the region, the neighbours and the city's name), the clock (the date
+             and the four speeds, the month's progress running clockwise round its edge; on a phone one button, its
+             speeds in a card under it) and the menu; on a phone, a row of chips under them: the city's score and each
+             area's state. Along the foot in the middle the building categories (dock-col, below), their tools' card
+             opening over them. (First in the map's parts: Tab goes the way the eye does, top down.) -->
+        <div id="mapbar" role="group" aria-label="도시·시간·메뉴">
+          <button type="button" id="btn-place" class="mb-btn mb-place" data-sheet-btn="region" aria-pressed="false"><span data-icon="globe"></span><span id="place-region" class="place-region"></span><span class="place-sep" aria-hidden="true"><span data-icon="chevronRight"></span></span><b id="city-name" class="place-city"></b></button>
+          <!-- The clock: the date and the speeds in a row (a phone's one button, its speeds in a card it only opens). -->
+          <div id="clock" class="mb-clock">
+            <svg class="month-ring" aria-hidden="true" focusable="false"><path pathLength="100" /></svg>
+            <span id="sb-date" class="sb-date"></span>
+            <div class="mb-time">
+              <button type="button" id="btn-time" class="mb-btn" aria-haspopup="true" aria-expanded="false" aria-controls="speed" title="시간: 속도 고르기"><span class="time-glyph" aria-hidden="true"></span><span class="mb-label" id="time-label">시간</span></button>
+              <div id="speed" class="gear" role="radiogroup" aria-label="시뮬레이션 속도"></div>
+            </div>
+          </div>
+          <!-- The menu: the city's files, the region, help and the screen's settings. -->
+          <details class="dropdown" id="menu">
+            <summary class="mb-btn mb-menu" title="메뉴: 저장 · 불러오기 · 지역 · 조작법 · 테마" aria-label="메뉴"><span data-icon="more"></span><span class="mb-label">메뉴</span></summary>
             <div class="dropdown-menu">
               <button data-sheet-btn="region" title="이웃 도시·거래 (J)"><span data-icon="globe"></span>지역</button>
               <hr />
@@ -111,31 +113,17 @@
               <p id="autosave-note" class="menu-note"></p>
             </div>
           </details>
+          <!-- A phone's second row: the city's score (pressed, the city pane) and each area's state (pressed, its
+               screen), the ones off first. -->
+          <div id="goal-strip" hidden role="toolbar" aria-label="도시 점수와 분야별 상태"></div>
         </div>
 
-        <!-- The map's top bar: the date and the speeds; on a phone three buttons of their own — the clock (the date and the
-             speed now, its four speeds in a card), 도시 상태 and the menu (fitMapbar puts the date in the clock and the
-             menu last there). The map view's card hangs under it: the view a goal's tab put on (no list of views: the
-             goal's tabs choose), its name, legend and count. (Positioned, not in the row.) -->
-        <div id="mapbar" class="floating" role="group" aria-label="날짜·시간">
-          <div id="map-layer" class="floating off">
-            <button type="button" class="layer-title" id="layer-title" aria-expanded="false" title="범례 펼치기·접기"><span data-icon="layers"></span><span id="layer-name"></span><span class="legend-toggle" aria-hidden="true"><span data-icon="chevronDown"></span></span></button>
-            <div id="overlay"></div>
-          </div>
-          <span id="sb-date" class="sb-date"></span>
-          <!-- The speeds in a row (a phone's in a card from its clock button, which only opens it). -->
-          <div class="mb-time">
-            <button type="button" id="btn-time" class="mb-btn" aria-haspopup="true" aria-expanded="false" aria-controls="speed" title="시간: 속도 고르기"><span class="time-glyph" aria-hidden="true"></span><span class="mb-label" id="time-label">시간</span></button>
-            <div id="speed" class="gear" role="radiogroup" aria-label="시뮬레이션 속도"></div>
-          </div>
-          <button type="button" class="mb-btn mb-city" data-app="city" aria-label="도시 상태" aria-pressed="false" title="도시 상태 열기"><span data-icon="gauge"></span><span class="mb-label">도시 상태</span></button>
+        <!-- The map view's card: the view a goal's tab (or the tool in hand) put on — its name, legend and count. -->
+        <div id="map-layer" class="floating off">
+          <button type="button" class="layer-title" id="layer-title" aria-expanded="false" title="범례 펼치기·접기"><span data-icon="layers"></span><span id="layer-name"></span><span class="legend-toggle" aria-hidden="true"><span data-icon="chevronDown"></span></span></button>
+          <div id="overlay"></div>
         </div>
 
-        <div id="manage-chip" class="floating" hidden>
-          <button type="button" id="manage-chip-label" title="관리 화면 열기"></button>
-          <button type="button" id="manage-chip-close" class="icon-btn" title="관리 끝내기" aria-label="관리 끝내기"><span data-icon="close"></span></button>
-        </div>
-        <div id="goal-strip" class="floating" hidden aria-label="살펴볼 분야"></div>
         <div id="tool-chip" class="floating" hidden>
           <span id="tool-chip-icon"></span><button type="button" id="tool-chip-label"></button>
           <!-- The tool's siblings on the same bar: another road, density or kind in one click. -->
@@ -150,6 +138,13 @@
             <button id="zoom-fit" class="icon-btn" title="전체 보기 (Home)" aria-label="전체 보기"><span data-icon="fit"></span><span class="zoom-label" aria-hidden="true">전체</span></button>
           </div>
           <canvas id="minimap" class="floating" aria-hidden="true" title="미니맵: 누르거나 끌어서 이동"></canvas>
+        </div>
+
+        <!-- Along the foot in the middle: the building categories — 교통 · 개발 구역 · 에너지 · 서비스 | 보상 · 지형 | 철거. -->
+        <div id="dock-col">
+          <nav id="dock" class="floating" aria-label="짓기">
+            <div id="dock-tools" role="toolbar" aria-label="짓기" aria-orientation="horizontal"></div>
+          </nav>
         </div>
 
         <div id="toasts" aria-live="polite"></div>
@@ -186,7 +181,7 @@
           <div id="info"><p class="muted">지도를 눌러 보세요. 건물·길을 오가는 경로와 주민 생각도 함께 나옵니다.</p></div>
         </section>
 
-        <!-- The sheet: 지역 (neighbours, deals; the region's name in the pane, and the menu). -->
+        <!-- The sheet: 지역 — the city's name, the region, its neighbours and deals (the top bar's place button, the menu). -->
         <section id="sheet" class="sheet-card" aria-labelledby="sheet-title" hidden>
           <div class="sheet-body">
             <header class="card-head">
@@ -196,6 +191,10 @@
             <p id="sheet-note" class="sheet-note" hidden></p>
             <div class="panes">
               <div data-pane="region" role="region" aria-label="지역" hidden>
+                <!-- The city itself first: its name, and a way to change it (the top bar's button opened this sheet). -->
+                <section class="card city-card">
+                  <div class="city-row"><span class="city-row-label">도시</span><b id="sheet-city-name"></b><button type="button" id="sheet-rename" class="city-rename"><span data-icon="pencil"></span>이름 바꾸기</button></div>
+                </section>
                 <section class="card">
                   <h2>이웃 도시와 지역</h2>
                   <div id="neighbours"></div>

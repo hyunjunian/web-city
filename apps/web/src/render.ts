@@ -2211,7 +2211,7 @@ export class Renderer {
         const [cx, cy] = [m.x + m.w / 2, m.y + m.h / 2];
         if (cx >= vl && cx <= vr && cy >= vt && cy <= vb && !under(cx, cy, 0)) continue;
         let [px, py] = [Math.min(right, Math.max(left, cx)), Math.min(bottom, Math.max(top, cy))];
-        // (Below each card it would stand under, in turn: a goal's chip has the view's legend just under it.)
+        // (Below each card it would stand under, in turn: a phone's chips have the view's legend just under them.)
         for (let k = 0, card = under(px, py, 16); card && k < 4; k++, card = under(px, py, 16)) py = Math.min(bottom, cam.y + (card.bottom + 24) * u);
         const len = Math.hypot(cx - px, cy - py) || 1;
         const [dx, dy] = [(cx - px) / len, (cy - py) / len];
