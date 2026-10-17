@@ -1,10 +1,11 @@
-// The bars' own tooltips — the building bar across the map's foot, the top buttons (the city with its stage, the
-// clock's speeds with the date, the menu), the areas' chips under them, 전체 and the zoom: a control's name, what it
+// The bars' own tooltips — the building bar across the map's foot, the top buttons (the clock's speeds with the date,
+// the menu; a phone's city button), the city button and the areas' buttons (down the map's left wide, a phone's chips
+// under its top buttons), 전체 and the zoom: a control's name, what it
 // does and its keys, by it once the pointer rests there, at once along the bar. (The browser's came after a second, small and plain, the keys run into the
 // words.) Elsewhere titles stay the browser's.
 
 // (Not the view's card under the top buttons: its name and 찾아가기 keep the browser's.)
-const SCOPE = '#dock-col button, #mapbar > button, #mapbar .mb-time button, #mapbar > #menu > summary, #goal-strip button, #map-controls button';
+const SCOPE = '#dock-col button, #mapbar > button, #rail > button, #mapbar .mb-time button, #mapbar > #menu > summary, #goal-strip button, #map-controls button';
 
 /** A key as a title ends with one: "(Ctrl+Z)" (on a Mac "(⌘Z)", "(⇧⌘Z)"), "(R·T·V·H)", "(0 · Space)" — words in
  *  brackets are not keys. */
@@ -57,8 +58,8 @@ function render(el: HTMLElement, title: string): void {
   place(el);
 }
 
-/** Above the building bar across the foot; under the top buttons and the corner's controls (beside a bar standing
- *  down the map, were there one). */
+/** Above the building bar across the foot; beside the rail down the map's left; under the top buttons and the
+ *  corner's controls. */
 function place(el: HTMLElement): void {
   if (!tip) return;
   tip.hidden = false;
@@ -67,12 +68,14 @@ function place(el: HTMLElement): void {
   const h = tip.offsetHeight;
   const dock = el.closest<HTMLElement>('#dock-col');
   const across = dock && dock.offsetWidth > dock.offsetHeight;
+  const rail = el.closest<HTMLElement>('#rail');
   const clampX = (x: number) => Math.max(8, Math.min(innerWidth - w - 8, x));
   const clampY = (y: number) => Math.max(8, Math.min(innerHeight - h - 8, y));
   let x: number;
   let y: number;
-  if (dock && !across) {
-    x = dock.getBoundingClientRect().right + 8;
+  if ((dock && !across) || rail) {
+    // (Beside a column: the rail's buttons, a bar standing down the map.)
+    x = (rail ? r.right : dock!.getBoundingClientRect().right) + 8;
     y = clampY(r.top + r.height / 2 - h / 2);
     tip.dataset.side = 'right';
   } else if (across) {

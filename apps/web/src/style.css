@@ -6,17 +6,20 @@
 
 :root {
   --font: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', system-ui, sans-serif; /* Korean faces before system-ui, which picked a Latin-only face for the digits when the web font was blocked */
-  /* The map's floating parts: the top buttons' height, the chips' row under them and how far down the two reach; the
-     building bar's height, and how far up from the map's foot what stands over it starts (the tools' card, the tool
-     in hand, the hint). */
+  /* The map's floating parts: the top buttons' height (a phone's chips' row under them) and how far down they reach;
+     the rail down the map's left (wide: the city and its areas), its width with their figures and with their icons
+     alone; the building bar's height, and how far up from the map's foot what stands over it starts (the tools' card,
+     the tool in hand, the hint). */
   --mb-h: 44px;
   --strip-h: 34px;
-  --bar-h: calc(14px + var(--mb-h) + 6px + var(--strip-h));
+  --bar-h: calc(14px + var(--mb-h));
+  --rail-w: 236px;
+  --rail-c: 52px;
   --dock-h: 64px;
   --bb: calc(14px + var(--dock-h) + 10px);
-  /* The map left of --free-l is under the city pane while it is open (wide; 14px, the margin, while it is not); right
-     of --free-r, under a building's card while it is open (set on #view). */
-  --free-l: calc(var(--pane-w) + 28px);
+  /* The map left of --free-l is under what stands down its left (wide: the rail, and the city pane beside it while it
+     is open); right of --free-r, under a building's card while it is open (set on #view). */
+  --free-l: calc(var(--rail-c) + var(--pane-w) + 36px);
   --pane-w: 340px;
   --info-w: 380px;
   --r-xl: 22px;
@@ -367,7 +370,11 @@ kbd {
   transition: transform 0.26s var(--ease), visibility 0s 0.26s;
 }
 #app.pane-open #pane { transform: none; visibility: visible; transition: transform 0.26s var(--ease); }
-@media (min-width: 861px) { #app:not(.pane-open) { --free-l: 14px; } }
+/* Wide, beside the rail's column of icons (the rail at its full width while the pane is away). */
+@media (min-width: 861px) {
+  #pane { left: calc(22px + var(--rail-c)); }
+  #app:not(.pane-open) { --free-l: calc(var(--rail-w) + 28px); }
+}
 /* Fades out at the foot instead of cutting a line in half (while there is more below: tabs.ts) — a veil kept at the
    card's foot as it scrolls, not a mask (that faded the card's own edge and shadow away with the lines). */
 #pane.more-below::after {
@@ -1044,7 +1051,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
   display: flex; flex-direction: column; width: min(860px, calc(100% - var(--free-l) - var(--free-r) - 28px)); max-height: calc(100% - var(--bb) - var(--bar-h) - 12px);
   animation: tray-in 0.2s var(--ease);
 }
-@media (min-width: 861px) { #app:not(.pane-open) #tray { left: var(--bar-x, var(--mid)); } }
+@media (min-width: 861px) { #tray { left: var(--tray-x, var(--mid)); width: var(--tray-w, min(860px, calc(100% - var(--free-l) - var(--free-r) - 28px))); } }
 #tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(370px, 100%), 1fr)); column-gap: 22px; align-items: start; padding: 0 18px 2px; overflow-y: auto; } /* row by row, so groups keep their places (columns rebalanced them as their text changed) */
 #tools.more-below { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); }
 /* (And a word for it: at 1280×720 the fade alone took the 공원 heading, and the card looked finished.) */
@@ -1900,7 +1907,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .info-glance .neg .i { color: var(--danger-ink); }
 /* Zones: residential, commercial and industrial side by side, three densities each. */
 @media (min-width: 861px) {
-  #tray[data-cat='zones'] { width: min(720px, calc(100% - var(--free-l) - var(--free-r) - 28px)); }
+  #tray[data-cat='zones'] { width: min(720px, var(--tray-w, calc(100% - var(--free-l) - var(--free-r) - 28px))); }
   #tray[data-cat='zones'] #tools { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 18px; }
 }
 @media (min-width: 861px) { #tray[data-cat='zones'] .group { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -2578,17 +2585,12 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 @media (hover: hover) { .dock-btn[data-cat='bulldoze']:hover .i { color: var(--danger); } }
 #tray-cats { display: none; } /* (a phone's: the bar is away under the tools' card there) */
 
-/* ---- under the three buttons: each area's state, chips in a row — 시작하기 first while its checklist shows (pressed,
-   the city pane), the area whose screen is open (lit, its × beside it), then the areas needing a hand (red, then
-   amber: the red ones by name), then the sound ones by their icons alone — scrolling sideways when they are more than
-   the row. Wide, the row stands under the buttons in the middle, as wide as it needs up to what fitMapbar leaves it
-   (--strip-w); a phone has it across the screen. */
+/* ---- each area's state, a button each — 시작하기 first while its checklist shows (pressed, the city pane), the area
+   whose screen is open lit (its × beside it), the areas needing a hand (red, then amber) before the sound ones. A
+   phone has them as chips in a row under its top buttons (the red ones by name, the rest by their icons), scrolling
+   sideways; wide, they stand down the map's left in the rail (below). */
 #goal-strip { display: none; }
-#goal-strip:not([hidden]) {
-  display: flex; gap: 5px; min-width: 0; overflow-x: auto; scrollbar-width: none; pointer-events: none;
-  position: absolute; top: calc(100% + 6px); left: 50%; translate: -50% 0; width: max-content; max-width: var(--strip-w, 100%);
-  margin: -4px 0 -10px; padding: 4px 8px 10px;
-}
+#goal-strip:not([hidden]) { display: flex; gap: 5px; min-width: 0; overflow-x: auto; scrollbar-width: none; pointer-events: none; }
 #goal-strip::-webkit-scrollbar { display: none; }
 #goal-strip > * { pointer-events: auto; }
 #goal-strip button {
@@ -2621,6 +2623,61 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #goal-strip.more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
 #goal-strip.more-left { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); }
 #goal-strip.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+.city-sub { display: none; } /* (the rail's city button's second line) */
+
+/* ---- wide: down the map's left, the city and its areas — the city button (its name and stage; its residents and how
+   near the next stage, the ring round its edge filling toward it), then each area as a button of its own with its
+   figure (▲▼ its last three months), and why under them while it needs a hand. While the city pane is open beside
+   them, their icons alone in a narrow column (the pane says the rest): the one it shows lit. */
+#rail { display: none; }
+@media (min-width: 861px) {
+  #rail {
+    position: absolute; top: 14px; left: 14px; bottom: 14px; z-index: 8; width: var(--rail-w);
+    display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+  }
+  #rail > * { pointer-events: auto; }
+  #app.pane-open #rail { width: var(--rail-c); }
+  #rail #btn-city {
+    flex: none; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: 'ic name stage' 'ic sub sub';
+    align-items: center; justify-items: start; column-gap: 9px; row-gap: 2px; width: 100%; max-width: none; height: auto; min-height: 60px;
+    padding: 9px 12px; border-radius: 16px; text-align: left;
+  }
+  #rail #btn-city > .i { grid-area: ic; width: 22px; height: 22px; }
+  #rail .city-title { grid-area: name; max-width: 100%; font-size: 15px; }
+  #rail .city-stage { grid-area: stage; }
+  #rail .city-sub { grid-area: sub; display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; font-weight: 550; font-variant-numeric: tabular-nums; }
+  #rail #btn-city[aria-expanded='true'] .city-sub { color: inherit; }
+  #rail #goal-strip:not([hidden]) {
+    flex: 0 1 auto; flex-direction: column; gap: 6px; min-height: 0; overflow-x: hidden; overflow-y: auto;
+    margin: -4px -10px -10px; padding: 4px 10px 10px; /* (room for the buttons' shadows inside the scroll) */
+  }
+  #rail #goal-strip button {
+    display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; grid-template-areas: 'ic name val' 'ic note note';
+    align-items: center; justify-content: stretch; column-gap: 8px; row-gap: 1px; width: 100%; height: auto; min-height: 36px;
+    padding: 6px 11px 6px 10px; border-radius: 12px; text-align: left; color: var(--text);
+  }
+  #rail #goal-strip button > .i { grid-area: ic; width: 17px; height: 17px; }
+  #rail #goal-strip button.ok > .i { color: var(--muted); }
+  #rail .r-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 650; }
+  #rail .r-val { grid-area: val; display: inline-flex; align-items: baseline; gap: 3px; font-size: 12.5px; font-weight: 650; }
+  #rail .r-drift { font-size: 9px; color: var(--faint); }
+  #rail .r-note { grid-area: note; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; font-weight: 500; }
+  #rail #goal-strip .strip-start { margin: 0; padding: 6px 11px 6px 10px; }
+  #rail #goal-strip .strip-start .r-val { color: var(--muted); }
+  #rail #goal-strip .strip-on { display: flex; align-items: stretch; width: 100%; height: auto; border-radius: 12px; }
+  #rail #goal-strip .strip-on > button:first-child { flex: 1 1 auto; min-width: 0; width: auto; padding-right: 4px; }
+  #rail #goal-strip .strip-on [data-strip-end] { display: grid; place-items: center; flex: none; width: 32px; min-height: 0; margin: 0; padding: 0; }
+  #rail #goal-strip.more-down { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); }
+  #rail #goal-strip.more-up { -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to top, #000 calc(100% - 28px), transparent); }
+  #rail #goal-strip.more-up.more-down { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
+  /* The pane open beside them: their icons alone. */
+  #app.pane-open #rail #btn-city { grid-template-columns: 1fr; grid-template-areas: 'ic'; justify-items: center; min-height: 52px; padding: 0; }
+  #app.pane-open #rail #btn-city > :not(.i):not(.edge-ring) { display: none; }
+  #app.pane-open #rail #goal-strip button { grid-template-columns: 1fr; grid-template-areas: 'ic'; justify-items: center; min-height: 38px; padding: 0; }
+  #app.pane-open #rail #goal-strip button > :not(.i) { display: none; }
+  #app.pane-open #rail #goal-strip .strip-on [data-strip-end] { display: none; }
+  #app.pane-open #rail #goal-strip .strip-on > button:first-child { padding: 0; }
+}
 
 /* ---- over the building bar: the tool in hand and the hint over it (both waiting while the tools' card is up) */
 #view:has(#tool-chip:not([hidden])) #hint { bottom: calc(var(--bb) + 50px); }
@@ -2682,9 +2739,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   /* (The menu at the row's end: its list drops from it, level with its right edge.) */
 
   /* Under them, each area's state across the screen, in the row's own line (its margin keeps the chips' shadows in it). */
-  #goal-strip:not([hidden]) {
-    position: static; translate: none; flex: 1 0 100%; width: auto; max-width: none; margin: -4px -8px -10px; padding: 4px 8px 10px;
-  }
+  #goal-strip:not([hidden]) { flex: 1 0 100%; margin: -4px -8px -10px; padding: 4px 8px 10px; }
 
   /* 전체 보기 under the rows' right end; the view's card and the notices under their left. */
   #map-controls { top: calc(var(--bar-h) + 8px); right: max(8px, env(safe-area-inset-right)); }

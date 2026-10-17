@@ -17,7 +17,7 @@ import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, 
 import { checklist } from './onboarding';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { GRAPH_KEYS } from './graphs';
-import { closeInfo, closePane, closeSheet, openPane, showTab } from './tabs';
+import { closeInfo, closePane, closeSheet, dismissPane, openPane, showTab } from './tabs';
 import { categoryOf, chosen, edgeFade, kindsFor, openTray, panTipAt, pickStructure, restView, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice } from './choices';
@@ -41,18 +41,24 @@ const DRIFT: Partial<Record<GoalId, [(p: HistoryPoint) => number | undefined, 1 
   traffic: [(p) => p.commute, -1, '통근 시간'],
   environment: [(p) => p.air, -1, '대기 오염'],
 };
-/** Which way a goal went over the last three months: ▲ or ▼, toned by whether that is better (nothing when flat). */
-function drift(id: GoalId): string {
+/** Which way a goal went over the last three months (null when flat or not yet known): up or down, whether that is
+ *  better, and the words for it. */
+function driftOf(id: GoalId): { up: boolean; good: boolean; said: string } | null {
   const d = DRIFT[id];
   const h = city.state.history;
-  if (!d || h.length < 4) return '';
+  if (!d || h.length < 4) return null;
   const now = d[0](h.at(-1)!);
   const then = d[0](h.at(-4)!);
-  if (now === undefined || then === undefined) return '';
+  if (now === undefined || then === undefined) return null;
   const change = now - then;
-  if (Math.abs(change) <= Math.max(Math.abs(then), Math.abs(now)) * 0.03) return '';
+  if (Math.abs(change) <= Math.max(Math.abs(then), Math.abs(now)) * 0.03) return null;
   const good = Math.sign(change) === d[1];
-  return `<small class="w-drift ${good ? 'up' : 'down'}" title="${d[2]}: 3개월 전보다 ${change > 0 ? '늘었습니다' : '줄었습니다'} (${good ? '좋아지는 중' : '나빠지는 중'})">${change > 0 ? '▲' : '▼'}</small>`;
+  return { up: change > 0, good, said: `${d[2]}: 3개월 전보다 ${change > 0 ? '늘었습니다' : '줄었습니다'} (${good ? '좋아지는 중' : '나빠지는 중'})` };
+}
+/** {@link driftOf} as the pane's rows show it: ▲ or ▼, toned by whether that is better (nothing when flat). */
+function drift(id: GoalId): string {
+  const d = driftOf(id);
+  return d ? `<small class="w-drift ${d.good ? 'up' : 'down'}" title="${d.said}">${d.up ? '▲' : '▼'}</small>` : '';
 }
 
 /** The goals shown as the city's qualities (재정 has a card of its own, with the policy). */
@@ -135,15 +141,17 @@ let listOrder: { keys: string[]; split: number } | null = null;
 const hoverable = () => matchMedia('(hover: hover)').matches;
 
 /**
- * Under the top buttons, each area's state, a row of chips over the map — 시작하기 first while its checklist shows
- * (pressed, the city pane, which holds it), the area whose screen is open (lit, its × beside it), then the areas
- * needing a hand (anything burning first: by name while urgent, by a tinted icon while amber), then the sound ones by
- * their icons alone — in the city pane's order, the mayor's rating among them. Compact, so the row stays short; what it
- * can't show scrolls in, its cut edge faded. (The city's stage is the city button's, above.)
+ * Each area's state, a button each — 시작하기 first while its checklist shows (pressed, the city pane, which holds it),
+ * then the areas needing a hand (anything burning first), then the sound ones, in the city pane's order, the mayor's
+ * rating among them; the area whose screen is open lit, its × beside it. Wide, down the map's left under the city
+ * button (the rail): each with its name and figure, and why under them while it needs a hand (the order held while the
+ * pointer is over them). A phone, a row of chips under its top buttons: compact, the urgent by name, the rest by their
+ * icons alone, the open screen's first. What either can't show scrolls in, its cut edge faded.
  */
 export function refreshStrip(): void {
   const el = $('#goal-strip');
   const st = readStats();
+  const wide = !phone();
   // (A lone fire the stations are putting out is its row's amber, not red.)
   const inc = new Set(incidents().filter((x) => x.urgent).map((x) => x.goal as GoalId));
   const rank = (t: Tone) => (t === 'bad' ? 0 : t === 'warn' ? 1 : 2);
@@ -157,29 +165,47 @@ export function refreshStrip(): void {
     const tone: Tone = fire ? 'bad' : s.tone;
     const glyph = icon(fire ? (id === 'fire' ? 'flame' : 'megaphone') : g.icon);
     const said = tone === 'bad' ? ', 조치 필요' : tone === 'warn' ? ', 주의' : '';
+    const note = tone ? glue(s.note) : '';
+    const d = wide ? driftOf(id) : null;
+    // (개발·수요's figure as the pane's row has it: "주거 상한", "상업 +540".)
+    const value = id === 'growth' ? s.value.replace(' 수요 ', ' ') : s.value;
     return {
       key: id, tone, weight: WEIGHT[id],
-      html: (on: boolean) => `<button type="button" class="${tone || 'ok'}${tone === 'bad' || on ? '' : ' bare'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${g.name}: ${escapeHtml(s.value)}${tone ? ` · ${escapeHtml(glue(s.note))}` : ''} · 눌러서 ${g.name} 화면" aria-label="${g.name}${said}: ${escapeHtml(s.value)}"${on ? ' aria-pressed="true"' : ''}>${glyph}${tone === 'bad' || on ? g.name : ''}</button>`,
+      html: (on: boolean) => wide
+        ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${value}${note ? ` · ${note}` : ''}${d ? ` · ${d.said}` : ''} · 눌러서 ${g.name} 화면`)}" aria-label="${escapeHtml(`${g.name}${said}: ${value}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span><span class="r-val">${d ? `<small class="r-drift ${d.good ? 'up' : 'down'}" aria-hidden="true">${d.up ? '▲' : '▼'}</small>` : ''}${escapeHtml(value)}</span>${note ? `<span class="r-note">${escapeHtml(note)}</span>` : ''}</button>`
+        : `<button type="button" class="${tone || 'ok'}${tone === 'bad' || on ? '' : ' bare'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${g.name}: ${escapeHtml(s.value)}${tone ? ` · ${escapeHtml(note)}` : ''} · 눌러서 ${g.name} 화면" aria-label="${g.name}${said}: ${escapeHtml(s.value)}"${on ? ' aria-pressed="true"' : ''}>${glyph}${tone === 'bad' || on ? g.name : ''}</button>`,
     };
   });
   // 시장 평점: no goal of its own, a chip all the same (pressed, the polls); a sound one second, after 재정.
   const rTone = ratingTone(st.mayorRating);
   const rated = ratingRated();
+  const rNote = !rTone ? '' : st.mayorRating < 0 ? '주민 대다수가 불만 · 계속되면 탄핵될 수 있음' : '주민 만족이 낮음 · 여론을 살펴보세요';
   chips.push({
     key: 'rating', tone: rTone, weight: 4,
-    html: () => `<button type="button" class="${rTone || 'ok'}${rTone === 'bad' ? '' : ' bare'}" data-k="rating" ${tab('rating')} data-strip-polls title="시장 평점: ${rated ? st.mayorRating : '아직 없음'} · 눌러서 주제별 여론" aria-label="시장 평점${rTone === 'bad' ? ', 조치 필요' : rTone === 'warn' ? ', 주의' : ''}: ${rated ? st.mayorRating : '아직 없음'}">${icon('approval')}${rTone === 'bad' ? '시장 평점' : ''}</button>`,
+    html: () => wide
+      ? `<button type="button" class="${rTone || 'ok'}" data-k="rating" ${tab('rating')} data-strip-polls title="시장 평점: ${rated ? st.mayorRating : '아직 없음 (주민이 든 달이 지나면 매겨짐)'}${rNote ? ` · ${rNote}` : ''} · 눌러서 주제별 여론" aria-label="시장 평점${rTone === 'bad' ? ', 조치 필요' : rTone === 'warn' ? ', 주의' : ''}: ${rated ? st.mayorRating : '아직 없음'}">${icon('approval')}<span class="r-name">시장 평점</span><span class="r-val">${rated ? st.mayorRating : '—'}</span>${rNote ? `<span class="r-note">${rNote}</span>` : ''}</button>`
+      : `<button type="button" class="${rTone || 'ok'}${rTone === 'bad' ? '' : ' bare'}" data-k="rating" ${tab('rating')} data-strip-polls title="시장 평점: ${rated ? st.mayorRating : '아직 없음'} · 눌러서 주제별 여론" aria-label="시장 평점${rTone === 'bad' ? ', 조치 필요' : rTone === 'warn' ? ', 주의' : ''}: ${rated ? st.mayorRating : '아직 없음'}">${icon('approval')}${rTone === 'bad' ? '시장 평점' : ''}</button>`,
   });
-  const sorted = chips.map((c, k) => ({ c, k: c.key === 'rating' ? 0.5 : k }))
+  let sorted = chips.map((c, k) => ({ c, k: c.key === 'rating' ? 0.5 : k }))
     .sort((a, b) => rank(a.c.tone) - rank(b.c.tone) || (a.c.tone ? b.c.weight - a.c.weight : a.k - b.k)).map(({ c }) => c);
+  // (Wide, under a pointer the buttons keep their places, their figures still moving: one sorted up as the month
+  // turned would take the press meant for the one that had been there. They sort again once it leaves.)
+  if (wide && railOrder && hoverable() && document.querySelector('#rail:hover') && railOrder.length === sorted.length) {
+    const byKey = new Map(sorted.map((c) => [c.key, c]));
+    if (railOrder.every((k) => byKey.has(k))) sorted = railOrder.map((k) => byKey.get(k)!);
+  }
+  railOrder = sorted.map((c) => c.key);
   // 시작하기 and how far along, while its checklist shows (the city pane holds it).
-  const start = checklist
-    ? `<button type="button" class="strip-start" data-k="start" ${tab('start')} data-strip-start title="시작하기: ${checklist.done}/${checklist.of} 완료 · 눌러서 도시 현황의 시작하기 목록" aria-label="시작하기: ${checklist.done}/${checklist.of} 완료 · 도시 현황">${icon('sparkles')}<span>시작하기 <small>${checklist.done}/${checklist.of}</small></span></button>`
-    : '';
-  // The open screen's chip first after it, lit, with its ×.
+  const start = !checklist ? ''
+    : wide ? `<button type="button" class="strip-start" data-k="start" ${tab('start')} data-strip-start title="시작하기: ${checklist.done}/${checklist.of} 완료 · 눌러서 도시 현황의 시작하기 목록" aria-label="시작하기: ${checklist.done}/${checklist.of} 완료 · 도시 현황">${icon('sparkles')}<span class="r-name">시작하기</span><span class="r-val">${checklist.done}/${checklist.of}</span></button>`
+    : `<button type="button" class="strip-start" data-k="start" ${tab('start')} data-strip-start title="시작하기: ${checklist.done}/${checklist.of} 완료 · 눌러서 도시 현황의 시작하기 목록" aria-label="시작하기: ${checklist.done}/${checklist.of} 완료 · 도시 현황">${icon('sparkles')}<span>시작하기 <small>${checklist.done}/${checklist.of}</small></span></button>`;
+  // The open screen's lit, with its × — a phone's first after 시작하기; wide, in its place (a button that jumped to
+  // the top as it was pressed left another under the pointer).
   const on = active ? sorted.find((c) => c.key === active) : undefined;
-  const html = start
-    + (on && active ? `<span class="strip-on" data-k="on" role="group" aria-label="열린 화면: ${GOALS[active].name}">${on.html(true)}<button type="button" ${tab('end')} data-strip-end title="${GOALS[active].name} 화면 닫기 (지도 보기도 꺼짐)" aria-label="${GOALS[active].name} 화면 닫기">${icon('close')}</button></span>` : '')
-    + sorted.filter((c) => c !== on).map((c) => c.html(false)).join('');
+  const lit = on && active ? `<span class="strip-on" data-k="on" role="group" aria-label="열린 화면: ${GOALS[active].name}">${on.html(true)}<button type="button" ${tab('end')} data-strip-end title="${GOALS[active].name} 화면 닫기 (지도 보기도 꺼짐)" aria-label="${GOALS[active].name} 화면 닫기">${icon('close')}</button></span>` : '';
+  const html = start + (wide
+    ? sorted.map((c) => (c === on ? lit : c.html(false))).join('')
+    : lit + sorted.filter((c) => c !== on).map((c) => c.html(false)).join(''));
   el.hidden = false;
   if (html !== stripSeen) {
     stripSeen = html;
@@ -194,8 +220,21 @@ export function refreshStrip(): void {
     // (Moved, a chip lets go of the focus: back on it — or on the row's stop, its chip gone.)
     if (had !== undefined && !el.contains(document.activeElement)) (el.querySelector<HTMLElement>(`[data-tk="${had}"]`) ?? el.querySelector<HTMLElement>('[tabindex="0"]'))?.focus({ preventScroll: true });
   }
-  edgeFade(el);
+  fadeStrip(el);
 }
+/** The row's cut edges faded where it scrolls: sideways on a phone, up and down in the rail. */
+function fadeStrip(el: HTMLElement): void {
+  if (phone()) {
+    el.classList.remove('more-up', 'more-down');
+    edgeFade(el);
+  } else {
+    el.classList.remove('more-left', 'more-right');
+    el.classList.toggle('more-down', el.scrollTop + el.clientHeight < el.scrollHeight - 2);
+    el.classList.toggle('more-up', el.scrollTop > 2);
+  }
+}
+/** The rail's order as last drawn (held while the pointer is over it). */
+let railOrder: string[] | null = null;
 /** The chips' markup as last drawn (what the row shows, unless it changed). */
 let stripSeen = '';
 /** The chip the row's Tab stop is on (its data-tk): the one last focused or arrowed to. */
@@ -1409,7 +1448,7 @@ function clearOfCards(): void {
   const r = renderer.canvas.getBoundingClientRect();
   const [sx, sy] = [(spot.x + spot.w / 2 - cam.x) * cam.scale + r.left, (spot.y + spot.h / 2 - cam.y) * cam.scale + r.top];
   if (sx < r.left || sx > r.right || sy < r.top || sy > r.bottom) return; // (off the map: its edge arrow points there)
-  const cards = ['mapbar', 'goal-strip', 'map-layer', 'dock-col', 'map-zoom', 'minimap', 'pane', 'info-card'].flatMap((k) => {
+  const cards = ['mapbar', 'rail', 'map-layer', 'dock-col', 'map-zoom', 'minimap', 'pane', 'info-card'].flatMap((k) => {
     const el = document.getElementById(k);
     let c = el && !el.hidden && el.offsetParent && getComputedStyle(el).visibility !== 'hidden' ? el.getBoundingClientRect() : null;
     // (The pane where it comes to rest: it is sliding in with the screen just opened.)
@@ -2769,7 +2808,7 @@ export function setupGoals(): void {
   // The row of chips under the top buttons: 시작하기 opens the city pane on its overview (an open screen put away ends),
   // an area its screen (the open one's back up), its × ends it, the rating the polls. (Scrolled, its cut edges fade.)
   const strip = $('#goal-strip');
-  strip.addEventListener('scroll', () => edgeFade(strip), { passive: true });
+  strip.addEventListener('scroll', () => fadeStrip(strip), { passive: true });
   strip.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     // (From the keyboard, on into what opened: the chips go away with the bars, and the focus fell to the page.)
@@ -2795,19 +2834,24 @@ export function setupGoals(): void {
     const b = t.closest<HTMLElement>('[data-strip-goal]');
     if (!b) return;
     const id = b.dataset.stripGoal as GoalId;
+    // (Wide, the open area's button again puts the pane away, the screen kept on the map, as the city button's does.)
+    if (!phone() && id === active && $('#app').classList.contains('pane-open')) {
+      dismissPane();
+      return;
+    }
     openGoal(id, incidents().find((x) => x.goal === id)?.at);
     intoScreen();
   });
   // A toolbar: one Tab stop, the chip last in hand; the arrows (Home, End) go along the row. (Not the map's arrows
   // too: they panned it, or moved a building tool's cursor, under the chip being stepped through.)
   strip.addEventListener('keydown', (e) => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
     const all = [...strip.querySelectorAll<HTMLElement>('button')];
     const at = all.indexOf(document.activeElement as HTMLElement);
     if (at < 0) return;
     e.preventDefault();
     e.stopPropagation();
-    const to = all[e.key === 'Home' ? 0 : e.key === 'End' ? all.length - 1 : Math.max(0, Math.min(all.length - 1, at + (e.key === 'ArrowRight' ? 1 : -1)))]!;
+    const to = all[e.key === 'Home' ? 0 : e.key === 'End' ? all.length - 1 : Math.max(0, Math.min(all.length - 1, at + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1)))]!;
     to.focus();
     to.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   });

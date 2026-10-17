@@ -80,14 +80,17 @@
         <canvas id="map" tabindex="0" role="application" aria-label="도시 지도" aria-describedby="map-keys"></canvas>
         <p id="map-keys" class="sr-only">방향키로 지도를 옮기고, 도구를 든 채 Enter로 커서 자리에 짓습니다. S는 추천 자리로, 0에서 3은 속도, Space는 멈춤과 이어 하기, 물음표는 조작법입니다.</p>
 
-        <!-- The map's bars, floating over it. Along the top in the middle three buttons of their own: the city (its name
-             and stage, how near the next stage running clockwise round its edge; pressed, the city pane comes or goes),
-             the clock (the four speeds, the month's progress round its edge — the date in its tooltip; on a phone one
-             button, its speeds in a card under it) and the menu; under them a row of chips, each area's state. Along the
-             foot in the middle the building categories (dock-col, below), their tools' card opening over them. (First in
-             the map's parts: Tab goes the way the eye does, top down.) -->
+        <!-- Wide, down the map's left: the city button and each area's state with its figures (controls.ts moves them in
+             from the top row, where a phone has them). (First in the map's parts: Tab goes the way the eye does.) -->
+        <div id="rail" role="group" aria-label="도시와 분야별 상태"></div>
+
+        <!-- The map's bars, floating over it. Along the top in the middle buttons of their own: on a phone the city (its
+             name and stage, how near the next stage running clockwise round its edge; pressed, the city pane), the clock
+             (the four speeds, the month's progress round its edge — the date in its tooltip; on a phone one button, its
+             speeds in a card under it) and the menu, and on a phone a row of chips under them, each area's state. Along
+             the foot in the middle the building categories (dock-col, below), their tools' card opening over them. -->
         <div id="mapbar" role="group" aria-label="도시·시간·메뉴">
-          <button type="button" id="btn-city" class="mb-btn mb-city" aria-expanded="false" aria-controls="pane"><svg class="edge-ring stage-ring" aria-hidden="true" focusable="false"><path pathLength="100" /></svg><span data-icon="trophy"></span><b id="city-name" class="city-title"></b><span id="city-stage" class="city-stage"></span></button>
+          <button type="button" id="btn-city" class="mb-btn mb-city" aria-expanded="false" aria-controls="pane"><svg class="edge-ring stage-ring" aria-hidden="true" focusable="false"><path pathLength="100" /></svg><span data-icon="trophy"></span><b id="city-name" class="city-title"></b><span id="city-stage" class="city-stage"></span><span id="city-sub" class="city-sub"></span></button>
           <!-- The clock: the speeds in a row (a phone's one button, by the speed's icon, its speeds in a card it only
                opens), the month going by round its edge. -->
           <div id="clock" class="mb-clock">

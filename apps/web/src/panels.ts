@@ -403,6 +403,8 @@ export function updatePanels(): void {
     const named = $('#city-name').textContent !== city.state.name || $('#city-stage').textContent !== stage.name;
     $('#city-name').textContent = city.state.name;
     $('#city-stage').textContent = stage.name;
+    // (Wide, under them: the residents and how near the next stage, the figures the ring stands for.)
+    $('#city-sub').textContent = `${fmt(st.population)}명 · ${stage.next ? `${stage.next[1]}까지 ${pct}%` : '가장 높은 단계'}`;
     const btn = $('#btn-city');
     btn.title = `${city.state.name}: ${stage.name}(${stage.step}단계) · 인구 ${fmt(st.population)}명${stage.next ? ` · 다음 단계 ${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명 — 테두리의 금색 선이 ${pct}%` : ' · 가장 높은 단계'} · 눌러서 도시 현황 열기·닫기`;
     btn.setAttribute('aria-label', `${city.state.name}, ${stage.name} ${stage.step}단계, 인구 ${fmt(st.population)}명${stage.next ? `, 다음 단계까지 ${pct}%` : ''} · 도시 현황`);

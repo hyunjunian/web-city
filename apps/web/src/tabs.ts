@@ -141,9 +141,10 @@ export function closePane(): boolean {
   return true;
 }
 
-/** The city button: the city pane comes, on its overview (an area's screen left open ends), or goes. */
+/** The city button: the city pane comes on its overview (an area's screen open or put away ends), or, already on its
+ *  overview, goes — as an area's button brings its screen or, already on it, puts the pane away. */
 export function togglePane(): void {
-  if (dismissPane()) return;
+  if (paneShown() && !$('#pane').classList.contains('managing') && dismissPane()) return;
   closeGoal();
   openPane();
 }

@@ -57,21 +57,17 @@ export function builtArea(whole = false): { cx: number; cy: number; span: number
 export type Band = { left: number; top: number; right: number; bottom: number };
 
 /**
- * The part of the map nothing covers: below the top buttons and the chips' row under them, above the building bar
- * across the foot, right of the city pane floating along the left while it is open (`withPane`) and left of a
- * building's card along the right while it is open — and on a phone above the city sheet when it is up, or beside it,
- * where a phone held sideways has it as a side panel. Framing, centring, the edge arrows and their flights keep to it
- * (an arrow under the pane, a target landing there).
+ * The part of the map nothing covers: below the top buttons (a phone's chips' row under them too), above the building
+ * bar across the foot, right of what stands down the left — wide, the rail of the city and its areas, and the city pane
+ * beside it while it is open (`withPane`) — and left of a building's card along the right while it is open; on a phone
+ * above the city sheet when it is up, or beside it, where a phone held sideways has it as a side panel. Framing,
+ * centring, the edge arrows and their flights keep to it (an arrow under the pane, a target landing there).
  */
 export function mapBand(withPane = true): Band {
   const r = renderer.canvas.getBoundingClientRect();
   let [left, top, right, bottom] = [0, 0, r.width, r.height];
   const bar = document.getElementById('mapbar')?.getBoundingClientRect();
   if (bar?.height) top = Math.max(top, Math.min(r.height / 3, bar.bottom - r.top));
-  // (Wide, the chips' row under the top buttons hangs below the bar's own box.)
-  const strip = document.getElementById('goal-strip');
-  const s = strip && !strip.hidden && getComputedStyle(strip).position === 'absolute' ? strip.getBoundingClientRect() : null;
-  if (s?.height) top = Math.max(top, Math.min(r.height / 3, s.bottom - 10 - r.top)); // (less its padding, there for the chips' shadows)
   // (The building bar across the foot, where it doesn't step back.)
   const dock = document.getElementById('dock');
   const d = dock && getComputedStyle(dock).visibility !== 'hidden' ? dock.getBoundingClientRect() : null;
@@ -79,8 +75,10 @@ export function mapBand(withPane = true): Band {
   const pane = document.getElementById('pane');
   const app = document.getElementById('app');
   if (!matchMedia('(max-width: 860px)').matches) {
-    // Wide: the city pane floats along the left while it is open (where it comes to rest, not where its slide has got
-    // to), a building's card along the right while it is open.
+    // Wide: down the left the rail of the city and its areas, and the city pane beside it while it is open (where it
+    // comes to rest, not where its slide has got to); a building's card along the right while it is open.
+    const rail = document.getElementById('rail');
+    if (rail?.offsetWidth) left = Math.max(left, Math.min(r.width / 2, rail.getBoundingClientRect().right - r.left));
     if (withPane && pane && app?.classList.contains('pane-open')) {
       const at = app.getBoundingClientRect();
       left = Math.max(left, Math.min(r.width / 2, at.left + pane.offsetLeft + pane.offsetWidth - r.left));
