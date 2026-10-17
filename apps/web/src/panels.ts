@@ -408,7 +408,7 @@ export function updatePanels(): void {
     $('#city-next').innerHTML = stage.next ? `<span>${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명</span><b>${pct}%</b>` : '<span>가장 높은 단계</span>';
     const btn = $('#btn-city');
     btn.style.setProperty('--share', `${(stage.share * 100).toFixed(1)}%`);
-    btn.title = `${city.state.name}: ${stage.name}(${stage.step}단계) · 인구 ${fmt(st.population)}명${stage.next ? ` · 다음 단계 ${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명 (${pct}%)` : ' · 가장 높은 단계'} · 금색 선은 다음 단계까지 온 만큼 · 눌러서 도시 현황 열기·닫기 (다른 분야의 화면에서는 도시 현황으로)`;
+    btn.title = `${city.state.name}: ${stage.name}(${stage.step}단계) · 인구 ${fmt(st.population)}명${stage.next ? ` · 다음 단계 ${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명 (${pct}%)` : ' · 가장 높은 단계'} · 금색 선은 다음 단계까지 온 만큼 · 눌러서 도시 현황 열기·닫기 (다른 분야의 화면에서는 도시 현황으로, 지도를 보느라 비켜 둔 도시 화면은 다시 그 화면으로)`;
     btn.setAttribute('aria-label', `${city.state.name}, ${stage.name} ${stage.step}단계, 인구 ${fmt(st.population)}명${stage.next ? `, 다음 단계까지 ${pct}%` : ''} · 도시 현황`);
     markStage(stage.share * 100);
     $('#pane-city-name').textContent = city.state.name;
@@ -1059,9 +1059,11 @@ export function capHint(): string {
 }
 
 /** The advisors' alarms of this update, waiting for the goals' own word (see flushAlarms). */
-const alarms: { goal: GoalId; text: string; at?: [number, number] }[] = [];
+const alarms: { goal: GoalId; code: string; text: string; at?: [number, number] }[] = [];
 export function flushAlarms(): void {
   for (const a of alarms.splice(0)) {
+    // (The rating's own notice tells that, opening its tab: watchGoals.)
+    if (a.code === 'mayorLow') continue;
     // (Not when its goal's own notice spoke lately: the two came together with two figures for one cap, 21,310 and 21,290.)
     // (Counted forward only: a day before it, in a city loaded since, is not "lately".)
     const ago = city.state.day - (goalToldAt(a.goal) ?? -Infinity);
@@ -1179,7 +1181,7 @@ export function advice(): string {
       const text = ADVICE_TEXT[a.code]?.(a.value ?? 0, a.type);
       if (!text) continue;
       // Told after the goals have been looked at (one whose goal was just told, with this word, isn't told twice).
-      alarms.push({ goal: goalOfAdvice(a), text: `${ADVISOR_NAME[a.advisor]}: ${text}`, at: a.at });
+      alarms.push({ goal: goalOfAdvice(a), code: a.code, text: `${ADVISOR_NAME[a.advisor]}: ${text}`, at: a.at });
       alarmed.last.set(a.code, city.state.day);
     }
   }

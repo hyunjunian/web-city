@@ -146,6 +146,9 @@ export function closePane(): boolean {
  *  the pane away. */
 export function togglePane(): void {
   if (paneShown() && (!active || active === 'finance') && dismissPane()) return;
+  // (The city's screen put aside for the map — a phone's 보기, a tool, 지역: back to it, as an area's chip brings its
+  // own. It had no chip, and the press ended it.)
+  if (!paneShown() && active === 'finance') return openPane();
   closeGoal();
   openPane();
 }
@@ -190,9 +193,13 @@ function markOpen(): void {
   });
 }
 
-/** The city button lit while the city's own screen shows (its overview or 재정·정책's tabs), not an area's. */
+/** The city button lit while the city's own screen shows (its overview or 재정·정책's tabs), not an area's — and, as an
+ *  area's chip is, while its screen is put aside for the map (pressed, it comes back). */
 export function markCity(): void {
-  document.getElementById('btn-city')?.setAttribute('aria-expanded', String(paneShown() && (!active || active === 'finance')));
+  const b = document.getElementById('btn-city');
+  if (!b) return;
+  b.setAttribute('aria-expanded', String(paneShown() && (!active || active === 'finance')));
+  b.classList.toggle('parked', !paneShown() && active === 'finance');
 }
 
 /** Opens a sheet, or closes it when it is the one open (지역: the pane's head; J). */

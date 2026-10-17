@@ -7,7 +7,7 @@ import { openGoal, taxesCutting } from './manage';
 import { fillRange } from './widgets';
 import { TYPE_NAME, TYPE_SHORT } from './names';
 import { updatePanels } from './panels';
-import { BROKEN_RAIL, FIRE_RISK, RISK_IN, RISK_OUT, type Overlay, type VolumeNetwork, WORN_COLOR } from './render';
+import { BROKEN_RAIL, FIRE_RISK, HEINOUS, INDEX_FULL, indexColor, RISK_IN, RISK_OUT, type Overlay, type VolumeNetwork, WORN_COLOR } from './render';
 import { ABANDONED_COLOR, buildingRisk, GROWTH_COLOR, GROWTH_LABEL, growthNow, RISK_COLOR, volumeAt } from './views';
 import { centerOn, pingAt, changeKey, city, cityGeneration, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
 import { selectTool, SPEEDS, TOOL_KEYS, toolName, TOOLS } from './tools';
@@ -101,8 +101,8 @@ export function showHelp(): void {
     [wide ? '분야 상태 읽기' : '도시 상태 읽기', `${wide ? '왼쪽 줄의 분야 버튼' : '<b>도시 상태</b>'}에서 조치가 필요한 곳(빨강·주황)을 누르면 그 화면 맨 위에 무엇이 문제인지가, 할 일 맨 앞에 추천 조치가 나오고(어느 탭에서나), 해 보기를 누르면 그 도구가 손에 들리고, <b>추천 자리에 짓기</b>를 누르면 알맞은 빈 땅(서비스가 닿지 않는 곳, 수도관·전력망에 닿는 곳 등)에 바로 지어집니다(매립지·구역은 알맞은 크기로 <b>추천 자리에 N×N 놓기</b>). 과녁이 화면 밖이면 가장자리의 파란 화살표가 그쪽을 가리키고, 누르면 그곳으로 갑니다. 전기·물·도로가 닿지 않는 곳은 지도에 점선으로 그려 둔 가장 짧은 송전선·수도관·도로를 <b>바로 잇기</b>로 한 번에 놓습니다. 예산·조례·대출을 바꾸는 추천은 적용하기·시행하기·빌리기로 바로 바뀝니다(불·폭동은 ${wide ? '도시 현황의 다음 보상 아래' : '도시 상태 위'}에 출동 카드가 먼저 뜹니다). 어느 항목이 조치 필요로 바뀌면 시간이 멈추고(${menuAt}에서 끄기), 관리 화면에서 한 조치는 3개월 뒤 결과(핵심 수치의 변화)를 알려 줍니다. ${wide ? '왼쪽 줄은 늘 같은 순서이고(도시 카드의 재정·시장 평점, 그 아래 개발·수요, 전력, 수도, 쓰레기, 치안, 소방, 보건, 교육, 교통, 환경·쾌적), 조치가 필요한 곳은 색으로 보이며 이유는 가리키면 나옵니다(스크롤에 가려지면 가장자리에 주의 N). ▲▼는 지난 3개월의 흐름입니다.' : '도시 상태는 급한 곳(빨강)·살펴볼 곳(주황)이 위에 이유와 함께, 양호한 곳이 아래에 나오고, ▲▼는 지난 3개월의 흐름, "결과 기다리는 중"은 결과를 기다리는 조치입니다. 지나간 알림은 <b>소식</b>에 남고 도시와 함께 저장됩니다.'}`],
     ['관리 화면과 탭', `${wide ? `${areasAt}(개발·전력·수도·교육 등)을` : `도시 상태(또는 ${areasAt})에서 항목(개발·전력·수도·교육 등)을`} 누르면 그 분야의 관리 화면이 지금 문제가 있는 탭으로 열립니다. 맨 위의 탭(교통이면 혼잡·통근·통행량 · 하나뿐인 분야는 탭 없이)을 누를 때마다, 또는 <b>[</b> <b>]</b> 키로 넘길 때마다 지도에 알맞은 보기가 켜지고, 그 아래에 점수판(주요 수치·추이 그래프)과 할 일(추천 조치, 지을 시설·예산·조례)이 나옵니다. 탭의 빨간 점은 그 부분에 급한 문제가 있다는 뜻이고, 수치 옆 ▲▼는 화면을 연 뒤의 변화입니다. 지도에는 그 분야의 시설이 테두리로, 문제가 가장 많이 모인 곳(서비스가 닿지 않는 곳, 막힌 길, 공기가 나쁜 주거지 등)이 과녁으로 표시되고, 짓기 버튼은 지으면 여유가 얼마나 될지 알려 줍니다. × 또는 Esc로 닫습니다(M: 가장 급한 분야, 다시 누르면 닫기).`],
     ['불·폭동 출동', `불·폭동은 <b>시민 서비스</b>의 소방 출동·경찰 출동 도구로(또는 ${wide ? '도시 현황' : '도시 상태 위'}의 출동 카드의 출동 준비) 그곳을 누르면 가까운 서에서 차가 갑니다(서의 크기만큼 대수 제한). 불난 건물은 지도에 빨간 원으로, 미니맵에 빨간 점(폭동은 주황 점)으로 보이고, 소방·치안 화면의 지도 보기에서 <b>찾아가기</b>가 그곳으로 차례로 데려갑니다. 소방서 반경 안의 불 한두 곳은 소방서가 끄므로 소방이 주황으로만 남고, 반경 밖·세 곳 이상·발전소의 불에는 출동 카드가 뜹니다. 폭동은 경찰차 3대 이상이 모여야 진압되니(막다른 길 제외) 같은 곳을 여러 번 누르세요. 아무것도 짓기 전의 새 도시에서는 지형 편집이 무료입니다.`],
-    ['발전소와 낡은 시설', '발전소는 불타거나 수명이 다하면 폭발합니다: 소방서 반경 안에 두고, 조언자가 수명을 알려 주면 새로 지어 바꾸세요. 송전선·수도관이 낡으면 불꽃·파열이 나니 전력·수도 화면의 <b>노후 송전선</b>·<b>노후 수도관</b> 탭과 부서 예산을 살피세요.'],
-    ['재정·지역·저장', `재정과 시장 평점은 도시의 것입니다: ${wide ? '도시 카드의 <b>재정</b>·<b>시장 평점</b>' : '도시 현황의 재정·시장 평점'}(B: 재정)을 누르면 도시 현황의 그 탭과 통계(그래프·보고서)가 나옵니다. 세율·예산·대출·조례는 재정·세율·조례 탭에서 바꾸고, 주제별 여론은 시장 평점 탭에 있습니다. 도시 현황 맨 위의 <b>지역</b>(J)을 누르면 지역 시트에서 이웃 도시를 보고, 그 옆의 도시 이름(또는 메뉴의 도시 이름 바꾸기)을 눌러 이름을 바꿉니다. ${menuAt}에서 저장·불러오기·테마를 고릅니다.`],
+    ['발전소와 낡은 시설', '발전소는 불타거나 수명이 다하면 폭발합니다: 소방서 반경 안에 두고, 조언자가 수명을 알려 주면 새로 지어 바꾸세요. 송전선·수도관이 낡으면 불꽃·파열이 나니 전력·수도 화면(지도에 자주색으로 보이는 낡은 선·관)과 그 부서 예산을 살피세요.'],
+    ['재정·지역·저장', `재정과 시장 평점은 도시의 것입니다: ${wide ? '도시 카드의 <b>재정</b>·<b>시장 평점</b>' : '도시 현황의 재정·시장 평점'}을 누르면 도시 현황의 그 탭과 통계(그래프·보고서)가 나옵니다(B는 지금 문제가 있는 탭으로 — 돈이 먼저, 돈이 괜찮고 평점이 낮으면 시장 평점). 세율·예산·대출·조례는 재정·세율·조례 탭에서 바꾸고, 주제별 여론은 시장 평점 탭에 있습니다. 도시 현황 맨 위의 <b>지역</b>(J)을 누르면 지역 시트에서 이웃 도시를 보고, 그 옆의 도시 이름(또는 메뉴의 도시 이름 바꾸기)을 눌러 이름을 바꿉니다. ${menuAt}에서 저장·불러오기·테마를 고릅니다.`],
   ];
   // The basic loop in five steps (the getting-started list, in short), then the keys by what they are for.
   // (Each step is also the way to do it: pressed, the help closes on its tool, its screen or the clock.)
@@ -121,7 +121,7 @@ export function showHelp(): void {
     <h3 class="sub">키보드</h3>
     <div class="key-groups">
       ${group('시간·저장', `${key('Space', '멈춤·이어 하기')}${key('0–3', '속도 (⏸ ▶ ▶▶ ▶▶▶)')}${key(keyLabel('Ctrl+S'), '브라우저에 저장')}`)}
-      ${group('화면', `${key('M', '가장 급한 분야의 관리 화면')}${key('[ ]', '열린 분야의 이전·다음 탭 (지도 보기가 함께 바뀜)')}${key('G', '개발·수요의 개발 막힘 탭')}${key('B', '재정·정책 (세율·예산·대출·조례)')}${key('J', '지역 (이웃 도시)')}${key('?', '이 도움말')}${key('Ctrl+Shift+X', '치트 콘솔')}`)}
+      ${group('화면', `${key('M', '가장 급한 화면 (분야, 또는 도시의 재정·시장 평점)')}${key('[ ]', '열린 화면의 이전·다음 탭 (분야, 도시 현황 · 지도 보기가 함께 바뀜)')}${key('G', '개발·수요의 개발 막힘 탭')}${key('B', '재정·정책 (세율·예산·대출·조례)')}${key('J', '지역 (이웃 도시)')}${key('?', '이 도움말')}${key('Ctrl+Shift+X', '치트 콘솔')}`)}
       ${group('지도', `${key('+ −', '확대·축소')}${key('Home', '도시 전체 보기')}${key('방향키', '지도 이동')}${key('N', '밤 풍경')}`)}
       ${group('도구 다루기', `${key('/', '도구·시설·화면 찾기 (예: 소방서, 세율)')}${key(', .', '같은 묶음의 이전·다음 도구')}${key('`', '직전 도구로 돌아가기')}${key('Shift+끌기', '도로·선로를 곧게')}${key('Enter', '건설 도구: 커서 자리에 짓기 · 그 밖: 가운데 칸 조회')}${key('S', '건설 도구: 커서를 추천 자리(과녁)로')}${key('Esc', '취소 → 카드 닫기 → 도구 내려놓기')}`)}
       ${group('도구 바로 들기', Object.entries(TOOL_KEYS).map(([k, id]) => key(k.toUpperCase(), label(id))).join(''), true)}
@@ -461,8 +461,8 @@ export function buildOverlay(): void {
       radiation: '연두 = 방사능이 남은 땅(진할수록 오래 남음). 그 위에는 아무것도 자라지 않습니다.',
       fire: `파랑이 진할수록 소방 보호가 강함. 보호 안의 작은 불은 번지기 전에 꺼집니다. 연빨강 = 보호 없는 구역·건물. 불이 잘 붙는 곳(화재 위험 ${FIRE_RISK} 이상: 물 없는 곳·빈 건물·공장·발전소)은 보호 안이면 주황, 밖이면 빨강.`,
       waterService: '진파랑 = 수도관, 파랑 = 급수 범위, 주황 = 관은 있지만 공급 없음, 빨강 = 물 없음.',
-      health: '병원이 닿는 집은 그 집 주민의 건강 지수(0–200)만큼 진한 파랑, 닿는 범위의 나머지는 옅은 파랑. 연빨강 = 병원이 닿지 않는 집(병원은 집에만 듦).',
-      school: '학교가 닿는 집은 그 집 주민의 교육 지수(0–200)만큼 진한 파랑, 닿는 범위의 나머지는 옅은 파랑. 연빨강 = 학교가 닿지 않는 집(학교는 집에만 듦).',
+      health: `병원이 닿는 집은 그 집 주민의 건강 지수만큼 진한 파랑(${INDEX_FULL} 이상이면 가장 진함, 지수는 0–200), 닿는 범위의 나머지는 옅은 파랑. 연빨강 = 병원이 닿지 않는 집(병원은 집에만 듦).`,
+      school: `학교가 닿는 집은 그 집 주민의 교육 지수만큼 진한 파랑(${INDEX_FULL} 이상이면 가장 진함, 지수는 0–200), 닿는 범위의 나머지는 옅은 파랑. 연빨강 = 학교가 닿지 않는 집(학교는 집에만 듦).`,
       traffic: '도로·철도의 교통량 대비 용량. 초록 = 원활, 빨강 = 용량의 2배(속도 −35%). 진빨강 = 망가진 철로(대중교통 예산 100% 넘으면 고쳐짐).',
       ...Object.fromEntries(['road', 'rail', 'subway', 'monorail', 'highway', 'ferry'].map((k) => [`volume:${k}`,
         '이 교통망의 통행량: 흰색 = 적음, 진파랑 = 도시에서 가장 많은 곳.'])),
@@ -482,9 +482,11 @@ export function buildOverlay(): void {
     const heat = 'linear-gradient(90deg, rgb(220,60,60), rgb(220,220,60), rgb(50,220,60))';
     // The coverage views' blue (render.ts coverage).
     const cover = 'linear-gradient(90deg, rgba(40,110,230,0.12), rgba(40,110,230,0.65))';
+    // (A home's index under hospitals and schools, render.ts indexColor.)
+    const index = `linear-gradient(90deg, ${indexColor(0)}, ${indexColor(INDEX_FULL)})`;
     // (Its ends in words too where a bare number said nothing of which way is good: −60 · +60 for the mayor's rating.)
     const scale = ({
-      desirability: [heat, '0 낮음', '150+ 높음'], mayor: [heat, '−60 불만', '+60 만족'], health: [cover, '건강 지수 0', '200'], school: [cover, '교육 지수 0', '200'],
+      desirability: [heat, '0 낮음', '150+ 높음'], mayor: [heat, '−60 불만', '+60 만족'], health: [index, '건강 지수 0', `${INDEX_FULL}+`], school: [index, '교육 지수 0', `${INDEX_FULL}+`],
       commute: ['linear-gradient(90deg, rgb(50,220,60), rgb(220,220,60), rgb(220,60,60))', '빠름', '2.5시간'],
       traffic: ['linear-gradient(90deg, rgb(80,200,60), rgb(255,30,60))', '원활', '용량 2배'],
       landValue: ['linear-gradient(90deg, rgba(120,40,160,0.05), rgba(120,40,160,0.7))', '0 낮음', '50 높음'],
@@ -931,13 +933,17 @@ function viewSummaryNow(v: string, live = true): [string, '' | 'bad' | 'good', n
   const lacking = (list: { x: number; y: number; w: number; h: number }[], what: string, all: string): [string, '' | 'bad' | 'good', number[]] =>
     (list.length ? [`${what} ${fmt(list.length)}채`, 'bad', list.map(mid)] : [all, 'good', []]);
   const homes = blds.filter((b) => b.type![0] === 'R');
-  // A count beside the first, of what the view puts over it (worn lines and pipes, frequent crime, what burns easily
-  // beyond reach): said after it, its places after the first's for 찾아가기.
+  // A count beside the first, of what the view puts over it (worn lines and pipes, what burns easily beyond reach): said
+  // after it, its places after the first's for 찾아가기. (Worn lines and pipes on the view's line only, not a build
+  // card's heading: the budget mends them, not a plant — "낡은 송전선 3칸" took the place of 발전량의 92% 사용 중.)
   const and = (first: [string, '' | 'bad' | 'good', number[]], hot: { count: number; spots: number[] }, what: string, unit = '칸'): [string, '' | 'bad' | 'good', number[]] =>
     (!hot.count ? first : [first[1] === 'good' ? `${what} ${fmt(hot.count)}${unit}` : `${first[0]} · ${what} ${fmt(hot.count)}${unit}`, 'bad', [...first[2], ...hot.spots]]);
   const worn = (on: Uint8Array | ArrayLike<number>, wear: ArrayLike<number>) => scanned(`worn${v}`, () => worstSpots(n, (i) => (on[i] ? wear[i]! : 0), 50));
   switch (v) {
-    case 'power': return and(lacking(blds.filter((b) => !b.powered), '전기 없는 건물', '모든 건물에 전기가 들어옵니다'), worn(s.power, s.lineWear), '낡은 송전선');
+    case 'power': {
+      const off = lacking(blds.filter((b) => !b.powered), '전기 없는 건물', '모든 건물에 전기가 들어옵니다');
+      return live ? and(off, worn(s.power, s.lineWear), '낡은 송전선') : off;
+    }
     case 'waterService': {
       // (Only those past the stage that needs water count against it: the advisor's count is every building cut off.)
       const dry = blds.filter((b) => !b.watered);
@@ -945,11 +951,18 @@ function viewSummaryNow(v: string, live = true): [string, '' | 'bad' | 'good', n
       // (Dry, none of them past that stage yet: said as that, not as all well — beside the screen's 물 없는 건물 26채 and
       // its 양수 시설이 없어…, 물이 필요한 건물 모두에 닿습니다 read as though there were water.)
       if (!need.length && dry.length) return [`물 없는 건물 ${fmt(dry.length)}채 · 아직은 물 없이 자라는 단계 (더 크려면 물이 필요)`, '', dry.map(mid)];
-      return and(lacking(need, '물이 필요한데 끊긴 건물', '물이 필요한 건물 모두에 닿습니다'), worn(s.pipe, s.pipeWear), '낡은 수도관');
+      const cut = lacking(need, '물이 필요한데 끊긴 건물', '물이 필요한 건물 모두에 닿습니다');
+      return live ? and(cut, worn(s.pipe, s.pipeWear), '낡은 수도관') : cut;
     }
     // (The worst first for 찾아가기, one spot a neighbourhood: a jam of red tiles was a press per tile.)
-    case 'police': return and(lacking(blds.filter((b) => !(f.policeCover[mid(b)]! > 0)), '경찰이 닿지 않는 건물', '모든 건물이 경찰 범위 안입니다'),
-      scanned('crime', () => worstSpots(n, (i) => s.crime[i]!, 2)), '범죄가 잦은 곳');
+    case 'police': {
+      const out = lacking(blds.filter((b) => !(f.policeCover[mid(b)]! > 0)), '경찰이 닿지 않는 건물', '모든 건물이 경찰 범위 안입니다');
+      // Last month's crimes as the view draws them, its dots (the heinous first for 찾아가기): the crime field it
+      // counted was drawn nowhere, and 찾아가기 went to tiles with no mark. Said beside the reach, in its tone — some
+      // crime is every town's, the screen's state says when it is too much.
+      const crimes = [...(s.safety.spots ?? [])].sort((a, b) => Number(HEINOUS.has(b[1])) - Number(HEINOUS.has(a[1])));
+      return crimes.length ? [`${out[0]} · 지난달 범죄 ${fmt(crimes.length)}건`, out[1], [...out[2], ...new Set(crimes.map(([i]) => i))]] : out;
+    }
     case 'fire': return and(lacking(blds.filter((b) => !(f.fireCover[mid(b)]! > 0)), '소방이 닿지 않는 건물', '모든 건물이 소방 범위 안입니다'),
       scanned('risk', () => worstSpots(n, (i) => ((s.zone[i]! > 0 && s.zone[i] !== 10) || s.occupant[i]! > 0) && !(f.fireCover[i]! > 0) ? f.flammability[i]! : 0, FIRE_RISK)), '보호 밖의 불 잘 붙는 곳');
     case 'health': return lacking(homes.filter((b) => !(f.hospitalCover[mid(b)]! > 0)), '병원이 닿지 않는 집', '모든 집이 병원 범위 안입니다');

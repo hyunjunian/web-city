@@ -587,7 +587,6 @@ kbd {
 .mg-head h2 > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* (재정·/정책 broke over two lines in a 288px pane) */
 .mg-head h2 .i { width: 20px; height: 20px; color: var(--accent-hi); }
 .mg-head .chip { margin-left: auto; }
-.mg-back { flex: none; }
 /* The goal's tabs, a row of their own in its sticky head: each a part of the goal, putting its map view on (the
    underline is the one showing; a red dot, a part in trouble). Scrolled sideways where they don't fit. */
 .mg-head { flex-wrap: wrap; row-gap: 0; padding-bottom: 0; }
@@ -609,10 +608,9 @@ kbd {
 /* A section's choices in a row (the plants' dispatch, the repairs). */
 .mg-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .mg-head:not(:has(.mg-kinds)) { padding-bottom: 0; }
-/* (A 288px pane, and a phone: closer together, so the longest name, 부유층·고급화, keeps whole beside the clock and
-   the goal's state; the back arrow narrower too where a mouse aims it.) */
+/* (A 288px pane, and a phone: closer together, so the longest name, 환경·쾌적, keeps whole beside the clock and the
+   goal's state.) */
 @media (max-width: 1180px) { .mg-head { gap: 5px; } .mg-head h2 { gap: 5px; font-size: 16px; } }
-@media (min-width: 861px) and (max-width: 1180px) and (pointer: fine) { .mg-head .mg-back { width: 32px; } }
 .mg-switch { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 2px; margin-top: -4px; } /* every goal in sight (a scrolling row hid the last ones) */
 .mg-switch button { position: relative; flex: none; display: grid; place-items: center; width: 100%; height: 30px; border-radius: 8px; background: transparent; color: var(--muted); }
 .mg-switch button .i { width: 17px; height: 17px; }
@@ -2462,6 +2460,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .stage-ring path { stroke: var(--gold); }
 #btn-city[aria-expanded='true'] > .i { color: var(--accent-hi); }
 /* News unread in the pane (a notice, a step of 시작하기): a red dot on the button that opens it. */
+/* The city's screen put aside for the map (a phone's 보기, a tool, 지역): lit as an area's chip is, to come back to. */
+#btn-city.parked { background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--float-solid); box-shadow: var(--shadow-sm), inset 0 0 0 1.5px var(--accent); color: var(--active-ink); }
+#btn-city.parked > .i { color: var(--accent-hi); }
 #btn-city.unread::after { content: ''; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--float-solid); }
 
 /* The clock: the four speeds — pause, then slow to fast, the one on lit as in a gear — and round its edge, from the top
@@ -2634,7 +2635,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
     border: 1px solid var(--line); border-radius: 16px; background: var(--float-solid); box-shadow: var(--shadow-sm);
   }
   #rail #city-card > #btn-city { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-  #rail #city-card > #btn-city[aria-expanded='true'] { background: var(--accent-soft); }
+  #rail #city-card > #btn-city:is([aria-expanded='true'], .parked) { background: var(--accent-soft); box-shadow: none; }
   #rail #city-rows { display: flex; flex-direction: column; }
   /* Every item on the rail one line of one height: its icon, its name, and its graph over the last two years. */
   #rail .strip-city {

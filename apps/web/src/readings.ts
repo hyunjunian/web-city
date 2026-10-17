@@ -89,7 +89,9 @@ function readStatus(id: GoalId): Status {
       const left = months < 120 ? ` · 이대로면 ${months >= 24 ? `${Math.floor(months / 12)}년` : `${Math.floor(months)}개월`} 뒤 바닥` : '';
       // (Taxes cutting a type's demand are the finance screen's to fix: 주의 with what they cost, where the money alone
       // read 양호 and nobody looked — 71% of the demand for rich homes was going.)
-      const taxed = !tone && first?.code === 'taxHigh' ? said : '';
+      // (Looked for by name: the rating's alarm, the city's too, sorted before it and hid it.)
+      const tax = advice.find((a) => a.code === 'taxHigh');
+      const taxed = !tone && tax ? (ADVICE_TEXT.taxHigh?.(tax.value ?? 0, tax.type) ?? '').split(/[.:]/)[0]! : '';
       // (주의, not 급함, even where the rate stops a type's demand: a tax is changed at leisure, and red stopped the clock.)
       if (taxed) return { tone: 'warn', value: money(st.funds), note: taxed };
       return { tone, value: money(st.funds), note: b ? `지난달 ${net < 0 ? '−' : '+'}§${fmt(Math.abs(Math.round(net)))}${left}` : '첫 결산 전' };

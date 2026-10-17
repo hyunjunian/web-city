@@ -344,8 +344,17 @@ export function coverage(v: number, used: boolean): string {
   return used ? 'rgba(230,60,60,0.3)' : '';
 }
 
+/**
+ * Over the health and school views: a home the service reaches, as blue as its residents' index, full from 100 (a
+ * city's homes stand at 20 to 70: on the 0–200 scale they read alike, little above the faint reach around them), and
+ * never as faint as that reach.
+ */
+export const INDEX_FULL = 100;
+export const indexColor = (v: number) => `rgba(40,110,230,${(0.24 + 0.56 * Math.max(0, Math.min(1, v / INDEX_FULL))).toFixed(3)})`;
 /** Over the power and water views: a line or pipe worn to 50 and past (it sparks, it bursts; its budget mends it). */
 export const WORN_COLOR = 'rgba(196,64,214,0.95)';
+/** The crimes drawn larger and red on the police view (the rest smaller, yellow), and visited first. */
+export const HEINOUS: ReadonlySet<string> = new Set(['arson', 'bankRobbery', 'assault', 'stickUp']);
 /** Over the fire view: what catches easily (risk from 54, where fires break out), inside the stations' reach and out of it. */
 export const FIRE_RISK = 54;
 export const RISK_IN = 'rgba(240,150,30,0.62)';
@@ -1784,7 +1793,7 @@ export class Renderer {
               break;
             // (Hospitals and schools are for homes alone: red where people live and none reaches, not on the
             // workplaces — a large red patch of industry sat beside "모든 집이 병원 범위 안입니다".) Where one reaches, a
-            // home is as blue as its residents are healthy (or schooled); the rest of the reach faintly.
+            // home is as blue as its residents are healthy (or schooled), indexColor; the rest of the reach faintly.
             case 'health':
             case 'school': {
               const reach = (overlay.kind === 'health' ? f.healthQuality : f.schoolQuality)[i]!;
@@ -1795,7 +1804,7 @@ export class Renderer {
               }
               const occ = s.occupant[i]!;
               const b = occ > 0 ? s.buildings.get(occ) : undefined;
-              color = coverage(reach > 0 ? (b?.type?.[0] === 'R' ? Math.max(0.001, (overlay.kind === 'health' ? b.hq : b.eq) / 200) : 0.001) : 0, true);
+              color = !(reach > 0) ? coverage(0, true) : b?.type?.[0] === 'R' ? indexColor(overlay.kind === 'health' ? b.hq : b.eq) : coverage(0.001, false);
               break;
             }
             case 'age': {
@@ -1961,7 +1970,7 @@ export class Renderer {
         const x = i % n;
         const y = (i - x) / n;
         if (x < x0 || y < y0 || x >= x1 || y >= y1) continue;
-        const big = kind === 'arson' || kind === 'bankRobbery' || kind === 'assault' || kind === 'stickUp';
+        const big = HEINOUS.has(kind);
         ctx.fillStyle = big ? '#ff2d2d' : '#ffd23f';
         ctx.strokeStyle = '#1a1a1a';
         ctx.lineWidth = 0.06;

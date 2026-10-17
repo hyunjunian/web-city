@@ -5,12 +5,12 @@
 // all on the same panel; the map, tool and info card follow from it.
 
 import { placeAt } from './input';
-import { DEV_TYPES, type DevType, Net, NETWORK_KINDS, ORDINANCES, POWER_DISPATCHES, STRUCTURES, type HistoryPoint, type OrdinanceId, type PowerDispatch, type RepairDepartment, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
+import { DEV_TYPES, type DevType, Net, NETWORK_KINDS, ORDINANCES, POWER_DISPATCHES, STRUCTURES, type HistoryPoint, type OrdinanceId, type PollTopic, type PowerDispatch, type RepairDepartment, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
 import { icon, type IconName } from './icons';
 import { chooseSpeed, refreshTaxes, resumeAfterBuilding, setSpeed, showOverlay, speedChosen, viewEmpty, viewName } from './controls';
 import { redrawInfo, refreshInfo, riotNear, showInfo } from './info';
 import { ko } from './messages';
-import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
+import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, POLL_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { whyNoDeals } from './region';
 import { journal } from './journal';
 import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, updatePanels } from './panels';
@@ -62,8 +62,9 @@ function drift(id: GoalId): string {
   return d ? `<small class="w-drift ${d.good ? 'up' : 'down'}" title="${d.said}">${d.up ? '▲' : '▼'}</small>` : '';
 }
 
-/** The goals watched (재정 included: money is watched with the rest, the most in need of which M opens). */
-const WATCHED = GOAL_ORDER;
+/** The screens M weighs: the areas as the list orders them, then the city's own (its money's or its rating's state,
+ *  the worse) — with nothing wrong, the first area (it opened 재정·정책 of a sound town, under "가장 급한 분야"). */
+const WATCHED: readonly GoalId[] = [...AREA_ORDER, 'finance'];
 
 /**
  * 해결할 문제: what is wrong, the most serious first with the one thing to do about it,
@@ -78,6 +79,12 @@ export interface PaneFigs { jobs: number; jobsTrend: string }
  * residents (it is worked out at the month's end, and until then its 0 said 주민 만족이 낮음 of a town nobody had rated).
  */
 const ratingTone = (rating: number): Tone => (!ratingRated() ? '' : rating < 0 ? 'bad' : rating < 20 ? 'warn' : '');
+/** The rating's word beside its figure, when it wants a look ('' else). */
+const ratingNote = (rating: number): string => (!ratingTone(rating) ? '' : rating < 0 ? '주민 대다수가 불만 · 아주 낮은 곳이 모이면 폭동' : '주민 만족이 낮음 · 여론을 살펴보세요');
+/** The advisors' words on the mayor's rating: the city's 시장 평점 (its row, its tab), apart from its money's. */
+const RATING_CODES: ReadonlySet<string> = new Set(['mayorLow', 'mayorHigh']);
+/** Whether the city's screen shows its 시장 평점 tab, whose guide is the rating's (the other tabs', the money's). */
+const onRating = (id: GoalId) => id === 'finance' && active === 'finance' && tabNow('finance').label === '시장 평점';
 
 export function problemsHtml(alerts: string, figs: PaneFigs): string {
   const step = nextStep();
@@ -249,7 +256,7 @@ function refreshCityRows(wide: boolean): void {
   const fin = goalStatus('finance');
   const rTone = ratingTone(st.mayorRating);
   const rated = ratingRated();
-  const rNote = !rTone ? '' : st.mayorRating < 0 ? '주민 대다수가 불만 · 계속되면 탄핵될 수 있음' : '주민 만족이 낮음 · 여론을 살펴보세요';
+  const rNote = ratingNote(st.mayorRating);
   const said = (t: Tone) => (t === 'bad' ? '조치 필요' : t === 'warn' ? '주의' : '');
   markCity();
   const btn = $('#btn-city');
@@ -535,9 +542,11 @@ const adviceText = (a: ReturnType<typeof adviceFor>[number]) => (a.code === 'wat
 const same = (a: string, b: string) => a.replace(/[\s.·,]/g, '') === b.replace(/[\s.·,]/g, '');
 
 /** The advisor's word a troubled goal's 추천 조치 leads with (its first sentence), and that word; none for a sound goal or one on fire. */
-function guideSaid(id: GoalId): { said: string; worst?: ReturnType<typeof adviceFor>[number] } {
-  if (!goalStatus(id).tone || incidents().some((x) => x.goal === id)) return { said: '' };
-  const advice = adviceFor(id);
+function guideSaid(id: GoalId, rating = onRating(id)): { said: string; worst?: ReturnType<typeof adviceFor>[number] } {
+  // (The city's two apart, each as its row stands: its rating's alarm led the money's tabs, and hid itself on its own.)
+  const tone = rating ? ratingTone(readStats().mayorRating) : goalStatus(id).tone;
+  if (!tone || incidents().some((x) => x.goal === id)) return { said: '' };
+  const advice = adviceFor(id).filter((a) => id !== 'finance' || RATING_CODES.has(a.code) === rating);
   const worst = advice.find((x) => x.level === 'bad') ?? advice.find((x) => x.level !== 'good');
   // (A full hospital or school named, as its row has it, and all of them beside it: the figures under it are the whole.)
   return { said: worst ? fullNote(worst, id) || (adviceText(worst) ? firstSentence(adviceText(worst)) : '') : '', worst };
@@ -557,6 +566,7 @@ function guideSaid(id: GoalId): { said: string; worst?: ReturnType<typeof advice
 function guideHtml(id: GoalId): { head: string; act: string } {
   guideSite = null;
   markSite = null;
+  if (onRating(id)) return ratingGuide();
   const s = goalStatus(id);
   if (!s.tone || incidents().some((x) => x.goal === id)) return { head: '', act: '' };
   const st = goalStep(id);
@@ -681,6 +691,43 @@ function guideHtml(id: GoalId): { head: string; act: string } {
     head: `<section class="lead ${s.tone} mg-lead" aria-label="지금 문제"><p class="lead-title">${icon('alert')}<span>${title}</span></p>
       <p class="lead-risk">${(st.riskCode && RISK_OF[st.riskCode]) || (!offGrid && !st.said && worst && RISK_OF[worst.code]) || RISK[id]}${action ? ' <button type="button" class="link mg-jump" data-jump-guide>추천 조치 ↓</button>' : ''}</p></section>`,
     act: `<section class="mg-sec mg-guide ${s.tone}" aria-label="추천 조치"><h3>${icon('target')}추천 조치</h3>${action}${wait}</section>`,
+  };
+}
+
+/** The screen each topic of the opinion poll is mended on (taxes: the city's own 세율 tab). */
+const POLL_GOAL: Record<PollTopic, GoalId> = { safety: 'police', environment: 'environment', traffic: 'traffic', health: 'health', education: 'education', taxes: 'finance', landValue: 'environment' };
+/** What a low rating costs if left, under what is wrong. */
+const RATING_RISK = '평점이 아주 낮은 곳이 모이면 폭동이 일어나고, 평점이 낮으면 열리지 않는 보상도 있습니다';
+
+/**
+ * The guide on the city's 시장 평점 tab (its money's tabs have the money's): what is wrong as its row says it and what
+ * it costs, then the step — what the residents mind most in the poll under it, and the screen to mend that on (taxes:
+ * the city's own 세율 tab). None while the rating stands well.
+ */
+function ratingGuide(): { head: string; act: string } {
+  const st = readStats();
+  const tone = ratingTone(st.mayorRating);
+  if (!tone) return { head: '', act: '' };
+  const low = adviceFor('finance').find((a) => a.code === 'mayorLow');
+  const said = low ? firstSentence(adviceText(low)) : `시장 평점이 ${st.mayorRating}입니다`;
+  const polls = city.opinionPolls();
+  const [topic, approve] = (Object.keys(POLL_NAME) as PollTopic[]).map((t) => [t, polls[t].approve] as const).sort((a, b) => a[1] - b[1])[0]!;
+  const goal = POLL_GOAL[topic];
+  const glyph = icon(goal === 'finance' ? 'wallet' : GOALS[goal].icon);
+  // (Nobody minding anything much: no topic to send to — where it is lowest is on the map's view.)
+  const action = approve >= 0.95
+    ? `<div class="g-act"><p class="g-act-head">${icon('search')}<b>원인부터 살펴보세요</b></p>
+      <p class="g-act-why">여론 조사에 큰 불만은 없습니다 · 지도에서 평점이 낮은 곳(붉은 곳)과 그곳의 조례·세율을 살펴보세요</p></div>`
+    : `<div class="g-act"><p class="g-act-head">${glyph}<b>${POLL_NAME[topic]} 불만부터</b><small>불만 없는 주민 ${Math.round(approve * 100)}%</small></p>
+      <p class="g-act-why">시장 평점은 주민의 불만에서 나옵니다: 아래 여론 조사에서 불만이 가장 큰 것을 고치면 오릅니다</p>
+      <div class="g-act-btns">${goal === 'finance'
+        ? `<button type="button" class="primary" data-mg-tabk="${goalTabs('finance').findIndex((t) => t.label === '세율')}">${glyph}세율 탭으로</button>`
+        : `<button type="button" class="primary" data-goal-open="${goal}">${glyph}${GOALS[goal].name} 화면으로</button>`}</div></div>`;
+  return {
+    // (Its note left to the row: what it costs is said under it.)
+    head: `<section class="lead ${tone} mg-lead" aria-label="지금 문제"><p class="lead-title">${icon('alert')}<span><b>${escapeHtml(glue(said))}</b></span></p>
+      <p class="lead-risk">${RATING_RISK} <button type="button" class="link mg-jump" data-jump-guide>추천 조치 ↓</button></p></section>`,
+    act: `<section class="mg-sec mg-guide ${tone}" aria-label="추천 조치"><h3>${icon('target')}추천 조치</h3>${action}</section>`,
   };
 }
 
@@ -834,7 +881,7 @@ function capStep(a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
 function goalStep(id: GoalId): GuideStep {
   // The trouble the card leads with ends with a budget (worn lines, a strike for want of funds): that first, before
   // anything to build (a striking station's card said 예산 부족 and recommended a kiosk).
-  const { worst } = guideSaid(id);
+  const { worst } = guideSaid(id, false); // (the city's money's: its rating's guide is its own, ratingGuide)
   const due = worst && BUDGET_FIX[worst.code] ? budgetStep(id, worst) : null;
   if (due) return due;
   // Taxes eating demand: every such type's tax to neutral, applied at once (one press a type took three presses, the
@@ -1251,8 +1298,14 @@ const STEADY: Partial<Record<GoalId, number>> = { traffic: 1 };
 const FOLLOW_DAYS = 90;
 /** Per goal, the latest action awaiting its result: what was done, when, and the key figure then. */
 
+/** Where a tab's work is judged by a figure of its own (환경·쾌적's parks, landmarks and rewards are for the rich and
+ *  the land, not the air: one built from 쾌적도 was told as "대기 오염 73 → 75", in red). */
+const TAB_FIGURE: Partial<Record<GoalId, Record<string, string>>> = { environment: { 쾌적도: '부유층 주민', 땅값: '평균 땅값' } };
+
+/** The figure an action on the goal is judged by: its tab's own, if it has one, else the goal's. */
 function keyFigure(id: GoalId): Metric | undefined {
-  return metrics(id).find((m) => m[0] === KEY_FIGURE[id]);
+  const label = (active === id ? TAB_FIGURE[id]?.[tabNow(id).label] : undefined) ?? KEY_FIGURE[id];
+  return metrics(id).find((m) => m[0] === label);
 }
 
 /** Remembers an action to report on; another on the same goal before the result joins it (measured from the first). */
@@ -1276,7 +1329,7 @@ function followUp(id: GoalId, text: string, merge?: string): void {
 }
 
 /** Goals' tones at the last look (to notice one turning to 조치 필요), for this city. */
-let tonesSeen: { lineage: number; tones: Map<GoalId, Tone>; codes: Map<GoalId, Set<string>> } = { lineage: -1, tones: new Map(), codes: new Map() };
+let tonesSeen: { lineage: number; tones: Map<GoalId, Tone>; codes: Map<GoalId, Set<string>>; rating?: Tone } = { lineage: -1, tones: new Map(), codes: new Map() };
 /** The advisors' 'bad' codes on a goal now (a new one in an already bad goal is news too). */
 const badCodes = (id: GoalId) => new Set(adviceFor(id).filter((a) => a.level === 'bad').map((a) => a.code));
 /** The day each goal was last told as needing action (the advisors' own toast for it then gives way). */
@@ -1308,7 +1361,7 @@ export function watchGoals(): void {
   const day = city.state.day;
   if (tonesSeen.lineage !== cityLineage) {
     // Another city: what is wrong in it now is where it starts, not news.
-    tonesSeen = { lineage: cityLineage, tones: new Map(GOAL_ORDER.map((id) => [id, goalStatus(id).tone])), codes: new Map(GOAL_ORDER.map((id) => [id, badCodes(id)])) };
+    tonesSeen = { lineage: cityLineage, tones: new Map(GOAL_ORDER.map((id) => [id, goalStatus(id).tone])), codes: new Map(GOAL_ORDER.map((id) => [id, badCodes(id)])), rating: ratingTone(readStats().mayorRating) };
     pausedFor.clear();
     // (Nor what was told in the last: a city at day 700 told of its power kept another at day 200 from hearing of its own.)
     toldAt.clear();
@@ -1361,12 +1414,27 @@ export function watchGoals(): void {
     toast(`${inc ? inc.title : `${GOALS[id].name}: ${why ? firstSentence(why) : '조치가 필요해졌습니다'}`}${stop ? stoppedNote() : ''}`, 'bad', inc?.at ?? word?.at, () => openGoal(id, inc?.at ?? word?.at), stop, undefined, id);
     if (inc && stop) centerOn(inc.at[0], inc.at[1]); // a fire or a riot: the map goes to it
   }
+  // The mayor's rating, the city's and no area's, gone below nothing: told as an area's trouble is (the clock stopped if
+  // the player keeps that on), its word opening the city's 시장 평점 tab — the advisor's own alarm for it gives way
+  // (flushAlarms). (Under 재정·정책 it told nothing: the money's figures said 양호.)
+  const rTone = ratingTone(readStats().mayorRating);
+  const rWas = tonesSeen.rating;
+  tonesSeen.rating = rTone;
+  const rAgo = day - (pausedFor.get('rating') ?? -Infinity);
+  if (rTone === 'bad' && rWas !== undefined && rWas !== 'bad' && running && !onRating('finance') && !(rAgo >= 0 && rAgo < 180) && readStats().population > 0) {
+    pausedFor.set('rating', day);
+    if (autoPause) chooseSpeed(0);
+    const low = adviceFor('finance').find((a) => a.code === 'mayorLow');
+    toast(`시장 평점: ${low ? firstSentence(adviceText(low)) : `시장 평점이 ${readStats().mayorRating}입니다`}${autoPause ? stoppedNote() : ''}`, 'bad', undefined,
+      () => cityTab(goalTabs('finance').findIndex((t) => t.label === '시장 평점')), autoPause, undefined, 'finance');
+  }
   const j = journal();
   for (const id of Object.keys(j.pending) as GoalId[]) {
     const p = j.pending[id]!;
     if (day - p.day < FOLLOW_DAYS) continue;
     delete j.pending[id];
-    const m = keyFigure(id);
+    // (The figure it was told against, whichever tab is open now.)
+    const m = metrics(id).find((x) => x[0] === p.label);
     if (!m || m[3] === undefined) continue;
     // (By what is shown: a figure that reads the same hasn't moved; nor one within its steady range.)
     const d0 = m[1] === p.value ? 0 : Math.round(m[3]) - Math.round(p.n);
@@ -1475,11 +1543,13 @@ function openingTab(id: GoalId): number {
   // (A code no tab names is the first tab's, as 진단 has it: by the names alone, a card led by an unnamed code opened
   // on another tab's trouble, its own on the first.)
   const by = (code: string | undefined) => (code ? tabs.findIndex((t) => codeOn(id, t, code)) : -1);
+  // (The city's: its money's trouble first, else its rating's tab — each as its row stands.)
+  if (id === 'finance' && !goalStatus(id).tone && ratingTone(readStats().mayorRating)) return Math.max(0, tabs.findIndex((t) => t.label === '시장 평점'));
   const inc = incidents().find((x) => x.goal === id);
-  const lead = inc ? incidentCode(inc) : (capFirst(id) ?? guideSaid(id).worst)?.code;
+  const lead = inc ? incidentCode(inc) : (capFirst(id) ?? guideSaid(id, false).worst)?.code;
   const k = by(lead);
   if (k >= 0) return k;
-  const bad = adviceFor(id).find((a) => a.level === 'bad' && by(a.code) >= 0);
+  const bad = adviceFor(id).find((a) => a.level === 'bad' && by(a.code) >= 0 && !(id === 'finance' && RATING_CODES.has(a.code)));
   return bad ? by(bad.code) : 0;
 }
 
@@ -1626,12 +1696,13 @@ function cityTab(k: number, focus = false): void {
 /** 재정 or 시장 평점 pressed (a row of the city's card, its scoreboard's): that tab of the city's screen — or, showing,
  *  the pane put away. */
 function toggleCityRow(key: string): void {
-  const label = key === 'rating' ? '시장 평점' : '재정';
-  if (active === 'finance' && paneShown() && tabNow('finance').label === label) {
+  const rating = key === 'rating';
+  // (Lit as its row is — 시장 평점's tab, or any of the money's: 재정's lit on 세율 went to 재정 when pressed again.)
+  if (active === 'finance' && paneShown() && (tabNow('finance').label === '시장 평점') === rating) {
     dismissPane();
     return;
   }
-  cityTab(goalTabs('finance').findIndex((t) => t.label === label));
+  cityTab(goalTabs('finance').findIndex((t) => t.label === (rating ? '시장 평점' : '재정')));
 }
 
 /** Where the keyboard goes into an open screen: its tab showing, else the pane's ×. */
@@ -1845,9 +1916,10 @@ export function closeGoal(): boolean {
   // before it opened brought back a tool's — a station held then — with nothing left to take it off.)
   restView();
   updatePanels();
-  // Back where the overview was, focus on the goal's row if the keyboard was in the panel.
+  // Back where the overview was, focus on the goal's row if the keyboard was in the panel (the city's own screen: on its
+  // overview's tab — it is no row of a list, and the keyboard was left on nothing).
   $('#pane').scrollTop = overviewScroll;
-  if (inPanel) $('#status').querySelector<HTMLElement>(`[data-goal="${was}"]`)?.focus({ preventScroll: true });
+  if (inPanel) (was === 'finance' ? $('#city-tabs').querySelector<HTMLElement>('[data-city-tab="-1"]') : $('#status').querySelector<HTMLElement>(`[data-goal="${was}"]`))?.focus({ preventScroll: true });
   redraw();
   return true;
 }
@@ -2957,8 +3029,13 @@ export function toggleUrgentGoal(): void {
   // (The first row of 도시 상태, as the list orders them: by GOAL_ORDER alone, M opened 재정·정책 under a list that
   // began with 수도.)
   const rank = { bad: 0, warn: 1, '': 2, good: 2 } as const;
+  const rated = ratingTone(readStats().mayorRating);
+  const toneOf = (g: GoalId): Tone => {
+    const t = goalStatus(g).tone;
+    return g !== 'finance' ? t : rank[rated] < rank[t] ? rated : t;
+  };
   const id = [...WATCHED].sort((a, b) => {
-    const [ta, tb] = [goalStatus(a).tone, goalStatus(b).tone];
+    const [ta, tb] = [toneOf(a), toneOf(b)];
     return rank[ta] - rank[tb] || (ta ? WEIGHT[b] - WEIGHT[a] : 0);
   })[0]!;
   openGoal(id);
@@ -3335,10 +3412,6 @@ export function setupGoals(): void {
   window.addEventListener('pointercancel', release);
   el.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
-    if (t.closest('.mg-back')) {
-      closeGoal();
-      return;
-    }
     if (t.closest('[data-jump-guide]')) {
       el.querySelector('.mg-guide')?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
       return;
