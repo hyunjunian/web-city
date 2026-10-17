@@ -53,8 +53,9 @@ function placeToasts(): void {
     if (tray) states.observe(tray, { attributes: true, attributeFilter: ['hidden'] });
     window.addEventListener('resize', again);
   }
-  // While a sheet is up on a phone held upright, the notices the clock didn't stop for wait under it, their time held.
-  holdUnder(box, matchMedia('(max-width: 860px) and (orientation: portrait)').matches && sheetUp());
+  // While a sheet is up on a phone held upright, the notices the clock didn't stop for wait under it, their time held;
+  // wide, while the tools' card reaches over their column (as wide as it may be, it did up to some 1,700px).
+  holdUnder(box, matchMedia('(max-width: 860px) and (orientation: portrait)').matches ? sheetUp() : trayOver(box));
   if (!matchMedia('(max-width: 860px)').matches) return void box.style.removeProperty('--toasts-top');
   const v = view.getBoundingClientRect();
   const b = box.getBoundingClientRect();
@@ -75,6 +76,15 @@ function placeToasts(): void {
   if (box.style.getPropertyValue('--toasts-top') !== at) box.style.setProperty('--toasts-top', at);
 }
 let watching = false;
+
+/** Wide: whether the tools' card is up and reaches over the notices' column. */
+function trayOver(box: HTMLElement): boolean {
+  const tray = document.getElementById('tray');
+  if (!tray || tray.hidden || matchMedia('(max-width: 860px)').matches) return false;
+  const t = tray.getBoundingClientRect();
+  const b = box.getBoundingClientRect();
+  return t.width > 0 && t.right > b.left && t.left < b.right;
+}
 
 /** Whether a sheet is up (on a phone the top buttons are away under it). By the classes and the tray's hidden, not by
  *  :has() in a selector: where the browser has no :has(), matches() threw, and every notice with it. */

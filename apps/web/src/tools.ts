@@ -1,7 +1,7 @@
 // The tool palette: tool definitions, the dock's tool categories, the tool tray
 // (facility pickers and extras included) and keyboard shortcuts.
 
-import { DEFAULT_CONFIG, DEV_TYPES, DISASTER_KINDS, type DisasterKind, type NetworkKind, type StructureKind, STRUCTURES, type ZoneKind } from '@web-city/engine';
+import { DEFAULT_CONFIG, DEV_TYPES, DISASTER_KINDS, type DisasterKind, type NetworkKind, type StructureKind, STRUCTURES, ZONING_COST_HIGH_COMMERCIAL, type ZoneKind } from '@web-city/engine';
 import { icon, type IconName } from './icons';
 import { hoverUnderMouse, setPreview, updatePreview } from './input';
 import { baseView, goalTools, markToolSite, nextStep, openGoal, suggestedKinds } from './manage';
@@ -308,10 +308,17 @@ let lastBuildCat: CategoryId = 'transport';
 
 /** What a tool costs per tile, for its tooltip ('' when it varies). */
 function toolPrice(t: Tool): string {
-  // Built before any city is open: prices come from the default config (every city uses it).
+  const c = toolCost(t);
+  return c ? `§${fmt(c.cost)}${c.unit}` : '';
+}
+
+/** What a tool costs at once, and per what (a tile of what is drawn, a tree, a throw; '' for one of a kind), as the
+ *  engine charges it (null: nothing, or as it varies). Built before any city is open: prices come from the default
+ *  config (every city uses it). */
+function toolCost(t: Tool): { cost: number; unit: string } | null {
   const cfg = DEFAULT_CONFIG;
   const ec = cfg.economy;
-  const per = (v: number) => `§${fmt(v)}/칸`;
+  const per = (cost: number) => ({ cost, unit: '/칸' });
   switch (t.kind) {
     case 'network': return per(ec.networkCost[t.network].build);
     case 'elevated': return per(ec.networkCost[t.track === 'highway' ? 'elevatedHighway' : t.track].build);
@@ -319,20 +326,23 @@ function toolPrice(t: Tool): string {
     case 'powerline': return per(cfg.services.powerLineCost.build);
     case 'pipe': return per(cfg.services.pipeCost.build);
     case 'zone': {
-      if (t.zone === 'none') return '';
+      if (t.zone === 'none') return null;
       if (t.zone === 'landfill') return per(cfg.garbage.landfill.zoneCost);
+      // (High-density commercial is the cheaper high density: §50 here read §30 at the drag.)
+      if (t.zone === 'C-high') return per(ZONING_COST_HIGH_COMMERCIAL);
       const density = t.zone === 'A' ? 'low' : t.zone.endsWith('low') ? 'low' : t.zone.endsWith('medium') ? 'medium' : 'high';
       return per(ec.zoningCost[density]);
     }
     case 'terraform': return per(t.to === 'raise' || t.to === 'lower' ? cfg.terrain.terraform.cost : cfg.disasters.terraformCost);
     case 'level': return per(cfg.disasters.levelCost);
-    case 'trees': return `§${fmt(cfg.flora.saplingCost)}/그루`;
-    case 'toll': return `§${fmt(cfg.transport.toll.cost)}`;
-    case 'cloverleaf': return `§${fmt(cfg.transport.cloverleaf.cost)}`;
-    case 'transition': return `§${fmt(cfg.transport.subwayTransition.cost)}`;
+    case 'trees': return { cost: cfg.flora.saplingCost, unit: '/그루' };
+    case 'toll': return { cost: cfg.transport.toll.cost, unit: '' };
+    case 'cloverleaf': return { cost: cfg.transport.cloverleaf.cost, unit: '' };
+    case 'transition': return { cost: cfg.transport.subwayTransition.cost, unit: '' };
     case 'unpipe': return per(cfg.services.pipeCost.bulldoze);
     case 'unsubway': return per(ec.networkCost.subway.bulldoze);
-    default: return '';
+    case 'throw': return { cost: cfg.mayor.throwMoney.cost, unit: '/번' };
+    default: return null;
   }
 }
 
@@ -365,15 +375,16 @@ function toolMonthly(t: Tool): string {
   }
 }
 
-/** What an act on the running city costs when done (a unit sent is free; money thrown, its sum each time). */
+/** What sending a unit or a disaster costs: nothing. (Money thrown has its price: toolCost.) */
 function actPrice(t: Tool): string {
-  return t.kind === 'throw' ? `${sect(DEFAULT_CONFIG.mayor.throwMoney.cost)}/번` : t.kind === 'dispatch' || t.kind === 'disaster' ? '무료' : '';
+  return t.kind === 'dispatch' || t.kind === 'disaster' ? '무료' : '';
 }
 
-/** A facility kind's month: its upkeep at a full budget (a plant's at full output), or what a deal pays (+). */
+/** A facility kind's month as the budget charges a new one at full budgets: its upkeep (a plant's at full output) and
+ *  a clinic's or a school's vehicles (their own row in its card) — or what a deal pays (+). */
 function kindMonthly(k: StructureKind): { month: string; gain: boolean } {
   const d = STRUCTURES[k];
-  return d.income ? { month: `월 +${sect(d.income)}`, gain: true } : { month: `월 ${sect(d.upkeep)}`, gain: false };
+  return d.income ? { month: `월 +${sect(d.income)}`, gain: true } : { month: `월 ${sect(d.upkeep + ((d.health ?? d.school)?.vehicles ?? 0))}`, gain: false };
 }
 
 /**
@@ -391,7 +402,9 @@ function tileHtml(o: { glyph: string; name: string; stat?: string; now?: string;
 
 /** A facility's figures for its tile: a line each, a number kept with its unit (급수 20,000 m³ broke before m³), and
  *  not a deal's pay (the tile's month says it). */
-const tileStat = (stat: string) => stat.split(' · ').filter((x) => !x.startsWith('월 +§')).map((x) => x.replace(/ (m³|MWh|t)(?= |$)/g, '\u00a0$1')).join('<br>');
+const tileStat = (stat: string) => statParts(stat).map((x) => x.replace(/ (m³|MWh|t)(?= |$)/g, '\u00a0$1')).join('<br>');
+/** A facility's figures but a deal's pay (its month says it: the tooltip said it twice). */
+const statParts = (stat: string) => stat.split(' · ').filter((x) => x && !x.startsWith('월 +§'));
 
 /** A fold of the card's less usual tools or kinds, as a tile: how many it holds, or 접기. */
 const foldTile = (open: boolean, count: number | string) =>
@@ -554,6 +567,8 @@ export function buildTools(): void {
       const key = Object.entries(TOOL_KEYS).find(([, id]) => id === t.id)?.[0]?.toUpperCase();
       const now = toolPrice(t) || actPrice(t);
       const month = toolMonthly(t);
+      const cost = toolCost(t)?.cost;
+      if (cost) b.dataset.cost = String(cost); // (marked short when the funds can't cover it: refreshToolPrices)
       b.innerHTML = tileHtml({ glyph: toolGlyph(t), name: t.label, now, month, key });
       b.title = `${toolName(t)}${key ? ` (${key})` : ''}${now ? ` · ${now}` : ''}${month ? ` · 유지 ${month}` : ''}`;
       b.onclick = (e) => pickTool(t.id, e.detail === 0);
@@ -588,9 +603,10 @@ export function buildTools(): void {
       // The facility kinds as cards (filled by refreshStructureLists as unlocks change).
       const picker = document.createElement('div');
       picker.className = 'picker';
-      picker.setAttribute('role', 'listbox'); // its kinds are options
       picker.dataset.tool = civic.id;
-      picker.setAttribute('role', 'listbox');
+      // (Its kinds are buttons pressed as the tools' are, not a listbox's options: the box is display: contents in its
+      // section's run of tiles, which some screen readers drop — and the options' list with it.)
+      picker.setAttribute('role', 'group');
       picker.setAttribute('aria-label', `${g.title} 시설 종류`);
       picker.addEventListener('click', (e) => {
         const fold = (e.target as HTMLElement).closest<HTMLElement>('[data-fold]');
@@ -729,7 +745,7 @@ function markPicked(picker: HTMLElement): void {
   picker.querySelectorAll<HTMLButtonElement>('[data-kind]').forEach((b) => {
     const on = tool.id === id && b.dataset.kind === chosen[id];
     b.classList.toggle('active', on);
-    b.setAttribute('aria-selected', String(on));
+    b.setAttribute('aria-pressed', String(on));
   });
 }
 
@@ -765,15 +781,21 @@ export function structureStat(k: StructureKind): string {
   return d.relief[0] ? `주거 상한 +${fmt(d.relief[0])}` : '';
 }
 
-/** The land's tools cost nothing until the city is founded (as the getting-started list says): their tiles say so. */
-function refreshTerrainPrices(): void {
+/** The tools' prices as the city stands: the land's tools cost nothing until it is founded (as the getting-started list
+ *  says), and a price the funds can't cover is red, as a facility's is. */
+function refreshToolPrices(): void {
   const free = !city.established();
+  const funds = city.state.funds;
   document.querySelectorAll<HTMLElement>('#tools .tile[data-tool]').forEach((b) => {
     const t = TOOLS.find((x) => x.id === b.dataset.tool);
-    if (t?.kind !== 'terraform') return;
     const price = b.querySelector('.tile-price');
-    if (price) price.textContent = free ? '무료' : toolPrice(t);
-    b.classList.toggle('free', free);
+    if (!t || !price) return;
+    const gratis = free && t.kind === 'terraform';
+    if (t.kind === 'terraform') {
+      price.textContent = gratis ? '무료' : toolPrice(t);
+      b.classList.toggle('free', gratis);
+    }
+    price.classList.toggle('short', !gratis && Number(b.dataset.cost ?? 0) > funds);
   });
 }
 
@@ -860,7 +882,7 @@ export function refreshStructureLists(): void {
     return;
   }
   refreshZoneDemand();
-  refreshTerrainPrices();
+  refreshToolPrices();
   document.querySelectorAll<HTMLElement>('#tools .picker[data-tool]').forEach((picker) => {
     const id = picker.dataset.tool!;
     const kinds = kindsFor(TOOLS.find((t) => t.id === id) as StructureTool);
@@ -882,10 +904,13 @@ export function refreshStructureLists(): void {
         const { month, gain } = kindMonthly(k);
         const now = def.cost ? `§${fmt(def.cost)}` : '무료';
         // (What it does a line each — 반경 24칸 / 환자 500명; locked, why; built once, so. Then its price and its month.)
-        return `<button type="button" class="tile${!open ? ' locked' : placed ? ' placed' : ''}${folded ? ' more' : ''}" role="option" data-kind="${k}" ${!open || placed ? 'disabled' : ''}
-          title="${attr(`${STRUCTURE_NAME[k]} · ${def.w}×${def.h}칸 · 건설 ${now} · ${gain ? '수입' : '유지'} ${month}${stat ? ` · ${stat}` : ''}${short ? ' · 자금이 모자랍니다' : ''}${!open ? ` — ${why}` : ''}`)}">${tileHtml({
+        const does = statParts(stat).join(' · ');
+        return `<button type="button" class="tile${!open ? ' locked' : placed ? ' placed' : ''}${folded ? ' more' : ''}" data-kind="${k}" aria-pressed="false" ${!open || placed ? 'disabled' : ''}
+          title="${attr(`${STRUCTURE_NAME[k]} · ${def.w}×${def.h}칸 · 건설 ${now} · ${gain ? '수입' : '유지'} ${month}${does ? ` · ${does}` : ''}${short ? ' · 자금이 모자랍니다' : ''}${!open ? ` — ${why}` : ''}`)}">${tileHtml({
+            // (Locked, the whole of what opens it, a condition a line: cut to three lines it lost the last — 총인구 —
+            // and a touch has no tooltip to read the rest in.)
             glyph: !open ? icon('lock') : placed ? icon('check') : swatchOf(k, `${def.w}×${def.h}칸`), name: STRUCTURE_NAME[k],
-            stat: !open ? why : placed ? '이미 지음' : tileStat(stat), now: placed ? '' : now, month: placed ? '' : month, gain, short })}</button>`;
+            stat: !open ? statParts(why).join('<br>') : placed ? '이미 지음' : tileStat(stat), now: placed ? '' : now, month: placed ? '' : month, gain, short })}</button>`;
       }).join('')
         // The less usual kinds fold behind 더 보기; locked ones behind one tile of their own (many for rewards and landmarks).
         + (LEAD_KINDS[id] ? (() => {
@@ -1142,7 +1167,7 @@ export function restView(): void {
 // ------------------------------------------------------------------ finding a tool
 
 /** What the search box can find: every tool, every kind of facility (by its own name), and the screens (by what they hold). */
-type Found = { key: string; name: string; where: string; glyph: string; sub: string; month?: string; gain?: boolean; locked: string; pick: () => void; words?: string; aside?: true };
+type Found = { key: string; name: string; where: string; glyph: string; sub: string; cost?: number; month?: string; gain?: boolean; locked: string; pick: () => void; words?: string; aside?: true };
 
 /**
  * Everyday words a tool or facility answers to besides its name: 물 found 물 파기 and 박물관 but no pump, 전기 only
@@ -1199,7 +1224,7 @@ function findables(): Found[] {
           out.push({
             key: `${t.id}:${k}`, name: STRUCTURE_NAME[k], where: `${cat.label} · ${g.title}`, words: wordsFor(t, d),
             glyph: swatchOf(k),
-            sub: d.cost ? `§${fmt(d.cost)}` : '무료', ...kindMonthly(k),
+            sub: d.cost ? `§${fmt(d.cost)}` : '무료', cost: d.cost, ...kindMonthly(k),
             locked: !open ? why : placed ? '이미 지음' : '',
             pick: () => {
               chosen[t.id] = k;
@@ -1211,7 +1236,7 @@ function findables(): Found[] {
         // (Terrain and disasters are listed after the rest: Enter on 물 dug a lake.)
         // (철거 and 조회 are their categories' only tools: "철거 · 철거" said nothing.)
         const where = t.kind === 'bulldoze' ? '끌어서 헐기 · 빈 구역은 해제' : cat.label === g.title ? cat.label : `${cat.label} · ${g.title}`;
-        out.push({ key: t.id, name: toolName(t), where, words: wordsFor(t), glyph: toolGlyph(t), sub: t.kind === 'terraform' && !city.established() ? '무료' : toolPrice(t) || actPrice(t), month: toolMonthly(t), locked: usable(t) ? '' : '잠김', pick: () => selectTool(t.id),
+        out.push({ key: t.id, name: toolName(t), where, words: wordsFor(t), glyph: toolGlyph(t), sub: t.kind === 'terraform' && !city.established() ? '무료' : toolPrice(t) || actPrice(t), cost: t.kind === 'terraform' && !city.established() ? 0 : toolCost(t)?.cost, month: toolMonthly(t), locked: usable(t) ? '' : '잠김', pick: () => selectTool(t.id),
           ...(t.kind === 'terraform' || t.kind === 'disaster' || t.kind === 'level' || t.kind === 'trees' ? { aside: true as const } : {}) });
       }
     }
@@ -1291,7 +1316,8 @@ function renderFound(q: string): void {
   $('#tray-title').innerHTML = `${icon('search')}찾기 · ${found.length}개`;
   res.innerHTML = found.length
     ? found.map((f, i) => `<button type="button" class="tile${f.locked ? ' locked' : ''}${i === 0 && !f.locked ? ' first' : ''}" role="option" data-find="${attr(f.key)}" ${f.locked ? 'disabled' : ''} title="${attr(`${f.name} · ${f.where}${f.sub ? ` · ${f.sub}` : ''}${f.month ? ` · ${f.month}` : ''}${f.locked ? ` — ${f.locked}` : ''}`)}">${tileHtml({
-        glyph: f.locked ? icon('lock') : f.glyph, name: f.name, stat: f.locked || f.where, now: f.locked ? '' : f.sub, month: f.locked ? '' : f.month, gain: f.gain })}</button>`).join('')
+        glyph: f.locked ? icon('lock') : f.glyph, name: f.name, stat: f.locked || f.where, now: f.locked ? '' : f.sub, month: f.locked ? '' : f.month, gain: f.gain,
+        short: !f.locked && !!f.cost && f.cost > city.state.funds })}</button>`).join('')
     : `<p class="legend find-none">'${q.trim().replace(/[<&]/g, '')}'${'에 맞는 도구가 없습니다'}</p>`;
 }
 

@@ -21,6 +21,7 @@ export type { SavedRegion, CitySpan } from './regionmap';
 export type { CitySnapshot } from './sim/region';
 export type { SavedCity } from './save';
 export { DEFAULT_CONFIG, makeConfig } from './config';
+export { ZONING_COST_HIGH_COMMERCIAL } from './data/economy';
 export type { SimConfig, ConfigOverrides } from './config';
 export type { Difficulty } from './data/difficulty';
 export { STRUCTURES } from './data/structures';

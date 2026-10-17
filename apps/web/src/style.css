@@ -1010,6 +1010,9 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 
 /* Notifications: placed with the map's other floating parts (the chrome, below). */
 #toasts { position: absolute; z-index: 5; display: grid; align-content: end; gap: 8px; pointer-events: none; }
+/* Held while a sheet or the tools' card is over their column (toast.ts): only one the clock stopped for shows, over it. */
+#toasts.held > .toast:not(.sticky) { display: none; }
+@media (min-width: 861px) { #toasts.held { z-index: 7; } }
 /* A notice that stopped the clock (its reason, 계속) stays over a card or sheet opened since: under the 지역 sheet, the
    game sat paused for a reason out of sight. */
 @media (min-width: 861px) { #view.sheet-open #toasts:has(> .toast.sticky) { z-index: 8; } }
@@ -1112,7 +1115,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 .tile.active .tile-icon { color: var(--accent-hi); }
 .tile-icon .i { width: 28px; height: 28px; stroke-width: 1.6; }
 .tile-icon .swatch { display: block; width: 26px; height: 26px; border-radius: 8px; box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.18); }
-.tile-label { font-size: 13px; font-weight: 600; line-height: 1.25; word-break: keep-all; }
+.tile-label { font-size: 13px; font-weight: 600; line-height: 1.25; word-break: keep-all; overflow-wrap: anywhere; } /* (a word longer than the tile — 노이슈반슈타인 — breaks rather than spill over) */
 /* Every button of the tools' card is a tile: its glyph, its name, what it does (a facility's figures, a line each; why
    it is locked), then what it costs at its foot — at once, and a month after (upkeep at a full budget; a deal's pay). */
 .tile-stat {
@@ -1124,11 +1127,12 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 .tile-price.short { color: var(--danger-ink); }
 .tile-month { font-size: 10.5px; font-weight: 500; color: var(--muted); }
 .tile-month.gain { color: var(--good-ink, var(--good)); font-weight: 600; }
-.tile.active .tile-price { color: var(--accent-hi); }
+.tile.active .tile-price:not(.short) { color: var(--accent-hi); } /* (one the funds can't cover stays red, in hand too) */
 .tile-icon .pick-swatch { width: 24px; height: 24px; border-radius: 7px; font-size: 13px; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18), 0 0 0 1px var(--line-strong); }
 .tile:disabled { opacity: 1; cursor: default; transform: none; }
 .tile:is(.locked, .placed) { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
 .tile.locked { opacity: 0.6; }
+.tile.locked .tile-stat { display: block; overflow: visible; } /* (what opens it in full, a condition a line: the tiles show only when asked for) */
 .tile:is(.locked, .placed) .tile-icon { color: var(--muted); }
 .tile:is(.locked, .placed) .tile-icon .i { width: 20px; height: 20px; }
 .tile kbd { min-width: 0; padding: 0 5px; font-size: 10.5px; line-height: 1.5; border-bottom-width: 1px; }
@@ -2850,10 +2854,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 @media (max-width: 860px) and (orientation: portrait) {
   #app.pane-open #toasts { z-index: 22; }
   :is(#app.pane-open, #view.info-open, #view.sheet-open, #view:has(#tray:not([hidden]))) .toast-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-  /* Only one the clock stopped for, while a sheet is up: the rest wait, their time held, until it goes down (in the
+  /* (Only one the clock stopped for, while a sheet is up: the rest wait, their time held, until it goes down — in the
      strip of map left above an area's screen they covered the tab's view and its ring; over the tools' card they hung
-     half under its edge). */
-  #toasts.held > .toast:not(.sticky) { display: none; }
+     half under its edge. The rule: #toasts.held, above.) */
   /* An area's screen up: the view's card on one line, its count cut short beside 찾아가기 (three lines of it and a
      notice under them left the strip of map little of itself). */
   #app.pane-open #map-layer .overlay-sum { flex-wrap: nowrap; }
