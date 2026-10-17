@@ -8,6 +8,12 @@
     <meta name="theme-color" content="#0b0b0d" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <link rel="manifest" href="manifest.webmanifest" />
+    <!-- Opened from the home screen, the whole screen is the map's: no status bar on Android (the manifest's fullscreen),
+         and on an iPhone, which keeps its clock and battery, the map drawn under them, see-through, not under a bar. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Web City" />
     <script>
       // Theme before first paint (see src/theme.ts): saved choice, else the system's.
       try {
