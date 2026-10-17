@@ -13,7 +13,7 @@ import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { whyNoDeals } from './region';
 import { journal } from './journal';
-import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, updatePanels } from './panels';
+import { abandonHint, capBest, capHint, capLeads, classDemand, jobHint, pushNotice, RCI_CLASSES, rciMini, updatePanels } from './panels';
 import { checklist } from './onboarding';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { GRAPH_KEYS } from './graphs';
@@ -23,7 +23,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice } from './choices';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
 import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type GoalTab, type Metric, type TabPart, type Tone } from './goals';
-import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type AirSource, airSources, type Gauge, goalGauge, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -94,6 +94,14 @@ export function problemsHtml(alerts: string, figs: PaneFigs): string {
   return qualityGrid(counts, `${alerts}${step.urgent ? step.html : ''}`, figs);
 }
 
+/** Wide, the pane's overview without the areas' list (they stand down the map's left with their figures): only what
+ *  cannot wait — a fire or a riot to send units to, a blackout, impeachment — in a card of its own, if any. */
+export function urgentHtml(alerts: string): string {
+  const step = nextStep();
+  const top = `${alerts}${step.urgent ? step.html : ''}`;
+  return top ? `<section class="card quality urgent-only" aria-label="기다릴 수 없는 일">${top}</section>` : '';
+}
+
 /**
  * 도시 상태 (with how many need a hand): every goal's figure as a tile, in a fixed place (the scoreboard's makings:
  * what draws people, jobs and a good rating); a tile tinted when it needs looking at.
@@ -141,12 +149,13 @@ let listOrder: { keys: string[]; split: number } | null = null;
 const hoverable = () => matchMedia('(hover: hover)').matches;
 
 /**
- * Each area's state, a button each — 시작하기 first while its checklist shows (pressed, the city pane, which holds it),
- * then the areas needing a hand (anything burning first), then the sound ones, in the city pane's order, the mayor's
- * rating among them; the area whose screen is open lit, its × beside it. Wide, down the map's left under the city
- * button (the rail): each with its name and figure, and why under them while it needs a hand (the order held while the
- * pointer is over them). A phone, a row of chips under its top buttons: compact, the urgent by name, the rest by their
- * icons alone, the open screen's first. What either can't show scrolls in, its cut edge faded.
+ * Each area's state, a button each — 시작하기 first while its checklist shows (pressed, the city pane, which holds it);
+ * the area whose screen is open lit, its × beside it. Wide, down the map's left under the city button (the rail), in
+ * an order that never changes (재정, 시장 평점, then the areas as their screens go): each its name, its figure (▲▼ the
+ * last three months) and how it stands drawn under them — no words of why, its colour saying it needs a hand (the why in
+ * its tooltip and on its screen). A phone, a row of chips under its top buttons: the areas needing a hand first (anything
+ * burning first), compact, the urgent by name, the rest by their icons alone, the open screen's first. What either can't
+ * show scrolls in, its cut edge faded.
  */
 export function refreshStrip(): void {
   const el = $('#goal-strip');
@@ -169,10 +178,12 @@ export function refreshStrip(): void {
     const d = wide ? driftOf(id) : null;
     // (개발·수요's figure as the pane's row has it: "주거 상한", "상업 +540".)
     const value = id === 'growth' ? s.value.replace(' 수요 ', ' ') : s.value;
+    const gz = wide ? goalGauge(id) : null;
+    const fig = gz && gz.kind !== 'rci' && gz.fig ? gz.fig : '';
     return {
       key: id, tone, weight: WEIGHT[id],
       html: (on: boolean) => wide
-        ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${value}${note ? ` · ${note}` : ''}${d ? ` · ${d.said}` : ''} · ${on ? '눌러서 도시 현황 닫기·열기 (×는 화면 닫기)' : `눌러서 ${g.name} 화면`}`)}" aria-label="${escapeHtml(`${g.name}${said}: ${value}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span><span class="r-val">${d ? `<small class="r-drift ${d.good ? 'up' : 'down'}" aria-hidden="true">${d.up ? '▲' : '▼'}</small>` : ''}${escapeHtml(value)}</span>${note ? `<span class="r-note">${escapeHtml(note)}</span>` : ''}</button>`
+        ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${value}${fig ? ` · ${fig}` : ''}${note ? ` · ${note}` : ''}${d ? ` · ${d.said}` : ''} · ${on ? '눌러서 도시 현황 닫기·열기 (×는 화면 닫기)' : `눌러서 ${g.name} 화면`}`)}" aria-label="${escapeHtml(`${g.name}${said}: ${value}${fig ? `, ${fig}` : ''}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span><span class="r-val">${d ? `<small class="r-drift ${d.good ? 'up' : 'down'}" aria-hidden="true">${d.up ? '▲' : '▼'}</small>` : ''}${escapeHtml(value)}</span>${railViz(gz)}</button>`
         : `<button type="button" class="${tone || 'ok'}${tone === 'bad' || on ? '' : ' bare'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${g.name}: ${escapeHtml(s.value)}${tone ? ` · ${escapeHtml(note)}` : ''} · 눌러서 ${g.name} 화면" aria-label="${g.name}${said}: ${escapeHtml(s.value)}"${on ? ' aria-pressed="true"' : ''}>${glyph}${tone === 'bad' || on ? g.name : ''}</button>`,
     };
   });
@@ -183,18 +194,14 @@ export function refreshStrip(): void {
   chips.push({
     key: 'rating', tone: rTone, weight: 4,
     html: () => wide
-      ? `<button type="button" class="${rTone || 'ok'}" data-k="rating" ${tab('rating')} data-strip-polls title="시장 평점: ${rated ? st.mayorRating : '아직 없음 (주민이 든 달이 지나면 매겨짐)'}${rNote ? ` · ${rNote}` : ''} · 눌러서 주제별 여론" aria-label="시장 평점${rTone === 'bad' ? ', 조치 필요' : rTone === 'warn' ? ', 주의' : ''}: ${rated ? st.mayorRating : '아직 없음'}">${icon('approval')}<span class="r-name">시장 평점</span><span class="r-val">${rated ? st.mayorRating : '—'}</span>${rNote ? `<span class="r-note">${rNote}</span>` : ''}</button>`
+      ? `<button type="button" class="${rTone || 'ok'}" data-k="rating" ${tab('rating')} data-strip-polls title="시장 평점 (−100~100): ${rated ? st.mayorRating : '아직 없음 (주민이 든 달이 지나면 매겨짐)'}${rNote ? ` · ${rNote}` : ''} · 눌러서 주제별 여론" aria-label="시장 평점${rTone === 'bad' ? ', 조치 필요' : rTone === 'warn' ? ', 주의' : ''}: ${rated ? st.mayorRating : '아직 없음'}${rNote ? `, ${rNote}` : ''}">${icon('approval')}<span class="r-name">시장 평점</span><span class="r-val">${rated ? st.mayorRating : '—'}</span>${railViz(goalGauge('rating'))}</button>`
       : `<button type="button" class="${rTone || 'ok'}${rTone === 'bad' ? '' : ' bare'}" data-k="rating" ${tab('rating')} data-strip-polls title="시장 평점: ${rated ? st.mayorRating : '아직 없음'} · 눌러서 주제별 여론" aria-label="시장 평점${rTone === 'bad' ? ', 조치 필요' : rTone === 'warn' ? ', 주의' : ''}: ${rated ? st.mayorRating : '아직 없음'}">${icon('approval')}${rTone === 'bad' ? '시장 평점' : ''}</button>`,
   });
-  let sorted = chips.map((c, k) => ({ c, k: c.key === 'rating' ? 0.5 : k }))
-    .sort((a, b) => rank(a.c.tone) - rank(b.c.tone) || (a.c.tone ? b.c.weight - a.c.weight : a.k - b.k)).map(({ c }) => c);
-  // (Wide, under a pointer the buttons keep their places, their figures still moving: one sorted up as the month
-  // turned would take the press meant for the one that had been there. They sort again once it leaves.)
-  if (wide && railOrder && hoverable() && document.querySelector('#rail:hover') && railOrder.length === sorted.length) {
-    const byKey = new Map(sorted.map((c) => [c.key, c]));
-    if (railOrder.every((k) => byKey.has(k))) sorted = railOrder.map((k) => byKey.get(k)!);
-  }
-  railOrder = sorted.map((c) => c.key);
+  // Wide, one order for good: 재정, 시장 평점, then the areas as their screens go (a button moved up as an area turned red
+  // left another under the pointer, and the eye looked for each in a new place). A phone's chips, the troubled first.
+  const sorted = wide ? ['finance', 'rating', ...GOAL_ORDER.filter((x) => x !== 'finance')].map((k) => chips.find((c) => c.key === k)!)
+    : chips.map((c, k) => ({ c, k: c.key === 'rating' ? 0.5 : k }))
+      .sort((a, b) => rank(a.c.tone) - rank(b.c.tone) || (a.c.tone ? b.c.weight - a.c.weight : a.k - b.k)).map(({ c }) => c);
   // 시작하기 and how far along, while its checklist shows (the city pane holds it).
   const start = !checklist ? ''
     : wide ? `<button type="button" class="strip-start" data-k="start" ${tab('start')} data-strip-start title="시작하기: ${checklist.done}/${checklist.of} 완료 · 눌러서 도시 현황의 시작하기 목록" aria-label="시작하기: ${checklist.done}/${checklist.of} 완료 · 도시 현황">${icon('sparkles')}<span class="r-name">시작하기</span><span class="r-val">${checklist.done}/${checklist.of}</span></button>`
@@ -244,8 +251,25 @@ function keepStop(el: HTMLElement): void {
   to.setAttribute('tabindex', '0');
   stripAt = to.dataset.tk ?? 'start';
 }
-/** The rail's order as last drawn (held while the pointer is over it). */
-let railOrder: string[] | null = null;
+/** An area's state drawn on its rail button, under its name and figure: a meter, a bar either side of nothing, or each
+ *  class's demand so — with the figure a bar stands for (사용 71%, 범위 92%, +§1.2k/월). */
+function railViz(gz: Gauge | null): string {
+  if (!gz) return '';
+  const fill = (v: number, half: boolean, cls = '') => `<i class="${half && v < 0 ? 'neg' : 'pos'}${cls}" style="width:${(Math.min(1, Math.abs(v)) * (half ? 50 : 100)).toFixed(1)}%"></i>`;
+  const meter = (v: number, half: boolean) => `<span class="r-meter${half ? ' r-div' : ''}">${fill(v, half)}</span>`;
+  if (gz.kind === 'rci') {
+    // (On the demand card's scale: full at ±1,000, rooted so a small want still shows. A capped class's want past
+    // its cap striped behind it.)
+    const root = (v: number) => Math.sign(v) * Math.sqrt(Math.min(1, Math.abs(v) / 1000));
+    const each = RCI_CLASSES.map(([k, label]) => {
+      const { v, capped, want } = classDemand(k);
+      const held = capped && want > Math.max(0, v) ? fill(root(want), true, ' held') : '';
+      return `<span class="r-k k-${k.toLowerCase()}"><b>${label}</b><span class="r-meter r-div">${held}${fill(root(v), true)}</span></span>`;
+    }).join('');
+    return `<span class="r-viz r-rci" aria-hidden="true">${each}</span>`;
+  }
+  return `<span class="r-viz" aria-hidden="true">${meter(gz.v, gz.kind === 'diverge')}${gz.fig ? `<small class="r-fig">${escapeHtml(gz.fig)}</small>` : ''}</span>`;
+}
 /** The chips' markup as last drawn (what the row shows, unless it changed). */
 let stripSeen = '';
 /** The chip the row's Tab stop is on (its data-tk): the one last focused or arrowed to. */

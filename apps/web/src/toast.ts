@@ -262,6 +262,7 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
   el.onpointerleave = (e) => {
     if (e.pointerType === 'mouse' && !sticky) wait(2500);
   };
-  // A dot on the city button at the top, which opens the city pane, until it is opened.
-  if (unread && !paneShown()) document.getElementById('btn-city')?.classList.add('unread');
+  // A dot on the city button at the top, which opens the city pane where the news is kept, until it is opened. (A
+  // phone's: wide, the pane keeps no news — what came stays in the toasts at the map's foot.)
+  if (unread && !paneShown() && matchMedia('(max-width: 860px)').matches) document.getElementById('btn-city')?.classList.add('unread');
 }

@@ -5,7 +5,7 @@ import { icon } from './icons';
 import { chooseSpeed, fitMapbar, markDate, markPaneClock, markStage, refreshTaxes, refreshViewSummary } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
 import { adviceFor, capped as atCap, deptEmpty, deptFunded, freshLandfill, newReadings, readStats, stormHolds } from './readings';
-import { active, autoPause, markToolSite, openGoal, openViewTab, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, watchGoals } from './manage';
+import { active, autoPause, markToolSite, openGoal, openViewTab, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, urgentHtml, watchGoals } from './manage';
 import { buildOrdinances, ordinanceMonth, ordinanceSignature, refreshInfo, setOrdinanceMonth } from './info';
 import { ko } from './messages';
 import { ABANDON_NAME, ADVICE_TEXT, plainCodes, ADVISOR_NAME, CRIME_NAME, EDGE_NAME, ORDINANCE_NAME, POLL_NAME, REPORT_NAME, RESOURCE_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME, TYPE_SHORT } from './names';
@@ -331,13 +331,13 @@ function renderBuildings(): void {
 }
 
 /** The RCI meter's classes: letter, name and zone colour. */
-const RCI_CLASSES = [['R', '주거', 'var(--zone-r)'], ['C', '상업', 'var(--zone-c)'], ['I', '산업', 'var(--zone-i)']] as const;
+export const RCI_CLASSES = [['R', '주거', 'var(--zone-r)'], ['C', '상업', 'var(--zone-c)'], ['I', '산업', 'var(--zone-i)']] as const;
 
 /**
  * SC4's RCI meter for one class: its strongest demand (or weakest, when none is positive),
  * whether its cap holds Sims back, and for industry whether farms are what is wanted.
  */
-export function classDemand(k: 'R' | 'C' | 'I'): { v: number; capped: boolean; farms: boolean; factories: number } {
+export function classDemand(k: 'R' | 'C' | 'I'): { v: number; capped: boolean; want: number; farms: boolean; factories: number } {
   const dem = city.demand;
   const vals = DEV_TYPES.filter((t) => t[0] === k).map((t) => dem.demand[t]);
   // Sims want in but the class's cap holds them back (the bar alone would read as no demand).
@@ -349,7 +349,11 @@ export function classDemand(k: 'R' | 'C' | 'I'): { v: number; capped: boolean; f
   const farms = k === 'I' && v > 0 && dem.demand.IA >= v;
   // Only farms: an industrial zone would stay empty (farms grow on 농업 zones).
   const factories = Math.max(dem.demand.ID, dem.demand.IM, dem.demand.IHT);
-  return { v, capped, farms, factories };
+  // What a capped class would want without its cap, on the bar's scale (before taxes).
+  const half = dem.halfSaturation;
+  const want = capped && half ? Math.max(v, ...DEV_TYPES.filter((t) => t[0] === k && t !== 'IA' && atCap(t) && dem.raw[t] > 0)
+    .map((t) => (1000 * dem.raw[t]) / (dem.raw[t] + half))) : v;
+  return { v, capped, want, farms, factories };
 }
 
 /** The RCI meter in small, beside 개발·수요's figure on the watch list: three bars up (wanted) or down (surplus). */
@@ -403,10 +407,12 @@ export function updatePanels(): void {
     const named = $('#city-name').textContent !== city.state.name || $('#city-stage').textContent !== stage.name;
     $('#city-name').textContent = city.state.name;
     $('#city-stage').textContent = stage.name;
-    // (Wide, under them: the residents and how near the next stage, the figures the ring stands for.)
-    $('#city-sub').textContent = `${fmt(st.population)}명 · ${stage.next ? `${stage.next[1]}까지 ${pct}%` : '가장 높은 단계'}`;
+    // (Wide, under them: the residents as a score, and how near the next stage on a bar — a phone's ring is the bar.)
+    $('#city-pop').textContent = fmt(st.population);
+    $('#city-next').innerHTML = stage.next ? `<span>${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명</span><b>${pct}%</b>` : '<span>가장 높은 단계</span>';
     const btn = $('#btn-city');
-    btn.title = `${city.state.name}: ${stage.name}(${stage.step}단계) · 인구 ${fmt(st.population)}명${stage.next ? ` · 다음 단계 ${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명 — 테두리의 금색 선이 ${pct}%` : ' · 가장 높은 단계'} · 눌러서 도시 현황 열기·닫기 (관리 화면에서는 도시 현황으로)`;
+    btn.style.setProperty('--share', `${(stage.share * 100).toFixed(1)}%`);
+    btn.title = `${city.state.name}: ${stage.name}(${stage.step}단계) · 인구 ${fmt(st.population)}명${stage.next ? ` · 다음 단계 ${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명 (${pct}%)` : ' · 가장 높은 단계'} · 눌러서 도시 현황 열기·닫기 (관리 화면에서는 도시 현황으로)`;
     btn.setAttribute('aria-label', `${city.state.name}, ${stage.name} ${stage.step}단계, 인구 ${fmt(st.population)}명${stage.next ? `, 다음 단계까지 ${pct}%` : ''} · 도시 현황`);
     markStage(stage.share * 100);
     $('#pane-city-name').textContent = city.state.name;
@@ -442,9 +448,12 @@ export function updatePanels(): void {
   // and monitors; what to do is told on each area's screen.)
   // The city (its size with the next reward under it, then money, jobs and rating), the one thing
   // to do now, and how every area stands (the troubled ones marked and counted).
+  // (Wide, the areas stand down the map's left, each with its figure and how it stands: the overview keeps the city, the
+  // reward ahead and what cannot wait — not the areas' list again, nor the news. A phone's chips are icons: it keeps both.)
+  const wide = !matchMedia('(max-width: 860px)').matches;
   const statusHtml = active ? '' : `
     <section class="card city-sum" aria-label="도시">${scoreboard(st.population, trend('population', st.population))}${nextReward()}</section>
-    ${problemsHtml(alerts, { jobs: st.jobs, jobsTrend: trend('jobs', st.jobs), rating: st.mayorRating, ratingTrend: trend('mayorRating', st.mayorRating) })}`;
+    ${wide ? urgentHtml(alerts) : problemsHtml(alerts, { jobs: st.jobs, jobsTrend: trend('jobs', st.jobs), rating: st.mayorRating, ratingTrend: trend('mayorRating', st.mayorRating) })}`;
   if (statusHtml && statusHtml !== lastStatus && !paneHeld()) {
     lastStatus = statusHtml;
     $('#status').innerHTML = statusHtml;
@@ -486,8 +495,8 @@ export function updatePanels(): void {
   if (!paneHeld() && adv !== lastAdvice) {
     lastAdvice = adv;
     $('#advice').innerHTML = adv;
-    $('#advice-card').hidden = !adv;
   }
+  $('#advice-card').hidden = !adv || wide; // (wide, not in the overview: see above)
   refreshStructureLists();
   if (goal) graphs.update(city.state.history);
   // Ordinances' costs and requirements change with the city (population, a

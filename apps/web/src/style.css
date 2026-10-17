@@ -13,7 +13,7 @@
   --mb-h: 44px;
   --strip-h: 34px;
   --bar-h: calc(14px + var(--mb-h));
-  --rail-w: 236px;
+  --rail-w: 264px;
   --rail-c: 52px;
   --dock-h: 64px;
   --bb: calc(14px + var(--dock-h) + 10px);
@@ -373,6 +373,7 @@ kbd {
 /* Wide, beside the rail's column of icons (the rail at its full width while the pane is away). */
 @media (min-width: 861px) {
   #pane { left: calc(22px + var(--rail-c)); }
+  #pane:not(.managing) { bottom: auto; max-height: calc(100% - 28px); } /* (the city's own: as tall as what it holds) */
   #app:not(.pane-open) { --free-l: calc(var(--rail-w) + 28px); }
 }
 /* Fades out at the foot instead of cutting a line in half (while there is more below: tabs.ts) — a veil kept at the
@@ -2583,50 +2584,78 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #goal-strip.more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
 #goal-strip.more-left { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent); }
 #goal-strip.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
-.city-sub { display: none; } /* (the rail's city button's second line) */
+.city-score, .city-bar, .city-next { display: none; } /* (the rail's city button's score, bar and next stage: a phone's has its ring) */
 
-/* ---- wide: down the map's left, the city and its areas — the city button (its name and stage; its residents and how
-   near the next stage, the ring round its edge filling toward it), then each area as a button of its own with its
-   figure (▲▼ its last three months), and why under them while it needs a hand. While the city pane is open beside
-   them, their icons alone in a narrow column (the pane says the rest): the one it shows lit. */
+/* ---- wide: down the map's left, 도시 정보 및 관리 — the city button (its name and stage; its residents big, as a
+   score, and how near the next stage on a bar under them), then each area as a button of its own, always in the same
+   order: its figure (▲▼ its last three months) and how it stands drawn under it — a meter, a bar either side of
+   nothing, the demand meter — coloured when it needs a hand (no words of why: its tooltip and its screen say it). While
+   the city pane is open beside them, their icons alone in a narrow column: the one it shows lit. */
 #rail { display: none; }
 @media (min-width: 861px) {
-  /* (As tall as what it holds, and all of it the rail's: between its buttons a press, the wheel, a pointer passing
-     went through to the map — a click there queried a tile, the wheel zoomed instead of scrolling the list, and the
-     order held while the pointer is over it was let go.) */
+  /* (As tall as what it holds, and all of it the rail's: between its buttons a press or the wheel went through to the
+     map — a click there queried a tile, the wheel zoomed instead of scrolling the list.) */
   #rail {
     position: absolute; top: 14px; left: 14px; z-index: 8; width: var(--rail-w); max-height: calc(100% - 28px);
     display: flex; flex-direction: column; gap: 8px; transition: opacity 0.2s var(--ease);
   }
   #app.pane-open #rail { width: var(--rail-c); }
   #rail #btn-city {
-    flex: none; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: 'ic name stage' 'ic sub sub';
-    align-items: center; justify-items: start; column-gap: 9px; row-gap: 2px; width: 100%; max-width: none; height: auto; min-height: 60px;
-    padding: 9px 12px; border-radius: 16px; text-align: left;
+    flex: none; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: 'ic name stage' 'pop pop pop' 'bar bar bar' 'next next next';
+    align-items: center; justify-items: start; column-gap: 9px; row-gap: 3px; width: 100%; max-width: none; height: auto; min-height: 0;
+    padding: 11px 14px 12px; border-radius: 16px; text-align: left;
   }
   #rail #btn-city > .i { grid-area: ic; width: 22px; height: 22px; }
   #rail .city-title { grid-area: name; max-width: 100%; white-space: nowrap; font-size: 15px; } /* (a long name cut short, not three lines) */
   #rail .city-stage { grid-area: stage; }
-  #rail .city-sub { grid-area: sub; display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; font-weight: 550; font-variant-numeric: tabular-nums; }
-  #rail #btn-city[aria-expanded='true'] .city-sub { color: inherit; }
+  #rail .stage-ring { display: none; } /* (the bar is its progress here) */
+  /* The residents as a score; under them the bar toward the next stage, and how far it still is. */
+  #rail .city-score { grid-area: pop; display: flex; align-items: baseline; gap: 3px; margin-top: 3px; }
+  #rail .city-score b { font-size: 28px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  #rail .city-score small { color: var(--muted); font-size: 13px; font-weight: 600; }
+  #rail .city-bar { grid-area: bar; display: block; justify-self: stretch; height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--gold) 20%, transparent); overflow: hidden; }
+  #rail .city-bar > i { display: block; width: var(--share, 0%); height: 100%; border-radius: inherit; background: var(--gold); transition: width 0.5s var(--ease); }
+  #rail .city-next { grid-area: next; display: flex; justify-content: space-between; justify-self: stretch; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 550; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #rail .city-next b { color: var(--gold-ink); font-weight: 700; }
   #rail #goal-strip:not([hidden]) {
     flex: 0 1 auto; flex-direction: column; gap: 6px; min-height: 0; overflow-x: hidden; overflow-y: auto; pointer-events: auto;
     margin: -4px -10px -10px; padding: 4px 10px 10px; /* (room for the buttons' shadows inside the scroll) */
   }
   #rail #goal-strip button {
-    display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; grid-template-areas: 'ic name val' 'ic note note';
-    align-items: center; justify-content: stretch; column-gap: 8px; row-gap: 1px; width: 100%; height: auto; min-height: 36px;
-    padding: 6px 11px 6px 10px; border-radius: 12px; text-align: left; color: var(--text);
+    display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; grid-template-areas: 'ic name val' 'ic viz viz';
+    align-items: center; justify-content: stretch; column-gap: 10px; row-gap: 5px; width: 100%; height: auto; min-height: 40px;
+    padding: 8px 12px 9px 11px; border-radius: 13px; text-align: left; color: var(--text);
   }
-  #rail #goal-strip button > .i { grid-area: ic; width: 17px; height: 17px; }
+  #rail #goal-strip button > .i { grid-area: ic; width: 19px; height: 19px; }
   #rail #goal-strip button.ok > .i { color: var(--muted); }
-  #rail .r-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 650; }
-  #rail .r-val { grid-area: val; display: inline-flex; align-items: baseline; gap: 3px; font-size: 12.5px; font-weight: 650; }
+  #rail .r-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; font-weight: 650; }
+  #rail .r-val { grid-area: val; display: inline-flex; align-items: baseline; gap: 3px; font-size: 14px; font-weight: 750; letter-spacing: -0.01em; }
   #rail .r-drift { font-size: 9px; color: var(--faint); }
   #rail .r-drift.up { color: var(--good-ink, var(--good)); } /* (better, as the pane's ▲▼) */
   #rail .r-drift.down { color: var(--danger-ink); }
-  #rail .r-note { grid-area: note; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; font-weight: 500; }
-  #rail #goal-strip .strip-start { margin: 0; padding: 6px 11px 6px 10px; }
+  /* How it stands, drawn: a meter (green, amber or red with the area), a bar out from the middle (the balance, the
+     rating: up green, down red), or the demand meter; the figure a bar stands for beside it. */
+  #rail .r-viz { grid-area: viz; display: flex; align-items: center; gap: 8px; justify-self: stretch; min-width: 0; }
+  #rail .r-meter { position: relative; flex: 1 1 auto; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--text) 11%, transparent); overflow: hidden; }
+  #rail .r-meter > i { position: absolute; top: 0; bottom: 0; left: 0; border-radius: inherit; background: var(--good); transition: width 0.4s var(--ease); }
+  #rail #goal-strip button.warn .r-meter > i { background: var(--warn); }
+  #rail #goal-strip button.bad .r-meter > i { background: var(--danger); }
+  #rail .r-div { overflow: visible; }
+  #rail .r-div::before { content: ''; position: absolute; top: -2px; bottom: -2px; left: 50%; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--line-strong); }
+  #rail .r-div > i { left: 50%; border-radius: 0 999px 999px 0; }
+  #rail #goal-strip .r-div > i.neg { left: auto; right: 50%; border-radius: 999px 0 0 999px; background: var(--danger); }
+  #rail .r-fig { flex: none; color: var(--muted); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  /* Demand: each class named, its bar either side of none in the class's colour (paler for too much; what a cap holds back striped). */
+  #rail .r-rci { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  #rail .r-k { display: flex; align-items: center; gap: 5px; min-width: 0; }
+  #rail .r-k b { flex: none; color: var(--muted); font-size: 11px; font-weight: 650; }
+  #rail .r-k.k-r { --c: var(--zone-r); }
+  #rail .r-k.k-c { --c: var(--zone-c); }
+  #rail .r-k.k-i { --c: var(--zone-i); }
+  #rail #goal-strip .r-rci .r-k .r-meter > i { background: var(--c); }
+  #rail #goal-strip .r-rci .r-k .r-meter > i.neg { opacity: 0.55; }
+  #rail #goal-strip .r-rci .r-k .r-meter > i.held { background: repeating-linear-gradient(90deg, var(--c) 0 3px, transparent 3px 5px); }
+  #rail #goal-strip .strip-start { margin: 0; padding: 8px 12px 9px 11px; }
   #rail #goal-strip .strip-start .r-val { color: var(--muted); }
   #rail #goal-strip .strip-on { display: flex; align-items: stretch; width: 100%; height: auto; border-radius: 12px; }
   #rail #goal-strip .strip-on > button:first-child { flex: 1 1 auto; min-width: 0; width: auto; padding-right: 4px; }
@@ -2641,6 +2670,11 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
      is still under the pointer's line (pressed again, it puts the pane away: shorter, the next one down was there). */
   #app.pane-open #rail :is(#btn-city, #goal-strip button) { grid-template-columns: minmax(0, 1fr) 0 0; column-gap: 0; padding-inline: 0; }
   #app.pane-open #rail :is(#btn-city, #goal-strip button) > .i { justify-self: center; }
+  /* (The city's bar stands up under its trophy there, filling from below.) */
+  #app.pane-open #rail #btn-city::before {
+    content: ''; position: absolute; top: 46px; bottom: 14px; left: 50%; width: 6px; margin-left: -3px; border-radius: 999px;
+    background: linear-gradient(to top, var(--gold) var(--share, 0%), color-mix(in srgb, var(--gold) 20%, transparent) var(--share, 0%));
+  }
   #app.pane-open #rail :is(#btn-city, #goal-strip button) > :not(.i):not(.edge-ring) { visibility: hidden; }
   #app.pane-open #rail #goal-strip button { overflow: hidden; }
   #app.pane-open #rail #goal-strip .strip-on [data-strip-end] { display: none; }
