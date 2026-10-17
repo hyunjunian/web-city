@@ -2643,7 +2643,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail .r-div { overflow: visible; }
   #rail .r-div::before { content: ''; position: absolute; top: -2px; bottom: -2px; left: 50%; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--line-strong); }
   #rail .r-div > i { left: 50%; border-radius: 0 999px 999px 0; }
-  #rail #goal-strip .r-div > i.neg { left: auto; right: 50%; border-radius: 999px 0 0 999px; background: var(--danger); }
+  #rail #goal-strip .r-div > i.neg { left: auto; right: 50%; border-radius: 999px 0 0 999px; } /* (its side says less than nothing; its colour, as every bar's, how the area stands) */
   #rail .r-fig { flex: none; color: var(--muted); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
   /* Demand: each class named, its bar either side of none in the class's colour (paler for too much; what a cap holds back striped). */
   #rail .r-rci { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
