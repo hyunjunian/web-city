@@ -1157,6 +1157,14 @@ function minScale(): number {
 
 /** A Mac's mouse wheel, in Chrome and Safari: its steps come in multiples of this. */
 const MAC_NOTCH = 4.000244140625;
+/** How fast a wheel zooms, per pixel of its delta: a notch (100 px) by about a third (×1.35). (At 0.0015, ×1.16, from
+ *  the whole city to the closest view took fifteen notches.) */
+const WHEEL_ZOOM = 0.003;
+/** How fast a touchpad's pinch zooms, per pixel of its delta (the browsers give 100 for a spread of e): twice as far as
+ *  the fingers spread, so one pinch goes from the whole city to a street (followed one to one, it took three or four). */
+const PINCH_ZOOM = 0.02;
+/** The map's zoom buttons and +/− keys: a press's step. */
+const ZOOM_STEP = 1.6;
 
 /**
  * Whether a wheel event is a touchpad's two fingers rather than a mouse's wheel. Firefox steps a wheel in lines; a
@@ -1409,7 +1417,7 @@ export function setupInput(): void {
       // of them no more than three notches at once.)
       const step = e.deltaMode === 1 ? 33 : e.deltaMode === 2 ? 800 : !wheelRun.pad && e.deltaY % MAC_NOTCH === 0 ? 100 / MAC_NOTCH : 1;
       const d = Math.max(-300, Math.min(300, e.deltaY * step));
-      zoomAt(Math.exp(-d * (e.ctrlKey && wheelRun.pad ? 0.01 : 0.0015)), px, py);
+      zoomAt(Math.exp(-d * (e.ctrlKey && wheelRun.pad ? PINCH_ZOOM : WHEEL_ZOOM)), px, py);
       return;
     }
     cam.x += e.deltaX / cam.scale;
@@ -1427,7 +1435,7 @@ export function setupInput(): void {
     if (e.type === 'gesturechange' && g.scale && g.clientX !== undefined && g.clientY !== undefined) {
       const r = canvas.getBoundingClientRect();
       stopFlight();
-      zoomAt(g.scale / gestureScale, g.clientX - r.left, g.clientY - r.top);
+      zoomAt((g.scale / gestureScale) ** (PINCH_ZOOM * 100), g.clientX - r.left, g.clientY - r.top); // (as fast as the others' pinch)
       gestureScale = g.scale;
     }
   };
@@ -1452,8 +1460,8 @@ export function setupInput(): void {
     Object.assign(cam, was);
     glideTo(target.cx, target.cy, target.scale, 300);
   };
-  $('#zoom-in').onclick = () => zoomBy(1.4);
-  $('#zoom-out').onclick = () => zoomBy(1 / 1.4);
+  $('#zoom-in').onclick = () => zoomBy(ZOOM_STEP);
+  $('#zoom-out').onclick = () => zoomBy(1 / ZOOM_STEP);
   $('#zoom-fit').onclick = fitGlide;
 
   /** Asks for a cheat code and says what it did. */
@@ -1500,7 +1508,7 @@ export function setupInput(): void {
     if (e.key === 'Home') fitGlide();
     // + / − zoom about the view's centre (Ctrl with them is the browser's own zoom).
     if (!e.ctrlKey && !e.metaKey && (e.key === '+' || e.key === '=' || e.key === '-' || e.key === '_')) {
-      zoomBy(e.key === '+' || e.key === '=' ? 1.4 : 1 / 1.4);
+      zoomBy(e.key === '+' || e.key === '=' ? ZOOM_STEP : 1 / ZOOM_STEP);
     }
     if (e.key === '?') showHelp();
     // /: find a tool or facility by name.
