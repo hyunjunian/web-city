@@ -477,7 +477,7 @@ kbd {
 #map:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
 /* In the map's bars the accent is what lit means (the speed now, an open card's category, the open menu): the
    keyboard's ring there is the text's colour, inside the control, so a focused one doesn't read as a lit one. */
-:is(#dock-col, #mapbar) :is(button, summary):focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
+:is(#dock-col, #mapbar, #rail) :is(button, summary):focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
 .watch-head h2 { margin: 0; font-size: 13.5px; font-weight: 650; white-space: nowrap; }
 .watch-head .chip, .watch-sort { white-space: nowrap; flex: none; }
 .watch-sort { margin-left: auto; min-height: 24px; padding: 0 10px; border-radius: 999px; background: var(--surface-2); color: var(--muted); font-size: 12px; font-weight: 550; text-decoration: none; }
@@ -1465,6 +1465,10 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 
 @media (max-width: 1180px) {
   :root { --pane-w: 288px; }
+}
+/* (Down to 861px the build bar's 470px still beside the pane, right of the rail's icons: 철거 was cut off.) */
+@media (min-width: 861px) and (max-width: 900px) {
+  :root { --pane-w: min(288px, 100vw - 586px); }
 }
 
 /* Phones and small tablets: map first; the pane, 지역, info and tools become bottom sheets, up only when called for. */
@@ -2552,6 +2556,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 /* (A tool in hand: the legend steps aside; the count stays, where the service is missing being where to place.) */
 #view.holding #map-layer:not(:has(#overlay-sum:not([hidden]))) { display: none; }
 #view.holding #map-layer { width: auto; max-width: 300px; padding: 6px; }
+/* (Beside a building's card, no wider than the room between it and the rail: up to 957px it ran under the card.) */
+@media (min-width: 861px) { #view.info-open #map-layer { max-width: min(300px, max(180px, calc(100% - var(--free-l) - var(--free-r)))); } }
 
 /* ---- along the foot in the middle: the building categories — 교통 · 개발 구역 · 에너지 · 서비스 | 보상 · 지형 | 철거 —
    their tools' card rising over them */
@@ -2631,11 +2637,13 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
    them, their icons alone in a narrow column (the pane says the rest): the one it shows lit. */
 #rail { display: none; }
 @media (min-width: 861px) {
+  /* (As tall as what it holds, and all of it the rail's: between its buttons a press, the wheel, a pointer passing
+     went through to the map — a click there queried a tile, the wheel zoomed instead of scrolling the list, and the
+     order held while the pointer is over it was let go.) */
   #rail {
-    position: absolute; top: 14px; left: 14px; bottom: 14px; z-index: 8; width: var(--rail-w);
-    display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+    position: absolute; top: 14px; left: 14px; z-index: 8; width: var(--rail-w); max-height: calc(100% - 28px);
+    display: flex; flex-direction: column; gap: 8px; transition: opacity 0.2s var(--ease);
   }
-  #rail > * { pointer-events: auto; }
   #app.pane-open #rail { width: var(--rail-c); }
   #rail #btn-city {
     flex: none; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: 'ic name stage' 'ic sub sub';
@@ -2643,12 +2651,12 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
     padding: 9px 12px; border-radius: 16px; text-align: left;
   }
   #rail #btn-city > .i { grid-area: ic; width: 22px; height: 22px; }
-  #rail .city-title { grid-area: name; max-width: 100%; font-size: 15px; }
+  #rail .city-title { grid-area: name; max-width: 100%; white-space: nowrap; font-size: 15px; } /* (a long name cut short, not three lines) */
   #rail .city-stage { grid-area: stage; }
   #rail .city-sub { grid-area: sub; display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 12px; font-weight: 550; font-variant-numeric: tabular-nums; }
   #rail #btn-city[aria-expanded='true'] .city-sub { color: inherit; }
   #rail #goal-strip:not([hidden]) {
-    flex: 0 1 auto; flex-direction: column; gap: 6px; min-height: 0; overflow-x: hidden; overflow-y: auto;
+    flex: 0 1 auto; flex-direction: column; gap: 6px; min-height: 0; overflow-x: hidden; overflow-y: auto; pointer-events: auto;
     margin: -4px -10px -10px; padding: 4px 10px 10px; /* (room for the buttons' shadows inside the scroll) */
   }
   #rail #goal-strip button {
@@ -2661,22 +2669,27 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail .r-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 13px; font-weight: 650; }
   #rail .r-val { grid-area: val; display: inline-flex; align-items: baseline; gap: 3px; font-size: 12.5px; font-weight: 650; }
   #rail .r-drift { font-size: 9px; color: var(--faint); }
+  #rail .r-drift.up { color: var(--good-ink, var(--good)); } /* (better, as the pane's ▲▼) */
+  #rail .r-drift.down { color: var(--danger-ink); }
   #rail .r-note { grid-area: note; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; font-weight: 500; }
   #rail #goal-strip .strip-start { margin: 0; padding: 6px 11px 6px 10px; }
   #rail #goal-strip .strip-start .r-val { color: var(--muted); }
   #rail #goal-strip .strip-on { display: flex; align-items: stretch; width: 100%; height: auto; border-radius: 12px; }
   #rail #goal-strip .strip-on > button:first-child { flex: 1 1 auto; min-width: 0; width: auto; padding-right: 4px; }
-  #rail #goal-strip .strip-on [data-strip-end] { display: grid; place-items: center; flex: none; width: 32px; min-height: 0; margin: 0; padding: 0; }
+  #rail #goal-strip .strip-on [data-strip-end] { display: grid; place-items: center; flex: none; width: 32px; min-height: 0; margin: 0; padding: 0; color: var(--muted); }
+  /* (Lit in the bars' way, whatever its state: the rail's own colours for its buttons had won over it.) */
+  #rail #goal-strip .strip-on > [data-strip-goal] { border: 1px solid transparent; color: var(--active-ink); } /* (as tall as it was unlit: the rows under it kept their places) */
+  #rail #goal-strip .strip-on > [data-strip-goal] > .i { color: var(--accent-hi); }
   #rail #goal-strip.more-down { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent); }
   #rail #goal-strip.more-up { -webkit-mask-image: linear-gradient(to top, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to top, #000 calc(100% - 28px), transparent); }
   #rail #goal-strip.more-up.more-down { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
-  /* The pane open beside them: their icons alone. */
-  #app.pane-open #rail #btn-city { grid-template-columns: 1fr; grid-template-areas: 'ic'; justify-items: center; min-height: 52px; padding: 0; }
-  #app.pane-open #rail #btn-city > :not(.i):not(.edge-ring) { display: none; }
-  #app.pane-open #rail #goal-strip button { grid-template-columns: 1fr; grid-template-areas: 'ic'; justify-items: center; min-height: 38px; padding: 0; }
-  #app.pane-open #rail #goal-strip button > :not(.i) { display: none; }
+  /* The pane open beside them: their icons alone — each button as tall as with its words, so that the one pressed
+     is still under the pointer's line (pressed again, it puts the pane away: shorter, the next one down was there). */
+  #app.pane-open #rail :is(#btn-city, #goal-strip button) { grid-template-columns: minmax(0, 1fr) 0 0; column-gap: 0; padding-inline: 0; }
+  #app.pane-open #rail :is(#btn-city, #goal-strip button) > .i { justify-self: center; }
+  #app.pane-open #rail :is(#btn-city, #goal-strip button) > :not(.i):not(.edge-ring) { visibility: hidden; }
+  #app.pane-open #rail #goal-strip button { overflow: hidden; }
   #app.pane-open #rail #goal-strip .strip-on [data-strip-end] { display: none; }
-  #app.pane-open #rail #goal-strip .strip-on > button:first-child { padding: 0; }
 }
 
 /* ---- over the building bar: the tool in hand and the hint over it (both waiting while the tools' card is up) */
@@ -2686,7 +2699,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 /* ---- what steps back while a drag lays something down */
 #view #mapbar { transition: opacity 0.2s var(--ease), left 0.26s var(--ease); } /* (the bars' middle moves with the pane, as it slides) */
 #view #dock-col { transition: opacity 0.2s var(--ease), left 0.26s var(--ease); } /* (with the drag's fade, below) */
-#view.drawing #mapbar { opacity: 0.25; }
+#view.drawing :is(#mapbar, #rail) { opacity: 0.25; }
 
 /* ---- 지역's first card: the city's own name, and a way to change it */
 #sheet [data-pane] > .city-card { padding-top: 12px; padding-bottom: 14px; }

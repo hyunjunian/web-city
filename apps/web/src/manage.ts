@@ -172,7 +172,7 @@ export function refreshStrip(): void {
     return {
       key: id, tone, weight: WEIGHT[id],
       html: (on: boolean) => wide
-        ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${value}${note ? ` · ${note}` : ''}${d ? ` · ${d.said}` : ''} · 눌러서 ${g.name} 화면`)}" aria-label="${escapeHtml(`${g.name}${said}: ${value}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span><span class="r-val">${d ? `<small class="r-drift ${d.good ? 'up' : 'down'}" aria-hidden="true">${d.up ? '▲' : '▼'}</small>` : ''}${escapeHtml(value)}</span>${note ? `<span class="r-note">${escapeHtml(note)}</span>` : ''}</button>`
+        ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${value}${note ? ` · ${note}` : ''}${d ? ` · ${d.said}` : ''} · ${on ? '눌러서 도시 현황 닫기·열기 (×는 화면 닫기)' : `눌러서 ${g.name} 화면`}`)}" aria-label="${escapeHtml(`${g.name}${said}: ${value}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span><span class="r-val">${d ? `<small class="r-drift ${d.good ? 'up' : 'down'}" aria-hidden="true">${d.up ? '▲' : '▼'}</small>` : ''}${escapeHtml(value)}</span>${note ? `<span class="r-note">${escapeHtml(note)}</span>` : ''}</button>`
         : `<button type="button" class="${tone || 'ok'}${tone === 'bad' || on ? '' : ' bare'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${g.name}: ${escapeHtml(s.value)}${tone ? ` · ${escapeHtml(note)}` : ''} · 눌러서 ${g.name} 화면" aria-label="${g.name}${said}: ${escapeHtml(s.value)}"${on ? ' aria-pressed="true"' : ''}>${glyph}${tone === 'bad' || on ? g.name : ''}</button>`,
     };
   });
@@ -211,12 +211,7 @@ export function refreshStrip(): void {
     stripSeen = html;
     const had = el.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.tk : undefined;
     patchRow(el, html);
-    // (The chip in hand gone — an area sound again, a screen closed — the row's stop is its first.)
-    if (!el.querySelector('[tabindex="0"]')) {
-      const first = el.querySelector<HTMLElement>('button');
-      first?.setAttribute('tabindex', '0');
-      stripAt = first?.dataset.tk ?? 'start';
-    }
+    keepStop(el);
     // (Moved, a chip lets go of the focus: back on it — or on the row's stop, its chip gone.)
     if (had !== undefined && !el.contains(document.activeElement)) (el.querySelector<HTMLElement>(`[data-tk="${had}"]`) ?? el.querySelector<HTMLElement>('[tabindex="0"]'))?.focus({ preventScroll: true });
   }
@@ -232,6 +227,22 @@ function fadeStrip(el: HTMLElement): void {
     el.classList.toggle('more-down', el.scrollTop + el.clientHeight < el.scrollHeight - 2);
     el.classList.toggle('more-up', el.scrollTop > 2);
   }
+}
+/**
+ * The row's one Tab stop: the chip last in hand — gone (an area sound again, a screen closed), the first; out of sight
+ * (the open screen's ×, which the rail's narrow column beside the pane leaves out), the open area's own. (Left on the
+ * hidden ×, Tab went past the whole row.)
+ */
+function keepStop(el: HTMLElement): void {
+  const seen = (b: HTMLElement) => b.getClientRects().length > 0;
+  const stop = el.querySelector<HTMLElement>('[tabindex="0"]');
+  if (stop && (seen(stop) || !seen(el))) return;
+  const all = [...el.querySelectorAll<HTMLElement>('button')];
+  const to = (stop && el.querySelector<HTMLElement>('.strip-on [data-strip-goal]')) || all.find(seen) || all[0];
+  if (!to) return;
+  stop?.setAttribute('tabindex', '-1');
+  to.setAttribute('tabindex', '0');
+  stripAt = to.dataset.tk ?? 'start';
 }
 /** The rail's order as last drawn (held while the pointer is over it). */
 let railOrder: string[] | null = null;
@@ -2809,6 +2820,14 @@ export function setupGoals(): void {
   // an area its screen (the open one's back up), its × ends it, the rating the polls. (Scrolled, its cut edges fade.)
   const strip = $('#goal-strip');
   strip.addEventListener('scroll', () => fadeStrip(strip), { passive: true });
+  // (Its size changed — the rail narrowed beside the pane or widened again, the window — its fades and its Tab stop
+  // again: the cut edge of a list put back at its full width with the clock stopped was left unfaded.)
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(() => {
+      fadeStrip(strip);
+      keepStop(strip);
+    }).observe(strip);
+  }
   strip.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     // (From the keyboard, on into what opened: the chips go away with the bars, and the focus fell to the page.)
@@ -2822,8 +2841,11 @@ export function setupGoals(): void {
       return;
     }
     if (t.closest('[data-strip-end]')) {
+      // (From the keyboard, on to the area just closed — wide, still in its place — not the top of the row.)
+      const was = active;
+      if (was) stripAt = was;
       closeGoal();
-      if (keyboard) (strip.querySelector<HTMLElement>('button') ?? $('#btn-city')).focus({ preventScroll: true });
+      if (keyboard) (strip.querySelector<HTMLElement>(`[data-tk="${was}"]`) ?? strip.querySelector<HTMLElement>('button') ?? $('#btn-city')).focus({ preventScroll: true });
       return;
     }
     if (t.closest('[data-strip-polls]')) {
@@ -2846,7 +2868,7 @@ export function setupGoals(): void {
   // too: they panned it, or moved a building tool's cursor, under the chip being stepped through.)
   strip.addEventListener('keydown', (e) => {
     if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
-    const all = [...strip.querySelectorAll<HTMLElement>('button')];
+    const all = [...strip.querySelectorAll<HTMLElement>('button')].filter((b) => b.getClientRects().length > 0); // (not the open area's ×, hidden in the rail's narrow column)
     const at = all.indexOf(document.activeElement as HTMLElement);
     if (at < 0) return;
     e.preventDefault();

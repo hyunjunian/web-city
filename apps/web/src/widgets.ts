@@ -70,8 +70,10 @@ export function setupRangeFill(): void {
 export function setupPointerBlur(): void {
   document.addEventListener('click', (e) => {
     if (e.detail === 0) return; // a key press, not a pointer
-    const b = (e.target as Element).closest?.('#mapbar :is(button, summary), #dock-col button, #tray button, #map-controls button, #tool-chip button');
+    const b = (e.target as Element).closest?.('#mapbar :is(button, summary), #rail button, #dock-col button, #tray button, #map-controls button, #tool-chip button');
     if (b instanceof HTMLElement) b.blur();
+    // (An area's button drawn anew as it was pressed — its screen opening lit it — handed the focus to its successor.)
+    else if (!(e.target as Node).isConnected && document.activeElement instanceof HTMLElement && document.activeElement.closest('#goal-strip')) document.activeElement.blur();
   });
 }
 
