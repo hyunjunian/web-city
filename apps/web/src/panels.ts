@@ -5,7 +5,7 @@ import { icon } from './icons';
 import { chooseSpeed, fitMapbar, markDate, markPaneClock, markStage, refreshTaxes, refreshViewSummary } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
 import { adviceFor, capped as atCap, deptEmpty, deptFunded, freshLandfill, newReadings, readStats, stormHolds } from './readings';
-import { active, autoPause, markToolSite, openGoal, openViewTab, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, urgentHtml, watchGoals } from './manage';
+import { active, autoPause, cityStats, markToolSite, openGoal, openViewTab, goalToldAt, paneHeld, problemsHtml, refreshStrip, renderGoal, urgentHtml, watchGoals } from './manage';
 import { buildOrdinances, ordinanceMonth, ordinanceSignature, refreshInfo, setOrdinanceMonth } from './info';
 import { ko } from './messages';
 import { ABANDON_NAME, ADVICE_TEXT, plainCodes, ADVISOR_NAME, CRIME_NAME, EDGE_NAME, ORDINANCE_NAME, POLL_NAME, REPORT_NAME, RESOURCE_NAME, STRUCTURE_NAME, TYPE_NAME, WEALTH_NAME, TYPE_SHORT } from './names';
@@ -383,7 +383,7 @@ export function updatePanels(): void {
   // they are costly); opening one brings it up to date (the 'sheet-open' event).
   const goal = paneShown() ? active : null;
   const budget = goal === 'finance';
-  if (goal === 'wealth') renderWealth();
+  if (goal === 'environment') renderWealth();
   if (goal === 'growth') renderBuildings();
   // Milestones by the monthly record (the live count swings within a month: a passing peak isn't a milestone).
   checkMilestone(city.state.history.at(-1)?.population ?? 0);
@@ -412,7 +412,7 @@ export function updatePanels(): void {
     $('#city-next').innerHTML = stage.next ? `<span>${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명</span><b>${pct}%</b>` : '<span>가장 높은 단계</span>';
     const btn = $('#btn-city');
     btn.style.setProperty('--share', `${(stage.share * 100).toFixed(1)}%`);
-    btn.title = `${city.state.name}: ${stage.name}(${stage.step}단계) · 인구 ${fmt(st.population)}명${stage.next ? ` · 다음 단계 ${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명 (${pct}%)` : ' · 가장 높은 단계'} · 눌러서 도시 현황 열기·닫기 (관리 화면에서는 도시 현황으로)`;
+    btn.title = `${city.state.name}: ${stage.name}(${stage.step}단계) · 인구 ${fmt(st.population)}명${stage.next ? ` · 다음 단계 ${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명 (${pct}%)` : ' · 가장 높은 단계'} · 금색 선은 다음 단계까지 온 만큼 · 눌러서 도시 현황 열기·닫기 (다른 분야의 화면에서는 도시 현황으로)`;
     btn.setAttribute('aria-label', `${city.state.name}, ${stage.name} ${stage.step}단계, 인구 ${fmt(st.population)}명${stage.next ? `, 다음 단계까지 ${pct}%` : ''} · 도시 현황`);
     markStage(stage.share * 100);
     $('#pane-city-name').textContent = city.state.name;
@@ -452,8 +452,8 @@ export function updatePanels(): void {
   // reward ahead and what cannot wait — not the areas' list again, nor the news. A phone's chips are icons: it keeps both.)
   const wide = !matchMedia('(max-width: 860px)').matches;
   const statusHtml = active ? '' : `
-    <section class="card city-sum" aria-label="도시">${scoreboard(st.population, trend('population', st.population))}${nextReward()}</section>
-    ${wide ? urgentHtml(alerts) : problemsHtml(alerts, { jobs: st.jobs, jobsTrend: trend('jobs', st.jobs), rating: st.mayorRating, ratingTrend: trend('mayorRating', st.mayorRating) })}`;
+    <section class="card city-sum" aria-label="도시">${scoreboard(st.population, trend('population', st.population))}${nextReward()}${cityStats()}</section>
+    ${wide ? urgentHtml(alerts) : problemsHtml(alerts, { jobs: st.jobs, jobsTrend: trend('jobs', st.jobs) })}`;
   if (statusHtml && statusHtml !== lastStatus && !paneHeld()) {
     lastStatus = statusHtml;
     $('#status').innerHTML = statusHtml;
@@ -496,7 +496,7 @@ export function updatePanels(): void {
     lastAdvice = adv;
     $('#advice').innerHTML = adv;
   }
-  $('#advice-card').hidden = !adv || wide; // (wide, not in the overview: see above)
+  $('#advice-card').hidden = !lastAdvice || wide; // (wide, not in the overview: see above; by what it holds — under a press, the news not drawn yet left it empty)
   refreshStructureLists();
   if (goal) graphs.update(city.state.history);
   // Ordinances' costs and requirements change with the city (population, a
@@ -521,8 +521,8 @@ export function updatePanels(): void {
     renderDepartments();
   }
   if (sheetShown('region')) renderNeighbours();
-  if (goal === 'environment') renderPolls();
-  if (goal === 'wealth') renderRewards();
+  if (goal === 'finance') renderPolls();
+  if (goal === 'environment') renderRewards();
   if (goal === 'growth' || goal === 'education') renderAges();
   renderOnboarding();
   refreshStrip(); // (after the checklist: its score chip says 시작하기 while it shows)
@@ -1094,7 +1094,7 @@ export function advice(): string {
       pickStructure(k);
     }, false, `눌러서 ${STRUCTURE_NAME[k]} 짓기`);
   }
-  // Several at once (a milestone opens a few): one toast, the pane lists them — each kind once, with how many (one
+  // Several at once (a milestone opens a few): one toast (a phone's news lists them all) — each kind once, with how many (one
   // unlock a tier named 예배당 and 묘지 twice and counted 12 for 10 kinds; and most weren't rewards, but bigger schools
   // and pumps). Pressed, the tools' card where most of them are.
   if (unlocked.length > 1) {
@@ -1108,8 +1108,10 @@ export function advice(): string {
     const cat = [...cats].sort((a, b) => b[1] - a[1])[0]?.[0];
     const label = CATEGORIES.find((c) => c.id === cat)?.label;
     // (Three named and the rest counted: ten names made a five-line toast over a phone's map.)
+    // (Wide, every name: the news that listed them is a phone's — and the toasts' column there has room.)
     const names = [...counts].map(([k, n]) => `${STRUCTURE_NAME[k]}${n > 1 ? ` ${n}곳` : ''}`);
-    toast(`새로 지을 수 있는 시설 ${counts.size}종: ${names.length > 4 ? `${names.slice(0, 3).join(', ')} 외 ${names.length - 3}종` : names.join(', ')}`, 'good', undefined,
+    const all = names.length <= 4 || (!matchMedia('(max-width: 860px)').matches && names.length <= 12);
+    toast(`새로 지을 수 있는 시설 ${counts.size}종: ${all ? names.join(', ') : `${names.slice(0, 3).join(', ')} 외 ${names.length - 3}종`}`, 'good', undefined,
       cat ? () => {
         closeSheet();
         openTray(cat);
@@ -1138,7 +1140,10 @@ export function advice(): string {
   for (const { deal: d, was } of city.takeRepricedDeals()) {
     // Terms are reevaluated after a year; the player may reject them (cancel in 지역).
     const worse = d.direction === 'buy' ? d.price > was : d.price < was;
-    pushNotice({ text: `이웃 거래 1년 재계약: ${EDGE_NAME[d.edge]} ${RESOURCE_NAME[d.resource]} ${d.direction === 'buy' ? '구매' : '판매'} 단가 §${was.toFixed(3)} → §${d.price.toFixed(3)} (싫으면 지역에서 취소)`, until: city.state.day + 90, warn: worse });
+    const text = `이웃 거래 1년 재계약: ${EDGE_NAME[d.edge]} ${RESOURCE_NAME[d.resource]} ${d.direction === 'buy' ? '구매' : '판매'} 단가 §${was.toFixed(3)} → §${d.price.toFixed(3)} (싫으면 지역에서 취소)`;
+    pushNotice({ text, until: city.state.day + 90, warn: worse });
+    // (Told as it happens too: wide, the pane keeps no news, and a worse price came in unsaid.) Pressed, 지역.
+    toast(text, worse ? 'bad' : 'info', undefined, () => showTab('region'), false, '눌러서 지역 보기');
   }
   for (const id of city.takeRepealedOrdinances()) {
     pushNotice({ text: `조례 폐지: ${ORDINANCE_NAME[id]} (필요한 시설이 없어짐)`, until: city.state.day + 90, warn: true });

@@ -466,7 +466,7 @@ ${paths}${voice}
     <h3 class="sub">환경과 교통</h3>
     <table>
       ${where && where !== title ? `<tr><td>지형</td><td>${where}</td></tr>` : ''}
-      ${land ? `<tr${row('wealth')}><td title="물가에 가깝거나 평균보다 높은 땅일수록 올라갑니다">땅값 보너스 (물가·고지대)</td><td>${q.landValue.toFixed(0)}</td></tr>` : ''}
+      ${land ? `<tr${row('environment')}><td title="물가에 가깝거나 평균보다 높은 땅일수록 올라갑니다">땅값 보너스 (물가·고지대)</td><td>${q.landValue.toFixed(0)}</td></tr>` : ''}
       ${q.terrain === 'water' && !q.network ? '' : `<tr><td>고도 · 경사</td><td>${q.height} m · ${q.slope} m</td></tr>`}
       <tr${row('environment')}><td>오염</td><td>대기 ${q.airPollution.toFixed(0)} · 수질 ${q.waterPollution.toFixed(0)}</td></tr>
       ${traffic ? `<tr${row('traffic')}><td>교통량</td><td>${traffic}</td></tr>` : ''}

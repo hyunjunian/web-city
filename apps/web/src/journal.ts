@@ -3,7 +3,7 @@
 // to be told. A reload, an undo or another city brings its own.
 
 import type { StructureKind } from '@web-city/engine';
-import { type GoalId } from './goals';
+import { type GoalId, GOALS } from './goals';
 import { city } from './state';
 
 /** A line of 소식: bad news (warn), worth noting but neither good nor bad (info), else good. */
@@ -11,6 +11,11 @@ export interface Notice { text: string; until: number; day?: number; warn?: bool
 export interface Done { goal: GoalId; day: number; text: string; key?: string; base?: string; n?: number }
 export interface Pending { text: string; key?: string; count: number; day: number; label: string; value: string; n: number; better: number; /** a second figure told with it (transit's share beside the commute) */ also?: { label: string; value: string } }
 export interface Journal { notices: Notice[]; done: Done[]; pending: Partial<Record<GoalId, Pending>> }
+
+/** A goal a save may name that is no more, and where its screen went (부유층·고급화: into 환경·쾌적). */
+const MOVED: Record<string, GoalId> = { wealth: 'environment' };
+/** Journals already brought up to the goals as they are. */
+const current = new WeakSet<object>();
 
 /** The open city's journal (made empty the first time it is asked for). */
 export function journal(): Journal {
@@ -20,5 +25,14 @@ export function journal(): Journal {
   j.notices ??= [];
   j.done ??= [];
   j.pending ??= {};
+  // (A save from before a goal went: its news and log name the screen it went into; a result still to tell is let go —
+  // it was to be read against a figure the new screen doesn't keep. Unread, a link to it broke the news.)
+  if (!current.has(j)) {
+    current.add(j);
+    const now = (g: string | undefined): GoalId | undefined => (!g ? undefined : g in GOALS ? (g as GoalId) : MOVED[g]);
+    for (const n of j.notices) if (n.goal) n.goal = now(n.goal);
+    j.done = j.done.filter((d) => !!(d.goal = now(d.goal)!));
+    for (const k of Object.keys(j.pending)) if (!(k in GOALS)) delete (j.pending as Record<string, unknown>)[k];
+  }
   return j as Journal;
 }

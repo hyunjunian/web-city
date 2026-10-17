@@ -27,8 +27,8 @@ describe('data view readings', () => {
     const city = new City({ size: 32, seed: 2, water: false });
     city.buildNetwork(0, 10, 31, 10, 'road');
     city.zone(2, 6, 20, 9, 'R-low');
-    const kinds = ['none', 'landValue', 'air', 'police', 'crime', 'fire', 'flammability', 'mayor', 'garbage', 'waterPollution',
-      'waterService', 'power', 'health', 'school', 'hq', 'eq', 'age', 'commute', 'zones', 'growth', 'radiation', 'traffic', 'subway'] as const;
+    const kinds = ['none', 'landValue', 'air', 'police', 'fire', 'mayor', 'garbage', 'waterPollution',
+      'waterService', 'power', 'health', 'school', 'age', 'commute', 'zones', 'growth', 'radiation', 'traffic', 'subway'] as const;
     for (const kind of kinds) for (const [x, y] of [[5, 10], [5, 8], [30, 30]] as const) expect(typeof overlayReading(city, { kind }, x, y)).toBe('string');
     // An empty zone tile (not an auto street): no plant anywhere yet.
     let at: [number, number] = [0, 0];

@@ -43,19 +43,16 @@ export function overlayReading(city: City, overlay: Overlay, x: number, y: numbe
     case 'desirability': return `${TYPE_NAME[overlay.type]} 쾌적도 ${r(city.desirabilityMap(overlay.type)[i]!)}`;
     case 'landValue': return `땅값 ${r(f.landValue[i]!)}`;
     case 'air': return `대기 오염 ${r(f.air[i]!)}`;
-    case 'police': return `경찰 보호 ${r(f.policeCover[i]!)}`;
-    case 'crime': return `범죄 ${s.crime[i]!.toFixed(1)}`;
-    case 'fire': return `소방 보호 ${r(f.fireCover[i]!)}`;
-    case 'flammability': return `화재 위험 ${r(f.flammability[i]!)}`;
+    case 'police': return `경찰 보호 ${r(f.policeCover[i]!)}${s.crime[i]! >= 0.05 ? ` · 범죄 ${s.crime[i]!.toFixed(1)}` : ''}`;
+    case 'fire': return `소방 보호 ${r(f.fireCover[i]!)}${f.flammability[i] ? ` · 화재 위험 ${r(f.flammability[i]!)}` : ''}`;
     case 'mayor': return f.mayorSet[i] ? `시장 평점 ${r(f.mayor[i]!)}` : '';
     case 'garbage': return s.zone[i] === 10 ? `매립 ${r(s.landfill[i]!)} / 300 t` : `쌓인 쓰레기 ${r(s.garbage[i]!)} t`;
     case 'waterPollution': return `수질 오염 ${r(f.waterPollution[i]!)}`;
-    case 'waterService': return s.pipe[i] ? '수도관' : f.watered[i] ? '급수 범위' : f.waterNet[i]! >= 0 ? '관은 있지만 공급 없음' : '물 없음';
-    case 'power': return f.powered[i] ? '전력망에 연결됨' : '전기 없음';
-    case 'health': return `병원 효과 ${r(f.healthQuality[i]! * 100)}%`;
-    case 'school': return `학교 효과 ${r(f.schoolQuality[i]! * 100)}%`;
-    case 'hq': { const b = resident(); return b ? `건강 지수 ${r(b.hq)}` : ''; } // (as the view's own name says it, not HQ)
-    case 'eq': { const b = resident(); return b ? `교육 지수 ${r(b.eq)}` : ''; }
+    case 'waterService': return s.pipe[i] ? `수도관 · 노후 ${s.pipeWear[i]}${s.pipeWear[i]! >= 50 ? ' (터질 수 있음)' : ''}` : f.watered[i] ? '급수 범위' : f.waterNet[i]! >= 0 ? '관은 있지만 공급 없음' : '물 없음';
+    case 'power': return `${f.powered[i] ? '전력망에 연결됨' : '전기 없음'}${s.power[i] ? ` · 송전선 노후 ${s.lineWear[i]}${s.lineWear[i]! >= 50 ? ' (불꽃이 튈 수 있음)' : ''}` : ''}`;
+    // (The home's own index beside the reach: as the view's own names say them, not HQ and EQ.)
+    case 'health': { const b = resident(); return `병원 효과 ${r(f.healthQuality[i]! * 100)}%${b ? ` · 건강 지수 ${r(b.hq)}` : ''}`; }
+    case 'school': { const b = resident(); return `학교 효과 ${r(f.schoolQuality[i]! * 100)}%${b ? ` · 교육 지수 ${r(b.eq)}` : ''}`; }
     case 'commute': {
       const b = resident() ?? (() => {
         const occ = s.occupant[i]!;
@@ -80,10 +77,10 @@ export function overlayReading(city: City, overlay: Overlay, x: number, y: numbe
       return code ? GROWTH_LABEL[GROWTH_CODES[code - 1]!] : '';
     }
     case 'radiation': return s.radiation[i] ? `방사능 ${r(s.radiation[i]!)}` : '방사능 없음';
-    case 'wear': return [s.power[i] && `송전선 노후 ${s.lineWear[i]}`, s.pipe[i] && `수도관 노후 ${s.pipeWear[i]}`, s.railDamage[i] && '망가진 철로'].filter(Boolean).join(' · ');
     case 'traffic': {
       const code = s.net[i]!;
       if (code === Net.None) return '';
+      if (s.railDamage[i]) return '망가진 철로 (대중교통 예산 100% 넘으면 고쳐짐)';
       const speed = DEFAULT_CONFIG.transport.speed;
       const cap = code === Net.Rail ? speed.rail.capacity : speed[NETWORK_KINDS[code]!].capacity;
       const v = code === Net.Rail ? f.railTraffic[i]! : f.traffic[i]!;

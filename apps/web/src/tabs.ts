@@ -4,7 +4,7 @@
 // the pane as a bottom sheet. Esc closes the topmost.
 // (주민 — My Sim, 직접 운전 — is not on the web screen for now: its sheet type stays for its unwired modules.)
 
-import { closeGoal, openFinance, paneClosed } from './manage';
+import { active, closeGoal, openFinance, paneClosed } from './manage';
 import { fitMapbar } from './controls';
 import { redraw, renderer, setSelected } from './state';
 import { closeTray } from './tools';
@@ -141,10 +141,11 @@ export function closePane(): boolean {
   return true;
 }
 
-/** The city button: the city pane comes on its overview (an area's screen open or put away ends), or, already on its
- *  overview, goes — as an area's button brings its screen or, already on it, puts the pane away. */
+/** The city button: the city's screen comes (its overview: an area's screen open or put away ends), or, already
+ *  showing (its overview or a tab of 재정·정책's), goes — as an area's button brings its screen or, already on it, puts
+ *  the pane away. */
 export function togglePane(): void {
-  if (paneShown() && !$('#pane').classList.contains('managing') && dismissPane()) return;
+  if (paneShown() && (!active || active === 'finance') && dismissPane()) return;
   closeGoal();
   openPane();
 }
@@ -156,8 +157,7 @@ export function revealMap(): void {
 }
 
 /** Esc: drops a pending My Sim pick, else closes the info card, else the sheet, else the city pane (`pane`: on a
- *  phone, where it is a sheet over the map; wide, a tool in hand goes down first and an area's screen gives way to the
- *  overview — input.ts). */
+ *  phone, where it is a sheet over the map; wide, a tool in hand goes down first — input.ts). */
 export function closeTopLayer(pane = true): boolean {
   if (cancelMySimAction()) {
     flash('My Sim 지정을 취소했습니다');
@@ -171,6 +171,8 @@ export function closeTopLayer(pane = true): boolean {
 export function dismissPane(): boolean {
   const had = $('#pane').contains(document.activeElement);
   if (!closePane()) return false;
+  // (The city's own screen ends with it: its tabs are no area to keep on the map, lit in the rail with an ×.)
+  if (active === 'finance') closeGoal();
   if (had) document.getElementById('btn-city')?.focus({ preventScroll: true });
   return true;
 }
@@ -180,12 +182,17 @@ function markOpen(): void {
   const pane = $('#app').classList.contains('pane-open');
   // (The tool in hand's tile is not lit as well meanwhile: the open card is what is on.)
   $('#dock').classList.toggle('sheet-open', !!sheetTab || (phone() && pane));
-  document.getElementById('btn-city')?.setAttribute('aria-expanded', String(pane));
+  markCity();
   document.querySelectorAll<HTMLButtonElement>('[data-sheet-btn]').forEach((b) => {
     const on = b.dataset.sheetBtn === sheetTab;
     b.classList.toggle('open', on);
     b.setAttribute('aria-pressed', String(on));
   });
+}
+
+/** The city button lit while the city's own screen shows (its overview or 재정·정책's tabs), not an area's. */
+export function markCity(): void {
+  document.getElementById('btn-city')?.setAttribute('aria-expanded', String(paneShown() && (!active || active === 'finance')));
 }
 
 /** Opens a sheet, or closes it when it is the one open (지역: the pane's head; J). */

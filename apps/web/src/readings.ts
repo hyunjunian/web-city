@@ -205,12 +205,6 @@ function readStatus(id: GoalId): Status {
       // (Named, as the other rows' figures are — 건강 지수 23, 대기 오염 73: a bare 1시간 16분 said not of what.)
       return pick(h !== undefined && h > 1 ? 'warn' : '', h ? `통근 ${minutes(h)}` : '—', h ? why : '아직 통근하는 주민 없음');
     }
-    case 'wealth': {
-      const rich = st.residents[2] / Math.max(1, sum(st.residents));
-      const want = city.demand.demand['R$$$'];
-      // Worth a look once there is a town and the wealthy aren't coming.
-      return pick(st.population > 2000 && want < 1 ? 'warn' : '', sum(st.residents) ? `부유층 ${Math.round(rich * 100)}%` : '—', `부유층 주거 수요 ${want >= 1 ? `+${fmt(want)}` : '없음'}${landValue() >= 0.5 ? ` · 땅값 ${landValue().toFixed(0)}` : ''}`);
-    }
     case 'environment': {
       const air = s.history.at(-1)?.air;
       if (air === undefined) return pick('', '—', '첫 달이 지나면 기록됩니다');
@@ -244,20 +238,25 @@ export function goalGauge(id: GoalId | 'rating'): Gauge | null {
       const b = s.lastBudget;
       if (!b) return null;
       const net = b.income - b.expenses;
-      return { kind: 'diverge', v: net / Math.max(1, b.income, b.expenses), fig: `${net < 0 ? '−' : '+'}§${short(Math.abs(Math.round(net)))}/월` };
+      // (Rooted, as the demand bars are: a balance a few percent of the books stood 3 px off the middle.)
+      return { kind: 'diverge', v: Math.sign(net) * Math.sqrt(Math.abs(net) / Math.max(1, b.income, b.expenses)), fig: `${net < 0 ? '−' : '+'}§${short(Math.abs(Math.round(net)))}/월` };
     }
     case 'growth': return { kind: 'rci' };
     case 'power': return used(st.power.demand, st.power.supply);
     case 'water': return used(st.water.demand, st.water.supply);
     case 'garbage': {
-      // (What the month leaves to burn or bury against the room for it, as power and water: the landfill's own years
-      // said instead while they run short, and what lies uncollected while any does.)
+      // (The fuller of the two ways it goes: the landfill toward full — its row's own fill, whole with rubbish left
+      // lying — or the incinerators' month in use. The engine's capacity counts all the landfill's room left, and a
+      // landfill months from full read 5%.)
       const g = st.garbage;
       if (!g.produced && !g.capacity) return null;
-      const load = Math.max(0, g.kept || g.produced - g.recycled);
       const months = landfillMonths(g);
-      return { kind: 'meter', v: g.capacity > 0 ? load / g.capacity : load > 0 ? 2 : 0,
-        fig: g.uncollected > 1 ? `못 치움 ${short(g.uncollected)}t` : months !== null && months < 36 ? `매립 ${landfillSpan(months)}` : `사용 ${g.capacity > 0 ? pct(load / g.capacity) : '—'}` };
+      const fill = garbageFill(g).ratio;
+      const room = sum([...s.structures.values()].filter((x) => STRUCTURES[x.kind].incinerator).map((x) => x.capacity));
+      const burn = room > 0 ? Math.min(1, g.incinerated / room) : 0;
+      const buried = months !== null && Number.isFinite(months) ? `매립 ${landfillSpan(months)}` : undefined;
+      return { kind: 'meter', v: Math.max(fill, burn),
+        fig: g.uncollected > 1 ? `못 치움 ${short(g.uncollected)}t` : months !== null && months < 36 ? buried : room > 0 && burn >= fill ? `소각 ${pct(burn)}` : buried };
     }
     case 'police': case 'fire': {
       const cover = id === 'police' ? city.fields.policeCover : city.fields.fireCover;
@@ -284,7 +283,6 @@ export function goalGauge(id: GoalId | 'rating'): Gauge | null {
       const air = s.history.at(-1)?.air;
       return air === undefined ? null : { kind: 'meter', v: air / 100 };
     }
-    case 'wealth': return sum(st.residents) ? { kind: 'meter', v: st.residents[2] / Math.max(1, sum(st.residents)) } : null;
   }
 }
 
@@ -371,14 +369,18 @@ function landValue(): number {
 
 /** The figures that size up a goal. */
 /** What the residents say about a goal's subject (the opinion poll), as a figure on its screen. */
-const POLL_OF: Partial<Record<GoalId, PollTopic>> = { police: 'safety', environment: 'environment', traffic: 'traffic', health: 'health', education: 'education', finance: 'taxes', wealth: 'landValue' };
+const POLL_OF: Partial<Record<GoalId, PollTopic[]>> = { police: ['safety'], environment: ['environment', 'landValue'], traffic: ['traffic'], health: ['health'], education: ['education'], finance: ['taxes'] };
 let pollMemo: { key: string; polls: ReturnType<typeof city.opinionPolls> } | null = null;
 function pollMetric(id: GoalId): Metric[] {
-  const topic = POLL_OF[id];
-  if (!topic || !readStats().population) return [];
+  const topics = POLL_OF[id];
+  if (!topics || !readStats().population) return [];
   const key = `${changeKey()}|${Math.floor(city.state.day / 30)}`;
   if (pollMemo?.key !== key) pollMemo = { key, polls: city.opinionPolls() };
-  const p = Math.round(pollMemo.polls[topic].approve * 100);
+  return topics.map((topic) => pollOn(topic, pollMemo!.polls[topic].approve));
+}
+/** One topic's poll as a figure. */
+function pollOn(topic: PollTopic, approve: number): Metric {
+  const p = Math.round(approve * 100);
   // (Named by its topic: "주민 만족 100%" on the money screen read as the whole town's mood.)
   // (The environment's: complaints start far past the 40 that spoils homes — 100% beside 공기 나쁜 주거지 110칸
   // read as a contradiction.)
@@ -389,7 +391,7 @@ function pollMetric(id: GoalId): Metric[] {
   // (Nobody minding yet, said as that: "불만 없는 주민 100%" stood beside the screen's 주의 like a contradiction.)
   const none = p >= 95;
   // (Up to 5% minding is "거의", not "아직 없음".)
-  return [[none ? `${POLL_NAME[topic]}에 대한 주민 불만` : `${POLL_NAME[topic]}에 불만 없는 주민`, none ? (p >= 100 ? '아직 없음' : '거의 없음') : `${p}%`, p < 25 ? 'bad' : p < 50 ? 'warn' : '', p, 1, `지금 사는 주민 가운데 ${POLL_NAME[topic]}에 불만이 없는 비율 ${p}% (여론 조사: 시장 평점을 움직입니다 · 들어오지 못한 사람은 셈에 없음)${why}`]];
+  return [none ? `${POLL_NAME[topic]}에 대한 주민 불만` : `${POLL_NAME[topic]}에 불만 없는 주민`, none ? (p >= 100 ? '아직 없음' : '거의 없음') : `${p}%`, p < 25 ? 'bad' : p < 50 ? 'warn' : '', p, 1, `지금 사는 주민 가운데 ${POLL_NAME[topic]}에 불만이 없는 비율 ${p}% (여론 조사: 시장 평점을 움직입니다 · 들어오지 못한 사람은 셈에 없음)${why}`];
 }
 
 export function metrics(id: GoalId): Metric[] {
@@ -416,6 +418,8 @@ function goalMetrics(id: GoalId): Metric[] {
         ...(runwayMonths !== null && runwayMonths < 120 ? [['바닥까지', runwayMonths >= 24 ? `약 ${Math.floor(runwayMonths / 12)}년` : `약 ${runwayMonths}개월`, runwayMonths < 12 ? 'bad' : 'warn'] as Metric] : []),
         ...(nextMonth() === null || Math.abs(nextMonth()! - net) < 1 ? [] : [['다음 달 예상', signed(nextMonth()!, '§'), (nextMonth() ?? 0) < 0 ? 'bad' : 'good', nextMonth() ?? undefined, 1, '지금 세율·예산·조례·대출로 정산하면 (지난달 세금 기반)'] as Metric]),
         ['대출', s.loans.length ? `${s.loans.length}건 · 월 §${fmt(sum(s.loans.map((x) => x.payment)))}` : '없음'],
+        // (For its 시장 평점 tab.)
+        ratingRated() ? ['시장 평점', String(st.mayorRating), st.mayorRating < 0 ? 'bad' : '', st.mayorRating, 1] : ['시장 평점', '—', '', undefined, 1, '주민이 든 달이 지나면 매겨집니다'],
       ];
     }
     case 'growth': {
@@ -512,22 +516,21 @@ function goalMetrics(id: GoalId): Metric[] {
         // Long commutes with no stop at all: transit is the step not yet taken.
         ['정류장·역', `${list.length}곳`, !list.length && (h?.commute ?? 0) > 1 ? 'warn' : '', list.length, 0, !list.length && (h?.commute ?? 0) > 1 ? '통근이 깁니다: 버스 정류장부터 놓아 보세요' : undefined]];
     }
-    case 'wealth': {
-      const total = Math.max(1, sum(st.residents));
-      const dem = city.demand.demand;
-      const d = (t: 'R$$$' | 'Cs$$$' | 'Co$$$'): Metric => [`${RICH_WORD[t]} 수요`, dem[t] >= 1 ? `+${fmt(dem[t])}` : dem[t] <= -1 ? `−${fmt(-dem[t])}` : '0', dem[t] >= 100 ? 'good' : dem[t] < 0 ? 'warn' : ''];
-      return [['부유층 주민', `${fmt(st.residents[2])}명 · ${Math.round((st.residents[2] / total) * 100)}%`, '', st.residents[2], 1],
-        ['중산층 주민', `${fmt(st.residents[1])}명`, '', st.residents[1], 1], ['평균 땅값', landValue() >= 0.5 ? landValue().toFixed(1) : '평지라 차이 없음', '', Math.round(landValue()), 1, '건물이 선 칸의 평균: 물가와 주변보다 높은 땅이 올립니다 (모두 평평한 내륙이면 0)'],
-        d('R$$$'), d('Cs$$$'), d('Co$$$'), ['교육 지수 평균 (0–200)', avg(st.eq, st.residents).toFixed(0), '', Math.round(avg(st.eq, st.residents)), 1]];
-    }
     case 'environment': {
       const h = s.history.at(-1);
       const parks = [...s.structures.values()].filter((x) => STRUCTURES[x.kind].category === 'park').length;
       const homes = smoggyHomes();
+      // (Its 쾌적도 tab: those a pleasant place draws, and what they want built — the wealthy come where it is high.)
+      const total = Math.max(1, sum(st.residents));
+      const dem = city.demand.demand;
+      const d = (t: 'R$$$' | 'Cs$$$' | 'Co$$$'): Metric => [`${RICH_WORD[t]} 수요`, dem[t] >= 1 ? `+${fmt(dem[t])}` : dem[t] <= -1 ? `−${fmt(-dem[t])}` : '0', dem[t] >= 100 ? 'good' : dem[t] < 0 ? 'warn' : ''];
       return [['대기 오염', h?.air !== undefined ? h.air.toFixed(0) : '—', (h?.air ?? 0) > 40 && homes > 0 ? 'warn' : '', h?.air !== undefined ? Math.round(h.air) : undefined, -1],
         ['공기 나쁜 주거지', `${fmt(homes)}칸`, homes > 0 && (h?.air ?? 0) > 40 ? 'warn' : '', homes, -1, '대기 오염이 40을 넘는 주거 구역 칸 · 공장·발전소·차가 많은 길 가까이에서 생깁니다'],
         ['수질 오염', h?.waterPollution !== undefined ? h.waterPollution.toFixed(0) : '—', '', h?.waterPollution !== undefined ? Math.round(h.waterPollution) : undefined, -1],
-        ['공원', `${parks}곳`, '', parks, 1], ratingRated() ? ['시장 평점', String(st.mayorRating), st.mayorRating < 0 ? 'bad' : '', st.mayorRating, 1] : ['시장 평점', '—', '', undefined, 1, '주민이 든 달이 지나면 매겨집니다']];
+        ['공원', `${parks}곳`, '', parks, 1],
+        ['부유층 주민', `${fmt(st.residents[2])}명 · ${Math.round((st.residents[2] / total) * 100)}%`, '', st.residents[2], 1],
+        ['중산층 주민', `${fmt(st.residents[1])}명`, '', st.residents[1], 1], d('R$$$'), d('Cs$$$'), d('Co$$$'),
+        ['평균 땅값', landValue() >= 0.5 ? landValue().toFixed(1) : '평지라 차이 없음', '', Math.round(landValue()), 1, '건물이 선 칸의 평균: 물가와 주변보다 높은 땅이 올립니다 (모두 평평한 내륙이면 0)']];
     }
   }
 }
@@ -699,11 +702,6 @@ function need(id: GoalId): ((i: number) => number) | null {
       const b = o > 0 ? s.buildings.get(o) : undefined;
       return b?.type && !b.watered ? 1 / (b.w * b.h) : 0;
     };
-    // Open land the well-off would take (zoned for homes, or not yet zoned): where to zone, and keep fine.
-    case 'wealth': {
-      const d = city.desirabilityMap('R$$$');
-      return (i) => (!s.occupant[i] && !s.net[i] && s.terrain[i] !== Terrain.Water && (s.zone[i] === 0 || home(i)) && f.accessDist[i] === 1 && d[i]! >= 80 ? 1 : 0); // (beside a road: open country far off is no place to start)
-    }
     // Homes in air past what people put up with (parks and trees beside them help); rubbish left lying.
     case 'environment': return (i) => (home(i) && f.air[i]! > 40 ? Math.min(2, (f.air[i]! - 40) / 40) : 0);
     case 'garbage': return (i) => (s.zone[i] !== 10 && s.garbage[i]! > 2 ? 1 : 0);
@@ -766,7 +764,7 @@ export function newlyReached(goal: GoalId, cx: number, cy: number, r: number): n
 
 export const SPOT_WORD: Partial<Record<GoalId, string>> = {
   police: '경찰이 닿지 않는 건물', fire: '소방이 닿지 않는 건물', health: '병원이 닿지 않는 집', education: '학교가 닿지 않는 집',
-  power: '발전소 자리', water: '양수 시설 자리', traffic: '막힌 길', environment: '공기가 나쁜 주거지', garbage: '쓰레기가 쌓인 곳', wealth: '부유층이 살 만한 길가 빈 땅',
+  power: '발전소 자리', water: '양수 시설 자리', traffic: '막힌 길', environment: '공기가 나쁜 주거지', garbage: '쓰레기가 쌓인 곳',
 };
 
 const LEVEL_NAME: Record<string, string> = { elementary: '초등', highSchool: '고등' };

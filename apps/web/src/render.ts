@@ -12,9 +12,7 @@ export type Overlay =
   | { kind: 'landValue' }
   | { kind: 'air' }
   | { kind: 'police' }
-  | { kind: 'crime' }
   | { kind: 'fire' }
-  | { kind: 'flammability' }
   | { kind: 'garbage' }
   | { kind: 'mayor' }
   | { kind: 'waterPollution' }
@@ -25,14 +23,11 @@ export type Overlay =
   | { kind: 'power' }
   | { kind: 'health' }
   | { kind: 'school' }
-  | { kind: 'hq' }
-  | { kind: 'eq' }
   | { kind: 'age' }
   | { kind: 'commute' }
   | { kind: 'zones' }
   | { kind: 'growth' }
-  | { kind: 'radiation' }
-  | { kind: 'wear' };
+  | { kind: 'radiation' };
 
 export interface Camera {
   /** Tile coordinate at the canvas origin. */
@@ -214,7 +209,7 @@ const shades = new Map<string, string>();
 
 /** `hex` with each channel scaled by k (k > 1 lightens), cached. */
 /** Views that colour the networks themselves (no street lines drawn over them). */
-const NETWORK_VIEWS = new Set(['traffic', 'volume', 'subway', 'wear', 'zones']);
+const NETWORK_VIEWS = new Set(['traffic', 'volume', 'subway', 'zones']);
 
 /** A toll booth: a yellow block with a white-edged barrier, seen at any zoom. */
 function tollBooth(ctx: CanvasRenderingContext2D, x: number, y: number): void {
@@ -348,6 +343,15 @@ export function coverage(v: number, used: boolean): string {
   if (v > 0) return `rgba(40,110,230,${Math.min(0.65, 0.12 + v * 0.53).toFixed(3)})`;
   return used ? 'rgba(230,60,60,0.3)' : '';
 }
+
+/** Over the power and water views: a line or pipe worn to 50 and past (it sparks, it bursts; its budget mends it). */
+export const WORN_COLOR = 'rgba(196,64,214,0.95)';
+/** Over the fire view: what catches easily (risk from 54, where fires break out), inside the stations' reach and out of it. */
+export const FIRE_RISK = 54;
+export const RISK_IN = 'rgba(240,150,30,0.62)';
+export const RISK_OUT = 'rgba(220,30,30,0.72)';
+/** Over the congestion view: rail broken (by a disaster, or worn out with transit unfunded). */
+export const BROKEN_RAIL = 'rgba(120,20,20,0.95)';
 
 function heat(v: number): string {
   // 0 → red, 0.5 → yellow, 1 → green.
@@ -1739,21 +1743,18 @@ export class Renderer {
               color = `rgba(90,70,40,${Math.min(0.75, f.air[i]! / 80).toFixed(3)})`;
               break;
             case 'police':
+              // (Its reach; last month's crimes are dots over it, below.)
               color = coverage(f.policeCover[i]! / 300, s.zone[i]! > 0 && s.zone[i] !== 10 || s.occupant[i]! > 0);
               if (!color) continue;
               break;
-            case 'crime':
-              if (s.crime[i]! < 0.05) continue;
-              color = `rgba(220,30,30,${Math.min(0.75, s.crime[i]! / 4).toFixed(3)})`;
-              break;
-            case 'fire':
-              color = coverage(f.fireCover[i]! / 250, s.zone[i]! > 0 && s.zone[i] !== 10 || s.occupant[i]! > 0);
+            case 'fire': {
+              // Its reach, and over it what catches easily: amber where a station reaches, red where none does.
+              const used = s.zone[i]! > 0 && s.zone[i] !== 10 || s.occupant[i]! > 0;
+              const risky = used && f.flammability[i]! >= FIRE_RISK;
+              color = risky ? (f.fireCover[i]! > 0 ? RISK_IN : RISK_OUT) : coverage(f.fireCover[i]! / 250, used);
               if (!color) continue;
               break;
-            case 'flammability':
-              if (!f.flammability[i]) continue;
-              color = heat(1 - f.flammability[i]! / 80);
-              break;
+            }
             case 'mayor':
               if (!f.mayorSet[i]) continue;
               color = heat((f.mayor[i]! + 60) / 120);
@@ -1767,34 +1768,34 @@ export class Renderer {
               color = `rgba(120,85,45,${Math.min(0.75, f.waterPollution[i]! / 80).toFixed(3)})`;
               break;
             case 'waterService':
-              // Underground view: pipes, coverage, and dry lots.
-              if (s.pipe[i]) color = 'rgba(20,90,200,0.95)';
+              // Underground view: pipes (the worn ones apart), coverage, and dry lots.
+              if (s.pipe[i]) color = s.pipeWear[i]! >= 50 ? WORN_COLOR : 'rgba(20,90,200,0.95)';
               else if (f.watered[i]) color = 'rgba(70,150,255,0.35)';
               else if (f.waterNet[i]! >= 0) color = 'rgba(255,150,40,0.4)';
               else if ((s.zone[i] && s.zone[i] !== 10) || s.occupant[i]! > 0) color = 'rgba(230,40,40,0.3)';
               else continue;
               break;
             case 'power':
-              if (f.powered[i]) color = 'rgba(255,214,0,0.35)';
+              // (The worn lines apart: the grid's own trouble, mended by its budget.)
+              if (s.power[i] && s.lineWear[i]! >= 50) color = WORN_COLOR;
+              else if (f.powered[i]) color = 'rgba(255,214,0,0.35)';
               else if ((s.zone[i] && s.zone[i] !== 10) || s.occupant[i]! > 0) color = 'rgba(230,40,40,0.45)';
               else continue;
               break;
             // (Hospitals and schools are for homes alone: red where people live and none reaches, not on the
-            // workplaces — a large red patch of industry sat beside "모든 집이 병원 범위 안입니다".)
+            // workplaces — a large red patch of industry sat beside "모든 집이 병원 범위 안입니다".) Where one reaches, a
+            // home is as blue as its residents are healthy (or schooled); the rest of the reach faintly.
             case 'health':
-              color = coverage(f.healthQuality[i]!, homeAt(i));
-              if (!color) continue;
-              break;
-            case 'school':
-              color = coverage(f.schoolQuality[i]!, homeAt(i));
-              if (!color) continue;
-              break;
-            case 'hq':
-            case 'eq': {
+            case 'school': {
+              const reach = (overlay.kind === 'health' ? f.healthQuality : f.schoolQuality)[i]!;
+              if (!homeAt(i)) {
+                if (!(reach > 0)) continue;
+                color = coverage(0.001, false);
+                break;
+              }
               const occ = s.occupant[i]!;
               const b = occ > 0 ? s.buildings.get(occ) : undefined;
-              if (!b?.type || b.type[0] !== 'R') continue;
-              color = heat((overlay.kind === 'hq' ? b.hq : b.eq) / 200);
+              color = coverage(reach > 0 ? (b?.type?.[0] === 'R' ? Math.max(0.001, (overlay.kind === 'health' ? b.hq : b.eq) / 200) : 0.001) : 0, true);
               break;
             }
             case 'age': {
@@ -1839,17 +1840,6 @@ export class Renderer {
               else if (ZONE_COLOR[s.zone[i]!]) color = ZONE_COLOR[s.zone[i]!]!.replace(/[\d.]+\)$/, '0.95)');
               else continue;
               break;
-            case 'wear': {
-              // Power lines, pipes and rail: green when sound, red when worn past 50 (sparks, bursts).
-              if (s.railDamage[i]) {
-                color = 'rgba(220,30,30,0.9)';
-                break;
-              }
-              if (!s.power[i] && !s.pipe[i]) continue;
-              const w = Math.max(s.power[i] ? s.lineWear[i]! : 0, s.pipe[i] ? s.pipeWear[i]! : 0);
-              color = heat(1 - w / 50);
-              break;
-            }
             case 'radiation':
               if (!s.radiation[i]) {
                 color = 'rgba(20,24,30,0.35)';
@@ -1858,9 +1848,13 @@ export class Renderer {
               color = `rgba(170,255,40,${Math.min(0.95, 0.35 + s.radiation[i]! / 120).toFixed(3)})`;
               break;
             case 'traffic': {
-              // Volume against capacity: green when free-flowing, red at twice capacity.
+              // Volume against capacity: green when free-flowing, red at twice capacity; broken rail apart.
               const code = s.net[i]!;
               if (code === Net.None) continue;
+              if (s.railDamage[i]) {
+                color = BROKEN_RAIL;
+                break;
+              }
               const speed = DEFAULT_CONFIG.transport.speed;
               const u = code === Net.Rail ? f.railTraffic[i]! / speed.rail.capacity
                 : f.traffic[i]! / speed[NETWORK_KINDS[code]!].capacity;
@@ -1961,8 +1955,8 @@ export class Renderer {
       }
     }
 
-    // Crime view: last month's crimes where they happened (heinous ones larger).
-    if (overlay.kind === 'crime' && sc >= 3) {
+    // The police view: last month's crimes where they happened (heinous ones larger), over the reach.
+    if (overlay.kind === 'police' && sc >= 3) {
       for (const [i, kind] of s.safety.spots ?? []) {
         const x = i % n;
         const y = (i - x) / n;
