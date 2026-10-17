@@ -13,7 +13,7 @@ import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { whyNoDeals } from './region';
 import { journal } from './journal';
-import { abandonHint, capBest, capHint, capLeads, classDemand, jobHint, pushNotice, RCI_CLASSES, rciMini, updatePanels } from './panels';
+import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, updatePanels } from './panels';
 import { checklist } from './onboarding';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { GRAPH_KEYS } from './graphs';
@@ -21,9 +21,9 @@ import { closeInfo, closePane, closeSheet, dismissPane, markCity, openPane, pane
 import { categoryOf, chosen, edgeFade, kindsFor, openTray, panTipAt, pickStructure, restView, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice } from './choices';
-import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
+import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, short, stoppedNote, straightRuns, touchFirst } from './util';
 import { AREA_ORDER, type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type GoalTab, type Metric, type TabPart, type Tone } from './goals';
-import { type AirSource, airSources, type Gauge, goalGauge, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -103,11 +103,18 @@ export function cityStats(): string {
   const fin = goalStatus('finance');
   const rTone = ratingTone(st.mayorRating);
   const rated = ratingRated();
-  const fgz = goalGauge('finance');
-  const fig = fgz && fgz.kind !== 'rci' ? fgz.fig ?? '' : '';
+  const fig = monthNet();
   const stat = (key: 'finance' | 'rating', tone: Tone, glyph: IconName, name: string, value: string, sub: string, title: string) =>
     `<button type="button" class="cs ${tone || 'ok'}" data-city-row="${key}" title="${escapeHtml(`${title} · 눌러서 ${name} 탭`)}"><span class="cs-ic">${icon(glyph)}</span><span class="cs-name">${name}</span><b class="cs-val">${escapeHtml(value)}</b>${sub ? `<small class="cs-sub">${escapeHtml(sub)}</small>` : ''}</button>`;
   return `<div class="city-stats">${stat('finance', fin.tone, 'wallet', '재정', fin.value, fig, `재정: ${fin.value} · ${glue(fin.note)}`)}${stat('rating', rTone, 'approval', '시장 평점', rated ? String(st.mayorRating) : '—', '', rated ? `시장 평점 ${st.mayorRating} (−100~100)` : '시장 평점: 주민이 든 달이 지나면 매겨집니다')}</div>`;
+}
+
+/** The month's balance in a word ('' before the first books close). */
+function monthNet(): string {
+  const b = city.state.lastBudget;
+  if (!b) return '';
+  const net = Math.round(b.income - b.expenses);
+  return `${net < 0 ? '−' : '+'}§${short(Math.abs(net))}/월`;
 }
 
 /** Wide, the pane's overview without the areas' list (they stand down the map's left with their figures): only what
@@ -188,14 +195,17 @@ export function refreshStrip(): void {
     const d = wide ? driftOf(id) : null;
     // (개발·수요's figure as the pane's row has it: "주거 상한", "상업 +540".)
     const value = id === 'growth' ? s.value.replace(' 수요 ', ' ') : s.value;
-    const gz = wide ? goalGauge(id) : null;
-    // (The demand bars in words too, sound — "주거 +709" alone said nothing of the other two — and the jobs, watched
-    // here as the pane's row has them.)
-    const fig = gz && gz.kind !== 'rci' && gz.fig ? gz.fig : gz?.kind === 'rci' ? `${tone ? '' : `${glue(s.note)} · `}일자리 ${fmt(readStats().jobs)}` : '';
+    // (개발·수요's classes in words, sound — "주거 +709" alone said nothing of the other two — and the jobs, watched here
+    // as the pane's row has them.)
+    const fig = id === 'growth' ? `${tone ? '' : `${glue(s.note)} · `}일자리 ${fmt(readStats().jobs)}` : '';
+    // (The classes said, the class most wanted among them is said: "주거 +709 · 주거 +709 · 상업 …" read twice.)
+    const head = id === 'growth' && !tone ? fig : `${value}${fig ? ` · ${fig}` : ''}`;
+    const graph = wide ? railSpark(id) : null;
+    const words = `${head}${note ? ` · ${note}` : ''}${d ? ` · ${d.said}` : ''}${graph?.said ? ` · 그래프: ${graph.said}` : ''}`;
     return {
       key: id, tone, weight: WEIGHT[id],
       html: (on: boolean) => wide
-        ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${value}${fig ? ` · ${fig}` : ''}${note ? ` · ${note}` : ''}${d ? ` · ${d.said}` : ''} · ${on ? '눌러서 도시 현황 닫기·열기 (×는 화면 닫기)' : `눌러서 ${g.name} 화면`}`)}" aria-label="${escapeHtml(`${g.name}${said}: ${value}${fig ? `, ${fig}` : ''}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span><span class="r-val">${d ? `<small class="r-drift ${d.good ? 'up' : 'down'}" aria-hidden="true">${d.up ? '▲' : '▼'}</small>` : ''}${escapeHtml(value)}</span>${railViz(gz)}</button>`
+        ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${words} · ${on ? '눌러서 도시 현황 닫기·열기 (×는 화면 닫기)' : `눌러서 ${g.name} 화면`}`)}" aria-label="${escapeHtml(`${g.name}${said}: ${head}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span>${graph!.svg}</button>`
         : `<button type="button" class="${tone || 'ok'}${tone === 'bad' || on ? '' : ' bare'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${g.name}: ${escapeHtml(s.value)}${tone ? ` · ${escapeHtml(note)}` : ''} · 눌러서 ${g.name} 화면" aria-label="${g.name}${said}: ${escapeHtml(s.value)}"${on ? ' aria-pressed="true"' : ''}>${glyph}${tone === 'bad' || on ? g.name : ''}</button>`,
     };
   });
@@ -262,18 +272,15 @@ function refreshCityRows(wide: boolean): void {
   btn.removeAttribute('aria-description');
   // (Lit, the one whose tab shows.)
   const lit = active === 'finance' && paneShown() ? (tabNow('finance').label === '시장 평점' ? 'rating' : 'finance') : '';
-  const arrow = (d: ReturnType<typeof driftOf>) => (d ? `<small class="r-drift ${d.good ? 'up' : 'down'}" aria-hidden="true">${d.up ? '▲' : '▼'}</small>` : '');
-  const row = (key: 'finance' | 'rating', tone: Tone, glyph: IconName, name: string, value: string, gz: Gauge | null, words: string) => {
+  const row = (key: 'finance' | 'rating', tone: Tone, glyph: IconName, name: string, words: string) => {
     const d = driftOf(key);
     const on = lit === key;
-    return `<button type="button" class="strip-city ${tone || 'ok'}${on ? ' on' : ''}" data-k="${key}" data-city-row="${key}" aria-pressed="${on}" title="${escapeHtml(`${name}: ${words}${d ? ` · ${d.said}` : ''} · ${on ? '눌러서 닫기' : `눌러서 도시 화면의 ${name} 탭`}`)}" aria-label="${escapeHtml(`${name}${tone ? `, ${said(tone)}` : ''}: ${words}`)}">${icon(glyph)}<span class="r-name">${name}</span><span class="r-val">${arrow(d)}${escapeHtml(value)}</span>${railViz(gz)}</button>`;
+    const graph = railSpark(key);
+    return `<button type="button" class="strip-city ${tone || 'ok'}${on ? ' on' : ''}" data-k="${key}" data-city-row="${key}" aria-pressed="${on}" title="${escapeHtml(`${name}: ${words}${d ? ` · ${d.said}` : ''}${graph.said ? ` · 그래프: ${graph.said}` : ''} · ${on ? '눌러서 닫기' : `눌러서 도시 화면의 ${name} 탭`}`)}" aria-label="${escapeHtml(`${name}${tone ? `, ${said(tone)}` : ''}: ${words}`)}">${icon(glyph)}<span class="r-name">${name}</span>${graph.svg}</button>`;
   };
-  // (The month's balance once: the bar's figure, or the line that says it with how long the money lasts.)
-  const fgz = goalGauge('finance');
-  const fig = fgz && fgz.kind !== 'rci' ? fgz.fig ?? '' : '';
-  const html = row('finance', fin.tone, 'wallet', '재정', fin.value, fgz, `${fin.value}${fin.tone ? ` · ${glue(fin.note)}` : fig ? ` · ${fig}` : ''}`)
-    + row('rating', rTone, 'approval', '시장 평점', rated ? String(st.mayorRating) : '—', goalGauge('rating'),
-      `${rated ? `${st.mayorRating} (−100~100)` : '아직 없음 (주민이 든 달이 지나면 매겨짐)'}${rNote ? ` · ${rNote}` : ''}`);
+  // (The month's balance once: its own, or the line that says it with how long the money lasts.)
+  const html = row('finance', fin.tone, 'wallet', '재정', `${fin.value}${fin.tone ? ` · ${glue(fin.note)}` : monthNet() ? ` · ${monthNet()}` : ''}`)
+    + row('rating', rTone, 'approval', '시장 평점', `${rated ? `${st.mayorRating} (−100~100)` : '아직 없음 (주민이 든 달이 지나면 매겨짐)'}${rNote ? ` · ${rNote}` : ''}`);
   if (html === cityRowsSeen) return;
   cityRowsSeen = html;
   patchRow($('#city-rows'), html);
@@ -343,24 +350,75 @@ function keepStop(el: HTMLElement): void {
   to.setAttribute('tabindex', '0');
   stripAt = to.dataset.tk ?? 'start';
 }
-/** An area's state drawn on its rail button, under its name and figure: a meter, a bar either side of nothing, or each
- *  class's demand so — with the figure a bar stands for (사용 71%, 범위 92%, +§1.2k/월). */
-function railViz(gz: Gauge | null): string {
-  if (!gz) return '<span class="r-viz" aria-hidden="true"></span>'; // (its line kept: the buttons under it stay put as a figure comes)
-  const fill = (v: number, half: boolean, cls = '') => `<i class="${half && v < 0 ? 'neg' : 'pos'}${cls}" style="width:${(Math.min(1, Math.abs(v)) * (half ? 50 : 100)).toFixed(1)}%"></i>`;
-  const meter = (v: number, half: boolean) => `<span class="r-meter${half ? ' r-div' : ''}">${fill(v, half)}</span>`;
-  if (gz.kind === 'rci') {
-    // (On the demand card's scale: full at ±1,000, rooted so a small want still shows. A capped class's want past
-    // its cap striped behind it.)
-    const root = (v: number) => Math.sign(v) * Math.sqrt(Math.min(1, Math.abs(v) / 1000));
-    const each = RCI_CLASSES.map(([k, label]) => {
-      const { v, capped, want } = classDemand(k);
-      const held = capped && want > Math.max(0, v) ? fill(root(want), true, ' held') : '';
-      return `<span class="r-k k-${k.toLowerCase()}"><b>${label}</b><span class="r-meter r-div">${held}${fill(root(v), true)}</span></span>`;
-    }).join('');
-    return `<span class="r-viz r-rci" aria-hidden="true">${each}</span>`;
-  }
-  return `<span class="r-viz" aria-hidden="true">${meter(gz.v, gz.kind === 'diverge')}${gz.fig ? `<small class="r-fig">${escapeHtml(gz.fig)}</small>` : ''}</span>`;
+/** A series an item's rail graph draws from the city's monthly record: its name, and its value in a month. */
+type Series = [label: string, value: (h: HistoryPoint) => number | undefined];
+/**
+ * What each item's graph on the rail draws: its line, and — dashed, in the same unit and on one scale — what to read it
+ * against (the load and what meets it: demand and supply, money out and in, crimes and arrests). A line the record
+ * doesn't hold yet (an older save's) gives way to the one after it.
+ */
+const SPARK: Record<GoalId | 'rating', { a: Series; b?: Series; alt?: Series }> = {
+  finance: { a: ['지출', (h) => h.expenses], b: ['수입', (h) => h.income] },
+  rating: { a: ['시장 평점', (h) => h.mayorRating] },
+  growth: { a: ['인구', (h) => h.population], b: ['일자리', (h) => h.jobs] },
+  power: { a: ['수요', (h) => h.powerDemand], b: ['공급', (h) => h.powerSupply] },
+  water: { a: ['수요', (h) => h.waterDemand], b: ['공급', (h) => h.waterSupply] },
+  garbage: { a: ['발생', (h) => h.garbageProduced], b: ['못 치움', (h) => h.garbageUncollected] },
+  police: { a: ['범죄', (h) => h.crimes], b: ['체포', (h) => h.arrests] },
+  fire: { a: ['화재', (h) => h.fires], b: ['전소', (h) => h.burned] },
+  health: { a: ['건강 지수', (h) => h.hq], alt: ['기대 수명', (h) => h.lifeExpectancy] },
+  education: { a: ['교육 지수', (h) => h.eq] },
+  traffic: { a: ['평균 통근', (h) => h.commute] },
+  environment: { a: ['대기 오염', (h) => h.air], b: ['수질 오염', (h) => h.waterPollution] },
+};
+/** The months a rail graph covers. */
+const SPARK_SPAN = 24;
+
+/**
+ * An item's graph on the rail, over its last months, from nothing up (its line as the item stands — amber or red when
+ * it wants a hand — over a faint fill; the second dashed; a line at nothing when it goes below), and the words for it.
+ * Under two months to draw, a dotted line in its room (nothing read yet, as a figure's "—": not a line at nothing).
+ */
+function railSpark(key: GoalId | 'rating'): { svg: string; said: string } {
+  const def = SPARK[key];
+  const months = city.state.history.slice(-SPARK_SPAN);
+  const read = (series: Series) => months.map((h) => {
+    const v = series[1](h);
+    return v === undefined || !Number.isFinite(v) ? null : v;
+  });
+  const count = (vs: (number | null)[]) => vs.filter((v) => v !== null).length;
+  let a = def.a;
+  let va = read(a);
+  if (def.alt && count(va) < 2) va = read((a = def.alt));
+  const vb = def.b ? read(def.b) : [];
+  const open = '<svg class="r-spark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">';
+  if (count(va) < 2) return { svg: `${open}<path class="sn" d="M0 12H100"/></svg>`, said: '' };
+  const all = [...va, ...vb].filter((v): v is number => v !== null);
+  const lo = Math.min(0, ...all);
+  const hi = Math.max(lo + 1e-6, ...all);
+  const n = months.length;
+  const x = (i: number) => ((i / (n - 1)) * 100).toFixed(1);
+  const y = (v: number) => (22 - ((v - lo) / (hi - lo)) * 20).toFixed(1);
+  const line = (vs: (number | null)[]) => {
+    let d = '';
+    let pen = false;
+    vs.forEach((v, i) => {
+      if (v === null) pen = false;
+      else {
+        d += `${pen ? 'L' : 'M'}${x(i)} ${y(v)}`;
+        pen = true;
+      }
+    });
+    return d;
+  };
+  // (The fill only under an unbroken line: across a gap it closed over nothing.)
+  const first = va.findIndex((v) => v !== null);
+  const last = va.length - 1 - [...va].reverse().findIndex((v) => v !== null);
+  const whole = va.slice(first, last + 1).every((v) => v !== null);
+  const fill = whole ? `<path class="sa" d="${line(va)}L${x(last)} 24L${x(first)} 24Z"/>` : '';
+  const zero = lo < 0 ? `<path class="s0" d="M0 ${y(0)}H100"/>` : '';
+  const second = def.b && count(vb) >= 2 ? `<path class="s2" d="${line(vb)}"/>` : '';
+  return { svg: `${open}${zero}${fill}${second}<path class="s1" d="${line(va)}"/></svg>`, said: `지난 ${n}개월 ${a[0]}${second ? `(실선)·${def.b![0]}(점선)` : ''}` };
 }
 /** The chips' markup as last drawn (what the row shows, unless it changed). */
 let stripSeen = '';

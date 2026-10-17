@@ -15,6 +15,8 @@
   --bar-h: calc(14px + var(--mb-h));
   --rail-w: 264px;
   --rail-c: 52px;
+  --rail-row: 42px; /* (every item on the rail as tall) */
+  --rail-name: 72px; /* (the items' names in one column: their graphs start on one line) */
   --dock-h: 64px;
   --bb: calc(14px + var(--dock-h) + 10px);
   /* The map left of --free-l is under what stands down its left (wide: the rail, and the city pane beside it while it
@@ -2634,9 +2636,10 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail #city-card > #btn-city { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
   #rail #city-card > #btn-city[aria-expanded='true'] { background: var(--accent-soft); }
   #rail #city-rows { display: flex; flex-direction: column; }
+  /* Every item on the rail one line of one height: its icon, its name, and its graph over the last two years. */
   #rail .strip-city {
-    display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; grid-template-areas: 'ic name val' 'ic viz viz';
-    align-items: center; column-gap: 10px; row-gap: 5px; width: 100%; min-height: 40px; padding: 8px 14px 9px;
+    display: grid; grid-template-columns: 20px var(--rail-name) minmax(0, 1fr); grid-template-areas: 'ic name spark';
+    align-items: center; column-gap: 10px; width: 100%; height: var(--rail-row); padding: 0 14px 0 13px;
     border: 0; border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 0;
     background: transparent; box-shadow: none; text-align: left; color: var(--text); font: inherit;
   }
@@ -2673,42 +2676,26 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
     margin: -4px -10px -10px; padding: 4px 10px 10px; /* (room for the buttons' shadows inside the scroll) */
   }
   #rail #goal-strip button {
-    display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; grid-template-areas: 'ic name val' 'ic viz viz';
-    align-items: center; justify-content: stretch; column-gap: 10px; row-gap: 5px; width: 100%; height: auto; min-height: 40px;
-    padding: 8px 12px 9px 11px; border-radius: 13px; text-align: left; color: var(--text);
+    display: grid; grid-template-columns: 20px var(--rail-name) minmax(0, 1fr); grid-template-areas: 'ic name spark';
+    align-items: center; justify-content: stretch; column-gap: 10px; width: 100%; height: var(--rail-row); min-height: 0;
+    padding: 0 13px 0 12px; border-radius: 13px; text-align: left; color: var(--text);
   }
   #rail #goal-strip button > .i { grid-area: ic; width: 19px; height: 19px; }
   #rail #goal-strip button.ok > .i { color: var(--muted); }
-  #rail .r-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; font-weight: 650; }
-  #rail .r-val { grid-area: val; display: inline-flex; align-items: baseline; gap: 3px; font-size: 14px; font-weight: 750; letter-spacing: -0.01em; }
-  #rail .r-drift { font-size: 9px; color: var(--faint); }
-  #rail .r-drift.up { color: var(--good-ink, var(--good)); } /* (better, as the pane's ▲▼) */
-  #rail .r-drift.down { color: var(--danger-ink); }
-  /* How it stands, drawn: a meter (green, amber or red with the area), a bar out from the middle (the balance, the
-     rating: its side for more or less than nothing, its colour the area's), or the demand meter; the figure a bar
-     stands for beside it. Its line kept with nothing to draw yet (a button grew as its first figure came, and every
-     button under it moved). */
-  #rail .r-viz { grid-area: viz; display: flex; align-items: center; gap: 8px; justify-self: stretch; min-width: 0; min-height: 14px; }
-  #rail .r-meter { position: relative; flex: 1 1 auto; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--text) 11%, transparent); overflow: hidden; }
-  #rail .r-meter > i { position: absolute; top: 0; bottom: 0; left: 0; border-radius: inherit; background: var(--good); transition: width 0.4s var(--ease); }
-  #rail :is(#goal-strip button, .strip-city).warn .r-meter > i { background: var(--warn); }
-  #rail :is(#goal-strip button, .strip-city).bad .r-meter > i { background: var(--danger); }
-  #rail .r-div { overflow: visible; }
-  #rail .r-div::before { content: ''; position: absolute; top: -2px; bottom: -2px; left: 50%; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--line-strong); }
-  #rail .r-div > i { left: 50%; border-radius: 0 999px 999px 0; }
-  #rail :is(#goal-strip, #city-rows) .r-div > i.neg { left: auto; right: 50%; border-radius: 999px 0 0 999px; } /* (its side says less than nothing; its colour, as every bar's, how the area stands) */
-  #rail .r-fig { flex: none; color: var(--muted); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
-  /* Demand: each class named, its bar either side of none in the class's colour (paler for too much; what a cap holds back striped). */
-  #rail .r-rci { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
-  #rail .r-k { display: flex; align-items: center; gap: 5px; min-width: 0; }
-  #rail .r-k b { flex: none; color: var(--muted); font-size: 11px; font-weight: 650; }
-  #rail .r-k.k-r { --c: var(--zone-r); }
-  #rail .r-k.k-c { --c: var(--zone-c); }
-  #rail .r-k.k-i { --c: var(--zone-i); }
-  #rail #goal-strip .r-rci .r-k .r-meter > i { background: var(--c); }
-  #rail #goal-strip .r-rci .r-k .r-meter > i.neg { opacity: 0.55; }
-  #rail #goal-strip .r-rci .r-k .r-meter > i.held { background: repeating-linear-gradient(90deg, var(--c) 0 3px, transparent 3px 5px); }
-  #rail #goal-strip .strip-start { margin: 0; padding: 8px 12px 9px 11px; }
+  #rail .r-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 650; }
+  #rail .r-val { grid-area: spark; justify-self: end; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  /* The graph: its line in the item's state (amber, red when it wants a hand) over a faint fill, what to read it against
+     dashed, a line at nothing when it goes below; dotted with nothing read yet. */
+  #rail .r-spark { grid-area: spark; display: block; width: 100%; height: 24px; overflow: visible; --spark: var(--accent); }
+  #rail :is(#goal-strip button, .strip-city).warn .r-spark { --spark: var(--warn); }
+  #rail :is(#goal-strip button, .strip-city).bad .r-spark { --spark: var(--danger); }
+  #rail .r-spark path { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+  #rail .r-spark .s1 { stroke: var(--spark); stroke-width: 1.75px; }
+  #rail .r-spark .s2 { stroke: var(--muted); stroke-width: 1.25px; stroke-dasharray: 3px 2.5px; }
+  #rail .r-spark .sa { fill: var(--spark); fill-opacity: 0.13; stroke: none; }
+  #rail .r-spark .s0 { stroke: var(--line-strong); stroke-width: 1px; }
+  #rail .r-spark .sn { stroke: var(--line-strong); stroke-width: 2px; stroke-dasharray: 0 6px; }
+  #rail #goal-strip .strip-start { margin: 0; }
   #rail #goal-strip .strip-start .r-val { color: var(--muted); }
   #rail #goal-strip .strip-on { display: flex; align-items: stretch; width: 100%; height: auto; border-radius: 12px; }
   #rail #goal-strip .strip-on > button:first-child { flex: 1 1 auto; min-width: 0; width: auto; padding-right: 4px; }

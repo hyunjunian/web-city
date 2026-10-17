@@ -1,11 +1,11 @@
 // The bars' own tooltips — the building bar across the map's foot, the top buttons (the clock's speeds with the date,
-// the menu; a phone's city button), the city button and the areas' buttons (down the map's left wide, a phone's chips
+// the menu; a phone's city button), the city's card (its button, 재정 and 시장 평점) and the areas' buttons (down the map's left wide, a phone's chips
 // under its top buttons), 전체 and the zoom: a control's name, what it
 // does and its keys, by it once the pointer rests there, at once along the bar. (The browser's came after a second, small and plain, the keys run into the
 // words.) Elsewhere titles stay the browser's.
 
 // (Not the view's card under the top buttons: its name and 찾아가기 keep the browser's.)
-const SCOPE = '#dock-col button, #mapbar > button, #rail > button, #mapbar .mb-time button, #mapbar > #menu > summary, #goal-strip button, #map-controls button';
+const SCOPE = '#dock-col button, #mapbar > button, #city-card button, #mapbar .mb-time button, #mapbar > #menu > summary, #goal-strip button, #map-controls button';
 
 /** A key as a title ends with one: "(Ctrl+Z)" (on a Mac "(⌘Z)", "(⇧⌘Z)"), "(R·T·V·H)", "(0 · Space)" — words in
  *  brackets are not keys. */

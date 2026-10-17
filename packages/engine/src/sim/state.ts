@@ -599,11 +599,17 @@ export interface HistoryPoint {
   waterDemand?: number;
   garbageCapacity?: number;
   garbageProduced?: number;
+  /** Garbage left lying uncollected that month, tons (absent in older saves). */
+  garbageUncollected?: number;
+  /** Fires that broke out that month, and buildings they burned down (absent in older saves). */
+  fires?: number;
+  burned?: number;
   /** Citywide average air and water pollution over land. */
   air?: number;
   waterPollution?: number;
-  /** Resident-weighted average EQ and life expectancy (years). */
+  /** Resident-weighted average EQ, HQ (absent in older saves) and life expectancy (years). */
   eq?: number;
+  hq?: number;
   lifeExpectancy?: number;
   income?: number;
   expenses?: number;

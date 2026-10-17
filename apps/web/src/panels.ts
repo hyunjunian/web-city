@@ -331,13 +331,13 @@ function renderBuildings(): void {
 }
 
 /** The RCI meter's classes: letter, name and zone colour. */
-export const RCI_CLASSES = [['R', '주거', 'var(--zone-r)'], ['C', '상업', 'var(--zone-c)'], ['I', '산업', 'var(--zone-i)']] as const;
+const RCI_CLASSES = [['R', '주거', 'var(--zone-r)'], ['C', '상업', 'var(--zone-c)'], ['I', '산업', 'var(--zone-i)']] as const;
 
 /**
  * SC4's RCI meter for one class: its strongest demand (or weakest, when none is positive),
  * whether its cap holds Sims back, and for industry whether farms are what is wanted.
  */
-export function classDemand(k: 'R' | 'C' | 'I'): { v: number; capped: boolean; want: number; farms: boolean; factories: number } {
+export function classDemand(k: 'R' | 'C' | 'I'): { v: number; capped: boolean; farms: boolean; factories: number } {
   const dem = city.demand;
   const vals = DEV_TYPES.filter((t) => t[0] === k).map((t) => dem.demand[t]);
   // Sims want in but the class's cap holds them back (the bar alone would read as no demand).
@@ -349,11 +349,7 @@ export function classDemand(k: 'R' | 'C' | 'I'): { v: number; capped: boolean; w
   const farms = k === 'I' && v > 0 && dem.demand.IA >= v;
   // Only farms: an industrial zone would stay empty (farms grow on 농업 zones).
   const factories = Math.max(dem.demand.ID, dem.demand.IM, dem.demand.IHT);
-  // What a capped class would want without its cap, on the bar's scale (before taxes).
-  const half = dem.halfSaturation;
-  const want = capped && half ? Math.max(v, ...DEV_TYPES.filter((t) => t[0] === k && t !== 'IA' && atCap(t) && dem.raw[t] > 0)
-    .map((t) => (1000 * dem.raw[t]) / (dem.raw[t] + half))) : v;
-  return { v, capped, want, farms, factories };
+  return { v, capped, farms, factories };
 }
 
 /** The RCI meter in small, beside 개발·수요's figure on the watch list: three bars up (wanted) or down (surplus). */

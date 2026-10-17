@@ -1558,6 +1558,7 @@ export class City {
     let commuters = 0;
     let commute = 0;
     let eq = 0;
+    let hq = 0;
     let life = 0;
     let piece = 0;
     for (const b of s.buildings.values()) {
@@ -1566,6 +1567,7 @@ export class City {
       const r = b.capacity * b.occupancy;
       people += r;
       eq += b.eq * r;
+      hq += b.hq * r;
       life += (sv.startAge + interp(sv.lifeExpectancyByHq, b.hq)) * r;
       if (b.commute >= 0) {
         commuters += r;
@@ -1591,8 +1593,10 @@ export class City {
       powerSupply: Math.round(st.power.supply), powerDemand: Math.round(st.power.demand),
       waterSupply: Math.round(st.water.supply), waterDemand: Math.round(st.water.demand),
       garbageCapacity: Math.round(st.garbage.capacity), garbageProduced: Math.round(st.garbage.produced),
+      garbageUncollected: Math.round(st.garbage.uncollected),
+      fires: st.safety.fires, burned: st.safety.burned,
       air: land ? r1(air / land) : 0, waterPollution: land ? r1(water / land) : 0,
-      eq: people ? r1(eq / people) : 0, lifeExpectancy: people ? r1(life / people) : 0,
+      eq: people ? r1(eq / people) : 0, hq: people ? r1(hq / people) : 0, lifeExpectancy: people ? r1(life / people) : 0,
       income: Math.round(s.lastBudget?.income ?? 0), expenses: Math.round(s.lastBudget?.expenses ?? 0),
       abandoned: [...s.buildings.values()].filter((b) => !b.type).length,
     };
