@@ -210,7 +210,7 @@ const LEAD_KINDS: Record<string, StructureKind[]> = {
   // (Fifty landmarks: the best known lead, the rest a click away.)
   landmark: ['bigBen', 'statueOfLiberty', 'empireStateBuilding', 'tajMahal', 'greatPyramid', 'tokyoTower'],
 };
-/** Tools that act on the city as it runs (send a unit, throw money): a small button by their group's name, not a tile among the buildings. */
+/** Tools that act on the city as it runs (send a unit, throw money): tiles after their group's facilities. */
 const ACTIONS = new Set(['dispatch', 'throw']);
 
 export const STATION_HINT = {
@@ -330,9 +330,72 @@ function toolPrice(t: Tool): string {
     case 'toll': return `§${fmt(cfg.transport.toll.cost)}`;
     case 'cloverleaf': return `§${fmt(cfg.transport.cloverleaf.cost)}`;
     case 'transition': return `§${fmt(cfg.transport.subwayTransition.cost)}`;
+    case 'unpipe': return per(cfg.services.pipeCost.bulldoze);
+    case 'unsubway': return per(ec.networkCost.subway.bulldoze);
     default: return '';
   }
 }
+
+/** Money as the tools' card says it: whole sections, but the hundredths a tile of road costs a month (§0.05). */
+const sect = (v: number) => `§${Number.isInteger(v) || Math.abs(v) >= 10 ? fmt(v) : String(+Math.abs(v).toFixed(2))}`;
+
+/**
+ * What a tool goes on costing once it is down, a month at a full budget ('' for an act that is over when done: the
+ * land reshaped, a unit sent, a disaster): per tile for what is drawn — a zone's tiles nothing until built on (its
+ * buildings pay taxes; the services they call for are their own buildings' upkeep) — and taken up, the saving (−).
+ */
+function toolMonthly(t: Tool): string {
+  const cfg = DEFAULT_CONFIG;
+  const ec = cfg.economy;
+  const per = (v: number) => `월 ${sect(v)}/칸`;
+  switch (t.kind) {
+    case 'network': return per(ec.networkCost[t.network].upkeep);
+    case 'elevated': return per(ec.networkCost[t.track === 'highway' ? 'elevatedHighway' : t.track].upkeep);
+    case 'subway': return per(ec.networkCost.subway.upkeep);
+    case 'powerline': return per(cfg.services.powerLineCost.upkeep);
+    case 'pipe': return per(cfg.services.pipeCost.upkeep);
+    case 'unpipe': return `월 −${sect(cfg.services.pipeCost.upkeep)}/칸`;
+    case 'unsubway': return `월 −${sect(ec.networkCost.subway.upkeep)}/칸`;
+    case 'zone': return t.zone === 'none' ? '' : t.zone === 'landfill' ? per(cfg.garbage.landfill.upkeep) : '월 §0';
+    case 'toll': return `월 ${sect(cfg.transport.toll.upkeep)}`;
+    case 'cloverleaf': return `월 ${sect(cfg.transport.cloverleaf.upkeep)}`;
+    case 'transition': return `월 ${sect(cfg.transport.subwayTransition.upkeep)}`;
+    case 'terraform': case 'level': case 'trees': return '월 §0';
+    default: return '';
+  }
+}
+
+/** What an act on the running city costs when done (a unit sent is free; money thrown, its sum each time). */
+function actPrice(t: Tool): string {
+  return t.kind === 'throw' ? `${sect(DEFAULT_CONFIG.mayor.throwMoney.cost)}/번` : t.kind === 'dispatch' || t.kind === 'disaster' ? '무료' : '';
+}
+
+/** A facility kind's month: its upkeep at a full budget (a plant's at full output), or what a deal pays (+). */
+function kindMonthly(k: StructureKind): { month: string; gain: boolean } {
+  const d = STRUCTURES[k];
+  return d.income ? { month: `월 +${sect(d.income)}`, gain: true } : { month: `월 ${sect(d.upkeep)}`, gain: false };
+}
+
+/**
+ * The inside of a tile of the tools' card — every button there is one (a tool, a facility, an act, the folds): its
+ * glyph, its name, what it does (a facility's figures, a line each, or why it is locked), and what it costs, at once
+ * and then a month. (The facilities were cards in rows of two, the tools tiles; a price alone told nothing of the
+ * upkeep that follows it every month.)
+ */
+function tileHtml(o: { glyph: string; name: string; stat?: string; now?: string; month?: string; gain?: boolean; short?: boolean; key?: string }): string {
+  const cost = o.now || o.month
+    ? `<span class="tile-cost">${o.now ? `<span class="tile-price${o.short ? ' short' : ''}">${o.now}</span>` : ''}${o.month ? `<span class="tile-month${o.gain ? ' gain' : ''}">${o.month}</span>` : ''}</span>`
+    : '';
+  return `<span class="tile-icon">${o.glyph}</span><span class="tile-label">${o.name}</span>${o.stat ? `<span class="tile-stat">${o.stat}</span>` : ''}${cost}${o.key ? `<kbd>${o.key}</kbd>` : ''}`;
+}
+
+/** A facility's figures for its tile: a line each, a number kept with its unit (급수 20,000 m³ broke before m³), and
+ *  not a deal's pay (the tile's month says it). */
+const tileStat = (stat: string) => stat.split(' · ').filter((x) => !x.startsWith('월 +§')).map((x) => x.replace(/ (m³|MWh|t)(?= |$)/g, '\u00a0$1')).join('<br>');
+
+/** A fold of the card's less usual tools or kinds, as a tile: how many it holds, or 접기. */
+const foldTile = (open: boolean, count: number | string) =>
+  tileHtml({ glyph: icon(open ? 'chevronDown' : 'more'), name: open ? '접기' : '더 보기', stat: open ? '' : `${count}개` });
 
 export function buildTools(): void {
   // The dock: one button per category.
@@ -392,9 +455,9 @@ export function buildTools(): void {
       // move from there).
       if (e.detail === 0) {
         const section = '#tools .tray-section:not([hidden])';
-        (document.querySelector<HTMLElement>(`${section} :is(.tile.active:not([hidden]), .pick.active)`)
+        (document.querySelector<HTMLElement>(`${section} .tile.active:not([hidden])`)
           ?? (pick ? document.querySelector<HTMLElement>(`${section} .tile[data-tool="${pick.id}"]:not([hidden])`) : null)
-          ?? document.querySelector<HTMLElement>(`${section} :is(.tile, .pick:not([disabled]))`))?.focus();
+          ?? document.querySelector<HTMLElement>(`${section} .tile:not([hidden]):not([disabled])`))?.focus();
       }
     };
   });
@@ -479,32 +542,24 @@ export function buildTools(): void {
     wrap.innerHTML = `<h3>${g.title}${demandOf || missing || lifts ? '<span class="zone-demand"></span>' : ''}</h3>`;
     const group = document.createElement('div');
     group.className = 'group';
-    const head = wrap.querySelector('h3')!;
+    // (Acts on the running city — a unit sent, money thrown — after the group's facilities, a tile as the rest.)
+    const acts = document.createElement('div');
+    acts.className = 'group acts';
     for (const t of g.tools) {
-      if (ACTIONS.has(t.kind)) {
-        const a = document.createElement('button');
-        a.type = 'button';
-        a.className = 'sec-act';
-        a.dataset.tool = t.id;
-        a.innerHTML = `${toolGlyph(t)}${t.label}`;
-        a.title = toolName(t);
-        a.onclick = (e) => pickTool(t.id, e.detail === 0);
-        head.append(a);
-        continue;
-      }
       const b = document.createElement('button');
+      b.type = 'button';
       // (A single finer tool is a tile of its own: "더 보기 1개" hid it behind a tile the same size.)
       b.className = MORE.has(t.id) && g.tools.filter((x) => MORE.has(x.id)).length > 1 ? 'tile more' : 'tile';
       b.dataset.tool = t.id;
-      const key = Object.entries(TOOL_KEYS).find(([, id]) => id === t.id)?.[0];
-      const price = toolPrice(t);
-      b.innerHTML = `<span class="tile-icon">${toolGlyph(t)}</span><span class="tile-label">${t.label}</span>`
-        + (price || key ? `<span class="tile-sub"><span class="tile-price">${price}</span>${key ? `<kbd>${key.toUpperCase()}</kbd>` : ''}</span>` : '');
-      b.title = `${toolName(t)}${key ? ` (${key.toUpperCase()})` : ''}${price ? ` · ${price}` : ''}`;
+      const key = Object.entries(TOOL_KEYS).find(([, id]) => id === t.id)?.[0]?.toUpperCase();
+      const now = toolPrice(t) || actPrice(t);
+      const month = toolMonthly(t);
+      b.innerHTML = tileHtml({ glyph: toolGlyph(t), name: t.label, now, month, key });
+      b.title = `${toolName(t)}${key ? ` (${key})` : ''}${now ? ` · ${now}` : ''}${month ? ` · 유지 ${month}` : ''}`;
       b.onclick = (e) => pickTool(t.id, e.detail === 0);
-      // A facility tool is picked with its kind's card below, not with a tile of its own.
+      // A facility tool is picked with its kind's tile below, not with a tile of its own.
       if (t.kind === 'structure') b.hidden = true;
-      group.append(b);
+      (ACTIONS.has(t.kind) ? acts : group).append(b);
     }
     // The finer tools behind one tile at the group's end.
     const extra = g.tools.filter((t) => MORE.has(t.id)).length;
@@ -512,16 +567,22 @@ export function buildTools(): void {
       const more = document.createElement('button');
       more.type = 'button';
       more.className = 'tile tile-more';
-      more.innerHTML = `<span class="tile-icon">${icon('more')}</span><span class="tile-label">더 보기</span><span class="tile-sub">${extra}개</span>`;
+      more.setAttribute('aria-expanded', 'false');
+      more.innerHTML = foldTile(false, extra);
       more.title = g.tools.filter((t) => MORE.has(t.id)).map((t) => t.label).join(' · ');
       more.onclick = () => {
         const open = wrap.classList.toggle('show-more');
-        more.querySelector('.tile-label')!.textContent = open ? '접기' : '더 보기';
-        more.querySelector('.tile-sub')!.textContent = open ? '' : `${extra}개`;
+        more.setAttribute('aria-expanded', String(open));
+        more.innerHTML = foldTile(open, extra);
       };
       group.append(more);
     }
-    if (g.tools.some((t) => t.kind !== 'structure' && !ACTIONS.has(t.kind))) wrap.append(group);
+    // One run of tiles a section: its tools, its facilities' kinds, its acts (rows of their own left a lone tile — 소방
+    // 출동 — on a row under three).
+    const tiles = document.createElement('div');
+    tiles.className = 'tiles';
+    wrap.append(tiles);
+    if (g.tools.some((t) => t.kind !== 'structure' && !ACTIONS.has(t.kind))) tiles.append(group);
     const civic = g.tools.find((t): t is StructureTool => t.kind === 'structure');
     if (civic) {
       // The facility kinds as cards (filled by refreshStructureLists as unlocks change).
@@ -536,7 +597,7 @@ export function buildTools(): void {
         if (fold) {
           const open = wrap.classList.toggle('show-more');
           fold.setAttribute('aria-expanded', String(open));
-          fold.innerHTML = `${icon(open ? 'chevronDown' : 'more')}${open ? '접기' : `${fold.dataset.count}개 더 보기`}`;
+          fold.innerHTML = foldTile(open, fold.dataset.count ?? '');
           return;
         }
         if ((e.target as HTMLElement).closest('[data-more]')) {
@@ -549,8 +610,9 @@ export function buildTools(): void {
         chosen[civic.id] = b.dataset.kind as StructureKind;
         pickTool(civic.id, e.detail === 0);
       });
-      wrap.append(picker);
+      tiles.append(picker);
     }
+    if (acts.childElementCount) tiles.append(acts);
     if (g.tools.some((t) => t.kind === 'network' && t.network === 'road')) {
       // Bridges: tall enough for ferries by default; a low one is cheaper but blocks them (Rush Hour).
       const low = document.createElement('label');
@@ -625,7 +687,7 @@ export function openTray(cat: CategoryId, fromDock = false): void {
   requestAnimationFrame(markScroll);
   // Reopened, it shows the tool in hand (a landfill or a pump sat a scroll down every time).
   // (A facility's hidden tile is 'active' too: its card in the list is the one to show.)
-  document.querySelector<HTMLElement>('#tools .tray-section:not([hidden]) :is(.tile.active:not([hidden]), .pick.active)')?.scrollIntoView({ block: 'nearest' });
+  document.querySelector<HTMLElement>('#tools .tray-section:not([hidden]) .tile.active:not([hidden])')?.scrollIntoView({ block: 'nearest' });
   document.querySelectorAll<HTMLButtonElement>('#dock-tools [aria-controls="tray"], #tray-cats [aria-controls="tray"]').forEach((b) => {
     const on = b.dataset.cat === cat;
     b.classList.toggle('open', on);
@@ -679,7 +741,7 @@ function lockedLabel(picker: HTMLElement): void {
   if (!more) return;
   const shown = picker.classList.contains('show-locked');
   more.setAttribute('aria-expanded', String(shown));
-  more.innerHTML = `${icon('lock')}${shown ? '잠긴 시설 숨기기' : `잠긴 시설 ${more.dataset.count}개 보기`}`;
+  more.innerHTML = tileHtml({ glyph: icon('lock'), name: shown ? '잠긴 시설 숨기기' : '잠긴 시설', stat: shown ? '' : `${more.dataset.count}개 보기` });
 }
 
 /** A facility's headline figure for its card (the hover hint spells out more). */
@@ -687,7 +749,7 @@ export function structureStat(k: StructureKind): string {
   const d = STRUCTURES[k];
   if (d.plant) return `${fmt(d.plant.output)} MWh`;
   if (d.pump) return `급수 ${fmt(d.pump.output)} m³`;
-  if (d.treatment) return `반경 ${d.treatment.radius}칸 수질 정화`;
+  if (d.treatment) return `반경 ${d.treatment.radius}칸 · 수질 정화`;
   if (d.incinerator) return `월 ${fmt(d.incinerator.capacity)} t 소각`;
   if (d.recycling) return `쓰레기 −${Math.round(d.recycling.reduction * 100)}%`;
   if (d.police) return d.police.radius ? `반경 ${Math.round(d.police.radius)}칸${d.police.cells ? ` · 감방 ${fmt(d.police.cells)}명` : ''}` : `수감 ${fmt(d.police.cells)}명${d.income ? ` · 월 +§${fmt(d.income)}` : ''}`;
@@ -815,26 +877,28 @@ export function refreshStructureLists(): void {
         const earned = city.state.unlocked.filter((u) => u === k).length;
         const why = plainCodes(def.unlock?.description ?? def.unlockTiers?.[earned]?.description ?? def.offer?.description ?? '');
         const short = open && !placed && def.cost > city.state.funds;
-        const sub = !open ? why : placed ? '이미 지음' : def.cost || def.upkeep ? `${short ? '<b class="short">자금 부족</b> ' : ''}§${fmt(def.cost)} · 월 §${fmt(def.upkeep)}` : '무료';
         const stat = structureStat(k);
         const folded = open && !!LEAD_KINDS[id] && !LEAD_KINDS[id]!.includes(k);
-        return `<button class="pick${!open ? ' locked' : placed ? ' placed' : ''}${folded ? ' more' : ''}" role="option" data-kind="${k}" ${!open || placed ? 'disabled' : ''}
-          title="${attr(`${STRUCTURE_NAME[k]} · ${def.w}×${def.h}칸 · 건설 §${fmt(def.cost)} · 유지 월 §${fmt(def.upkeep)}${!open ? ` — ${why}` : ''}`)}">
-          <span class="pick-name">${!open ? icon('lock') : placed ? icon('check') : swatchOf(k, `${def.w}×${def.h}칸`)}<span class="pick-title">${STRUCTURE_NAME[k]}</span>${open && !placed ? `<span class="pick-cost${short ? ' short' : ''}"${short ? ' title="자금이 모자랍니다"' : ''}>${def.cost ? `§${fmt(def.cost)}` : '무료'}</span>` : ''}</span>${open && !placed ? (stat ? `<span class="pick-stat">${stat}</span>` : '') : `<span class="pick-sub">${sub}</span>`}</button>`;
-  // (Its price on the name's line, its use under it; the upkeep is in its tooltip and where it is placed.)
+        const { month, gain } = kindMonthly(k);
+        const now = def.cost ? `§${fmt(def.cost)}` : '무료';
+        // (What it does a line each — 반경 24칸 / 환자 500명; locked, why; built once, so. Then its price and its month.)
+        return `<button type="button" class="tile${!open ? ' locked' : placed ? ' placed' : ''}${folded ? ' more' : ''}" role="option" data-kind="${k}" ${!open || placed ? 'disabled' : ''}
+          title="${attr(`${STRUCTURE_NAME[k]} · ${def.w}×${def.h}칸 · 건설 ${now} · ${gain ? '수입' : '유지'} ${month}${stat ? ` · ${stat}` : ''}${short ? ' · 자금이 모자랍니다' : ''}${!open ? ` — ${why}` : ''}`)}">${tileHtml({
+            glyph: !open ? icon('lock') : placed ? icon('check') : swatchOf(k, `${def.w}×${def.h}칸`), name: STRUCTURE_NAME[k],
+            stat: !open ? why : placed ? '이미 지음' : tileStat(stat), now: placed ? '' : now, month: placed ? '' : month, gain, short })}</button>`;
       }).join('')
-        // The less usual kinds fold behind 더 보기; locked ones behind one button of their own (many for rewards and landmarks).
+        // The less usual kinds fold behind 더 보기; locked ones behind one tile of their own (many for rewards and landmarks).
         + (LEAD_KINDS[id] ? (() => {
           const n = kinds.filter((k) => city.isUnlocked(k) && !LEAD_KINDS[id]!.includes(k)).length;
           const shown = !!picker.closest('.show-more');
-          return n ? `<button type="button" class="pick-more" data-fold data-count="${n}" aria-expanded="${shown}">${icon(shown ? 'chevronDown' : 'more')}${shown ? '접기' : `${n}개 더 보기`}</button>` : '';
+          return n ? `<button type="button" class="tile tile-more" data-fold data-count="${n}" aria-expanded="${shown}">${foldTile(shown, n)}</button>` : '';
         })() : '')
-        + (locked ? `<button type="button" class="pick-more" data-more aria-expanded="false" data-count="${locked}"></button>` : '');
+        + (locked ? `<button type="button" class="tile tile-more" data-more aria-expanded="false" data-count="${locked}"></button>` : '');
       lockedLabel(picker);
     }
     // A service short where it counts: the kind its goal would build marked 추천 (the same pick as its screen's).
     const suggested = suggestedKinds().get(id);
-    picker.querySelectorAll<HTMLElement>('.pick[data-kind]').forEach((b) => {
+    picker.querySelectorAll<HTMLElement>('.tile[data-kind]').forEach((b) => {
       const on = b.dataset.kind === suggested;
       b.classList.toggle('suggested', on);
       // (Nor folded away behind 더 보기: the growth screen's 테니스장 was a park out of sight, its 추천 unseen.)
@@ -843,10 +907,10 @@ export function refreshStructureLists(): void {
     });
     const fold = picker.querySelector<HTMLElement>('[data-fold]');
     if (fold) {
-      const n = picker.querySelectorAll('.pick.more').length;
+      const n = picker.querySelectorAll('.tile.more').length;
       if (fold.dataset.count !== String(n)) {
         fold.dataset.count = String(n);
-        if (!picker.closest('.show-more')) fold.innerHTML = `${icon('more')}${n}개 더 보기`;
+        if (!picker.closest('.show-more')) fold.innerHTML = foldTile(false, n);
       }
       fold.hidden = !n;
     }
@@ -1078,7 +1142,7 @@ export function restView(): void {
 // ------------------------------------------------------------------ finding a tool
 
 /** What the search box can find: every tool, every kind of facility (by its own name), and the screens (by what they hold). */
-type Found = { key: string; name: string; where: string; glyph: string; sub: string; locked: string; pick: () => void; words?: string; aside?: true };
+type Found = { key: string; name: string; where: string; glyph: string; sub: string; month?: string; gain?: boolean; locked: string; pick: () => void; words?: string; aside?: true };
 
 /**
  * Everyday words a tool or facility answers to besides its name: 물 found 물 파기 and 박물관 but no pump, 전기 only
@@ -1135,7 +1199,7 @@ function findables(): Found[] {
           out.push({
             key: `${t.id}:${k}`, name: STRUCTURE_NAME[k], where: `${cat.label} · ${g.title}`, words: wordsFor(t, d),
             glyph: swatchOf(k),
-            sub: d.cost || d.upkeep ? `§${fmt(d.cost)} · 월 §${fmt(d.upkeep)}` : '무료',
+            sub: d.cost ? `§${fmt(d.cost)}` : '무료', ...kindMonthly(k),
             locked: !open ? why : placed ? '이미 지음' : '',
             pick: () => {
               chosen[t.id] = k;
@@ -1147,7 +1211,7 @@ function findables(): Found[] {
         // (Terrain and disasters are listed after the rest: Enter on 물 dug a lake.)
         // (철거 and 조회 are their categories' only tools: "철거 · 철거" said nothing.)
         const where = t.kind === 'bulldoze' ? '끌어서 헐기 · 빈 구역은 해제' : cat.label === g.title ? cat.label : `${cat.label} · ${g.title}`;
-        out.push({ key: t.id, name: toolName(t), where, words: wordsFor(t), glyph: toolGlyph(t), sub: t.kind === 'terraform' && !city.established() ? '무료' : toolPrice(t), locked: usable(t) ? '' : '잠김', pick: () => selectTool(t.id),
+        out.push({ key: t.id, name: toolName(t), where, words: wordsFor(t), glyph: toolGlyph(t), sub: t.kind === 'terraform' && !city.established() ? '무료' : toolPrice(t) || actPrice(t), month: toolMonthly(t), locked: usable(t) ? '' : '잠김', pick: () => selectTool(t.id),
           ...(t.kind === 'terraform' || t.kind === 'disaster' || t.kind === 'level' || t.kind === 'trees' ? { aside: true as const } : {}) });
       }
     }
@@ -1181,7 +1245,7 @@ const currentKey = () => (tool.kind === 'structure' ? `${tool.id}:${chosen[tool.
 
 function renderRecent(): void {
   const all = new Map(findables().map((f) => [f.key, f]));
-  const chips = (list: Found[]) => list.map((f) => `<button type="button" data-find="${attr(f.key)}" class="${f.key === currentKey() ? 'active' : ''}" title="${attr(`${f.name} · ${f.where}${f.sub ? ` · ${f.sub}` : ''}`)}">${f.glyph}${f.name}</button>`).join('');
+  const chips = (list: Found[]) => list.map((f) => `<button type="button" data-find="${attr(f.key)}" class="${f.key === currentKey() ? 'active' : ''}" title="${attr(`${f.name} · ${f.where}${f.sub ? ` · ${f.sub}` : ''}${f.month ? ` · ${f.month}` : ''}`)}">${f.glyph}${f.name}</button>`).join('');
   // (Not the tool in hand, nor those already on the open card: a row of 최근 [도로] above 도로 said nothing.)
   const items = recent.map((k) => all.get(k)).filter((f): f is Found => !!f && !f.locked && f.key !== currentKey() && categoryOf(f.key.split(':')[0]!) !== openCat);
   // While a goal's screen is open, its tools lead (whatever category the tray shows) — but not those on the open
@@ -1226,8 +1290,8 @@ function renderFound(q: string): void {
     .map((x) => x.f);
   $('#tray-title').innerHTML = `${icon('search')}찾기 · ${found.length}개`;
   res.innerHTML = found.length
-    ? found.map((f, i) => `<button type="button" class="pick${f.locked ? ' locked' : ''}${i === 0 && !f.locked ? ' first' : ''}" role="option" data-find="${attr(f.key)}" ${f.locked ? 'disabled' : ''} title="${attr(`${f.name} · ${f.where}${f.locked ? ` — ${f.locked}` : ''}`)}">
-        <span class="pick-name">${f.locked ? icon('lock') : f.glyph}${f.name}</span><span class="pick-sub">${f.locked || f.where}</span>${!f.locked && f.sub ? `<span class="pick-stat">${f.sub}</span>` : ''}</button>`).join('')
+    ? found.map((f, i) => `<button type="button" class="tile${f.locked ? ' locked' : ''}${i === 0 && !f.locked ? ' first' : ''}" role="option" data-find="${attr(f.key)}" ${f.locked ? 'disabled' : ''} title="${attr(`${f.name} · ${f.where}${f.sub ? ` · ${f.sub}` : ''}${f.month ? ` · ${f.month}` : ''}${f.locked ? ` — ${f.locked}` : ''}`)}">${tileHtml({
+        glyph: f.locked ? icon('lock') : f.glyph, name: f.name, stat: f.locked || f.where, now: f.locked ? '' : f.sub, month: f.locked ? '' : f.month, gain: f.gain })}</button>`).join('')
     : `<p class="legend find-none">'${q.trim().replace(/[<&]/g, '')}'${'에 맞는 도구가 없습니다'}</p>`;
 }
 
@@ -1267,7 +1331,7 @@ function wireFind(): void {
       if (input.value.trim() && first) pickFound(first.key);
       e.preventDefault();
     } else if (e.key === 'ArrowDown' && input.value.trim()) {
-      document.querySelector<HTMLButtonElement>('#tray-results .pick:not([disabled])')?.focus();
+      document.querySelector<HTMLButtonElement>('#tray-results .tile:not([disabled])')?.focus();
       e.preventDefault();
     } else if (e.key === 'Escape') {
       // The first Esc empties the box; the next closes the tray (the page's own keys skip a text box).
@@ -1280,7 +1344,7 @@ function wireFind(): void {
   $('#tray-results').addEventListener('keydown', (e) => {
     const k = e.key;
     if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(k)) return;
-    const items = [...document.querySelectorAll<HTMLButtonElement>('#tray-results .pick:not([disabled])')];
+    const items = [...document.querySelectorAll<HTMLButtonElement>('#tray-results .tile:not([disabled])')];
     const at = items.indexOf(document.activeElement as HTMLButtonElement);
     const to = at + (k === 'ArrowRight' || k === 'ArrowDown' ? 1 : -1);
     if (to < 0) input.focus();

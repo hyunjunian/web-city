@@ -908,8 +908,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #tool-chip-label { cursor: pointer; display: flex; gap: 8px; align-items: baseline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13.5px; }
 #tool-chip-label b { font-weight: 650; }
 #tool-chip-label span { color: var(--muted); font-size: 12.5px; }
-#tool-chip-label span.short, .pick-sub .short { color: var(--danger-ink); }
-.pick-sub .short { font-weight: 650; }
+#tool-chip-label span.short { color: var(--danger-ink); }
 #tool-chip .icon-btn { width: 30px; height: 30px; border-radius: 999px; }
 #tool-chip .icon-btn .i { width: 16px; height: 16px; }
 /* The tool's siblings in its bar: another road, density or kind in one click. */
@@ -1048,10 +1047,10 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
    it in a window too narrow for both, in the middle of the map it leaves). */
 #tray {
   left: var(--mid); bottom: var(--bb); z-index: 6; transform: translateX(-50%);
-  display: flex; flex-direction: column; width: min(860px, calc(100% - var(--free-l) - var(--free-r) - 28px)); max-height: calc(100% - var(--bb) - var(--bar-h) - 12px);
+  display: flex; flex-direction: column; width: min(960px, calc(100% - var(--free-l) - var(--free-r) - 28px)); max-height: calc(100% - var(--bb) - var(--bar-h) - 12px);
   animation: tray-in 0.2s var(--ease);
 }
-@media (min-width: 861px) { #tray { left: var(--tray-x, var(--mid)); width: var(--tray-w, min(860px, calc(100% - var(--free-l) - var(--free-r) - 28px))); } }
+@media (min-width: 861px) { #tray { left: var(--tray-x, var(--mid)); width: var(--tray-w, min(960px, calc(100% - var(--free-l) - var(--free-r) - 28px))); } } /* (as controls.ts's TRAY_MAX) */
 #tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(370px, 100%), 1fr)); column-gap: 22px; align-items: start; padding: 0 18px 2px; overflow-y: auto; } /* row by row, so groups keep their places (columns rebalanced them as their text changed) */
 #tools.more-below { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); }
 /* (And a word for it: at 1280×720 the fade alone took the 공원 heading, and the card looked finished.) */
@@ -1098,15 +1097,12 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #tray-recent .swatch, #tray-recent .pick-swatch { width: 11px; height: 11px; border-radius: 3px; display: inline-block; flex: none; font-size: 0; }
 #tray-results { padding: 0 18px 16px; overflow-y: auto; align-content: start; grid-auto-rows: max-content; } /* (rows their own height and the list scrolls: 76 hits for 보상 were squeezed to fit, each item's second line over the next) */
 #tray-results[hidden], #tools[hidden] { display: none; }
-#tray-results .pick.first { box-shadow: inset 0 0 0 1.5px var(--accent); } /* Enter picks it */
-#tray-results .pick.locked { display: flex; }
-#tray-results .pick-name .i { width: 14px; height: 14px; }
-#tray-results .pick-name .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+#tray-results .tile.first { box-shadow: inset 0 0 0 1.5px var(--accent); } /* Enter picks it */
+#tray-results .tile.locked { display: flex; }
 .find-none { grid-column: 1 / -1; margin: 4px 0 8px; }
 .tray-section { break-inside: avoid; padding-bottom: 16px; }
 .tray-section h3 { margin: 0 0 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
 #tray.single .tray-section h3 { display: none; }
-.tray-section .group { display: grid; grid-template-columns: repeat(auto-fill, minmax(108px, 1fr)); gap: 8px; }
 .tile {
   flex-direction: column; justify-content: flex-start; gap: 5px; min-height: 86px; padding: 10px 8px 9px;
   background: var(--surface-2); border-radius: var(--r-md); text-align: center;
@@ -1117,38 +1113,31 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 .tile-icon .i { width: 28px; height: 28px; stroke-width: 1.6; }
 .tile-icon .swatch { display: block; width: 26px; height: 26px; border-radius: 8px; box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.18); }
 .tile-label { font-size: 13px; font-weight: 600; line-height: 1.25; word-break: keep-all; }
-.tile-sub { min-height: 17px; display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* Every button of the tools' card is a tile: its glyph, its name, what it does (a facility's figures, a line each; why
+   it is locked), then what it costs at its foot — at once, and a month after (upkeep at a full budget; a deal's pay). */
+.tile-stat {
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; max-width: 100%;
+  color: var(--muted); font-size: 10px; font-weight: 500; line-height: 1.3; letter-spacing: -0.01em; word-break: keep-all; font-variant-numeric: tabular-nums;
+}
+.tile-cost { display: flex; flex-direction: column; align-items: center; margin-top: auto; padding-top: 1px; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tile-price { font-size: 11.5px; font-weight: 650; color: var(--text); }
+.tile-price.short { color: var(--danger-ink); }
+.tile-month { font-size: 10.5px; font-weight: 500; color: var(--muted); }
+.tile-month.gain { color: var(--good-ink, var(--good)); font-weight: 600; }
+.tile.active .tile-price { color: var(--accent-hi); }
+.tile-icon .pick-swatch { width: 24px; height: 24px; border-radius: 7px; font-size: 13px; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18), 0 0 0 1px var(--line-strong); }
+.tile:disabled { opacity: 1; cursor: default; transform: none; }
+.tile:is(.locked, .placed) { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
+.tile.locked { opacity: 0.6; }
+.tile:is(.locked, .placed) .tile-icon { color: var(--muted); }
+.tile:is(.locked, .placed) .tile-icon .i { width: 20px; height: 20px; }
 .tile kbd { min-width: 0; padding: 0 5px; font-size: 10.5px; line-height: 1.5; border-bottom-width: 1px; }
 /* The shortcut shows on the tile under the pointer (a key on every tile was noise). */
 .tile kbd { opacity: 0; transition: opacity 0.15s; }
 .tile:is(:hover, :focus-visible) kbd { opacity: 1; }
-.picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
-.group + .picker { margin-top: 8px; }
-.picker:not(.show-locked) .pick.locked { display: none; }
-.pick-more {
-  grid-column: 1 / -1; justify-content: flex-start; gap: 6px; min-height: 32px; padding: 0 4px;
-  background: transparent; color: var(--muted); font-size: 12.5px; font-weight: 550;
-}
-@media (hover: hover) { .pick-more:hover { background: transparent; color: var(--text); } }
-.pick-more .i { width: 14px; height: 14px; }
-.pick {
-  flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 3px;
-  min-width: 0; min-height: 60px; padding: 9px 12px;
-  background: var(--surface-2); border-radius: var(--r-md); text-align: left;
-}
-.pick.active { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
-.pick-name { display: flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 600; line-height: 1.25; word-break: keep-all; }
-.pick-name .i { width: 14px; height: 14px; }
+/* A facility's kinds: tiles as the tools are, in their section's run (filled by refreshStructureLists). */
+.picker:not(.show-locked) .tile.locked { display: none; }
 .pick-swatch { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 4px; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.2); font-size: 10px; font-weight: 800; line-height: 1; overflow: hidden; } /* its colour and sign on the map (★ police, + a hospital, B a bus stop): cards scan like the map they build on */
-.pick-sub {
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
-  color: var(--muted); font-size: 11.5px; font-weight: 500; line-height: 1.35; word-break: keep-all;
-}
-.pick-stat { color: var(--text); font-size: 11.5px; font-weight: 600; line-height: 1.35; font-variant-numeric: tabular-nums; }
-.pick.active .pick-stat { color: var(--accent); }
-.pick:disabled { opacity: 1; cursor: default; transform: none; }
-.pick.locked { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); opacity: 0.6; }
-.pick.placed { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
 .tray-section > label.check { margin-top: 12px; color: var(--muted); font-size: 13px; }
 .tray-section .extras { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: center; margin-top: 10px; }
 .tray-section .extras:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
@@ -1546,8 +1535,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #sheet .panes { padding: 10px 12px 20px; }
   #sheet [data-pane] { columns: 2 340px; } /* one column on a phone, two on a tablet held upright */
   #tools { padding: 0 14px 16px; }
-  .tray-section .group { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
-  .picker { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
   .tile { min-height: 84px; }
   .tray-section .extras { grid-template-columns: minmax(0, 1fr); }
 }
@@ -1866,34 +1853,17 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .tile-more { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); }
 .tile-more .tile-icon .i { width: 20px; height: 20px; }
 @media (hover: hover) { .tile-more:hover { color: var(--text); background: var(--surface-2); } }
-/* Acting on the running city (send a unit, throw money): a small button by the group's name. */
 .tray-section h3 { display: flex; align-items: center; gap: 8px; min-height: 26px; }
-.sec-act {
-  display: inline-flex; align-items: center; gap: 5px; min-height: 26px; padding: 0 10px 0 8px; margin-left: auto;
-  border-radius: 999px; background: var(--surface-2); color: var(--text); font-size: 12px; font-weight: 600;
-}
-.sec-act + .sec-act { margin-left: 0; }
-.sec-act .i { width: 14px; height: 14px; color: var(--muted); }
-.sec-act.active { background: var(--accent-soft); color: var(--accent-hi); box-shadow: inset 0 0 0 1.5px var(--accent); }
-.sec-act.active .i { color: var(--accent-hi); }
-/* Smaller tiles: a glyph, a name, a price. */
-.tray-section .group { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 6px; }
-.tile { min-height: 74px; gap: 4px; padding: 9px 6px 8px; }
+/* Tiles: a glyph, a name, what it does, what it costs. */
+.tile { min-height: 74px; gap: 4px; padding: 9px 5px 8px; }
 .tile-icon { height: 24px; }
 .tile-icon .i { width: 23px; height: 23px; }
 .tile-icon .swatch { width: 22px; height: 22px; border-radius: 7px; }
 .tile-label { font-size: 12.5px; }
-.tile-sub { font-size: 11px; min-height: 15px; }
-/* A facility's card: its name and price on one line, what it does under it. */
-.picker { grid-template-columns: repeat(auto-fill, minmax(168px, 1fr)); gap: 6px; }
-.pick { min-height: 0; gap: 2px; padding: 8px 11px 9px; }
-.pick-name { width: 100%; }
-.pick-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pick-cost { margin-left: auto; padding-left: 8px; flex: none; font-size: 11.5px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
-.pick-cost.short { color: var(--danger-ink); }
-.pick-stat { font-weight: 550; color: var(--muted); }
-.pick.active .pick-stat { color: var(--accent-hi); }
-.tray-section .group { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+/* A section's tiles in one run — its tools, its facilities' kinds, its acts — one size of tile through the card (and in
+   what the box finds). */
+:is(.tray-section .tiles, .picker) { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; }
+.tray-section .tiles > :is(.group, .picker) { display: contents; }
 
 /* ------------------------------------------------------------------ the tool in hand: one bar */
 
@@ -1914,11 +1884,10 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #tray[data-cat='zones'] { width: min(720px, var(--tray-w, calc(100% - var(--free-l) - var(--free-r) - 28px))); }
   #tray[data-cat='zones'] #tools { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 18px; }
 }
-@media (min-width: 861px) { #tray[data-cat='zones'] .group { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (min-width: 861px) { #tray[data-cat='zones'] .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* The shortcut sits in the tile's corner (it no longer pushes the price onto two lines). */
 .tile { position: relative; }
 .tile kbd { position: absolute; top: 5px; right: 5px; }
-.tile-sub { white-space: nowrap; }
 /* Transport's stations and airports: the whole width under the roads and tracks (a column of twelve cards beside an empty one). */
 @media (min-width: 861px) { #tray[data-cat='transport'] .tray-section:has(.picker) { grid-column: 1 / -1; } }
 /* A drag laying something down: the bars, the minimap and the zoom step back. */
@@ -1934,11 +1903,10 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 #cursor-tag:not([hidden]) { animation: tag-in 0.12s var(--ease); }
 @keyframes tag-in { from { opacity: 0; } to { opacity: 1; } }
 /* The kind a short service would build first: marked 추천 (its goal's screen says why). */
-.pick.suggested { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent); }
-.pick.suggested.active { box-shadow: inset 0 0 0 2px var(--accent); }
-.pick.suggested .pick-stat { display: flex; flex-wrap: wrap; align-items: flex-end; column-gap: 6px; width: 100%; } /* (after the words, or under them at the right: beside two lines of them it sat between them, "환자 [추천] 3,000명") */
-.pick.suggested .pick-stat::after { content: '추천'; margin-left: auto; padding: 1px 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 10.5px; font-weight: 700; } /* (on the line under the name: the name keeps its room) */
-.tray-section:not(.show-more) .pick.more:not(.active) { display: none; }
+.tile.suggested { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent); }
+.tile.suggested.active { box-shadow: inset 0 0 0 2px var(--accent); }
+.tile.suggested::before { content: '추천'; position: absolute; top: 3px; right: 3px; padding: 0 3px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 9px; font-weight: 700; line-height: 1.55; } /* (in its corner, where a tool's key goes: a facility has none) */
+.tile-more:not([data-more])[aria-expanded='true'] .tile-icon .i { transform: rotate(180deg); } /* (접기: the chevron up — not the locked kinds' padlock) */
 #tool-chip-label { background: transparent; color: inherit; min-height: 0; font-weight: 400; border: 0; }
 /* Siblings cut off by a narrow bar fade at that edge (a swipe brings them in). */
 #tool-alts.more-right, #tray-recent.more-right { mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
@@ -1949,23 +1917,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .dock-btn.suggest::after, .tray-cat.suggest::after {
   content: ''; position: absolute; top: 6px; left: calc(50% + 8px); width: 7px; height: 7px; border-radius: 50%;
   background: var(--accent); box-shadow: 0 0 0 2px var(--float-solid, var(--surface)); pointer-events: none;
-}
-/* A long name ("엠파이어 스테이트 빌딩") takes a second line rather than an ellipsis; the price stays on the first. */
-.pick-name { align-items: flex-start; }
-.pick-name > .i { flex: none; margin-top: 2.5px; }
-.pick-name > .pick-swatch { margin-top: 0.5px; }
-.pick-title { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-.pick-cost { flex: none; }
-/* A phone's two narrow columns: the name has its line to itself and the price goes under it, after what the facility
-   does (beside the name, 석탄 발전소 and 대형 양수 펌프 broke over two lines). */
-@media (max-width: 860px) {
-  /* (Of no more weight than a class: the folded and the locked ones stay hidden.) */
-  :where(.tray-section) .pick { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: 'mark name name' 'use use cost'; column-gap: 5px; row-gap: 2px; align-items: start; }
-  .tray-section .pick-name { display: contents; }
-  .tray-section .pick-name > :first-child { grid-area: mark; }
-  .tray-section .pick-title { grid-area: name; }
-  .tray-section .pick-cost { grid-area: cost; align-self: end; padding-left: 6px; }
-  .tray-section .pick :is(.pick-stat, .pick-sub) { grid-area: use; }
 }
 /* A facility's catches, a line each (then what it does). */
 #cursor-tag span { white-space: pre-line; -webkit-line-clamp: 8; }
@@ -2124,7 +2075,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .info-own .info-bulldoze .i { width: 15px; height: 15px; }
 @media (hover: hover) { .info-own .info-bulldoze:hover { color: var(--danger-ink); background: var(--danger-soft); } }
 /* A card's figures in plain ink: the name is its one bold line (bold numbers under every name made a wall of them). */
-.pick-stat, .pick-sub b, .pick-stat b { font-weight: 400; }
 .mg-sec h3 .sec-note { font-weight: 500; }
 .fac-line, .fac-line b { font-weight: 400; } /* (the button's bold reached its figures) */
 /* A goal's figures: a ruled grid, not eight grey boxes; colour only on a figure that is off. */
@@ -2141,7 +2091,7 @@ input[type='range']::-moz-range-progress { height: 4px; border-radius: 2px; }
 input[type='range']::-moz-range-thumb { width: 18px; height: 18px; }
 @media (pointer: coarse) { input[type='range']::-webkit-slider-thumb { width: 24px; height: 24px; margin-top: -10px; } }
 /* No lone word on a last line ("… 3,816 / 더"): short texts wrap evenly. */
-p, .rw-left, .lead-risk, .lead-do, .pick-sub, .advice, .toast-text, #hint, #confirm-text { text-wrap: pretty; }
+p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { text-wrap: pretty; }
 /* All well: the card is calm (neutral, its check green), not a green block asking to be read. */
 .lead.calm { background: var(--surface-2); }
 .lead.calm .lead-title { color: var(--text); }
