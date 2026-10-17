@@ -125,9 +125,9 @@ function readStatus(id: GoalId): Status {
       // row's word is the cap (a trickle of demand left at it kept "농업 수요 +521" over "주거 … 상한에 닿았습니다").
       const capWord = first?.code === 'capRes' ? 'R' : first?.code === 'capOffice' ? 'C' : first?.code === 'capIndustry' ? 'I' : undefined;
       const cappedCls = capWord ?? (['R', 'C', 'I'] as const).find((k) => DEV_TYPES.some((t) => t[0] === k && t !== 'IA' && capped(t)));
-      if (cappedCls && (capWord || top(lead) < 100)) return pick('warn', `${CLASS_WORD[cappedCls]} 상한`, `${(['R', 'C', 'I'] as const).map(word).join(' · ')}${dem.IA >= 1 ? ` · 농업 +${short(dem.IA)}` : ''}`);
+      if (cappedCls && (capWord || top(lead) < 100)) return pick('warn', `${CLASS_WORD[cappedCls]} 상한`, demandWords());
       return pick(st.abandoned > 0 ? 'warn' : '', headline(),
-        `${(['R', 'C', 'I'] as const).map(word).join(' · ')}${dem.IA >= 1 ? ` · 농업 +${short(dem.IA)}` : ''}${st.abandoned ? ` · 버려짐 ${fmt(st.abandoned)}` : ''}`);
+        `${demandWords()}${st.abandoned ? ` · 버려짐 ${fmt(st.abandoned)}` : ''}`);
     }
     case 'power': {
       const p = st.power;
@@ -218,6 +218,55 @@ function readStatus(id: GoalId): Status {
       return pick(air > 40 && homes > 0 ? 'warn' : '', `대기 오염 ${air.toFixed(0)}`,
         homes > 0 ? `공기 나쁜 주거지 ${fmt(homes)}칸 · ${from}` : '낮을수록 좋음 · 주거지 공기는 괜찮음');
     }
+  }
+}
+
+/** Each class's demand in words, as 개발·수요's row says it: "주거 +709 · 상업 +172 · 산업 +294 · 농업 +172". */
+export function demandWords(): string {
+  const dem = city.demand.demand;
+  const top = (k: string) => Math.max(...DEV_TYPES.filter((t) => t[0] === k && t !== 'IA').map((t) => dem[t]));
+  return `${(['R', 'C', 'I'] as const).map((k) => `${CLASS_WORD[k]} ${top(k) >= 1 ? `+${short(top(k))}` : '0'}`).join(' · ')}${dem.IA >= 1 ? ` · 농업 +${short(dem.IA)}` : ''}`;
+}
+
+/**
+ * What an area's rail button says beside its own figure, in its tooltip (its face has the graph): the share used of
+ * what it has (power, water), how much of the town its service reaches (police, fire), how full its places run
+ * (health, education), how long the landfill lasts or how busy the incinerators are, each class's demand and the
+ * jobs (개발·수요). '' with nothing to read.
+ */
+export function railFigure(id: GoalId): string {
+  const st = readStats();
+  const s = city.state;
+  const pct = (v: number) => `${Math.round(v * 100)}%`;
+  switch (id) {
+    case 'growth': return `${demandWords()} · 일자리 ${fmt(st.jobs)}`;
+    case 'power': case 'water': {
+      const { demand, supply } = id === 'power' ? st.power : st.water;
+      return supply > 0 ? `사용 ${pct(demand / supply)}` : '';
+    }
+    case 'garbage': {
+      const g = st.garbage;
+      const months = landfillMonths(g);
+      const room = sum([...s.structures.values()].filter((x) => STRUCTURES[x.kind].incinerator).map((x) => x.capacity));
+      return [months !== null && Number.isFinite(months) ? `매립지 ${landfillSpan(months)} 남음` : '', room > 0 ? `소각 ${pct(Math.min(1, g.incinerated / room))}` : ''].filter(Boolean).join(' · ');
+    }
+    case 'police': case 'fire': {
+      const cover = id === 'police' ? city.fields.policeCover : city.fields.fireCover;
+      const n = s.size;
+      let all = 0;
+      let reached = 0;
+      for (const b of s.buildings.values()) {
+        if (!b.type) continue;
+        all++;
+        if (cover[(b.y + (b.h >> 1)) * n + b.x + (b.w >> 1)]! > 0) reached++;
+      }
+      return all ? `범위 안 건물 ${pct(reached / all)}` : '';
+    }
+    case 'health': case 'education': {
+      const [l, c] = loadOf(facilities(GOALS[id]).filter((f) => id === 'health' || classroom(f.kind)));
+      return c ? `정원의 ${pct(l / c)} 이용` : '';
+    }
+    default: return '';
   }
 }
 

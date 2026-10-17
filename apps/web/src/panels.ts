@@ -444,7 +444,7 @@ export function updatePanels(): void {
   // and monitors; what to do is told on each area's screen.)
   // The city (its size with the next reward under it, then money, jobs and rating), the one thing
   // to do now, and how every area stands (the troubled ones marked and counted).
-  // (Wide, the areas stand down the map's left, each with its figure and how it stands: the overview keeps the city, the
+  // (Wide, the areas stand down the map's left, each with its graph and how it stands: the overview keeps the city, the
   // reward ahead and what cannot wait — not the areas' list again, nor the news. A phone's chips are icons: it keeps both.)
   const wide = !matchMedia('(max-width: 860px)').matches;
   const statusHtml = active ? '' : `

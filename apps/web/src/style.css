@@ -7,7 +7,7 @@
 :root {
   --font: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Malgun Gothic', 'Noto Sans KR', 'Segoe UI', system-ui, sans-serif; /* Korean faces before system-ui, which picked a Latin-only face for the digits when the web font was blocked */
   /* The map's floating parts: the top buttons' height (a phone's chips' row under them) and how far down they reach;
-     the rail down the map's left (wide: the city and its areas), its width with their figures and with their icons
+     the rail down the map's left (wide: the city and its areas), its width with their names and graphs and with their icons
      alone; the building bar's height, and how far up from the map's foot what stands over it starts (the tools' card,
      the tool in hand, the hint). */
   --mb-h: 44px;
@@ -2616,9 +2616,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 
 /* ---- wide: down the map's left, 도시 정보 및 관리 — the city's card (its button: its name and stage, its residents
    big, as a score, and how near the next stage on a bar under them; then in the same card its money and the mayor's
-   rating), then each area as a button of its own, always in the same order: its figure (▲▼ its last three months) and
-   how it stands drawn under it — a meter, a bar either side of nothing, the demand meter — coloured when it needs a
-   hand (no words of why: its tooltip and its screen say it). While the city pane is open beside them, their icons
+   rating, a line each), then each area as a button of its own, always in the same order — every line of one height,
+   its name and its graph over two years — coloured when it needs a hand (no figures, no words of why: its tooltip and
+   its screen say them). While the city pane is open beside them, their icons
    alone in a narrow column: the one it shows lit. */
 #rail { display: none; }
 @media (min-width: 861px) {
@@ -2640,7 +2640,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   /* Every item on the rail one line of one height: its icon, its name, and its graph over the last two years. */
   #rail .strip-city {
     display: grid; grid-template-columns: 20px var(--rail-name) minmax(0, 1fr); grid-template-areas: 'ic name spark';
-    align-items: center; column-gap: 10px; width: 100%; height: var(--rail-row); padding: 0 14px 0 13px;
+    align-items: center; column-gap: 10px; width: 100%; height: var(--rail-row); padding: 0 13px 0 12px; /* (the card's border their own: lined up with the areas') */
     border: 0; border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 0;
     background: transparent; box-shadow: none; text-align: left; color: var(--text); font: inherit;
   }

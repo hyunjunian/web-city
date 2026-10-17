@@ -23,7 +23,7 @@ import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice } from './choices';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, short, stoppedNote, straightRuns, touchFirst } from './util';
 import { AREA_ORDER, type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type GoalTab, type Metric, type TabPart, type Tone } from './goals';
-import { type AirSource, airSources, fullNote, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { type AirSource, airSources, fullNote, railFigure, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -124,7 +124,7 @@ function monthNet(): string {
   return `${net < 0 ? '−' : '+'}§${short(Math.abs(net))}/월`;
 }
 
-/** Wide, the pane's overview without the areas' list (they stand down the map's left with their figures): only what
+/** Wide, the pane's overview without the areas' list (they stand down the map's left with their graphs): only what
  *  cannot wait — a fire or a riot to send units to, a blackout, impeachment — in a card of its own, if any. */
 export function urgentHtml(alerts: string): string {
   const step = nextStep();
@@ -176,9 +176,9 @@ const hoverable = () => matchMedia('(hover: hover)').matches;
  * Each area's state, a button each — 시작하기 first while its checklist shows (pressed, the city pane, which holds it);
  * the area whose screen is open lit, its × beside it. (The areas: growth, the utilities, and what makes a place pleasant
  * to live in; money and the mayor's rating are the city's own — {@link refreshCityRows}.) Wide, down the map's left
- * under the city's card (the rail), in an order that never changes: each its name, its figure (▲▼ the last three
- * months) and how it stands drawn under them — no words of why, its colour saying it needs a hand (the why in its
- * tooltip and on its screen). A phone, a row of chips under its top buttons: the areas needing a hand first (anything
+ * under the city's card (the rail), in an order that never changes: each one line of one height, its name and its
+ * graph over the last two years — no figures, no words of why, its colour saying it needs a hand (the figures and the
+ * why in its tooltip and on its screen). A phone, a row of chips under its top buttons: the areas needing a hand first (anything
  * burning first), compact, the urgent by name, the rest by their icons alone, the open screen's first. What either
  * can't show scrolls in, its cut edge faded.
  */
@@ -202,11 +202,12 @@ export function refreshStrip(): void {
     const d = wide ? driftOf(id) : null;
     // (개발·수요's figure as the pane's row has it: "주거 상한", "상업 +540".)
     const value = id === 'growth' ? s.value.replace(' 수요 ', ' ') : s.value;
-    // (개발·수요's classes in words, sound — "주거 +709" alone said nothing of the other two — and the jobs, watched here
-    // as the pane's row has them.)
-    const fig = id === 'growth' ? `${tone ? '' : `${glue(s.note)} · `}일자리 ${fmt(readStats().jobs)}` : '';
+    // (Beside its own figure what its button drew once — 사용 71%, 범위 안 건물 76%, 매립지 2년 남음 — and 개발·수요's
+    // classes, whatever its state: "주거 상한" alone said nothing of the other two.)
+    // (Not where its note says it already: 여유 8% beside 사용 92%, 전체 116% beside 정원의 116%.)
+    const fig = !wide ? '' : ((id === 'power' || id === 'water') && /여유/.test(note)) || ((id === 'health' || id === 'education') && /정원/.test(note)) ? '' : railFigure(id);
     // (The classes said, the class most wanted among them is said: "주거 +709 · 주거 +709 · 상업 …" read twice.)
-    const head = id === 'growth' && !tone ? fig : `${value}${fig ? ` · ${fig}` : ''}`;
+    const head = id === 'growth' && !tone && fig ? fig : `${value}${fig ? ` · ${fig}` : ''}`;
     const graph = wide ? railSpark(id) : null;
     const words = `${head}${note ? ` · ${note}` : ''}${d ? ` · ${d.said}` : ''}${graph?.said ? ` · 그래프: ${graph.said}` : ''}`;
     return {
@@ -286,7 +287,8 @@ function refreshCityRows(wide: boolean): void {
     return `<button type="button" class="strip-city ${tone || 'ok'}${on ? ' on' : ''}" data-k="${key}" data-city-row="${key}" aria-pressed="${on}" title="${escapeHtml(`${name}: ${words}${d ? ` · ${d.said}` : ''}${graph.said ? ` · 그래프: ${graph.said}` : ''} · ${on ? '눌러서 닫기' : `눌러서 도시 화면의 ${name} 탭`}`)}" aria-label="${escapeHtml(`${name}${tone ? `, ${said(tone)}` : ''}: ${words}`)}">${icon(glyph)}<span class="r-name">${name}</span>${graph.svg}</button>`;
   };
   // (The month's balance once: its own, or the line that says it with how long the money lasts.)
-  const html = row('finance', fin.tone, 'wallet', '재정', `${fin.value}${fin.tone ? ` · ${glue(fin.note)}` : monthNet() ? ` · ${monthNet()}` : ''}`)
+  const net = monthNet();
+  const html = row('finance', fin.tone, 'wallet', '재정', `${fin.value}${fin.tone ? ` · ${glue(fin.note)}` : net ? ` · ${net}` : ''}`)
     + row('rating', rTone, 'approval', '시장 평점', `${rated ? `${st.mayorRating} (−100~100)` : '아직 없음 (주민이 든 달이 지나면 매겨짐)'}${rNote ? ` · ${rNote}` : ''}`);
   if (html === cityRowsSeen) return;
   cityRowsSeen = html;
@@ -357,34 +359,41 @@ function keepStop(el: HTMLElement): void {
   to.setAttribute('tabindex', '0');
   stripAt = to.dataset.tk ?? 'start';
 }
-/** A series an item's rail graph draws from the city's monthly record: its name, and its value in a month. */
-type Series = [label: string, value: (h: HistoryPoint) => number | undefined];
 /**
- * What each item's graph on the rail draws: its line, and — dashed, in the same unit and on one scale — what to read it
- * against (the load and what meets it: demand and supply, money out and in, crimes and arrests). A line the record
- * doesn't hold yet (an older save's) gives way to the one after it.
+ * A series an item's rail graph draws from the city's monthly record: its name, its value in a month, and for a level
+ * drawn alone (an index, a time) the least span its scale shows — its own range, not from nothing (건강 지수 22 → 23
+ * over a year was a flat line at the top), and never so narrow that a wobble reads as a cliff.
  */
-const SPARK: Record<GoalId | 'rating', { a: Series; b?: Series; alt?: Series }> = {
+type Series = [label: string, value: (h: HistoryPoint) => number | undefined, span?: number];
+/** A figure only residents give (an index, a rating, a commute): none in a month nobody lived here — not a 0 drawn. */
+const peopled = (f: (h: HistoryPoint) => number | undefined) => (h: HistoryPoint) => (h.population ? f(h) : undefined);
+/**
+ * What each item's graph on the rail draws: its line, and — dashed, in the same unit and on one scale from nothing —
+ * what to read it against (the load and what meets it: demand and supply, money out and in, crimes and arrests); a
+ * line the record doesn't hold as long (an older save's) gives way to the one after it, and counts that are mostly
+ * none are drawn against a floor (one fire was a spike the row's height).
+ */
+const SPARK: Record<GoalId | 'rating', { a: Series; b?: Series; alt?: Series; floor?: number }> = {
   finance: { a: ['지출', (h) => h.expenses], b: ['수입', (h) => h.income] },
-  rating: { a: ['시장 평점', (h) => h.mayorRating] },
+  rating: { a: ['시장 평점', peopled((h) => h.mayorRating)] },
   growth: { a: ['인구', (h) => h.population], b: ['일자리', (h) => h.jobs] },
   power: { a: ['수요', (h) => h.powerDemand], b: ['공급', (h) => h.powerSupply] },
   water: { a: ['수요', (h) => h.waterDemand], b: ['공급', (h) => h.waterSupply] },
   garbage: { a: ['발생', (h) => h.garbageProduced], b: ['못 치움', (h) => h.garbageUncollected] },
-  police: { a: ['범죄', (h) => h.crimes], b: ['체포', (h) => h.arrests] },
-  fire: { a: ['화재', (h) => h.fires], b: ['전소', (h) => h.burned] },
-  health: { a: ['건강 지수', (h) => h.hq], alt: ['기대 수명', (h) => h.lifeExpectancy] },
-  education: { a: ['교육 지수', (h) => h.eq] },
-  traffic: { a: ['평균 통근', (h) => h.commute] },
+  police: { a: ['범죄', (h) => h.crimes], b: ['체포', (h) => h.arrests], floor: 10 },
+  fire: { a: ['화재', (h) => h.fires], b: ['전소', (h) => h.burned], floor: 5 },
+  health: { a: ['건강 지수', peopled((h) => h.hq), 20], alt: ['기대 수명', peopled((h) => h.lifeExpectancy), 10] },
+  education: { a: ['교육 지수', peopled((h) => h.eq), 20] },
+  traffic: { a: ['평균 통근', peopled((h) => h.commute), 0.5] },
   environment: { a: ['대기 오염', (h) => h.air], b: ['수질 오염', (h) => h.waterPollution] },
 };
 /** The months a rail graph covers. */
 const SPARK_SPAN = 24;
 
 /**
- * An item's graph on the rail, over its last months, from nothing up (its line as the item stands — amber or red when
- * it wants a hand — over a faint fill; the second dashed; a line at nothing when it goes below), and the words for it.
- * Under two months to draw, a dotted line in its room (nothing read yet, as a figure's "—": not a line at nothing).
+ * An item's graph on the rail, over its last months (its line as the item stands — amber or red when it wants a hand —
+ * over a faint fill; the second dashed; a line at nothing when it goes below), and the words for it. Under two months
+ * to draw, faint dots in its room (nothing read yet, as a figure's "—": not a line at nothing).
  */
 function railSpark(key: GoalId | 'rating'): { svg: string; said: string } {
   const def = SPARK[key];
@@ -396,13 +405,28 @@ function railSpark(key: GoalId | 'rating'): { svg: string; said: string } {
   const count = (vs: (number | null)[]) => vs.filter((v) => v !== null).length;
   let a = def.a;
   let va = read(a);
-  if (def.alt && count(va) < 2) va = read((a = def.alt));
-  const vb = def.b ? read(def.b) : [];
+  // (The other while it holds more of the window: an older save's two months of 건강 지수 were a stub at the edge.)
+  const vAlt = def.alt ? read(def.alt) : [];
+  if (def.alt && count(vAlt) > count(va)) [a, va] = [def.alt, vAlt];
+  const vb0 = def.b ? read(def.b) : [];
   const open = '<svg class="r-spark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true">';
   if (count(va) < 2) return { svg: `${open}<path class="sn" d="M0 12H100"/></svg>`, said: '' };
+  // (A second line with a lone month isn't drawn, nor counted in the scale.)
+  const vb = count(vb0) >= 2 ? vb0 : [];
   const all = [...va, ...vb].filter((v): v is number => v !== null);
-  const lo = Math.min(0, ...all);
-  const hi = Math.max(lo + 1e-6, ...all);
+  let lo: number;
+  let hi: number;
+  if (a[2] && !vb.length) {
+    // A level alone: its own range, widened to its least span about its middle.
+    const [mn, mx] = [Math.min(...all), Math.max(...all)];
+    const pad = Math.max(0, a[2] - (mx - mn)) / 2;
+    [lo, hi] = [mn - pad, mx + pad];
+  } else {
+    // From nothing, both ways: a rating below nothing all along was scaled as if above it, its line at nothing drawn
+    // outside the graph.
+    lo = Math.min(0, ...all);
+    hi = Math.max(0, lo + 1e-6, def.floor ?? 0, ...all);
+  }
   const n = months.length;
   const x = (i: number) => ((i / (n - 1)) * 100).toFixed(1);
   const y = (v: number) => (22 - ((v - lo) / (hi - lo)) * 20).toFixed(1);
@@ -418,14 +442,18 @@ function railSpark(key: GoalId | 'rating'): { svg: string; said: string } {
     });
     return d;
   };
-  // (The fill only under an unbroken line: across a gap it closed over nothing.)
+  // (The fill only under an unbroken line, down to nothing — or the scale's foot, nothing being below it: across a gap
+  // it closed over nothing.)
   const first = va.findIndex((v) => v !== null);
   const last = va.length - 1 - [...va].reverse().findIndex((v) => v !== null);
   const whole = va.slice(first, last + 1).every((v) => v !== null);
-  const fill = whole ? `<path class="sa" d="${line(va)}L${x(last)} 24L${x(first)} 24Z"/>` : '';
-  const zero = lo < 0 ? `<path class="s0" d="M0 ${y(0)}H100"/>` : '';
-  const second = def.b && count(vb) >= 2 ? `<path class="s2" d="${line(vb)}"/>` : '';
-  return { svg: `${open}${zero}${fill}${second}<path class="s1" d="${line(va)}"/></svg>`, said: `지난 ${n}개월 ${a[0]}${second ? `(실선)·${def.b![0]}(점선)` : ''}` };
+  const base = y(Math.min(hi, Math.max(lo, 0)));
+  const fill = whole ? `<path class="sa" d="${line(va)}L${x(last)} ${base}L${x(first)} ${base}Z"/>` : '';
+  const zero = lo < 0 && hi >= 0 ? `<path class="s0" d="M0 ${y(0)}H100"/>` : '';
+  const second = vb.length ? `<path class="s2" d="${line(vb)}"/>` : '';
+  // (The months it covers: from its first drawn, not the window's — fires recorded three months were "지난 24개월".)
+  const from = Math.min(first, ...(vb.length ? [vb.findIndex((v) => v !== null)] : []));
+  return { svg: `${open}${zero}${fill}${second}<path class="s1" d="${line(va)}"/></svg>`, said: `지난 ${n - from}개월 ${a[0]}${second ? `(실선)·${def.b![0]}(점선)` : ''}` };
 }
 /** The chips' markup as last drawn (what the row shows, unless it changed). */
 let stripSeen = '';
