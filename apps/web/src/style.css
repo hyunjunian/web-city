@@ -1387,7 +1387,7 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .rw-item .poll-row { grid-template-columns: minmax(0, 1fr) clamp(56px, 30%, 110px) 38px; margin: 0; } /* (the name has the room: on a narrow pane 마이너리그 경기장 was cut) */
 .rw-item .label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; }
 .rw-need { margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
-.wealth-table th { padding: 2px 0 6px; color: var(--muted); font-size: 11.5px; font-weight: 600; text-align: right; }
+.wealth-table th { padding: 2px 0 6px; color: var(--muted); font-size: 11.5px; font-weight: 600; text-align: right; text-wrap: balance; vertical-align: bottom; }
 .wealth-table th:first-child, .wealth-table td:first-child { text-align: left; }
 .wealth-table td { text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
 .wealth-table :is(th, td) + :is(th, td) { padding-left: 12px; } /* (534 and 252 side by side read as one number) */

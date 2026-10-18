@@ -310,9 +310,10 @@ function renderBuildings(): void {
   const rows = (Object.keys(cls) as (keyof typeof cls)[]).filter((k) => acc[k].n || acc[k].zoned).map((k) => {
     const a = acc[k];
     return `<tr><td>${cls[k]}</td><td>${fmt(a.n)}</td><td>${a.n ? (a.stages / a.n).toFixed(1) : '—'}</td><td>${a.top || '—'}</td>
-      <td class="${a.empty ? 'neg' : ''}">${fmt(a.empty)}</td><td>${fmt(a.zoned)} / ${fmt(a.free)}</td></tr>`;
+      <td class="${a.empty ? 'neg' : ''}">${fmt(a.empty)}</td><td>${fmt(a.zoned)} /&nbsp;${fmt(a.free)}</td></tr>`;
   }).join('');
-  el.innerHTML = rows ? `<table class="wealth-table"><thead><tr><th></th><th>건물</th><th>평균 단계</th><th>최고</th><th>버려짐</th><th>구역 칸 / 빈 칸</th></tr></thead>
+  // (On a narrow pane the last column breaks before its slash, 1,635 over / 893, not after it.)
+  el.innerHTML = rows ? `<table class="wealth-table"><thead><tr><th></th><th>건물</th><th>평균 단계</th><th>최고</th><th>버려짐</th><th>구역&nbsp;칸 /&nbsp;빈&nbsp;칸</th></tr></thead>
     <tbody>${rows}</tbody></table>` : '<p class="muted">구역을 지정하면 표시됩니다.</p>';
 }
 
