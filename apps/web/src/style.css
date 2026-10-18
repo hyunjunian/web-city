@@ -189,6 +189,11 @@ button.primary { background: var(--accent); color: var(--accent-ink); font-weigh
 @media (hover: hover) { button.primary:hover { background: var(--accent-hi); } }
 button.link { background: none; min-height: 0; padding: 0; color: var(--accent-hi); text-decoration: underline; text-underline-offset: 3px; font-weight: 500; }
 button.link:active { transform: none; }
+/* A wide button pressed darkens instead: at 290px a 0.97 scale moved its edges 4–5px against its card's frame and
+   hairlines (the rail's buttons, a screen's action cards and facility rows). */
+#rail button:active, button.act:active, button.fac-main:active { transform: none; }
+#rail button:active { background-color: color-mix(in srgb, var(--text) 8%, transparent); }
+button:is(.act, .fac-main):active { filter: brightness(0.96); }
 
 .icon-btn {
   width: 40px; height: 40px; min-height: 0; padding: 0; border-radius: 12px;
@@ -404,7 +409,9 @@ kbd {
   background: linear-gradient(var(--surface) 72%, transparent); opacity: 0; transition: opacity 0.15s; pointer-events: none;
 }
 #pane.scrolled:not(.managing)::before { opacity: 1; pointer-events: auto; } /* (a tap on the veil stops there: it reached the rename or a 바로 놓기 hidden under it) */
-#pane.scrolled .mg-head { box-shadow: 0 1px 0 var(--line); }
+/* Stuck, the head's band reaches past the × before its hairline (the × hung 8px over the line into the text below). */
+#pane.scrolled .mg-head { box-shadow: 0 var(--hx, 6px) 0 var(--surface), 0 calc(var(--hx, 6px) + 1px) 0 var(--line); }
+@media (max-width: 860px) { #pane { --hx: 9px; } }
 /* Wide, its × kept to the top right as it scrolls (first in the column, stuck, taking no room from the row beside it).
    (A phone's sheet has its own, below.) */
 @media (min-width: 861px) {
@@ -415,7 +422,7 @@ kbd {
   }
   /* (In one place on every screen, its middle on the head's row — the region › name, a goal's title: it sat 6px under
      a goal's title, and moved 12px going from 인구 to a goal.) */
-  #pane.managing .pane-close { margin-bottom: -34px; }
+  #pane.managing .pane-close { margin-top: -2px; margin-bottom: -40px; top: -8px; } /* (it rests 6px lower than it sticks, as the goal's head does: it stayed put and hung off the stuck title) */
   #pane .mg-head { padding-right: 52px; } /* (its state's chip clear of the ×) */
 }
 /* The overview's head: the region (pressed, 지역) › the city's name (pressed, to change it) — small, above the stage. */
@@ -499,7 +506,7 @@ kbd {
 .skip-link:focus-visible { top: 12px; }
 /* The map takes the keys from Tab as from a click; its ring only for the keyboard. */
 #map:focus { outline: none; }
-#map:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+#map.kb:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; } /* (reached by Tab: not after a click and a shortcut) */
 /* In the map's bars the accent is what lit means (the speed now, an open card's category, the open menu): the
    keyboard's ring there is the text's colour, inside the control, so a focused one doesn't read as a lit one. */
 :is(#dock-col, #mapbar, #rail) :is(button, summary):focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
@@ -2736,6 +2743,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   }
   #rail #city-card > #btn-city { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
   #rail #city-card > #btn-city[aria-expanded='true'] { background: var(--accent-soft); box-shadow: none; }
+  #rail #city-card > #btn-city:active { background: color-mix(in srgb, var(--text) 9%, transparent); } /* (pressed: a tint, as its rows below) */
   #rail #city-rows { display: flex; flex-direction: column; }
   #rail #city-rows:empty { display: none; }
   #rail #btn-city {
@@ -2821,6 +2829,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail :is(#city-rows, #goal-strip .amenity-card) .strip-on { border-radius: 0; background: var(--accent-soft); box-shadow: none; }
   #rail :is(#city-rows, #goal-strip .amenity-card) .strip-on > [data-strip-goal] { border: 0; }
   @media (hover: hover) { #rail :is(#city-rows, #goal-strip .amenity-card) button:hover { background: color-mix(in srgb, var(--text) 5%, transparent); } } /* (over a lit row's accent too) */
+  #rail :is(#city-rows, #goal-strip .amenity-card) button:active { background: color-mix(in srgb, var(--text) 9%, transparent); } /* (pressed: darker than hovered, not smaller) */
   #rail #city-rows button:focus-visible { outline-offset: -3px; }
   #rail #goal-strip .amenity-head {
     --am: var(--accent);

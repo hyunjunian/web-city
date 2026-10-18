@@ -1215,6 +1215,16 @@ export function setupInput(): void {
     if (e.pointerType === 'mouse') mouseAt = { x: e.clientX, y: e.clientY };
   }, { passive: true });
   window.addEventListener('pointerdown', (e) => (lastPress = e.pointerType), { capture: true, passive: true });
+  // The map's focus ring only when the keyboard brought it there (Tab, or the skip link Tab reached): a click focuses
+  // it too, and at the next shortcut the browser ringed the whole window in blue.
+  let tabbed = false;
+  window.addEventListener('keydown', (e) => e.key === 'Tab' && (tabbed = true), { capture: true, passive: true });
+  window.addEventListener('pointerdown', () => {
+    tabbed = false;
+    canvas.classList.remove('kb');
+  }, { capture: true, passive: true });
+  canvas.addEventListener('focus', () => canvas.classList.toggle('kb', tabbed));
+  canvas.addEventListener('blur', () => canvas.classList.remove('kb'));
   const pos = (e: PointerEvent | WheelEvent) => {
     const r = canvas.getBoundingClientRect();
     return [e.clientX - r.left, e.clientY - r.top] as const;
