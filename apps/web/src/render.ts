@@ -210,6 +210,8 @@ const shades = new Map<string, string>();
 /** `hex` with each channel scaled by k (k > 1 lightens), cached. */
 /** Views that colour the networks themselves (no street lines drawn over them). */
 const NETWORK_VIEWS = new Set(['traffic', 'volume', 'subway', 'zones']);
+/** The views of a field that varies smoothly over the land, washed on smoothly rather than tile by tile. */
+const SMOOTH_VIEWS = new Set(['air', 'waterPollution', 'landValue', 'desirability']);
 
 /** A toll booth: a yellow block with a white-edged barrier, seen at any zoom. */
 function tollBooth(ctx: CanvasRenderingContext2D, x: number, y: number): void {
@@ -2119,7 +2121,9 @@ export class Renderer {
         ctx.fillStyle = this.night ? 'rgba(16,16,20,0.45)' : 'rgba(238,239,241,0.5)';
         ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
       }
-      ctx.imageSmoothingEnabled = false;
+      // (A field that varies smoothly over the land drawn as one — a soft wash, as SC4's data views are; tile by tile it
+      // read as stairs. The rest — reach, zones, networks, homes — keep their tiles.)
+      ctx.imageSmoothingEnabled = SMOOTH_VIEWS.has(overlay.kind);
       ctx.drawImage(this.layer, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
       ctx.imageSmoothingEnabled = true;
       if (bands) this.paintTrafficBands(ctx, city, x0, y0, x1, y1, sc);
