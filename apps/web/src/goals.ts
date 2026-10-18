@@ -75,7 +75,7 @@ export const GOALS: Record<GoalId, Goal> = {
   finance: {
     name: '재정·정책', icon: 'wallet', aim: '수입과 지출을 맞추고 자금을 지킵니다: 세율, 부서 예산, 대출, 조례. 주민이 시장을 어떻게 보는지, 공원·랜드마크로 쾌적도를 올려 부유층을 부르는 것도 여기서.',
     tabs: [
-      { label: '쾌적도', view: 'desirability', figs: ['공원', '부유층 주민', '중산층 주민', '부유층 주거 수요', '고급 상점 수요', '고급 오피스 수요'], reports: ['wealth', 'rewards'], tools: ['park', 'landmark', 'reward'], depts: ['parks', 'landmarks'], ordinances: ['tourismPromotion'], codes: ['noParks'] },
+      { label: '쾌적도', view: 'desirability', figs: ['공원', '부유층 주민', '중산층 주민', '부유층 주거 수요', '고급 상점 수요', '고급 오피스 수요'], reports: ['wealth', 'rewards'], tools: ['park', 'landmark', 'reward'], depts: ['parks', 'landmarks'], ordinances: ['tourismPromotion'], codes: ['noParks', 'facilityNoRoad'] },
       { label: '재정', view: 'none', figs: ['자금', '지난달 수지', '수입', '지출', '바닥까지', '다음 달 예상', '대출'], graphs: ['funds', 'budget'], reports: ['budget'], parts: ['fix', 'depts', 'outlook'], codes: ['broke', 'deficit', 'surplus'] },
       { label: '세율', view: 'mayor', figs: ['poll'], parts: ['taxes'], codes: ['taxHigh', 'taxEasing'] },
       { label: '조례', view: 'mayor', parts: ['ords'] },
@@ -180,7 +180,7 @@ export const GOALS: Record<GoalId, Goal> = {
   land: {
     name: '땅값', icon: 'gem', aim: '물가와 주변보다 높은 땅이 값이 높습니다: 물을 파거나 땅을 높여 부유층이 찾는 땅을 만듭니다.',
     tabs: [
-      { label: '땅값', view: 'landValue', figs: ['평균 땅값', '물가 건물', '땅값에'], graphs: ['landValue'], tools: ['dig', 'raise'] },
+      { label: '땅값', view: 'landValue', figs: ['평균 땅값', '땅값이 붙은 건물', 'poll'], graphs: ['landValue'], tools: ['dig', 'raise'] },
     ],
     tools: ['dig', 'raise'], ordinances: [],
     depts: [],

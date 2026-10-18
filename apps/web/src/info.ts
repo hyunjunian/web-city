@@ -16,7 +16,7 @@ import { structureStat, toolGlyph, TOOLS } from './tools';
 import { choice } from './choices';
 import { coverageRadius, overlayReading } from './views';
 import { GOAL_ORDER, type GoalId, goalOfStructure, GOALS, goalsOfOrdinance } from './goals';
-import { active, guideOrdinances } from './manage';
+import { active, amenityOpen, guideOrdinances } from './manage';
 
 /** Why a Route Query found no trips here. */
 function none(b: Building | null | undefined): string {
@@ -697,8 +697,11 @@ const CAP_RELIEF = {
 function goalLink(kind: Structure['kind'] | undefined, zone: string, way = false): string {
   // (A road, rail or the like: the traffic screen, its jams and what to build against them.)
   const id: GoalId | null = kind ? goalOfStructure(kind) : way ? 'traffic' : zone === 'landfill' ? 'garbage' : zone !== 'none' ? 'growth' : null;
-  if (!id || active === id) return ''; // (its screen is already open)
-  return `<button type="button" class="info-goal" data-goal="${id}" title="${GOALS[id].name}의 관리 화면: 같은 종류의 시설 모두, 지도 보기, 예산과 조례">${icon(GOALS[id].icon)}${GOALS[id].name} 관리${icon('chevronRight')}</button>`;
+  // (A park, reward or landmark is the city's by its kind, and its 쾌적도's: that tab, not "재정·정책 관리" and the money.)
+  const amenity = id === 'finance';
+  if (!id || (amenity ? amenityOpen() : active === id)) return ''; // (its screen is already open)
+  const name = amenity ? '쾌적도' : GOALS[id].name;
+  return `<button type="button" class="info-goal" data-goal="${id}"${amenity ? ' data-goal-view="desirability"' : ''} title="${name}의 관리 화면: 같은 종류의 시설 모두, 지도 보기, 예산과 조례">${icon(amenity ? 'trees' : GOALS[id].icon)}${name} 관리${icon('chevronRight')}</button>`;
 }
 
 /**

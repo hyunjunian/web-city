@@ -16,6 +16,9 @@ interface GraphDef {
   group?: string;
   /** Hidden while the whole history is zero (traffic kinds the city doesn't have yet). */
   optional?: boolean;
+  /** Whether a month holds its figure, for one kept only lately: the months before (an older save's) are left out, not
+   *  drawn as nothing (땅값 rose from 0 to 12 the month the record began). */
+  kept?: (h: HistoryPoint) => boolean;
   /** Names of the two series when there is a second one. */
   names?: [string, string];
   /** A second series (dashed), e.g. capacity against usage. */
@@ -56,13 +59,19 @@ const GRAPHS: GraphDef[] = [
   { key: 'garbage', goal: 'garbage', title: '쓰레기 발생 (월, 재활용·조례 감축 전)', value: (h) => h.garbageProduced ?? 0, format: (v) => `${fmt(v)} t`, optional: true },
   { key: 'air', goal: 'environment', title: '대기 오염 (도시 평균)', value: (h) => h.air ?? 0, format: (v) => dec(v), optional: true, better: -1 },
   { key: 'waterPollution', goal: 'water', title: '수질 오염 (도시 평균)', value: (h) => h.waterPollution ?? 0, format: (v) => dec(v), optional: true, better: -1 },
-  { key: 'landValue', goal: 'land', title: '평균 땅값 (건물이 선 칸)', value: (h) => h.landValue ?? 0, format: (v) => dec(v), optional: true, better: 1 },
+  { key: 'landValue', goal: 'land', title: '평균 땅값 (건물이 선 칸)', value: (h) => h.landValue ?? 0, kept: (h) => h.landValue !== undefined, format: (v) => dec(v), optional: true, better: 1 },
   { key: 'eq', goal: 'education', title: '교육 지수 (평균)', value: (h) => h.eq ?? 0, format: (v) => v.toFixed(0), optional: true, better: 1 },
   { key: 'life', goal: 'health', title: '기대 수명', value: (h) => h.lifeExpectancy ?? 0, format: (v) => `${v.toFixed(0)}세`, optional: true, better: 1 },
   ...TRAFFIC.map(([k, title], i): GraphDef => ({
     key: `trips-${k}`, goal: 'traffic', title, value: (h) => h.trips?.[k] ?? 0, format: (v) => `${v < 10 ? dec(v) : fmt(v)}회/일`, group: i === 0 ? '교통량 (하루 통행)' : undefined, optional: true,
   })),
 ];
+
+/** The months a graph draws of those shown: from the first that holds its figure (see `kept`). */
+const monthsOf = (g: GraphDef, history: readonly HistoryPoint[]): readonly HistoryPoint[] => {
+  const from = g.kept ? history.findIndex(g.kept) : 0;
+  return from < 0 ? [] : from ? history.slice(from) : history;
+};
 
 /** Each graph's key and the goal it is of (a goal's tabs share them out). */
 export const GRAPH_KEYS = GRAPHS.map(({ key, goal }) => ({ key, goal }));
@@ -232,7 +241,8 @@ export class Graphs {
     for (const g of GRAPHS) {
       if (!g.optional || history.length < 2) continue;
       const fig = this.el.querySelector<HTMLElement>(`figure[data-key="${g.key}"]`)!;
-      fig.hidden = history.every((h) => g.value(h) === 0 && (!g.compare || g.compare(h) === 0));
+      const months = monthsOf(g, history);
+      fig.hidden = months.length < 2 || months.every((h) => g.value(h) === 0 && (!g.compare || g.compare(h) === 0));
     }
     const figs = GRAPHS.map((g) => {
       const fig = this.el.querySelector<HTMLElement>(`figure[data-key="${g.key}"]`)!;
@@ -254,9 +264,10 @@ export class Graphs {
         label.textContent = '데이터 없음';
         continue;
       }
-      const vals = history.map((h) => g.value(h));
-      const other = g.compare ? history.map((h) => g.compare!(h)) : null;
-      if (fig.hidden || fig.classList.contains('off')) continue;
+      const months = monthsOf(g, history);
+      const vals = months.map((h) => g.value(h));
+      const other = g.compare ? months.map((h) => g.compare!(h)) : null;
+      if (fig.hidden || fig.classList.contains('off') || months.length < 2) continue;
       const min = Math.min(...vals, ...(other ?? []));
       const max = Math.max(...vals, ...(other ?? []));
       // From zero, unless the values keep well away from it: then the axis fits
@@ -367,7 +378,7 @@ export class Graphs {
       ctx.fill();
       // The month read, said (the latest by its month: beside the screen's live figures, 92,110 / 99,919 read as now's).
       const hovered = this.hover?.key === g.key;
-      const when = ` · ${hovered ? date(history[k]!.month) : `${((history[k]!.month - 1) % 12) + 1}월`}`;
+      const when = ` · ${hovered ? date(months[k]!.month) : `${((months[k]!.month - 1) % 12) + 1}월`}`;
       label.textContent = other ? `${g.format(vals[k]!)} / ${g.format(other[k]!)}${when}` : `${g.format(vals[k]!)}${when}`;
       // Not pointed at: how far it moved over the months shown, coloured by which way is better
       // (the line's shape said rising or falling; the size of it took reading the axis).
@@ -379,7 +390,7 @@ export class Graphs {
         const delta = document.createElement('small');
         delta.className = `graph-delta${tone ? ` ${tone}` : ''}`;
         delta.textContent = `${change > 0 ? '▲' : '▼'}${size}`;
-        delta.title = `보이는 기간(${history.length}개월) 동안 ${change > 0 ? '늘었습니다' : '줄었습니다'}`;
+        delta.title = `보이는 기간(${months.length}개월) 동안 ${change > 0 ? '늘었습니다' : '줄었습니다'}`;
         label.append(delta);
       }
     }

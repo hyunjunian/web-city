@@ -221,8 +221,9 @@ function readStatus(id: GoalId): Status {
     case 'land': {
       // What the ground under the buildings is worth (by the water, above the town's average height): a figure to build
       // by — where the wealthy will want to live — not an alarm.
-      const v = landValue();
-      return pick('', v >= 0.5 ? `평균 땅값 ${v.toFixed(1)}` : '—', v >= 0.5 ? '물가와 주변보다 높은 땅일수록 높음' : '평지라 차이 없음 · 물가나 높은 땅이 값을 올립니다');
+      // (Written as the rail's graph writes it, to a tenth: "—" beside its "0.3" read as two figures.)
+      const v = landUnder().v;
+      return pick('', v !== undefined ? `평균 땅값 ${v.toFixed(1)}` : '—', v === undefined ? '건물이 들어서면 그 아래 땅값을 셉니다' : v >= 0.5 ? '물가와 주변보다 높은 땅일수록 높음' : '평지라 차이 없음 · 물가나 높은 땅이 값을 올립니다');
     }
   }
 }
@@ -339,11 +340,15 @@ export function unpoweredZones(): { off: number; all: number } {
   return dark;
 }
 
-/** The mean land value under buildings (worked out again only after an edit or a week). */
-let landMemo: { key: string; v: number } | null = null;
-function landValue(): number {
+/**
+ * The land under the buildings (worked out again only after an edit or a week): the mean value of their tiles, as the
+ * record keeps it (none while nothing is built), and the share of buildings on ground with any value at all — by the
+ * water or above the town's average height — counted by building (by tile, a tower counted nine times).
+ */
+let landMemo: { key: string; v?: number; share?: number } | null = null;
+function landUnder(): { v?: number; share?: number } {
   const key = changeKey();
-  if (landMemo?.key === key) return landMemo.v;
+  if (landMemo?.key === key) return landMemo;
   const s = city.state;
   const lv = city.fields.landValue;
   let total = 0;
@@ -353,8 +358,14 @@ function landValue(): number {
     total += lv[i]!;
     count++;
   }
-  landMemo = { key, v: count ? total / count : 0 };
-  return landMemo.v;
+  let all = 0;
+  let valued = 0;
+  for (const b of s.buildings.values()) {
+    all++;
+    if (lv[(b.y + (b.h >> 1)) * s.size + b.x + (b.w >> 1)]! >= 1) valued++;
+  }
+  landMemo = { key, v: count ? total / count : undefined, share: all ? Math.round((valued / all) * 100) : undefined };
+  return landMemo;
 }
 
 /** The figures that size up a goal. */
@@ -509,17 +520,8 @@ function goalMetrics(id: GoalId): Metric[] {
         ['정류장·역', `${list.length}곳`, !list.length && (h?.commute ?? 0) > 1 ? 'warn' : '', list.length, 0, !list.length && (h?.commute ?? 0) > 1 ? '통근이 깁니다: 버스 정류장부터 놓아 보세요' : undefined]];
     }
     case 'land': {
-      // (Buildings on ground with any value at all: by the water or above the town's average height.)
-      const lv = city.fields.landValue;
-      let built = 0;
-      let valued = 0;
-      for (let i = 0; i < s.occupant.length; i++) {
-        if (s.occupant[i]! <= 0) continue;
-        built++;
-        if (lv[i]! >= 1) valued++;
-      }
-      const share = built ? Math.round((valued / built) * 100) : undefined;
-      return [['평균 땅값', landValue() >= 0.5 ? landValue().toFixed(1) : '평지라 차이 없음', '', Math.round(landValue()), 1, '건물이 선 칸의 평균: 물가와 주변보다 높은 땅이 올립니다 (모두 평평한 내륙이면 0)'],
+      const { v, share } = landUnder();
+      return [['평균 땅값', v !== undefined ? v.toFixed(1) : '—', '', v !== undefined ? Math.round(v) : undefined, 1, '건물이 선 칸의 평균: 물가와 주변보다 높은 땅이 올립니다 (모두 평평한 내륙이면 0)'],
         ['땅값이 붙은 건물', share !== undefined ? `${share}%` : '—', '', share, 1, '물가나 도시 평균보다 높은 땅에 선 건물의 비율']];
     }
     case 'environment': {

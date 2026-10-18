@@ -605,6 +605,7 @@ kbd {
 .mg-tab.on { color: var(--text); box-shadow: inset 0 -2.5px 0 var(--accent); }
 @media (hover: hover) { .mg-tab:not(.on):hover { background: var(--surface-2); color: var(--text); } }
 .mg-tab-dot { position: absolute; top: 8px; right: 3px; width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }
+.mg-tab-dot.warn { background: var(--warn); }
 /* A tab of several views (traffic's networks): its kinds under the tabs. */
 .mg-kinds { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 10px; }
 .mg-kinds .vchip, .mg-chips .vchip { min-height: 30px; padding: 0 11px; font-size: 12.5px; }
@@ -2690,7 +2691,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail .r-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 650; }
   #rail .r-val { grid-area: num; justify-self: end; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
   /* The graph's last values: its line's, then the dashed one's, smaller ("9.9k / 14k"). */
-  #rail .r-num { grid-area: num; justify-self: end; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  /* (Its column's width, set right: shrunk to its text, a long one ran left over the graph instead of ending in "…".) */
+  #rail .r-num { grid-area: num; justify-self: stretch; text-align: right; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
   #rail .r-num b { font-weight: 750; }
   #rail .r-num small { color: var(--muted); font-size: 11.5px; font-weight: 600; }
   /* The graph: its line in the item's state (amber, red when it wants a hand) over a faint fill, what to read it against
