@@ -932,8 +932,9 @@ export function refreshViewSummary(): void {
   box.className = `overlay-sum${tone ? ` ${tone}` : ''}`;
   // Where some go without: a way to each of them in turn.
   // (Its counts in its tone, the words plain: the whole line in bold red shouted over the legend. Clause by clause, so
-  // a line cut short drops whole ones, not "수요 상한 89…".)
-  const counted = text.split(' · ').map((part, k) => `<span class="sum-part">${k ? ' · ' : ''}${part.replace(/\d[\d,.]*(?:칸|채|곳|건|명|대|개|%)?/g, '<b>$&</b>')}</span>`).join('');
+  // a line cut short drops whole ones, not "수요 상한 89…". A count is a number with what it counts — 938칸, 5건 — so a
+  // threshold, 대기 오염 40 넘음 or 2.5시간, stays plain.)
+  const counted = text.split(' · ').map((part, k) => `<span class="sum-part">${k ? ' · ' : ''}${part.replace(/\d[\d,.]*(?:칸|채|곳|건|명|대|개)/g, '<b>$&</b>')}</span>`).join('');
   box.innerHTML = `<span>${counted}</span>${spots.length ? '<button type="button" class="sum-go" title="하나씩 차례로 지도에서 보기">찾아가기</button>' : ''}`;
   box.querySelector<HTMLButtonElement>('.sum-go')?.addEventListener('click', (e) => {
     if (!sumSpots.length) return;
@@ -1137,7 +1138,7 @@ function viewSummaryNow(v: string, live = true): [string, '' | 'bad' | 'good', n
         // The blockers that hold the most, in words: what to fix first (two at most).
         const ranked = [...byCode].sort((a, b) => b[1] - a[1]);
         const name = (c: string) => GROWTH_LABEL[c as (typeof GROWTH_CODES)[number]];
-        const top = ranked.length === 1 ? [`모두 ${name(ranked[0]![0])}`] : ranked.slice(0, 2).map(([c, k]) => `${name(c)} ${fmt(k)}`);
+        const top = ranked.length === 1 ? [`모두 ${name(ranked[0]![0])}`] : ranked.slice(0, 2).map(([c, k]) => `${name(c)} ${fmt(k)}칸`);
         growthSum = { key, held, byColor, top };
       }
       markLegend(growthSum.byColor);
