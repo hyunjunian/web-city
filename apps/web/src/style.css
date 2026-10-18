@@ -309,6 +309,7 @@ h3.sub .score.neg { color: var(--danger-ink); }
 table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; } /* (one size for a row of figures, in any panel: 14px here, 12.5px there read as two kinds) */
 td { padding: 4px 0; vertical-align: top; }
 td:last-child { text-align: right; }
+#info td small, .thought small { font-size: 11.5px; } /* (a chosen size, not the browser's smaller: 10.4–11.7px by where it fell) */
 td.neg, .neg { color: var(--danger-ink); } /* (figures in text: the bright --good/--danger are for fills, dots and lines) */
 .pos { color: var(--good-ink); }
 
