@@ -4,7 +4,7 @@
 import { DEFAULT_CONFIG, DEV_TYPES, DISASTER_KINDS, type DisasterKind, type NetworkKind, type StructureKind, STRUCTURES, ZONING_COST_HIGH_COMMERCIAL, type ZoneKind } from '@web-city/engine';
 import { icon, type IconName } from './icons';
 import { hoverUnderMouse, setPreview, updatePreview } from './input';
-import { baseView, goalTools, markToolSite, nextStep, openGoal, openGoalView, suggestedKinds } from './manage';
+import { baseView, goalTools, markToolSite, nextStep, openGoal, suggestedKinds } from './manage';
 import { firstStepTool } from './onboarding';
 import { DISASTER_NAME, plainCodes, STRUCTURE_NAME } from './names';
 import { holdForBuilding, isHeld, showHelp, showOverlay, viewProblem } from './controls';
@@ -1189,7 +1189,8 @@ function wordsFor(t: Tool, d?: (typeof STRUCTURES)[StructureKind]): string {
  * said nothing; now 재정·정책 comes up.
  */
 const SCREEN_WORDS: Record<GoalId, string> = {
-  finance: '세율 세금 예산 부서 대출 빚 조례 수입 지출 자금 돈 결산 시장평점 여론', growth: '수요 인구 일자리 실업 재개발 빈구역 개발막힘',
+  finance: '세율 세금 예산 부서 대출 빚 조례 수입 지출 자금 돈 결산', growth: '수요 인구 일자리 실업 재개발 빈구역 개발막힘',
+  amenity: '쾌적도 시장평점 평점 여론 불만 공원 부유층 고급 보상 랜드마크 관광',
   power: '전기 발전 정전 송전', water: '물 급수 단수 펌프 수도관 정수 수질', garbage: '쓰레기 매립 소각 재활용 수거 청결',
   police: '범죄 경찰 교도소 감방 폭동 체포', fire: '화재 불 소방차 출동', health: '건강 병원 수명 HQ 보건소',
   education: '학교 교육지수 EQ 대학 도서관', traffic: '통근 혼잡 대중교통 버스 지하철 철도 정류장',
@@ -1197,18 +1198,13 @@ const SCREEN_WORDS: Record<GoalId, string> = {
 };
 
 /**
- * The screens the box finds besides tools: each goal's, the city's 쾌적도 tab (its words had opened the money's tab), 지역,
- * and the help. (Not 주민: off the web screen for now.)
+ * The screens the box finds besides tools: each goal's, 지역, and the help. (Not 주민: off the web screen for now.)
  */
 function screens(): Found[] {
   const out: Found[] = GOAL_ORDER.map((id) => ({
     key: `screen:${id}`, name: GOALS[id].name, where: '관리 화면', glyph: icon(GOALS[id].icon), sub: '', locked: '',
     words: SCREEN_WORDS[id], pick: () => openGoal(id),
   }));
-  out.splice(GOAL_ORDER.indexOf('finance') + 1, 0, {
-    key: 'screen:amenity', name: '쾌적도', where: '관리 화면 (도시)', glyph: icon('trees'), sub: '', locked: '',
-    words: '쾌적도 공원 부유층 고급 보상 랜드마크 관광', pick: () => openGoalView('finance', 'desirability'),
-  });
   out.push(
     { key: 'screen:region', name: '지역', where: '화면 (J)', glyph: icon('globe'), sub: '', locked: '', words: '이웃 도시 거래 사고팔기 심네이션', pick: () => showTab('region') },
     { key: 'screen:help', name: '조작법', where: '도움말 (?)', glyph: icon('help'), sub: '', locked: '', words: '도움말 단축키 키보드 사용법', pick: () => showHelp() },

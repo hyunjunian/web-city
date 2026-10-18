@@ -2136,11 +2136,12 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
 
 /* ------------------------------------------------------------------ the pane in two blocks */
 
-/* 도시: its size and the next reward, then the city's money and the mayor's rating (pressed, their tabs). */
+/* 도시: its size and the next reward, then the city's money (pressed, its tab) — its figure and the month's balance on
+   one line across the pane. */
 .city-sum { display: grid; gap: 14px; }
-.city-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.city-stats { display: grid; gap: 8px; }
 .city-stats .cs {
-  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'ic name' 'val val' 'sub sub'; align-items: center;
+  display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: 'ic name val sub'; align-items: center;
   column-gap: 6px; row-gap: 2px; min-width: 0; min-height: 0; padding: 9px 11px 10px; border-radius: var(--r-md);
   background: var(--surface-2); color: var(--text); text-align: left; font: inherit;
 }
@@ -2604,11 +2605,12 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .city-flag .cf.bad { color: var(--danger); }
 
 /* ---- wide: down the map's left, 도시 정보 및 관리 — the city's card (its button: its name and stage, its residents
-   big, as a score, and how near the next stage on a bar under them; then in the same card its money and the mayor's
-   rating, a line each), then each area as a button of its own, always in the same order — every line of one height,
-   its name and its graph over two years — coloured when it needs a hand (no figures, no words of why: its tooltip and
-   its screen say them). While the city pane is open beside them, their icons
-   alone in a narrow column: the one it shows lit. */
+   big, as a score, and how near the next stage on a bar under them; then in the same card its money, a line), then
+   수요 as a button of its own, then 쾌적도's card (its button: the mayor's rating big, on a bar out from nothing; then
+   in the same card the areas it holds, a line each), always in the same order — every line of one height, its name,
+   its value and its graph over two years — its value coloured when it needs a hand (the words of why in its tooltip
+   and on its screen). While the city pane is open beside them, their icons alone in a narrow column: the one it shows
+   lit. */
 #rail { display: none; }
 @media (min-width: 861px) {
   /* (As tall as what it holds, and all of it the rail's: between its buttons a press or the wheel went through to the
@@ -2618,7 +2620,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
     display: flex; flex-direction: column; gap: 8px; transition: opacity 0.2s var(--ease);
   }
   #app.pane-open #rail { width: var(--rail-c); }
-  /* One card: the city button, then 재정 and 시장 평점 as rows of it (pressed, those tabs of the city's screen). */
+  /* One card: the city button, then 재정 as a row of it (pressed, that tab of the city's screen). */
   #rail #city-card {
     flex: none; display: flex; flex-direction: column; overflow: hidden;
     border: 1px solid var(--line); border-radius: 16px; background: var(--float-solid); box-shadow: var(--shadow-sm);
@@ -2669,7 +2671,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail #goal-strip button > .i { grid-area: ic; width: 19px; height: 19px; color: var(--muted); }
   /* An item that wants a hand is no other button (a whole row tinted amber or red outshouted the map): its value says it,
      in its colour and heavier. (Beside the pane, its icon alone: in its colour there.) */
-  #rail #goal-strip > button.bad { color: var(--text); font-weight: 650; } /* (the one lit keeps its own) */
+  #rail #goal-strip :is(#goal-strip, .amenity-card) > button.bad { color: var(--text); font-weight: 650; } /* (the one lit keeps its own) */
   /* (The whole value, its dashed half kept quiet: a value not read yet, "—", had no colour of its own to say it.) */
   #rail :is(#goal-strip button, .strip-city).warn .r-num { color: var(--warn-ink); font-weight: 800; }
   #rail :is(#goal-strip button, .strip-city).bad .r-num { color: var(--danger-ink); font-weight: 800; }
@@ -2699,6 +2701,37 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   /* (Lit in the bars' way, whatever its state: the rail's own colours for its buttons had won over it.) */
   #rail #goal-strip .strip-on > [data-strip-goal] { border: 1px solid transparent; color: var(--active-ink); } /* (as tall as it was unlit: the rows under it kept their places) */
   #rail #goal-strip .strip-on > [data-strip-goal] > .i { color: var(--accent-hi); }
+  /* 쾌적도's card, as the city's: its button heading it — the mayor's rating big, where it stands between −100 and 100
+     on a bar out from nothing (its middle marked), the residents' mood and its move over three months — then the
+     areas under it, a line each, flat in the card. */
+  #rail #goal-strip .amenity-card {
+    flex: none; display: flex; flex-direction: column; overflow: hidden;
+    border: 1px solid var(--line); border-radius: 16px; background: var(--float-solid); box-shadow: var(--shadow-sm);
+  }
+  #rail #goal-strip .amenity-card button { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+  #rail #goal-strip .amenity-card > :not(:first-child) { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+  #rail #goal-strip .amenity-card .strip-on { border-radius: 0; background: var(--accent-soft); box-shadow: none; }
+  #rail #goal-strip .amenity-card .strip-on > [data-strip-goal] { border: 0; }
+  #rail #goal-strip .amenity-head {
+    --am: var(--accent);
+    grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: 'ic name what' 'score score score' 'bar bar bar' 'next next next';
+    justify-items: start; column-gap: 9px; row-gap: 3px; height: auto; padding: 11px 14px 12px;
+  }
+  #rail #goal-strip .amenity-head.warn { --am: var(--warn); }
+  #rail #goal-strip .amenity-head.bad { --am: var(--danger); }
+  #rail #goal-strip .amenity-head > .i { grid-area: ic; width: 22px; height: 22px; color: var(--accent-hi); }
+  #rail #goal-strip .amenity-head .r-name { font-size: 15px; font-weight: 700; }
+  #rail .am-what { grid-area: what; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--muted) 14%, transparent); color: var(--muted); font-size: 11.5px; font-weight: 650; white-space: nowrap; }
+  #rail .am-score { grid-area: score; display: flex; align-items: baseline; gap: 3px; margin-top: 3px; }
+  #rail .am-score b { font-size: 28px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+  #rail .am-score small { color: var(--muted); font-size: 13px; font-weight: 600; }
+  #rail .amenity-head.warn .am-score b { color: var(--warn-ink); }
+  #rail .amenity-head.bad .am-score b { color: var(--danger-ink); }
+  #rail .am-bar { grid-area: bar; position: relative; display: block; justify-self: stretch; height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--am) 20%, transparent); overflow: hidden; }
+  #rail .am-bar > i { position: absolute; top: 0; bottom: 0; left: var(--lo, 50%); width: calc(var(--hi, 50%) - var(--lo, 50%)); background: var(--am); transition: left 0.5s var(--ease), width 0.5s var(--ease); }
+  #rail .am-bar::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; background: var(--line-strong); }
+  #rail .am-next { grid-area: next; display: flex; justify-content: space-between; justify-self: stretch; gap: 8px; color: var(--muted); font-size: 12px; font-weight: 550; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  #rail .am-next b { color: var(--text); font-weight: 700; }
   /* The areas needing a hand that the scroll hides, counted at the cut edge (pressed, the first of them). */
   #rail .rail-hidden {
     position: absolute; left: 50%; z-index: 2; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 4px;
@@ -2717,12 +2750,17 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
      is still under the pointer's line (pressed again, it puts the pane away: shorter, the next one down was there). */
   #app.pane-open #rail :is(#btn-city, #goal-strip button, .strip-city) { grid-template-columns: minmax(0, 1fr) 0 0 0; column-gap: 0; padding-inline: 0; }
   #app.pane-open #rail :is(#btn-city, #goal-strip button, .strip-city) > .i { justify-self: center; }
-  #app.pane-open #rail :is(#goal-strip > button, .strip-city:not(.on)).warn > .i { color: var(--warn); } /* (the one lit keeps its accent) */
-  #app.pane-open #rail :is(#goal-strip > button, .strip-city:not(.on)).bad > .i { color: var(--danger); }
+  #app.pane-open #rail :is(#goal-strip > button, .amenity-card > button, .strip-city:not(.on)).warn > .i { color: var(--warn); } /* (the one lit keeps its accent) */
+  #app.pane-open #rail :is(#goal-strip > button, .amenity-card > button, .strip-city:not(.on)).bad > .i { color: var(--danger); }
   /* (The city's bar stands up under its trophy there, filling from below.) */
   #app.pane-open #rail #btn-city::before {
     content: ''; position: absolute; top: 46px; bottom: 14px; left: 50%; width: 6px; margin-left: -3px; border-radius: 999px;
     background: linear-gradient(to top, var(--gold) var(--share, 0%), color-mix(in srgb, var(--gold) 20%, transparent) var(--share, 0%));
+  }
+  /* (쾌적도's too, its bar out from its middle.) */
+  #app.pane-open #rail #goal-strip .amenity-head::after {
+    content: ''; position: absolute; top: 46px; bottom: 14px; left: 50%; width: 6px; margin-left: -3px; border-radius: 999px;
+    background: linear-gradient(to top, color-mix(in srgb, var(--am) 20%, transparent) var(--lo, 50%), var(--am) var(--lo, 50%) var(--hi, 50%), color-mix(in srgb, var(--am) 20%, transparent) var(--hi, 50%));
   }
   #app.pane-open #rail :is(#btn-city, #goal-strip button, .strip-city) > :not(.i):not(.edge-ring) { visibility: hidden; }
   #app.pane-open #rail :is(#goal-strip button, .strip-city) { overflow: hidden; }

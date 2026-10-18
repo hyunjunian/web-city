@@ -89,12 +89,19 @@ function readStatus(id: GoalId): Status {
       const left = months < 120 ? ` · 이대로면 ${months >= 24 ? `${Math.floor(months / 12)}년` : `${Math.floor(months)}개월`} 뒤 바닥` : '';
       // (Taxes cutting a type's demand are the finance screen's to fix: 주의 with what they cost, where the money alone
       // read 양호 and nobody looked — 71% of the demand for rich homes was going.)
-      // (Looked for by name: the rating's alarm, the city's too, sorted before it and hid it.)
+      // (Looked for by name: the rating's alarm, the city's once too, sorted before it and hid it.)
       const tax = advice.find((a) => a.code === 'taxHigh');
       const taxed = !tone && tax ? (ADVICE_TEXT.taxHigh?.(tax.value ?? 0, tax.type) ?? '').split(/[.:]/)[0]! : '';
       // (주의, not 급함, even where the rate stops a type's demand: a tax is changed at leisure, and red stopped the clock.)
       if (taxed) return { tone: 'warn', value: money(st.funds), note: taxed };
       return { tone, value: money(st.funds), note: b ? `지난달 ${net < 0 ? '−' : '+'}§${fmt(Math.abs(Math.round(net)))}${left}` : '첫 결산 전' };
+    }
+    case 'amenity': {
+      // Read by the mayor's rating, its headline (what its parks lack is its 쾌적도 tab's to say).
+      const r = st.mayorRating;
+      const rated = ratingRated();
+      // (Its own tone, not the advisors': a park missing coloured a sound rating amber.)
+      return { tone: ratingTone(r), value: rated ? `시장 평점 ${r}` : '—', note: ratingNote(r) || (rated ? '−100~100 · 주민의 불만에서 나옵니다' : '주민이 든 달이 지나면 매겨집니다') };
     }
     case 'growth': {
       const dem = city.demand.demand;
@@ -299,6 +306,13 @@ export function fullNote(a: { code: string; value?: number; at?: [number, number
  * then its 0 is no one's verdict, and the pane and the polls say —.)
  */
 export const ratingRated = (): boolean => (city.state.history.at(-1)?.population ?? 0) > 0;
+/**
+ * The mayor's rating as a row's tone: below 0 urgent, below 20 a look — not before a month has closed with
+ * residents (it is worked out at the month's end, and until then its 0 said 주민 만족이 낮음 of a town nobody had rated).
+ */
+export const ratingTone = (rating: number): Tone => (!ratingRated() ? '' : rating < 0 ? 'bad' : rating < 20 ? 'warn' : '');
+/** The rating's word beside its figure, when it wants a look ('' else). */
+export const ratingNote = (rating: number): string => (!ratingTone(rating) ? '' : rating < 0 ? '주민 대다수가 불만 · 아주 낮은 곳이 모이면 폭동' : '주민 만족이 낮음 · 여론을 살펴보세요');
 
 /** A service the town has none of yet (its row says so, and when it will be wanted). */
 const list0 = (what: string) => `${what} 없음 · ${readStats().population || city.state.buildings.size || unpoweredZones().all > 0 ? '지금 필요' : '구역이 생기면 필요'}`;
@@ -419,12 +433,15 @@ function goalMetrics(id: GoalId): Metric[] {
         ...(runwayMonths !== null && runwayMonths < 120 ? [['바닥까지', runwayMonths >= 24 ? `약 ${Math.floor(runwayMonths / 12)}년` : `약 ${runwayMonths}개월`, runwayMonths < 12 ? 'bad' : 'warn'] as Metric] : []),
         ...(nextMonth() === null || Math.abs(nextMonth()! - net) < 1 ? [] : [['다음 달 예상', signed(nextMonth()!, '§'), (nextMonth() ?? 0) < 0 ? 'bad' : 'good', nextMonth() ?? undefined, 1, '지금 세율·예산·조례·대출로 정산하면 (지난달 세금 기반)'] as Metric]),
         ['대출', s.loans.length ? `${s.loans.length}건 · 월 §${fmt(sum(s.loans.map((x) => x.payment)))}` : '없음'],
-        // (For its 시장 평점 tab.)
-        ratingRated() ? ['시장 평점', String(st.mayorRating), st.mayorRating < 0 ? 'bad' : '', st.mayorRating, 1] : ['시장 평점', '—', '', undefined, 1, '주민이 든 달이 지나면 매겨집니다'],
+      ];
+    }
+    case 'amenity':
+      return [
+        // (Its headline, for its 시장 평점 tab.)
+        ratingRated() ? ['시장 평점', String(st.mayorRating), ratingTone(st.mayorRating), st.mayorRating, 1, '−100~100 · 주민의 불만에서 나옵니다'] : ['시장 평점', '—', '', undefined, 1, '주민이 든 달이 지나면 매겨집니다'],
         // (For its 쾌적도 tab: those a pleasant place draws, and what they want built — the wealthy come where it is high.)
         ...amenityMetrics(),
       ];
-    }
     case 'growth': {
       const dem = city.demand.demand;
       const cls = (k: string, n: string): Metric => {
@@ -533,7 +550,7 @@ function goalMetrics(id: GoalId): Metric[] {
   }
 }
 
-/** The city's 쾌적도 figures (its screen's tab): its parks, those a pleasant place draws, and what they want built. */
+/** 쾌적도's own figures (its 쾌적도 tab): its parks, those a pleasant place draws, and what they want built. */
 function amenityMetrics(): Metric[] {
   const st = readStats();
   const parks = [...city.state.structures.values()].filter((x) => STRUCTURES[x.kind].category === 'park').length;

@@ -1,14 +1,14 @@
 // The goals the city pane is organised around: what each one watches, the map views,
 // tools, budgets and ordinances that bear on it, and which goal an advisor's word or a
-// facility belongs to. The areas are demand, the utilities, and what makes a place pleasant
-// to live in (쾌적도); money, the mayor's rating and the 쾌적도 itself (parks, landmarks,
-// the wealthy they draw) are the city's own.
+// facility belongs to. The city's own is its money; demand stands alone; 쾌적도 heads the
+// rest — read by the mayor's rating, with its parks, landmarks and the wealthy they draw —
+// and under it the utilities and what makes a place pleasant to live in.
 
 import { STRUCTURES, type OrdinanceId, type StructureKind } from '@web-city/engine';
 import { type IconName } from './icons';
 import { city } from './state';
 
-export type GoalId = 'finance' | 'growth' | 'power' | 'water' | 'garbage' | 'police' | 'fire' | 'health' | 'education' | 'traffic' | 'environment' | 'land';
+export type GoalId = 'finance' | 'growth' | 'amenity' | 'power' | 'water' | 'garbage' | 'police' | 'fire' | 'health' | 'education' | 'traffic' | 'environment' | 'land';
 
 export type Dept = keyof typeof city.state.departments;
 export type Tone = '' | 'warn' | 'bad' | 'good';
@@ -70,20 +70,17 @@ export interface Goal {
 const isKind = (pred: (d: (typeof STRUCTURES)[StructureKind]) => unknown) => (k: StructureKind) => !!pred(STRUCTURES[k]);
 
 export const GOALS: Record<GoalId, Goal> = {
-  // (Not an area of its own but the city's: its tabs stand beside the city's overview, opened by the city button — what
-  // draws people and the wealthy (쾌적도) first, by the city's size, then its money and how it rates its mayor.)
+  // (Not an area of its own but the city's: its tabs stand beside the city's overview, opened by the city button.)
   finance: {
-    name: '재정·정책', icon: 'wallet', aim: '수입과 지출을 맞추고 자금을 지킵니다: 세율, 부서 예산, 대출, 조례. 주민이 시장을 어떻게 보는지, 공원·랜드마크로 쾌적도를 올려 부유층을 부르는 것도 여기서.',
+    name: '재정·정책', icon: 'wallet', aim: '수입과 지출을 맞추고 자금을 지킵니다: 세율, 부서 예산, 대출, 조례.',
     tabs: [
-      { label: '쾌적도', view: 'desirability', figs: ['공원', '부유층 주민', '중산층 주민', '부유층 주거 수요', '고급 상점 수요', '고급 오피스 수요'], reports: ['wealth', 'rewards'], tools: ['park', 'landmark', 'reward'], depts: ['parks', 'landmarks'], ordinances: ['tourismPromotion'], codes: ['noParks', 'facilityNoRoad'] },
       { label: '재정', view: 'none', figs: ['자금', '지난달 수지', '수입', '지출', '바닥까지', '다음 달 예상', '대출'], graphs: ['funds', 'budget'], reports: ['budget'], parts: ['fix', 'depts', 'outlook'], codes: ['broke', 'deficit', 'surplus'] },
       { label: '세율', view: 'mayor', figs: ['poll'], parts: ['taxes'], codes: ['taxHigh', 'taxEasing'] },
       { label: '조례', view: 'mayor', parts: ['ords'] },
-      { label: '시장 평점', view: 'mayor', figs: ['시장 평점'], graphs: ['mayorRating'], reports: ['polls'], codes: ['mayorLow', 'mayorHigh'] },
     ],
     home: '재정',
-    tools: ['park', 'landmark', 'reward'], ordinances: ['legalizeGambling', 'tourismPromotion'],
-    depts: [['parks', '공원 미화'], ['landmarks', '랜드마크']],
+    tools: [], ordinances: ['legalizeGambling'],
+    depts: [],
   },
   growth: {
     name: '수요', icon: 'zones', aim: '수요가 있는 곳에 구역을 내고, 빈 구역이 왜 비었는지 찾아 풉니다. 더 높은 밀도로 다시 칠하면 재개발됩니다.',
@@ -94,6 +91,18 @@ export const GOALS: Record<GoalId, Goal> = {
     // (Bulldozing too — begun on an empty zone, it unzones: reshaping the city is part of growing it.)
     tools: ['R-low', 'R-medium', 'R-high', 'C-low', 'C-medium', 'C-high', 'I-medium', 'I-high', 'A', 'road', 'park', 'bulldoze'],
     ordinances: ['tourismPromotion'], depts: [],
+  },
+  // How the residents find the place: read by the mayor's rating, which all the areas under it move, with what is built
+  // only to make it pleasant (parks, landmarks, rewards) and the wealthy that draws. Its button heads the areas.
+  amenity: {
+    name: '쾌적도', icon: 'trees', aim: '주민이 이 도시를 어떻게 느끼는지 시장 평점이 말합니다: 아래의 전력부터 땅값까지가 모두 움직이고, 공원·랜드마크·보상으로 쾌적도를 올리면 부유층이 찾아옵니다.',
+    tabs: [
+      { label: '시장 평점', view: 'mayor', figs: ['시장 평점'], graphs: ['mayorRating'], reports: ['polls'], codes: ['mayorLow', 'mayorHigh'] },
+      { label: '쾌적도', view: 'desirability', figs: ['공원', '부유층 주민', '중산층 주민', '부유층 주거 수요', '고급 상점 수요', '고급 오피스 수요'], reports: ['wealth', 'rewards'], tools: ['park', 'landmark', 'reward'], depts: ['parks', 'landmarks'], ordinances: ['tourismPromotion'], codes: ['noParks', 'facilityNoRoad'] },
+    ],
+    home: '시장 평점',
+    tools: ['park', 'landmark', 'reward'], ordinances: ['tourismPromotion'],
+    depts: [['parks', '공원 미화'], ['landmarks', '랜드마크']],
   },
   // (One tab, the grid with its worn lines on it: no row of tabs.)
   power: {
@@ -190,6 +199,8 @@ export const GOALS: Record<GoalId, Goal> = {
 export const GOAL_ORDER = Object.keys(GOALS) as GoalId[];
 /** The city's areas, each a button of its own (재정·정책 is the city's: its tabs are the city button's screen). */
 export const AREA_ORDER = GOAL_ORDER.filter((g) => g !== 'finance');
+/** The areas 쾌적도 heads (전력 to 땅값): its card's rows, under its button, wide. */
+export const UNDER_AMENITY = AREA_ORDER.filter((g) => g !== 'growth' && g !== 'amenity');
 
 /** Which goal each advisor's word belongs to (else the advisor's own). */
 const ADVICE_GOAL: Record<string, GoalId> = {
@@ -202,7 +213,7 @@ const ADVICE_GOAL: Record<string, GoalId> = {
   noHospital: 'health', hospitalFull: 'health', hospitalStrike: 'health', hqLow: 'health',
   noSchool: 'education', schoolFull: 'education', schoolStrike: 'education', eqLow: 'education',
   congestion: 'traffic', stationFull: 'traffic', noCommute: 'traffic', potholes: 'traffic', facilityNoRoad: 'traffic',
-  smog: 'environment', radiation: 'environment', noParks: 'finance', mayorLow: 'finance', mayorHigh: 'finance',
+  smog: 'environment', radiation: 'environment', noParks: 'amenity', mayorLow: 'amenity', mayorHigh: 'amenity',
 };
 const ADVISOR_GOAL: Record<string, GoalId> = {
   planner: 'growth', finance: 'finance', utilities: 'power', safety: 'police', healthEducation: 'health', transportation: 'traffic', environment: 'environment',
@@ -219,7 +230,7 @@ export function goalOfStructure(k: StructureKind): GoalId | null {
   if (d.health) return 'health';
   if (d.school) return 'education';
   if (d.station || d.parking || d.airport || d.seaport) return 'traffic';
-  if (d.category === 'park' || d.category === 'reward' || d.category === 'landmark') return 'finance'; // (the city's 쾌적도)
+  if (d.category === 'park' || d.category === 'reward' || d.category === 'landmark') return 'amenity';
   return null;
 }
 

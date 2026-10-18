@@ -49,7 +49,7 @@ const GRAPHS: GraphDef[] = [
   { key: 'population', goal: 'growth', title: '인구', value: (h) => h.population, format: fmt, better: 1 },
   { key: 'jobs', goal: 'growth', title: '일자리', value: (h) => h.jobs, format: fmt, better: 1 },
   { key: 'funds', goal: 'finance', title: '자금', value: (h) => h.funds, format: money, better: 1 },
-  { key: 'mayorRating', goal: 'finance', title: '시장 평점', value: (h) => h.mayorRating, format: fmt, better: 1 },
+  { key: 'mayorRating', goal: 'amenity', title: '시장 평점', value: (h) => h.mayorRating, format: fmt, better: 1 },
   { key: 'crimes', goal: 'police', title: '범죄와 체포', better: -1, value: (h) => h.crimes, compare: (h) => h.arrests ?? 0, names: ['범죄', '체포'], colors: ['--danger', '--accent'], format: fmt },
   { key: 'budget', goal: 'finance', title: '수입과 지출 (월)', value: (h) => h.income ?? 0, compare: (h) => h.expenses ?? 0, names: ['수입', '지출'], colors: ['--good', '--danger'], format: (v) => `§${fmt(v)}`, optional: true, gap: true },
   { key: 'abandoned', goal: 'growth', title: '버려진 건물', value: (h) => h.abandoned ?? 0, format: (v) => `${fmt(v)}채`, optional: true, better: -1 },

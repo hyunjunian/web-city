@@ -6,13 +6,13 @@
 
 import { placeAt } from './input';
 import { DEV_TYPES, type DevType, Net, NETWORK_KINDS, ORDINANCES, POWER_DISPATCHES, STRUCTURES, type HistoryPoint, type OrdinanceId, type PollTopic, type PowerDispatch, type RepairDepartment, type Structure, type StructureKind, type ZoneKind } from '@web-city/engine';
-import { icon, type IconName } from './icons';
+import { icon } from './icons';
 import { chooseSpeed, refreshTaxes, resumeAfterBuilding, setSpeed, showOverlay, speedChosen, viewEmpty, viewName } from './controls';
 import { redrawInfo, refreshInfo, riotNear, showInfo } from './info';
 import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, POLL_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { whyNoDeals } from './region';
-import { AMENITY_SLOT, journal, type Slot } from './journal';
+import { journal } from './journal';
 import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, updatePanels } from './panels';
 import { checklist } from './onboarding';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
@@ -22,8 +22,8 @@ import { categoryOf, chosen, edgeFade, kindsFor, openTray, panTipAt, pickStructu
 import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice } from './choices';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, short, stoppedNote, straightRuns, touchFirst } from './util';
-import { AREA_ORDER, type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type GoalTab, type Metric, type TabPart, type Tone } from './goals';
-import { type AirSource, airSources, fullNote, railFigure, edgeRoad, fillSpan, ratingRated, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { AREA_ORDER, type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type GoalTab, type TabPart, type Tone, UNDER_AMENITY } from './goals';
+import { type AirSource, airSources, fullNote, railFigure, edgeRoad, fillSpan, ratingNote, ratingRated, ratingTone, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -31,10 +31,10 @@ import { type AirSource, airSources, fullNote, railFigure, edgeRoad, fillSpan, r
 /** Each goal's figure over time (its direction on the watch list), and whether up is better: the figure its row
  *  shows — power and water their use of what is made (92k / 100k m³ with a red ▼ beside it, for its 여유 shrinking,
  *  read as demand falling); 보건 none, its 건강 지수 having no record (its arrow was 기대 수명's). */
-const DRIFT: Partial<Record<GoalId | 'rating', [(p: HistoryPoint) => number | undefined, 1 | -1, string]>> = {
+const DRIFT: Partial<Record<GoalId, [(p: HistoryPoint) => number | undefined, 1 | -1, string]>> = {
   finance: [(p) => p.funds, 1, '자금'], // (the money itself: a falling balance on rising funds read ▼)
-  rating: [(p) => p.mayorRating, 1, '시장 평점'],
   growth: [(p) => p.population, 1, '인구'],
+  amenity: [(p) => p.mayorRating, 1, '시장 평점'],
   power: [(p) => (p.powerSupply && p.powerDemand !== undefined ? p.powerDemand / p.powerSupply : undefined), -1, '전력 사용률'],
   water: [(p) => (p.waterSupply && p.waterDemand !== undefined ? p.waterDemand / p.waterSupply : undefined), -1, '물 사용률'],
   police: [(p) => p.crimes, -1, '범죄'],
@@ -45,7 +45,7 @@ const DRIFT: Partial<Record<GoalId | 'rating', [(p: HistoryPoint) => number | un
 };
 /** Which way a goal went over the last three months (null when flat or not yet known): up or down, whether that is
  *  better, and the words for it. */
-function driftOf(id: GoalId | 'rating'): { up: boolean; good: boolean; said: string } | null {
+function driftOf(id: GoalId): { up: boolean; good: boolean; said: string } | null {
   const d = DRIFT[id];
   const h = city.state.history;
   if (!d || h.length < 4) return null;
@@ -63,8 +63,8 @@ function drift(id: GoalId): string {
   return d ? `<small class="w-drift ${d.good ? 'up' : 'down'}" title="${d.said}">${d.up ? '▲' : '▼'}</small>` : '';
 }
 
-/** The screens M weighs: the areas as the list orders them, then the city's own (its money's or its rating's state,
- *  the worse) — with nothing wrong, the first area (it opened 재정·정책 of a sound town, under "가장 급한 분야"). */
+/** The screens M weighs: the areas as the list orders them, then the city's own (its money) — with nothing wrong, the
+ *  first area (it opened 재정·정책 of a sound town, under "가장 급한 분야"). */
 const WATCHED: readonly GoalId[] = [...AREA_ORDER, 'finance'];
 
 /**
@@ -76,39 +76,32 @@ const WATCHED: readonly GoalId[] = [...AREA_ORDER, 'finance'];
 export interface PaneFigs { jobs: number; jobsTrend: string }
 
 /**
- * The mayor's rating as a row's tone: below 0 urgent, below 20 a look — not before a month has closed with
- * residents (it is worked out at the month's end, and until then its 0 said 주민 만족이 낮음 of a town nobody had rated).
+ * 쾌적도's screen's two, each judged and guided on its own tab: its headline, the mayor's rating (시장 평점), and the
+ * 쾌적도 itself — the parks, landmarks and rewards built for it (쾌적도). An area's screen is all one side.
  */
-const ratingTone = (rating: number): Tone => (!ratingRated() ? '' : rating < 0 ? 'bad' : rating < 20 ? 'warn' : '');
-/** The rating's word beside its figure, when it wants a look ('' else). */
-const ratingNote = (rating: number): string => (!ratingTone(rating) ? '' : rating < 0 ? '주민 대다수가 불만 · 아주 낮은 곳이 모이면 폭동' : '주민 만족이 낮음 · 여론을 살펴보세요');
-/**
- * The city's screen's three, each judged and guided on its own tabs as its rows are: its money (재정·세율·조례), its
- * rating (시장 평점) and its 쾌적도 — the rating's alarm had led the money's tabs, and hidden itself on its own.
- */
-type Side = 'money' | 'rating' | 'amenity';
-// (A park, reward or landmark off the roads is the city's by its kind, and its 쾌적도's: the money's tabs offered the road to it.)
-const SIDE_OF_CODE: Record<string, Side> = { mayorLow: 'rating', mayorHigh: 'rating', noParks: 'amenity', facilityNoRoad: 'amenity' };
+type Side = 'all' | 'rating' | 'amenity';
+// (A park, reward or landmark off the roads is the 쾌적도's by its kind: its rating's tab offered the road to it.)
+const SIDE_OF_CODE: Record<string, Side> = { noParks: 'amenity', facilityNoRoad: 'amenity' };
 const SIDE_OF_TAB: Record<string, Side> = { '시장 평점': 'rating', 쾌적도: 'amenity' };
-/** The side a goal's screen shows now: the city's by its tab (an area's is all one: its 'money', as it were). */
-const sideNow = (id: GoalId): Side => (id === 'finance' && active === 'finance' ? SIDE_OF_TAB[tabNow('finance').label] ?? 'money' : 'money');
-/** The city's 쾌적도 tab is the one showing (an info card's 쾌적도 관리 is then no way anywhere). */
-export const amenityOpen = () => sideNow('finance') === 'amenity';
+/** The side a goal's screen shows now: 쾌적도's by its tab (its rating's while it is shut); an area's all one. */
+const sideNow = (id: GoalId): Side => (id !== 'amenity' ? 'all' : active === 'amenity' ? SIDE_OF_TAB[tabNow('amenity').label] ?? 'rating' : 'rating');
+/** 쾌적도's own tab is the one showing (an info card's 쾌적도 관리 is then no way anywhere). */
+export const amenityOpen = () => active === 'amenity' && sideNow('amenity') === 'amenity';
 /** A goal's advisors' words on one side of it (an area's: all of them). */
-const sideAdvice = (id: GoalId, side: Side) => adviceFor(id).filter((a) => id !== 'finance' || (SIDE_OF_CODE[a.code] ?? 'money') === side);
-/** The city's 쾌적도 as its tab's guide reads it: amber with no park at all (the advisor's word), else sound. */
+const sideAdvice = (id: GoalId, side: Side) => adviceFor(id).filter((a) => id !== 'amenity' || (SIDE_OF_CODE[a.code] ?? 'rating') === side);
+/** 쾌적도's own tab as its guide reads it: amber with no park at all (the advisor's word), else sound. */
 function amenityStatus(): { tone: Tone; value: string; note: string } {
-  const said = sideAdvice('finance', 'amenity').filter((a) => a.level !== 'good');
+  const said = sideAdvice('amenity', 'amenity').filter((a) => a.level !== 'good');
   const parks = [...city.state.structures.values()].filter((x) => STRUCTURES[x.kind].category === 'park').length;
   return { tone: said.some((a) => a.level === 'bad') ? 'bad' : said.length ? 'warn' : '', value: `공원 ${fmt(parks)}곳`, note: '공원은 쾌적도를 높이고 주거 상한을 풉니다' };
 }
-/** A side's state: an area's own, the city's money's, its rating's or its 쾌적도's. */
-const sideTone = (id: GoalId, side: Side): Tone => (id !== 'finance' || side === 'money' ? goalStatus(id).tone : side === 'rating' ? ratingTone(readStats().mayorRating) : amenityStatus().tone);
+/** A side's state: a goal's own (쾌적도's, its rating's), or 쾌적도's own tab's. */
+const sideTone = (id: GoalId, side: Side): Tone => (side === 'amenity' ? amenityStatus().tone : goalStatus(id).tone);
 
 export function problemsHtml(alerts: string, figs: PaneFigs): string {
   const step = nextStep();
   const inc = new Set(incidents().map((x) => x.goal as GoalId));
-  // (The areas: money and the mayor's rating are the city's own, on its scoreboard and its tabs.)
+  // (The areas: money is the city's own, on its scoreboard and its tabs.)
   const all = AREA_ORDER.map((id) => ({ id, s: goalStatus(id) })).filter(({ id, s }) => s.tone === 'bad' || s.tone === 'warn' || inc.has(id));
   const bad = all.filter(({ s }) => s.tone === 'bad').length;
   const warn = all.length - bad;
@@ -121,18 +114,13 @@ export function problemsHtml(alerts: string, figs: PaneFigs): string {
 }
 
 /**
- * The city's money and the mayor's rating under its scoreboard (the city's own, not areas): each its figure, coloured
- * when it wants a look; pressed, its tab of the city's screen.
+ * The city's money under its scoreboard (the city's own, not an area's): its figure, coloured when it wants a look;
+ * pressed, its tab of the city's screen. (The mayor's rating heads 쾌적도.)
  */
 export function cityStats(): string {
-  const st = readStats();
   const fin = goalStatus('finance');
-  const rTone = ratingTone(st.mayorRating);
-  const rated = ratingRated();
   const fig = monthNet();
-  const stat = (key: 'finance' | 'rating', tone: Tone, glyph: IconName, name: string, value: string, sub: string, title: string) =>
-    `<button type="button" class="cs ${tone || 'ok'}" data-city-row="${key}" title="${escapeHtml(`${title} · 눌러서 ${name} 탭`)}"><span class="cs-ic">${icon(glyph)}</span><span class="cs-name">${name}</span><b class="cs-val">${escapeHtml(value)}</b>${sub ? `<small class="cs-sub">${escapeHtml(sub)}</small>` : ''}</button>`;
-  return `<div class="city-stats">${stat('finance', fin.tone, 'wallet', '재정', fin.value, fig, `재정: ${fin.value} · ${glue(fin.note)}`)}${stat('rating', rTone, 'approval', '시장 평점', rated ? String(st.mayorRating) : '—', '', rated ? `시장 평점 ${st.mayorRating} (−100~100)` : '시장 평점: 주민이 든 달이 지나면 매겨집니다')}</div>`;
+  return `<div class="city-stats"><button type="button" class="cs ${fin.tone || 'ok'}" data-city-row="finance" title="${escapeHtml(`재정: ${fin.value} · ${glue(fin.note)} · 눌러서 재정 탭`)}"><span class="cs-ic">${icon('wallet')}</span><span class="cs-name">재정</span><b class="cs-val">${escapeHtml(fin.value)}</b>${fig ? `<small class="cs-sub">${escapeHtml(fig)}</small>` : ''}</button></div>`;
 }
 
 /** The month's balance in a word ('' before the first books close). */
@@ -193,13 +181,14 @@ const hoverable = () => matchMedia('(hover: hover)').matches;
 
 /**
  * Each area's state, a button each — 시작하기 first while its checklist shows (pressed, the city pane, which holds it);
- * the area whose screen is open lit, its × beside it. (The areas: growth, the utilities, and what makes a place pleasant
- * to live in; money and the mayor's rating are the city's own — {@link refreshCityRows}.) Wide, down the map's left
- * under the city's card (the rail), in an order that never changes: each one line of one height, its name and its
- * graph over the last two years — no figures, no words of why, its colour saying it needs a hand (the figures and the
- * why in its tooltip and on its screen). A phone, a row of chips under its top buttons: the areas needing a hand first (anything
- * burning first), compact, the urgent by name, the rest by their icons alone, the open screen's first. What either
- * can't show scrolls in, its cut edge faded.
+ * the area whose screen is open lit, its × beside it. (The areas: growth, then 쾌적도 — read by the mayor's rating —
+ * over the utilities and what makes a place pleasant to live in; money is the city's own: {@link refreshCityRows}.)
+ * Wide, down the map's left under the city's card (the rail), in an order that never changes: 수요, then 쾌적도's card —
+ * its button heading it as the city's heads its own, the rating big, and under it the areas it holds, a row each — each
+ * row one line of one height, its name, its value and its graph over the last two years, its value's colour saying it
+ * needs a hand (the rest of the why in its tooltip and on its screen). A phone, a row of chips under its top buttons:
+ * the areas needing a hand first (anything burning first), compact, the urgent by name, the rest by their icons alone,
+ * the open screen's first. What either can't show scrolls in, its cut edge faded.
  */
 export function refreshStrip(): void {
   const el = $('#goal-strip');
@@ -209,7 +198,7 @@ export function refreshStrip(): void {
   const rank = (t: Tone) => (t === 'bad' ? 0 : t === 'warn' ? 1 : 2);
   // (One stop for Tab in the row, the chip last in hand; the arrows go along it: a toolbar.)
   const tab = (k: string) => `tabindex="${k === stripAt ? 0 : -1}" data-tk="${k}"`;
-  type Chip = { key: string; tone: Tone; weight: number; html: (on: boolean) => string };
+  type Chip = { key: GoalId; tone: Tone; weight: number; html: (on: boolean) => string };
   const chips: Chip[] = AREA_ORDER.map((id) => {
     const g = GOALS[id];
     const s = goalStatus(id);
@@ -227,11 +216,12 @@ export function refreshStrip(): void {
     const fig = !wide ? '' : ((id === 'power' || id === 'water') && /여유/.test(note)) || ((id === 'health' || id === 'education') && /정원/.test(note)) ? '' : railFigure(id);
     // (The classes said, the class most wanted among them is said: "주거 +709 · 주거 +709 · 상업 …" read twice.)
     const head = id === 'growth' && !tone && fig ? fig : `${value}${fig ? ` · ${fig}` : ''}`;
-    const graph = wide ? railSpark(id) : null;
+    const graph = wide && id !== 'amenity' ? railSpark(id) : null;
     const words = `${head}${note ? ` · ${note}` : ''}${d ? ` · ${d.said}` : ''}${graph?.said ? ` · 그래프: ${graph.said}` : ''}`;
     return {
       key: id, tone, weight: WEIGHT[id],
-      html: (on: boolean) => wide
+      html: (on: boolean) => wide && id === 'amenity' ? amenityHead(tone, on, tab(id), d?.said)
+        : wide
         ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${words} · ${on ? '눌러서 도시 현황 닫기·열기 (×는 화면 닫기)' : `눌러서 ${g.name} 화면`}`)}" aria-label="${escapeHtml(`${g.name}${said}: ${head}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span><span class="r-num">${graph!.val}</span>${graph!.svg}</button>`
         : `<button type="button" class="${tone || 'ok'}${tone === 'bad' || on ? '' : ' bare'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${g.name}: ${escapeHtml(s.value)}${tone ? ` · ${escapeHtml(note)}` : ''} · 눌러서 ${g.name} 화면" aria-label="${g.name}${said}: ${escapeHtml(s.value)}"${on ? ' aria-pressed="true"' : ''}>${glyph}${tone === 'bad' || on ? g.name : ''}</button>`,
     };
@@ -250,8 +240,11 @@ export function refreshStrip(): void {
   // the top as it was pressed left another under the pointer).
   const on = active ? sorted.find((c) => c.key === active) : undefined;
   const lit = on && active ? `<span class="strip-on" data-k="on" role="group" aria-label="열린 화면: ${GOALS[active].name}">${on.html(true)}<button type="button" ${tab('end')} data-strip-end title="${GOALS[active].name} 화면 닫기 (지도 보기도 꺼짐)" aria-label="${GOALS[active].name} 화면 닫기">${icon('close')}</button></span>` : '';
+  const show = (c: Chip) => (c === on ? lit : c.html(false));
+  // (Wide, 쾌적도's card: its button, then the areas under it as its rows.)
+  const card = new Set<GoalId>(['amenity', ...UNDER_AMENITY]);
   const html = start + (wide
-    ? sorted.map((c) => (c === on ? lit : c.html(false))).join('')
+    ? `${sorted.filter((c) => !card.has(c.key)).map(show).join('')}<div class="amenity-card" data-k="amenity-card" data-rows role="group" aria-label="쾌적도와 그 아래 분야">${sorted.filter((c) => card.has(c.key)).map(show).join('')}</div>`
     : lit + sorted.filter((c) => c !== on).map((c) => c.html(false)).join(''));
   el.hidden = false;
   if (html !== stripSeen) {
@@ -264,54 +257,60 @@ export function refreshStrip(): void {
   }
   fadeStrip(el);
 }
+/**
+ * 쾌적도's button on the rail, heading its card as the city's heads its own — read by the mayor's rating: the rating big,
+ * where it stands between −100 and 100 on a bar out from nothing, the residents' mood in a word, and its move over
+ * three months.
+ */
+function amenityHead(tone: Tone, on: boolean, tab: string, drift?: string): string {
+  const r = readStats().mayorRating;
+  const rated = ratingRated();
+  const said = tone === 'bad' ? ', 조치 필요' : tone === 'warn' ? ', 주의' : '';
+  const num = (v: number) => `${v < 0 ? '−' : ''}${Math.abs(v)}`;
+  // (Out from nothing either way: filled from the left, a rating of 0 was a bar half full.)
+  const [lo, hi] = rated ? [50 + Math.min(0, r) / 2, 50 + Math.max(0, r) / 2] : [50, 50];
+  const mood = !rated ? '아직 평가 전' : r < 0 ? '주민 대다수가 불만' : r < 20 ? '주민 만족이 낮음' : r < 50 ? '주민 대체로 만족' : '주민 크게 만족';
+  const h = city.state.history;
+  const then = h.length >= 4 && h.at(-4)!.population ? h.at(-4)!.mayorRating : undefined;
+  const move = rated && then !== undefined ? r - then : null;
+  const moved = move === null ? '' : move ? `3개월 ${move > 0 ? '▲' : '▼'}${Math.abs(move)}` : '3개월 그대로';
+  const note = ratingNote(r);
+  const reading = rated ? `시장 평점 ${num(r)} (−100~100)` : '시장 평점 아직 없음 (주민이 든 달이 지나면 매겨집니다)';
+  return `<button type="button" class="amenity-head ${tone || 'ok'}"${on ? '' : ' data-k="amenity"'} ${tab} data-strip-goal="amenity" style="--lo:${lo}%;--hi:${hi}%" title="${escapeHtml(`쾌적도: ${reading}${note ? ` · ${note}` : ''}${drift ? ` · ${drift}` : ''} · 아래의 전력부터 땅값까지가 모두 평점을 움직입니다 · ${on ? '눌러서 도시 현황 닫기·열기 (×는 화면 닫기)' : '눌러서 쾌적도 화면 (시장 평점과 공원·보상)'}`)}" aria-label="${escapeHtml(`쾌적도${said}: ${rated ? `시장 평점 ${num(r)}` : '시장 평점 아직 없음'}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${icon('trees')}<span class="r-name">쾌적도</span><span class="am-what">시장 평점</span><span class="am-score"><b>${rated ? num(r) : '—'}</b>${rated ? '<small>점</small>' : ''}</span><span class="am-bar" aria-hidden="true"><i></i></span><span class="am-next"><span>${mood}</span>${moved ? `<b>${moved}</b>` : ''}</span></button>`;
+}
 /** The city's card's rows as last drawn. */
 let cityRowsSeen = '';
 /**
- * The city's own figures beside its name and size: 재정 (the money, the month's balance) and 시장 평점 — wide, two rows
- * of its card under the city button, drawn as the areas' are (pressed, that tab of the city's screen, lit while it
- * shows; pressed again, put away); on a phone, a mark on the city button for each that wants a look.
+ * The city's own figure beside its name and size: 재정 (the money, the month's balance) — wide, a row of its card under
+ * the city button, drawn as the areas' are (pressed, the city's screen on its money, lit while that shows; pressed
+ * again, put away); on a phone, a mark on the city button while it wants a look.
  */
 function refreshCityRows(wide: boolean): void {
-  const st = readStats();
   const fin = goalStatus('finance');
-  const rTone = ratingTone(st.mayorRating);
-  const rated = ratingRated();
-  const rNote = ratingNote(st.mayorRating);
-  const said = (t: Tone) => (t === 'bad' ? '조치 필요' : t === 'warn' ? '주의' : '');
+  const said = fin.tone === 'bad' ? '조치 필요' : fin.tone === 'warn' ? '주의' : '';
   markCity();
   const btn = $('#btn-city');
   const flag = $('#city-flag');
   if (!wide) {
-    const marks: [IconName, Tone, string][] = [];
-    if (fin.tone) marks.push(['wallet', fin.tone, `재정 ${said(fin.tone)}`]);
-    if (rTone) marks.push(['approval', rTone, `시장 평점 ${said(rTone)}`]);
-    const am = amenityStatus().tone;
-    if (am) marks.push(['trees', am, `쾌적도 ${said(am)}`]);
-    const key = marks.map((m) => m.join()).join('|');
-    if (flag.dataset.key !== key) {
-      flag.dataset.key = key;
-      flag.innerHTML = marks.map(([glyph, tone]) => `<span class="cf ${tone}">${icon(glyph)}</span>`).join('');
+    if (flag.dataset.key !== fin.tone) {
+      flag.dataset.key = fin.tone;
+      flag.innerHTML = fin.tone ? `<span class="cf ${fin.tone}">${icon('wallet')}</span>` : '';
     }
-    flag.hidden = !marks.length;
-    if (marks.length) btn.setAttribute('aria-description', marks.map((m) => m[2]).join(', '));
+    flag.hidden = !fin.tone;
+    if (fin.tone) btn.setAttribute('aria-description', `재정 ${said}`);
     else btn.removeAttribute('aria-description');
     return;
   }
   flag.hidden = true;
   btn.removeAttribute('aria-description');
-  // (Lit, the one whose tab shows.)
-  // (쾌적도's tab is neither's: no row of the card is its.)
-  const lit = active === 'finance' && paneShown() ? ({ money: 'finance', rating: 'rating', amenity: '' } as const)[sideNow('finance')] : '';
-  const row = (key: 'finance' | 'rating', tone: Tone, glyph: IconName, name: string, words: string) => {
-    const d = driftOf(key);
-    const on = lit === key;
-    const graph = railSpark(key);
-    return `<button type="button" class="strip-city ${tone || 'ok'}${on ? ' on' : ''}" data-k="${key}" data-city-row="${key}" aria-pressed="${on}" title="${escapeHtml(`${name}: ${words}${d ? ` · ${d.said}` : ''}${graph.said ? ` · 그래프: ${graph.said}` : ''} · ${on ? '눌러서 닫기' : `눌러서 도시 화면의 ${name} 탭`}`)}" aria-label="${escapeHtml(`${name}${tone ? `, ${said(tone)}` : ''}: ${words}`)}">${icon(glyph)}<span class="r-name">${name}</span><span class="r-num">${graph.val}</span>${graph.svg}</button>`;
-  };
+  // (Lit while the money's tabs show.)
+  const on = active === 'finance' && paneShown();
+  const d = driftOf('finance');
+  const graph = railSpark('finance');
   // (The month's balance once: its own, or the line that says it with how long the money lasts.)
   const net = monthNet();
-  const html = row('finance', fin.tone, 'wallet', '재정', `${fin.value}${fin.tone ? ` · ${glue(fin.note)}` : net ? ` · ${net}` : ''}`)
-    + row('rating', rTone, 'approval', '시장 평점', `${rated ? `${st.mayorRating} (−100~100)` : '아직 없음 (주민이 든 달이 지나면 매겨짐)'}${rNote ? ` · ${rNote}` : ''}`);
+  const words = `${fin.value}${fin.tone ? ` · ${glue(fin.note)}` : net ? ` · ${net}` : ''}`;
+  const html = `<button type="button" class="strip-city ${fin.tone || 'ok'}${on ? ' on' : ''}" data-k="finance" data-city-row="finance" aria-pressed="${on}" title="${escapeHtml(`재정: ${words}${d ? ` · ${d.said}` : ''}${graph.said ? ` · 그래프: ${graph.said}` : ''} · ${on ? '눌러서 닫기' : '눌러서 도시 화면의 재정 탭'}`)}" aria-label="${escapeHtml(`재정${said ? `, ${said}` : ''}: ${words}`)}">${icon('wallet')}<span class="r-name">재정</span><span class="r-num">${graph.val}</span>${graph.svg}</button>`;
   if (html === cityRowsSeen) return;
   cityRowsSeen = html;
   patchRow($('#city-rows'), html);
@@ -405,9 +404,9 @@ const peopled = (f: (h: HistoryPoint) => number | undefined) => (h: HistoryPoint
  * line the record doesn't hold as long (an older save's) gives way to the one after it, and counts that are mostly
  * none are drawn against a floor (one fire was a spike the row's height).
  */
-const SPARK: Record<GoalId | 'rating', { a: Series; b?: Series; alt?: Series; floor?: number }> = {
+/** (Not 쾌적도's: its button heads its card with the rating big, on a bar — {@link amenityHead}.) */
+const SPARK: Record<Exclude<GoalId, 'amenity'>, { a: Series; b?: Series; alt?: Series; floor?: number }> = {
   finance: { a: ['지출', (h) => h.expenses], b: ['수입', (h) => h.income] },
-  rating: { a: ['시장 평점', peopled((h) => h.mayorRating)] },
   growth: { a: ['인구', (h) => h.population], b: ['일자리', (h) => h.jobs] },
   power: { a: ['수요', (h) => h.powerDemand], b: ['공급', (h) => h.powerSupply] },
   water: { a: ['수요', (h) => h.waterDemand], b: ['공급', (h) => h.waterSupply] },
@@ -429,7 +428,7 @@ const SPARK_SPAN = 24;
  * ("9.9k / 14k": the line's, then the dashed one's), and the words for it. Under two months to draw, faint dots in its
  * room (nothing read yet, as a figure's "—": not a line at nothing).
  */
-function railSpark(key: GoalId | 'rating'): { svg: string; val: string; said: string } {
+function railSpark(key: Exclude<GoalId, 'amenity'>): { svg: string; val: string; said: string } {
   const def = SPARK[key];
   const months = city.state.history.slice(-SPARK_SPAN);
   const read = (series: Series) => months.map((h) => {
@@ -506,9 +505,13 @@ let stripAt = 'start';
 function patchRow(row: HTMLElement, html: string): void {
   const t = document.createElement('template');
   t.innerHTML = html;
+  patchKids(row, t.content);
+}
+/** `row`'s children brought to `next`'s by their keys, as {@link patchRow} does. */
+function patchKids(row: Element, next: ParentNode): void {
   const old = new Map([...row.children].map((c) => [(c as HTMLElement).dataset.k ?? '', c]));
   let prev: Element | null = null;
-  for (const n of [...t.content.children]) {
+  for (const n of [...next.children]) {
     const k = (n as HTMLElement).dataset.k ?? '';
     const o = old.get(k);
     let node = n;
@@ -536,6 +539,12 @@ function morph(old: Element, next: Element): void {
       if (old.title !== a.value) old.title = a.value;
     }
     else if (old.getAttribute(a.name) !== a.value) old.setAttribute(a.name, a.value);
+  }
+  // (A block of keyed chips within the row — 쾌적도's card — by their keys too: by their places, those after the one
+  // lit were made anew as it moved among them.)
+  if (next.hasAttribute('data-rows')) {
+    patchKids(old, next);
+    return;
   }
   const [oc, nc] = [[...old.childNodes], [...next.childNodes]];
   if (oc.length !== nc.length || oc.some((c, i) => c.nodeName !== nc[i]!.nodeName)) {
@@ -589,6 +598,7 @@ const RISK_OF: Record<string, string> = {
 const RISK: Record<GoalId, string> = {
   finance: '자금이 바닥나면 아무것도 지을 수 없고 시장이 탄핵될 수 있습니다',
   growth: '두면 빈 구역이 늘고 인구가 더 늘지 않습니다',
+  amenity: '평점이 아주 낮은 곳이 모이면 폭동이 일어나고, 평점이 낮으면 열리지 않는 보상도 있습니다',
   power: '전기가 끊긴 건물은 비고 성장이 멈춥니다',
   water: '물이 모자라면 건물이 비고 성장이 멈춥니다',
   garbage: '쌓인 쓰레기는 땅값과 건강을 떨어뜨립니다',
@@ -602,7 +612,7 @@ const RISK: Record<GoalId, string> = {
 };
 
 /** How much each goal's trouble weighs, for what leads: no power or water, money running out, a fire, before traffic or the air. */
-const WEIGHT: Record<GoalId, number> = { finance: 6, growth: 5, power: 9, water: 8, garbage: 5, police: 5, fire: 7, health: 5, education: 4, traffic: 3, environment: 3, land: 2 };
+const WEIGHT: Record<GoalId, number> = { finance: 6, growth: 5, amenity: 6, power: 9, water: 8, garbage: 5, police: 5, fire: 7, health: 5, education: 4, traffic: 3, environment: 3, land: 2 };
 
 /** An advisor's line in words (as the 진단 list says it). */
 const adviceText = (a: ReturnType<typeof adviceFor>[number]) => (a.code === 'waterShort' && waterApart() ? APART : ADVICE_TEXT[a.code]?.(a.value ?? 0, a.type) ?? '');
@@ -750,7 +760,7 @@ function guideHtml(id: GoalId): { head: string; act: string } {
         : block && zone ? `<button type="button" class="g-site" data-zone="${block.x0},${block.y0},${block.x1},${block.y1}" data-zone-kind="${zone}" title="${escapeHtml(st.what)} 구역 ${block.side}×${block.side}을 도로에 닿는 빈 땅에 바로 놓기 · §${fmt(blockCost)}">${icon('target')}추천 자리에 ${block.side}×${block.side} 놓기</button>`
         : fill ? `<button type="button" class="g-site" data-landfill="${fill.x0},${fill.y0},${fill.x1},${fill.y1}" title="${fillSpan(fill.months) ? `${fillSpan(fill.months)}의 쓰레기를 묻을 크기로, ` : ''}도로에 닿고 주거·상업에서 떨어진 빈 땅에 바로 놓기 · §${fmt(fill.cost)} · 월 §${fmt(fill.side * fill.side * city.cfg.garbage.landfill.upkeep)}">${icon('target')}추천 자리에 ${fill.side}×${fill.side} 놓기</button>` : ''}</div></div>`;
   }
-  const p = journal().pending[slotNow(id, side)];
+  const p = journal().pending[id];
   const wait = p ? `<p class="g-wait">${icon('check')}<span>${escapeHtml(p.text)} · ${Math.max(1, FOLLOW_DAYS - (city.state.day - p.day))}일 뒤 결과를 알려 드립니다</span></p>` : '';
   // (The screen's head names the goal: the card starts with what is wrong.)
   return {
@@ -766,19 +776,16 @@ function guideHtml(id: GoalId): { head: string; act: string } {
  * homes mind most — see pollutionGoal).
  */
 const POLL_GOAL: Record<PollTopic, GoalId> = { safety: 'police', environment: 'environment', traffic: 'traffic', health: 'health', education: 'education', taxes: 'finance', landValue: 'land' };
-/** What a low rating costs if left, under what is wrong. */
-const RATING_RISK = '평점이 아주 낮은 곳이 모이면 폭동이 일어나고, 평점이 낮으면 열리지 않는 보상도 있습니다';
-
 /**
- * The guide on the city's 시장 평점 tab (its money's tabs have the money's): what is wrong as its row says it and what
- * it costs, then the step — what the residents mind most in the poll under it, and the screen to mend that on (taxes:
- * the city's own 세율 tab). None while the rating stands well.
+ * The guide on 쾌적도's 시장 평점 tab (its own tab has the parks'): what is wrong as its button says it and what it costs,
+ * then the step — what the residents mind most in the poll under it, and the screen to mend that on (taxes: the city's
+ * 세율 tab). None while the rating stands well.
  */
 function ratingGuide(): { head: string; act: string } {
   const st = readStats();
   const tone = ratingTone(st.mayorRating);
   if (!tone) return { head: '', act: '' };
-  const low = adviceFor('finance').find((a) => a.code === 'mayorLow');
+  const low = adviceFor('amenity').find((a) => a.code === 'mayorLow');
   const said = low ? firstSentence(adviceText(low)) : `시장 평점이 ${st.mayorRating}입니다`;
   const polls = city.opinionPolls();
   const [topic, approve] = (Object.keys(POLL_NAME) as PollTopic[]).map((t) => [t, polls[t].approve] as const).sort((a, b) => a[1] - b[1])[0]!;
@@ -791,12 +798,12 @@ function ratingGuide(): { head: string; act: string } {
     : `<div class="g-act"><p class="g-act-head">${glyph}<b>${POLL_NAME[topic]} 불만부터</b><small>불만 없는 주민 ${Math.round(approve * 100)}%</small></p>
       <p class="g-act-why">시장 평점은 주민의 불만에서 나옵니다: 아래 여론 조사에서 불만이 가장 큰 것을 고치면 오릅니다</p>
       <div class="g-act-btns">${goal === 'finance'
-        ? `<button type="button" class="primary" data-mg-tabk="${goalTabs('finance').findIndex((t) => t.label === '세율')}">${glyph}세율 탭으로</button>`
+        ? `<button type="button" class="primary" data-goal-open="finance" data-goal-view="mayor">${glyph}도시의 세율 탭으로</button>`
         : `<button type="button" class="primary" data-goal-open="${goal}"${view ? ` data-goal-view="${view}"` : ''}>${glyph}${GOALS[goal].name} 화면으로</button>`}</div></div>`;
   return {
     // (Its note left to the row: what it costs is said under it.)
     head: `<section class="lead ${tone} mg-lead" aria-label="지금 문제"><p class="lead-title">${icon('alert')}<span><b>${escapeHtml(glue(said))}</b></span></p>
-      <p class="lead-risk">${RATING_RISK} <button type="button" class="link mg-jump" data-jump-guide>추천 조치 ↓</button></p></section>`,
+      <p class="lead-risk">${RISK.amenity} <button type="button" class="link mg-jump" data-jump-guide>추천 조치 ↓</button></p></section>`,
     act: `<section class="mg-sec mg-guide ${tone}" aria-label="추천 조치"><h3>${icon('target')}추천 조치</h3>${action}</section>`,
   };
 }
@@ -974,10 +981,13 @@ function capStep(a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
     sub: `§${fmt(d.cost)} · 월 §${fmt(d.upkeep)}`, fx: `주거 상한 +${fmt(d.relief[0])}명`, site: false, build: park, anywhere: true };
 }
 
-function goalStep(id: GoalId, side: Side = 'money'): GuideStep {
+function goalStep(id: GoalId, side: Side = 'all'): GuideStep {
+  // (쾌적도's rating has no step of its own to take: its guide sends to the screen that mends what the residents mind
+  // most — ratingGuide. Its parks', on its own tab.)
+  if (id === 'amenity' && side !== 'amenity') return { kind: 'open', what: '', why: '', fixAct: '', act: '', glyph: '', sub: '', fx: '', site: false };
   // The trouble the card leads with ends with a budget (worn lines, a strike for want of funds): that first, before
   // anything to build (a striking station's card said 예산 부족 and recommended a kiosk).
-  // (One side's: the city's 쾌적도 tab's park was offered on its money's tabs once both were the one goal's.)
+  // (One side's: 쾌적도's park was offered on its rating's tab once both were the one goal's.)
   const { worst } = guideSaid(id, side);
   const due = worst && BUDGET_FIX[worst.code] ? budgetStep(id, worst) : null;
   if (due) return due;
@@ -1047,8 +1057,7 @@ function goalStep(id: GoalId, side: Side = 'money'): GuideStep {
   const wide = id === 'traffic' && jammedTiles() >= 10 ? widenStep() : null;
   if (wide) return wide;
   const tpl = document.createElement('template');
-  // (The money's own steps on its tabs only: a month in the red put 대출 at the head of the 쾌적도 tab.)
-  tpl.innerHTML = (id === 'finance' && side === 'money' ? financeActions() : '') + buildActions(GOALS[id]);
+  tpl.innerHTML = (id === 'finance' ? financeActions() : '') + buildActions(GOALS[id]);
   const best = tpl.content.querySelector<HTMLElement>('.act.best');
   // (The list's own reason for a line, a plant off the grid or zones in the dark beside plenty: the line itself,
   // to lay at once, where 해 보기 only handed the tool and left the way to find.)
@@ -1091,7 +1100,7 @@ function goalStep(id: GoalId, side: Side = 'money'): GuideStep {
   // that cost (비핵 지대 shuts the nuclear plants, 도박 합법화 raises crime).
   // (Not one that costs the mayor's rating, and not a second while the first's result is awaited.)
   // (Nor while the card leads with a budget trouble whose budget is already full: it mends on its own.)
-  const ord = journal().pending[slotNow(id, side)] || (worst && BUDGET_FIX[worst.code]) ? undefined : (ORD_FIX[id] ?? []).find((o) => !city.state.ordinances.includes(o) && city.ordinanceAvailable(o)
+  const ord = journal().pending[id] || (worst && BUDGET_FIX[worst.code]) ? undefined : (ORD_FIX[id] ?? []).find((o) => !city.state.ordinances.includes(o) && city.ordinanceAvailable(o)
     && ((ORDINANCES[o] as { mayorRating?: number }).mayorRating ?? 0) >= 0);
   if (ord) {
     const cost = city.ordinanceCost(ord);
@@ -1228,8 +1237,7 @@ export function layPath(lay: Lay, path: [number, number][], owner: GoalId | null
   if (lay === 'road' && laid) city.buildNetwork(path.at(-1)![0], path.at(-1)![1], path.at(-1)![0], path.at(-1)![1], 'road');
   if (!laid) return false;
   city.refreshIfDirty();
-  // (The city's owns only parks, rewards and landmarks: a road to one is the 쾌적도's, whichever of its tabs is open.)
-  if (owner && owner === active) noteAction(`${LAY_WORD[lay]} ${fmt(path.length)}칸 · −§${fmt(laid)}`, undefined, undefined, owner === 'finance' ? AMENITY_SLOT : undefined);
+  if (owner && owner === active) noteAction(`${LAY_WORD[lay]} ${fmt(path.length)}칸 · −§${fmt(laid)}`);
   flash(`${LAY_WORD[lay]} ${fmt(path.length)}칸을 이었습니다 · −§${fmt(laid)}`, 'info');
   for (const [x, y] of path) renderer.effect('flash', x, y);
   // (Laid out of sight — off the screen, or under the city pane or a bar — the map goes to it, at the zoom it had: what
@@ -1357,7 +1365,7 @@ let baselineCity = -1;
 /** What was done from this screen, newest first: when, and what. */
 
 /** A step taken while a goal is open (a build, a budget, an ordinance), kept on its screen. */
-export function noteAction(text: string, merge?: string, toolId?: string, slot?: Slot): void {
+export function noteAction(text: string, merge?: string, toolId?: string): void {
   if (!active) return;
   // A build counts here only with a tool of this goal (a road laid while the budget is open isn't the budget's doing).
   // (Nor one handed out elsewhere: a school built from the info card while 재정 was open is not 재정's doing.)
@@ -1376,14 +1384,16 @@ export function noteAction(text: string, merge?: string, toolId?: string, slot?:
   if (merge && last && last.goal === active && last.key === merge && city.state.day - last.day < 30) done.shift();
   done.unshift({ goal: active, day: city.state.day, text, key: merge });
   if (done.length > 40) done.length = 40;
-  followUp(slot ?? slotOf(active, toolId), text, merge);
+  followUp(active, text, merge);
 }
 
 // ------------------------------------------------------------------ watching while time runs
 
 /** The figure each goal is judged by, to report what an action came to (label, as `metrics` names it). */
+// (쾌적도's by the rich it draws: what is done on its screen is its parks', landmarks' and rewards' — its rating moves
+// with every area under it.)
 const KEY_FIGURE: Record<GoalId, string> = {
-  finance: '지난달 수지', growth: '인구', power: '여유', water: '여유', garbage: '못 치움', police: '범죄 (지난달)', fire: '지난달 화재',
+  finance: '지난달 수지', growth: '인구', amenity: '부유층 주민', power: '여유', water: '여유', garbage: '못 치움', police: '범죄 (지난달)', fire: '지난달 화재',
   health: '건강 지수 평균 (0–200)', education: '교육 지수 평균 (0–200)', traffic: '평균 통근', environment: '대기 오염', land: '평균 땅값',
 };
 /**
@@ -1395,29 +1405,10 @@ const ALSO_FIGURE: Partial<Record<GoalId, string>> = { traffic: '대중교통 �
 const STEADY: Partial<Record<GoalId, number>> = { traffic: 1 };
 /** Days after an action its result is told (a quarter: demand, crime and schooling take that long to move). */
 const FOLLOW_DAYS = 90;
-/**
- * The slot whose result what is done now on a goal's screen waits for: its goal's, or — on the city's 쾌적도 tab, or with
- * its tools (a park from the 재정 tab too) — the 쾌적도's, judged by a figure of its own, for the rich (one built from
- * 쾌적도 was told as "대기 오염 73 → 75", in red), and apart (a park's result was told on the money's tabs, and a tax cut
- * joined it as "공원 외 1건").
- */
-const slotOf = (id: GoalId, toolId?: string): Slot => (id === 'finance' && (sideNow(id) === 'amenity' || (!!toolId && GOALS.finance.tools.includes(toolId))) ? AMENITY_SLOT : id);
-/** The slot a goal's screen shows now (its wait line, its ordinance held back while a result is awaited). */
-const slotNow = (id: GoalId, side: Side = sideNow(id)): Slot => (id === 'finance' && side === 'amenity' ? AMENITY_SLOT : id);
-/** The goal a slot is read on, and the name its result is told under. */
-const slotGoal = (s: Slot): GoalId => (s === AMENITY_SLOT ? 'finance' : s);
-const slotName = (s: Slot) => (s === AMENITY_SLOT ? '쾌적도' : GOALS[s].name);
-
-/** The figure an action is judged by: its slot's (the 쾌적도's, its rich residents; a goal's, its key figure). */
-function keyFigure(s: Slot): Metric | undefined {
-  const label = s === AMENITY_SLOT ? '부유층 주민' : KEY_FIGURE[s];
-  return metrics(slotGoal(s)).find((m) => m[0] === label);
-}
-
-/** Remembers an action to report on; another in the same slot before the result joins it (measured from the first). */
-function followUp(slot: Slot, text: string, merge?: string): void {
+/** Remembers an action to report on; another on the same goal before the result joins it (measured from the first). */
+function followUp(id: GoalId, text: string, merge?: string): void {
   const pending = journal().pending;
-  const was = pending[slot];
+  const was = pending[id];
   if (was && city.state.day - was.day < FOLLOW_DAYS) {
     // (The same slider or step again is one change, at its last value: thirty-five steps read "외 34건".)
     if (merge && was.key === merge) {
@@ -1428,15 +1419,14 @@ function followUp(slot: Slot, text: string, merge?: string): void {
     was.day = city.state.day;
     return;
   }
-  const m = keyFigure(slot);
+  const m = metrics(id).find((x) => x[0] === KEY_FIGURE[id]);
   if (!m || m[3] === undefined) return;
-  const id = slotGoal(slot);
-  const also = slot === id && ALSO_FIGURE[id] ? metrics(id).find((x) => x[0] === ALSO_FIGURE[id]) : undefined;
-  pending[slot] = { text, key: merge, count: 1, day: city.state.day, label: m[0], value: m[1], n: m[3], better: m[4] ?? 0, ...(also ? { also: { label: also[0], value: also[1] } } : {}) };
+  const also = ALSO_FIGURE[id] ? metrics(id).find((x) => x[0] === ALSO_FIGURE[id]) : undefined;
+  pending[id] = { text, key: merge, count: 1, day: city.state.day, label: m[0], value: m[1], n: m[3], better: m[4] ?? 0, ...(also ? { also: { label: also[0], value: also[1] } } : {}) };
 }
 
 /** Goals' tones at the last look (to notice one turning to 조치 필요), for this city. */
-let tonesSeen: { lineage: number; tones: Map<GoalId, Tone>; codes: Map<GoalId, Set<string>>; rating?: Tone } = { lineage: -1, tones: new Map(), codes: new Map() };
+let tonesSeen: { lineage: number; tones: Map<GoalId, Tone>; codes: Map<GoalId, Set<string>> } = { lineage: -1, tones: new Map(), codes: new Map() };
 /** The advisors' 'bad' codes on a goal now (a new one in an already bad goal is news too). */
 const badCodes = (id: GoalId) => new Set(adviceFor(id).filter((a) => a.level === 'bad').map((a) => a.code));
 /** The day each goal was last told as needing action (the advisors' own toast for it then gives way). */
@@ -1468,7 +1458,7 @@ export function watchGoals(): void {
   const day = city.state.day;
   if (tonesSeen.lineage !== cityLineage) {
     // Another city: what is wrong in it now is where it starts, not news.
-    tonesSeen = { lineage: cityLineage, tones: new Map(GOAL_ORDER.map((id) => [id, goalStatus(id).tone])), codes: new Map(GOAL_ORDER.map((id) => [id, badCodes(id)])), rating: ratingTone(readStats().mayorRating) };
+    tonesSeen = { lineage: cityLineage, tones: new Map(GOAL_ORDER.map((id) => [id, goalStatus(id).tone])), codes: new Map(GOAL_ORDER.map((id) => [id, badCodes(id)])) };
     pausedFor.clear();
     // (Nor what was told in the last: a city at day 700 told of its power kept another at day 200 from hearing of its own.)
     toldAt.clear();
@@ -1521,29 +1511,14 @@ export function watchGoals(): void {
     toast(`${inc ? inc.title : `${GOALS[id].name}: ${why ? firstSentence(why) : '조치가 필요해졌습니다'}`}${stop ? stoppedNote() : ''}`, 'bad', inc?.at ?? word?.at, () => openGoal(id, inc?.at ?? word?.at), stop, undefined, id);
     if (inc && stop) centerOn(inc.at[0], inc.at[1]); // a fire or a riot: the map goes to it
   }
-  // The mayor's rating, the city's and no area's, gone below nothing: told as an area's trouble is (the clock stopped if
-  // the player keeps that on), its word opening the city's 시장 평점 tab — the advisor's own alarm for it gives way
-  // (flushAlarms). (Under 재정·정책 it told nothing: the money's figures said 양호.)
-  const rTone = ratingTone(readStats().mayorRating);
-  const rWas = tonesSeen.rating;
-  tonesSeen.rating = rTone;
-  const rAgo = day - (pausedFor.get('rating') ?? -Infinity);
-  if (rTone === 'bad' && rWas !== undefined && rWas !== 'bad' && running && sideNow('finance') !== 'rating' && !(rAgo >= 0 && rAgo < 180) && readStats().population > 0) {
-    pausedFor.set('rating', day);
-    if (autoPause) chooseSpeed(0);
-    const low = adviceFor('finance').find((a) => a.code === 'mayorLow');
-    toast(`시장 평점: ${low ? firstSentence(adviceText(low)) : `시장 평점이 ${readStats().mayorRating}입니다`}${autoPause ? stoppedNote() : ''}`, 'bad', undefined,
-      () => cityTab(goalTabs('finance').findIndex((t) => t.label === '시장 평점')), autoPause, undefined, 'finance');
-  }
   const j = journal();
-  for (const slot of Object.keys(j.pending) as Slot[]) {
-    const p = j.pending[slot]!;
+  for (const id of Object.keys(j.pending) as GoalId[]) {
+    const p = j.pending[id]!;
     if (day - p.day < FOLLOW_DAYS) continue;
-    delete j.pending[slot];
-    const id = slotGoal(slot);
-    const name = slotName(slot);
-    // (The 쾌적도's, on its tab: the city's screen opened on its money.)
-    const view = slot === AMENITY_SLOT ? 'desirability' : undefined;
+    delete j.pending[id];
+    const name = GOALS[id].name;
+    // (쾌적도's, on its own tab — its parks' — not its rating's.)
+    const view = id === 'amenity' ? 'desirability' : undefined;
     // (The figure it was told against, whichever tab is open now.)
     const m = metrics(id).find((x) => x[0] === p.label);
     if (!m || m[3] === undefined) continue;
@@ -1585,8 +1560,8 @@ const currentView = () => $<HTMLSelectElement>('#overlay-kind').value;
 
 /** The open goal's name and tools (tool ids, a facility tool standing for its kinds), for the tray. */
 export function goalTools(): { name: string; keys: string[] } | null {
-  // (The city's: its 쾌적도 tab's — its money's and rating's tabs have none: "재정·정책 화면" led the card with parks.)
-  if (active === 'finance') return sideNow('finance') === 'amenity' ? { name: '쾌적도', keys: GOALS.finance.tools } : null;
+  // (쾌적도's on its own tab: its rating's has none — the parks led the card there, and a park mends no complaint.)
+  if (active === 'amenity' && !amenityOpen()) return null;
   return active ? { name: GOALS[active].name, keys: GOALS[active].tools } : null;
 }
 
@@ -1645,12 +1620,12 @@ const codeOn = (id: GoalId, t: GoalTab, code: string) => onTab(id, t, code, (x) 
 const incidentCode = (x: { goal: string }) => (x.goal === 'fire' ? 'fires' : 'riot');
 
 /**
- * A tab's mark: red where an advisor's alarm about its part stands, or a fire or a riot it shows; the city's 시장 평점 and
- * 쾌적도 tabs as their sides are judged, amber too (an amber 쾌적도 — no park at all — had no mark anywhere).
+ * A tab's mark: red where an advisor's alarm about its part stands, or a fire or a riot it shows; 쾌적도's two as their
+ * sides are judged, amber too (an amber 쾌적도 — no park at all — had no mark anywhere).
  */
 function tabTone(id: GoalId, t: GoalTab): '' | 'warn' | 'bad' {
   if (incidents().some((x) => x.goal === id && codeOn(id, t, incidentCode(x)))) return 'bad';
-  const side = id === 'finance' ? SIDE_OF_TAB[t.label] : undefined;
+  const side = id === 'amenity' ? SIDE_OF_TAB[t.label] : undefined;
   if (side) {
     const tone = sideTone(id, side);
     return tone === 'bad' || tone === 'warn' ? tone : '';
@@ -1663,23 +1638,21 @@ const tabSaid = (tone: '' | 'warn' | 'bad') => (tone === 'bad' ? ' · 문제 있
 
 /**
  * The tab a goal's screen opens on, by what is the matter now: a fire or a riot, then the trouble its card leads with,
- * then the worst said; else its home tab (an area's first, the city's 재정). (The map's view comes with it: what the
- * trouble is seen in.)
+ * then the worst said; else its home tab (an area's first, the city's 재정, 쾌적도's 시장 평점). (The map's view comes
+ * with it: what the trouble is seen in.)
  */
-function openingTab(id: GoalId, moneyOnly = false): number {
+function openingTab(id: GoalId): number {
   const tabs = goalTabs(id);
+  // (쾌적도's: its own tab while only its parks want a look, else its rating's — each as its button or tab stands.)
+  if (id === 'amenity') return Math.max(0, tabs.findIndex((t) => t.label === (!goalStatus(id).tone && amenityStatus().tone ? '쾌적도' : '시장 평점')));
   // (A code no tab names is the home tab's — an area's first, the city's 재정 — as 진단 has it: by the names alone, a card
   // led by an unnamed code opened on another tab's trouble, its own on the home tab.)
   const by = (code: string | undefined) => (code ? tabs.findIndex((t) => codeOn(id, t, code)) : -1);
-  // (The city's: its money's trouble first, else its rating's tab, else its 쾌적도's — each as its row or tab stands.)
-  // (Not for B and the policy links, which are for the money: the screen opened on 쾌적도 when only it was amber.)
-  const side = id !== 'finance' || moneyOnly || goalStatus(id).tone ? null : ratingTone(readStats().mayorRating) ? '시장 평점' : amenityStatus().tone ? '쾌적도' : null;
-  if (side) return Math.max(0, tabs.findIndex((t) => t.label === side));
   const inc = incidents().find((x) => x.goal === id);
-  const lead = inc ? incidentCode(inc) : (capFirst(id) ?? guideSaid(id, 'money').worst)?.code;
+  const lead = inc ? incidentCode(inc) : (capFirst(id) ?? guideSaid(id, 'all').worst)?.code;
   const k = by(lead);
   if (k >= 0) return k;
-  const bad = sideAdvice(id, 'money').find((a) => a.level === 'bad' && by(a.code) >= 0);
+  const bad = sideAdvice(id, 'all').find((a) => a.level === 'bad' && by(a.code) >= 0);
   return bad ? by(bad.code) : Math.max(0, tabs.indexOf(homeOf(id)));
 }
 
@@ -1693,8 +1666,7 @@ function selectTab(k: number, focus = false): void {
   showGoalStats(active);
   renderGoal(true);
   refreshCityTabs();
-  if (active === 'finance') refreshCityRows(!phone()); // (its row lit: 시장 평점's, or 재정's for the money's tabs)
-  refreshRecent(); // (the tool card's row of the screen's tools: the city's 쾌적도 tab has them, its money's not)
+  refreshRecent(); // (the tool card's row of the screen's tools: 쾌적도's own tab has them, its rating's not)
   // (Back in sight if the screen was scrolled down: its new part starts under the tabs, which stay at the top.)
   $('#pane').scrollTop = 0;
   if (focus) document.getElementById(`mg-tab-${k}`)?.focus({ preventScroll: true });
@@ -1753,8 +1725,8 @@ export function stepTab(by: number): void {
 }
 
 /**
- * Opens a goal on the tab that shows a view (an advisor's or a legend's 보기, the getting-started list's 개발 막힘, the
- * summary's 시장 평점): the goal's own tab with it, among its kinds if need be.
+ * Opens a goal on the tab that shows a view (an advisor's or a legend's 보기, the getting-started list's 개발 막힘, a
+ * guide's way to 세율): the goal's own tab with it, among its kinds if need be.
  */
 export function openGoalView(id: GoalId, view: string): void {
   openGoal(id);
@@ -1793,7 +1765,7 @@ function closeScreen(): void {
 let cityTabsSeen = '';
 /**
  * The city's screen's tabs, over the pane under its region › name: 도시 (its size, the next reward) and 재정·정책's
- * (the money, taxes, ordinances, the mayor's rating) — each putting its map view on, as an area's tabs do.
+ * (the money, taxes, ordinances) — each putting its map view on, as an area's tabs do.
  */
 export function refreshCityTabs(): void {
   const el = $('#city-tabs');
@@ -1824,16 +1796,15 @@ function cityTab(k: number, focus = false): void {
   if (focus) $('#city-tabs').querySelector<HTMLElement>('[aria-selected="true"]')?.focus({ preventScroll: true });
 }
 
-/** 재정 or 시장 평점 pressed (a row of the city's card, its scoreboard's): that tab of the city's screen — or, showing,
- *  the pane put away. */
-function toggleCityRow(key: string): void {
-  const rating = key === 'rating';
-  // (Lit as its row is — 시장 평점's tab, or any of the money's: 재정's lit on 세율 went to 재정 when pressed again.)
-  if (active === 'finance' && paneShown() && sideNow('finance') === (rating ? 'rating' : 'money')) {
+/** 재정 pressed (a row of the city's card, its scoreboard's): that tab of the city's screen — or, showing, the pane put
+ *  away. */
+function toggleCityRow(): void {
+  // (Lit as its row is, on any of the money's tabs: 재정's lit on 세율 went to 재정 when pressed again.)
+  if (active === 'finance' && paneShown()) {
     dismissPane();
     return;
   }
-  cityTab(goalTabs('finance').findIndex((t) => t.label === (rating ? '시장 평점' : '재정')));
+  cityTab(goalTabs('finance').findIndex((t) => t.label === '재정'));
 }
 
 /** Where the keyboard goes into an open screen: its tab showing, else the pane's ×. */
@@ -1925,15 +1896,11 @@ function clearOfCards(): void {
 }
 
 /**
- * 재정·정책: opens it on the money's tabs, or on it already brings its policy into sight (an advisor's "재정 열기", the
- * policy links, B).
+ * 재정·정책: opens it, or on it already brings its policy into sight (an advisor's "재정 열기", the policy links, B).
  */
 export function openFinance(): void {
-  if (active !== 'finance' || sideNow('finance') !== 'money') {
-    openGoal('finance');
-    const k = openingTab('finance', true);
-    if (k !== tabAt) selectTab(k);
-  } else {
+  if (active !== 'finance') openGoal('finance');
+  else {
     openPane();
     // (Its first part: #policy itself draws no box, and asked to come into sight it never moved.)
     ($('#policy').querySelector<HTMLElement>(':scope > :not([hidden])') ?? $('#policy')).scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -1973,7 +1940,7 @@ function tabGraphs(id: GoalId, t: GoalTab): string[] {
   return GRAPH_KEYS.filter(({ key, goal }) => named(t, key) || (goal === id && t === homeOf(id) && !GOALS[id].tabs.some((x) => named(x, key)))).map((g) => g.key);
 }
 
-/** Opens a goal's screen and brings one of its reports into sight (the summary's 시장 평점 and 다음 보상), on a view of its own. */
+/** Opens a goal's screen and brings one of its reports into sight (the summary's 다음 보상), on a view of its own. */
 function openGoalAt(id: GoalId, part: string, view?: string): void {
   if (view) openGoalView(id, view);
   else {
@@ -2074,7 +2041,7 @@ export function suggestedKinds(): Map<string, StructureKind> {
   if (suggestMemo?.key === key) return suggestMemo.map;
   const map = new Map<string, StructureKind>();
   GOAL_ORDER.forEach((id, i) => {
-    if (id === 'finance' || (tones[i] !== 'warn' && tones[i] !== 'bad')) return;
+    if (id === 'finance' || id === 'amenity' || (tones[i] !== 'warn' && tones[i] !== 'bad')) return;
     const tpl = document.createElement('template');
     tpl.innerHTML = buildActions(GOALS[id]);
     tpl.content.querySelectorAll<HTMLElement>('.act.best[data-kind]').forEach((b) => {
@@ -3080,7 +3047,7 @@ function goalParts(id: GoalId): { top: string; acts: string; more: string } {
     ${budgetActions(g, has('facilities') ? list : [], depts)}
     ${repairActions(ops, depts.map(([k]) => k))}
     ${has('dispatch') ? ops.dispatch : ''}
-    ${id === 'finance' && SIDE_OF_TAB[t.label] !== 'amenity' ? '' : ordinanceActions(ords)}
+    ${id === 'finance' ? '' : ordinanceActions(ords)}
     ${facs}`;
   const more = `${((said) => (said ? `<section class="mg-sec"><h3>${icon('info')}진단</h3>${said}</section>` : ''))(advice.map((a) => diagnosis(a, lead, id)).join(''))}
     ${log(id)}
@@ -3143,7 +3110,7 @@ export function renderGoal(force = false): void {
 }
 
 /** Attributes that pick out a control again after the panel is redrawn. */
-const KEYS = ['data-jump-guide', 'data-spot', 'data-spot-build', 'data-widen', 'data-line-path', 'data-landfill', 'data-zone', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-mg-tabk', 'data-goal', 'data-mg-tab', 'data-at', 'data-power-dispatch', 'data-repair-network'];
+const KEYS = ['data-jump-guide', 'data-spot', 'data-spot-build', 'data-widen', 'data-line-path', 'data-landfill', 'data-zone', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-mg-tabk', 'data-goal', 'data-goal-open', 'data-mg-tab', 'data-at', 'data-power-dispatch', 'data-repair-network'];
 
 /** A selector for the focused control inside the goal panel, to give focus back after a redraw ('' if none). */
 function focusKey(el: Element | null): string {
@@ -3168,13 +3135,8 @@ export function toggleUrgentGoal(): void {
   // (The first row of 도시 상태, as the list orders them: by GOAL_ORDER alone, M opened 재정·정책 under a list that
   // began with 수도.)
   const rank = { bad: 0, warn: 1, '': 2, good: 2 } as const;
-  const rated = ratingTone(readStats().mayorRating);
-  const toneOf = (g: GoalId): Tone => {
-    const t = goalStatus(g).tone;
-    return g !== 'finance' ? t : rank[rated] < rank[t] ? rated : t;
-  };
   const id = [...WATCHED].sort((a, b) => {
-    const [ta, tb] = [toneOf(a), toneOf(b)];
+    const [ta, tb] = [goalStatus(a).tone, goalStatus(b).tone];
     return rank[ta] - rank[tb] || (ta ? WEIGHT[b] - WEIGHT[a] : 0);
   })[0]!;
   openGoal(id);
@@ -3184,9 +3146,9 @@ export function toggleUrgentGoal(): void {
 export function setupGoals(): void {
   // A problem's row, a quality's tile (or an advisor's 해결) opens its goal.
   $('#pane').addEventListener('click', (e) => {
-    // 다음 보상: the full list of rewards and how far along each is (on the city's 쾌적도 tab, with the landmarks).
+    // 다음 보상: the full list of rewards and how far along each is (on 쾌적도's own tab, with the landmarks).
     if ((e.target as HTMLElement).closest('.sum-next')) {
-      openGoalAt('finance', '#rewards');
+      openGoalAt('amenity', '#rewards');
       return;
     }
     // A goal screen's 추천 조치: the action it names, taken up (as if pressed below).
@@ -3269,7 +3231,7 @@ export function setupGoals(): void {
     else if (row) openGoal(row.dataset.goal as GoalId);
   });
   // The row of chips under the top buttons: 시작하기 opens the city pane on its overview (an open screen put away ends),
-  // an area its screen (the open one's back up), its × ends it, the rating the polls. (Scrolled, its cut edges fade.)
+  // an area its screen (the open one's back up — 쾌적도's on its rating), its × ends it. (Scrolled, its cut edges fade.)
   const strip = $('#goal-strip');
   strip.addEventListener('scroll', () => fadeStrip(strip), { passive: true });
   // (Its size changed — the rail narrowed beside the pane or widened again, the window — its fades and its Tab stop
@@ -3359,11 +3321,11 @@ export function setupGoals(): void {
     e.stopPropagation(); // (not the map's arrows)
     cityTab(to - 1, true);
   });
-  // 재정 and 시장 평점: the rows of the city's card down the map's left, and its scoreboard's.
+  // 재정: the row of the city's card down the map's left, and its scoreboard's.
   document.addEventListener('click', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-city-row]');
     if (!b) return;
-    toggleCityRow(b.dataset.cityRow!);
+    toggleCityRow();
     if ((e as MouseEvent).detail === 0 && paneShown()) screenStart().focus({ preventScroll: true });
   });
   // The info card's link to the goal a facility or lot belongs to.
@@ -3523,7 +3485,7 @@ export function setupGoals(): void {
     const b = (e.target as HTMLElement).closest<HTMLElement>('.info-goal[data-goal]');
     if (!b) return;
     if (phone()) closeInfo(); // one sheet at a time there
-    // (A park's: the city's 쾌적도 tab, by its view.)
+    // (A park's: 쾌적도's own tab, by its view.)
     if (b.dataset.goalView) openGoalView(b.dataset.goal as GoalId, b.dataset.goalView);
     else openGoal(b.dataset.goal as GoalId);
   });

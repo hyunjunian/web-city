@@ -379,7 +379,7 @@ export function updatePanels(): void {
   // they are costly); opening one brings it up to date (the 'sheet-open' event).
   const goal = paneShown() ? active : null;
   const budget = goal === 'finance';
-  if (goal === 'finance') renderWealth(); // (the city's 쾌적도 tab)
+  if (goal === 'amenity') renderWealth(); // (쾌적도's own tab)
   if (goal === 'growth') renderBuildings();
   // Milestones by the monthly record (the live count swings within a month: a passing peak isn't a milestone).
   checkMilestone(city.state.history.at(-1)?.population ?? 0);
@@ -517,8 +517,8 @@ export function updatePanels(): void {
     renderDepartments();
   }
   if (sheetShown('region')) renderNeighbours();
-  if (goal === 'finance') renderPolls();
-  if (goal === 'finance') renderRewards();
+  if (goal === 'amenity') renderPolls();
+  if (goal === 'amenity') renderRewards();
   if (goal === 'growth' || goal === 'education') renderAges();
   renderOnboarding();
   refreshStrip(); // (after the checklist: its score chip says 시작하기 while it shows)
@@ -1062,7 +1062,7 @@ export function capHint(): string {
 const alarms: { goal: GoalId; code: string; text: string; at?: [number, number] }[] = [];
 export function flushAlarms(): void {
   for (const a of alarms.splice(0)) {
-    // (The rating's own notice tells that, opening its tab: watchGoals.)
+    // (쾌적도's own notice tells that, opening its rating's tab: watchGoals.)
     if (a.code === 'mayorLow') continue;
     // (Not when its goal's own notice spoke lately: the two came together with two figures for one cap, 21,310 and 21,290.)
     // (Counted forward only: a day before it, in a city loaded since, is not "lately".)

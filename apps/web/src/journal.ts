@@ -7,17 +7,13 @@ import { type GoalId, GOALS } from './goals';
 import { city } from './state';
 
 /** A line of 소식: bad news (warn), worth noting but neither good nor bad (info), else good. */
-export interface Notice { text: string; until: number; day?: number; warn?: boolean; info?: boolean; at?: [number, number]; goal?: GoalId; /** the goal's tab it opens on, by its view (a 쾌적도 result: the city's 쾌적도) */ view?: string; /** a reward or deal it offers, to take up from the news */ build?: StructureKind; /** a damage report: the rubble it left, cleared from the news */ rubble?: true }
+export interface Notice { text: string; until: number; day?: number; warn?: boolean; info?: boolean; at?: [number, number]; goal?: GoalId; /** the goal's tab it opens on, by its view (a 쾌적도 result: its own tab) */ view?: string; /** a reward or deal it offers, to take up from the news */ build?: StructureKind; /** a damage report: the rubble it left, cleared from the news */ rubble?: true }
 export interface Done { goal: GoalId; day: number; text: string; key?: string; base?: string; n?: number }
 export interface Pending { text: string; key?: string; count: number; day: number; label: string; value: string; n: number; better: number; /** a second figure told with it (transit's share beside the commute) */ also?: { label: string; value: string } }
-/** The city's 쾌적도's slot for a result to tell, beside its money's: judged apart, by a figure of its own. */
-export const AMENITY_SLOT = 'finance:amenity';
-/** Where an action's result waits: its goal's slot, or the 쾌적도's. */
-export type Slot = GoalId | typeof AMENITY_SLOT;
-export interface Journal { notices: Notice[]; done: Done[]; pending: Partial<Record<Slot, Pending>> }
+export interface Journal { notices: Notice[]; done: Done[]; pending: Partial<Record<GoalId, Pending>> }
 
-/** A goal a save may name that is no more, and where its screen went (부유층·고급화: the city's 쾌적도 tab). */
-const MOVED: Record<string, GoalId> = { wealth: 'finance' };
+/** A goal a save may name that is no more, and where its screen went (부유층·고급화: 쾌적도's own tab). */
+const MOVED: Record<string, GoalId> = { wealth: 'amenity' };
 /** Journals already brought up to the goals as they are. */
 const current = new WeakSet<object>();
 
@@ -35,24 +31,28 @@ export function journal(): Journal {
     current.add(j);
     const now = (g: string | undefined): GoalId | undefined => (!g ? undefined : g in GOALS ? (g as GoalId) : MOVED[g]);
     for (const n of j.notices) {
-      // (부유층·고급화's news opens the tab it became: the city's 쾌적도.)
+      // (부유층·고급화's news opens the tab it became: 쾌적도's own.)
       if (n.goal === ('wealth' as GoalId)) n.view = 'desirability';
+      // (And the city's 쾌적도 tab's results, from before it was 쾌적도's.)
+      if (n.goal === 'finance' && n.view === 'desirability') n.goal = 'amenity';
       if (n.goal) n.goal = now(n.goal);
     }
     j.done = j.done.filter((d) => !!(d.goal = now(d.goal)!));
     // (Unless its figure went with it: a park's from 부유층·고급화, from the old 환경·쾌적's 쾌적도 tab, or from the city's
-    // before it had its own slot, is the 쾌적도's; a raise of the ground's from its 땅값 tab, 땅값's.)
+    // 쾌적도 tab — its own slot there, or the money's before it had one — is 쾌적도's; a raise of the ground's from its
+    // 땅값 tab, 땅값's.)
     const pend = j.pending as Record<string, Pending | undefined>;
-    const move = (from: string, label: string, to: Slot) => {
-      if (pend[from]?.label !== label) return;
+    const move = (from: string, label: string | null, to: GoalId) => {
+      if (!pend[from] || (label !== null && pend[from]!.label !== label)) return;
       pend[to] ??= pend[from];
       delete pend[from];
     };
-    move('wealth', '부유층 주민', AMENITY_SLOT);
-    move('environment', '부유층 주민', AMENITY_SLOT);
+    move('wealth', '부유층 주민', 'amenity');
+    move('environment', '부유층 주민', 'amenity');
     move('environment', '평균 땅값', 'land');
-    move('finance', '부유층 주민', AMENITY_SLOT);
-    for (const k of Object.keys(pend)) if (!(k in GOALS) && k !== AMENITY_SLOT) delete pend[k];
+    move('finance:amenity', null, 'amenity');
+    move('finance', '부유층 주민', 'amenity');
+    for (const k of Object.keys(pend)) if (!(k in GOALS)) delete pend[k];
   }
   return j as Journal;
 }
