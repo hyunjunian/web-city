@@ -653,7 +653,7 @@ function guideHtml(id: GoalId): { head: string; act: string } {
   // (Its first clause the headline, the rest on a quieter line of its own: run on, it broke where the width fell —
   // "…정원의 203% · / 전체 116%".)
   const [first, ...more] = said ? said.split(' · ') : [];
-  const title = said ? `<b>${escapeHtml(glue(first!))}</b>${more.length ? `<span class="g-note lead-more">${escapeHtml(glue(more.join(' · ')))}</span>` : ''}` : `<b>${escapeHtml(s.value)}</b> <span class="g-note">${escapeHtml(glue(s.note))}</span>`;
+  const title = said ? `<b>${escapeHtml(glue(first!))}</b>${more.length ? `<span class="g-note lead-more">${escapeHtml(glue(more.join(' · ')))}</span>` : ''}` : `<b>${escapeHtml(s.value)}</b><span class="g-note lead-more">${escapeHtml(glue(s.note))}</span>`;
   const spot = suggestSpot(id);
   let action: string;
   if (st.wait) {
