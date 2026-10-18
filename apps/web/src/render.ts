@@ -2,6 +2,7 @@
 
 import { DEFAULT_CONFIG, DEV_TYPES, ELEVATED, GROWTH_CODES, INTERCHANGE, isLocalNet, isRail, Net, NETWORK_KINDS, overNet, overNetVertical, STRUCTURES, Terrain, tilesLinked, ZONES, type City, type DevType, type Rect, type RouteTrip, type StructureKind, type TripMeans, type ZoneKind } from '@web-city/engine';
 import { ABANDONED_COLOR, buildingRisk, coverageRadius, GROWTH_COLOR, growthNow, RISK_COLOR, volumeAt } from './views';
+import { icon, iconPaths, type IconName } from './icons';
 
 /** Networks the volume view can show, one at a time (a button per network). */
 export type VolumeNetwork = 'road' | 'evening' | 'rail' | 'subway' | 'monorail' | 'highway' | 'ferry';
@@ -120,13 +121,20 @@ const CIVIC_STYLE = {
   police: { fill: '#2b4d9a', mark: '#ffffff', glyph: '★' },
   fire: { fill: '#b8322a', mark: '#ffe0d0', glyph: '🔥' },
   health: { fill: '#f1f1f1', mark: '#d93636', glyph: '+' },
-  education: { fill: '#c98a4a', mark: '#fff2c4', glyph: '✎' },
+  education: { fill: '#c98a4a', mark: '#fff2c4', glyph: '🎓' },
   park: { fill: '#4e9a45', mark: '#2f6f2a', glyph: '' },
   transport: { fill: '#3d4a63', mark: '#ffffff', glyph: '' },
   reward: { fill: '#c9a227', mark: '#3b2f05', glyph: '★' },
   deal: { fill: '#5b3a3a', mark: '#ffb3b3', glyph: '$' },
   landmark: { fill: '#8f6bb8', mark: '#ffffff', glyph: '♦' },
 } as const;
+
+/** The signs drawn as the interface's own icons, in their mark's colour (as colour emoji they ignored it and looked
+ *  different on every system; 교육's ✎ read as a plaster): solid where a shape reads better filled when small. */
+const SIGN_ICON: Partial<Record<string, { icon: IconName; solid: boolean }>> = {
+  '⚡': { icon: 'zap', solid: true }, '💧': { icon: 'droplet', solid: true }, '🔥': { icon: 'flame', solid: true },
+  '♻': { icon: 'recycle', solid: false }, '🎓': { icon: 'school', solid: false },
+};
 
 /** The colour a facility is drawn in (parks green, police blue …). */
 export function structureColor(kind: keyof typeof STRUCTURES): string {
@@ -147,7 +155,9 @@ export function structureMark(kind: keyof typeof STRUCTURES): { fill: string; ma
   const def = STRUCTURES[kind];
   if (def.category === 'park') return { fill: structureColor(kind), mark: '', glyph: '' };
   const style = (def.category === 'safety' ? (def.fire ? 'fire' : 'police') : def.category) as keyof typeof CIVIC_STYLE;
-  return { fill: CIVIC_STYLE[style].fill, mark: CIVIC_STYLE[style].mark, glyph: civicGlyph(def, style) };
+  const sign = civicGlyph(def, style);
+  const drawn = SIGN_ICON[sign];
+  return { fill: CIVIC_STYLE[style].fill, mark: CIVIC_STYLE[style].mark, glyph: drawn ? icon(drawn.icon, drawn.solid ? 'solid' : '') : sign };
 }
 
 /** Civic buildings' drawn height in tiles (see buildingRise). */
@@ -188,13 +198,28 @@ function drawCivic(
   }
   if (sc >= 5) {
     const size = Math.min(st.w, st.h) * 0.6;
-    ctx.fillStyle = style.mark;
-    ctx.font = `bold ${size}px system-ui, sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(style.glyph, x + w / 2, y + h / 2 + size * 0.05);
-    ctx.textAlign = 'start';
-    ctx.textBaseline = 'alphabetic';
+    const drawn = SIGN_ICON[style.glyph];
+    if (drawn) {
+      ctx.save();
+      ctx.translate(x + w / 2 - size / 2, y + h / 2 - size / 2);
+      ctx.scale(size / 24, size / 24);
+      ctx.strokeStyle = ctx.fillStyle = style.mark;
+      ctx.lineWidth = 2.4;
+      ctx.lineCap = ctx.lineJoin = 'round';
+      for (const p of iconPaths(drawn.icon)) {
+        if (drawn.solid) ctx.fill(p);
+        ctx.stroke(p);
+      }
+      ctx.restore();
+    } else {
+      ctx.fillStyle = style.mark;
+      ctx.font = `bold ${size}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(style.glyph, x + w / 2, y + h / 2 + size * 0.05);
+      ctx.textAlign = 'start';
+      ctx.textBaseline = 'alphabetic';
+    }
   }
 }
 

@@ -83,6 +83,18 @@ export function icon(name: IconName, cls = ''): string {
   return `<svg class="i${cls ? ` ${cls}` : ''}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${body}</svg>`;
 }
 
+/** An icon's paths for a canvas (the map's signs, drawn as the cards draw them): its `path` elements, in its 24 units. */
+const pathCache = new Map<IconName, Path2D[]>();
+export function iconPaths(name: IconName): Path2D[] {
+  let out = pathCache.get(name);
+  if (!out) {
+    const node: IconNode = ICONS[name];
+    out = node.filter(([tag]) => tag === 'path').map(([, attrs]) => new Path2D(String((attrs as { d?: string }).d ?? '')));
+    pathCache.set(name, out);
+  }
+  return out;
+}
+
 /** Fills the page's static [data-icon] placeholders with their icons. */
 export function paintIcons(root: ParentNode = document): void {
   root.querySelectorAll<HTMLElement>('[data-icon]').forEach((el) => {
