@@ -2053,6 +2053,9 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
    under 도로, and 선로's half empty). */
 #tray { container-type: inline-size; }
 @container (min-width: 740px) { #tray[data-cat='transport'] #tools { grid-template-columns: minmax(0, 5fr) minmax(0, 3fr); } }
+/* 보상·거래 down one column, each section a full row (beside 보상, 사업 거래's one tile stood in an empty half, and
+   랜드마크 under 보상 left the other half empty too). */
+#tray[data-cat='special'] #tools { grid-template-columns: minmax(0, 1fr); }
 /* A drag laying something down: the bars, the minimap and the zoom step back. */
 #view :is(#dock-col, #minimap, #map-zoom, #toasts) { transition: opacity 0.2s var(--ease); }
 #view.drawing :is(#dock-col, #minimap, #map-zoom, #toasts) { opacity: 0.25; } /* (the top buttons too, below) */
