@@ -268,7 +268,7 @@ onCityChange(() => {
 setupRangeFill();
 setupTouchTitles((text) => flash(text, 'info'));
 onCoveredFlash((msg, tone) => toast(msg, tone, undefined, undefined, false, undefined, undefined, false)); // (nothing for 도시 to mark unread)
-setupSwipeDown($('#pane'), dismissPane); // (as its ×: the city's screen ends with it, an area's stays lit)
+setupSwipeDown($('#pane'), dismissPane); // (as its ×: the screen ends with it, its map too)
 setupSwipeDown($('#info-card'), closeInfo);
 setupSwipeDown($('#tray'), closeTray);
 setupSwipeDown($('#sheet'), closeSheet);

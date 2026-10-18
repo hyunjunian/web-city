@@ -17,7 +17,7 @@ import { abandonHint, capBest, capHint, capLeads, demandList, jobHint, pushNotic
 import { checklist } from './onboarding';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { GRAPH_KEYS } from './graphs';
-import { cityAside, closeInfo, closePane, closeSheet, dismissPane, markCity, openPane, paneShown, setCityAside, showTab } from './tabs';
+import { closeInfo, closePane, closeSheet, dismissPane, markCity, openPane, paneShown, showTab } from './tabs';
 import { categoryOf, chosen, edgeFade, kindsFor, openTray, panTipAt, pickStructure, refreshRecent, restView, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice } from './choices';
@@ -213,10 +213,12 @@ export function refreshStrip(): void {
   const start = !checklist ? ''
     : wide ? `<button type="button" class="strip-start" data-k="start" ${tab('start')} data-strip-start title="시작하기: ${checklist.done}/${checklist.of} 완료 · 눌러서 인구 화면의 시작하기 목록" aria-label="시작하기: ${checklist.done}/${checklist.of} 완료 · 인구 화면">${icon('sparkles')}<span class="r-name">시작하기</span><span class="r-val">${checklist.done}/${checklist.of}</span></button>`
     : `<button type="button" class="strip-start" data-k="start" ${tab('start')} data-strip-start title="시작하기: ${checklist.done}/${checklist.of} 완료 · 눌러서 인구 화면의 시작하기 목록" aria-label="시작하기: ${checklist.done}/${checklist.of} 완료 · 인구 화면">${icon('sparkles')}<span>시작하기 <small>${checklist.done}/${checklist.of}</small></span></button>`;
-  // The open screen's lit, with its × — a phone's first after 시작하기; wide, in its place (a button that jumped to
-  // the top as it was pressed left another under the pointer).
+  // The open screen's lit — a phone's first after 시작하기, with its × (seen while it steps aside for the map to build
+  // on: its sheet hides the row); wide, in its place, the rail beside its panel (a button that jumped to the top as it
+  // was pressed left another under the pointer; its panel's × closes it).
   const on = active ? sorted.find((c) => c.key === active) : undefined;
-  const lit = on && active ? `<span class="strip-on" data-k="on" role="group" aria-label="열린 화면: ${GOALS[active].name}">${on.html(true)}<button type="button" ${tab('end')} data-strip-end title="${GOALS[active].name} 화면 닫기 (지도 보기도 꺼짐)" aria-label="${GOALS[active].name} 화면 닫기">${icon('close')}</button></span>` : '';
+  const end = active && !wide ? `<button type="button" ${tab('end')} data-strip-end title="${GOALS[active].name} 화면 닫기" aria-label="${GOALS[active].name} 화면 닫기">${icon('close')}</button>` : '';
+  const lit = on && active ? `<span class="strip-on" data-k="on" role="group" aria-label="열린 화면: ${GOALS[active].name}">${on.html(true)}${end}</span>` : '';
   const show = (c: Chip) => (c === on ? lit : c.html(false));
   // Wide, two cards: the city's takes 수요 and 재정 under its button (the residents), 쾌적도's the areas under its own
   // (the rating).
@@ -1505,16 +1507,22 @@ export function goalTools(): { name: string; keys: string[] } | null {
   return active ? { name: GOALS[active].name, keys: GOALS[active].tools } : null;
 }
 
-/** Puts a goal's view on the map, and the info card's reading follows. */
+/** Puts a goal's view on the map while its panel shows (else the map rests as it is), and the info card's reading
+ *  follows. */
 function showGoalView(view: string): void {
-  showOverlay(view);
+  if (paneShown()) showOverlay(view);
+  else restView();
   refreshInfo();
 }
 
-/** The view the map rests on: the open goal's tab's, else the city's own screen's while it shows (or, on a phone, is put
- *  aside for the map), else the city as it is (a tool in hand may put its own over it). */
+/**
+ * The view the map rests on: the screen's whose panel shows — the open goal's tab's, else the city's own screen's — and
+ * none while no panel does (a screen's map goes with its panel, a phone's stepped aside to build too). A tool in hand may
+ * put its own over it.
+ */
 export function baseView(): string {
-  return active ? tabView(active, tabNow(active)) : paneShown() || cityAside ? CITY_VIEW : 'none';
+  if (!paneShown()) return 'none';
+  return active ? tabView(active, tabNow(active)) : CITY_VIEW;
 }
 
 // ------------------------------------------------------------------ a goal's tabs
@@ -1671,13 +1679,9 @@ export function openGoalView(id: GoalId, view: string): void {
 export function openViewTab(view: string): void {
   if (view === CITY_VIEW) {
     openCity();
-    // (A phone's pane, over the map, goes down for it: the screen put aside with its view, the city button lit to bring
-    // it back — as an area's 보기 puts its screen aside. Put away whole, it took the view with it: a bare map.)
-    if (phone()) {
-      setCityAside(true);
-      closePane();
-    }
     showGoalView(CITY_VIEW); // (asked for by name: over a tool's own too)
+    // (A phone's pane stays up, the view going with it: the city brought into the band above it.)
+    if (phone()) setTimeout(cityAbovePane, 320);
     return;
   }
   const holds = (g: GoalId) => GOALS[g].tabs.some((t) => t.view === view || t.views?.some(([v]) => v === view));
@@ -1712,7 +1716,6 @@ function screenStart(): HTMLElement {
 
 /** Opens a goal's screen: its view on the map, its panel in the pane. */
 export function openGoal(id: GoalId, at?: [number, number], fromMap = false): void {
-  setCityAside(false); // (another screen: the city's put aside ends)
   const fresh = !active;
   const changed = active !== id;
   // Its notice ("수도: 단수 69곳 · 살펴보기") has done its job once the screen is open: on a phone it stayed over the
@@ -1729,9 +1732,8 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
     baseline.clear();
     baselineCity = cityLineage;
     for (const [label, , , n] of metrics(id)) if (n !== undefined) baseline.set(label, n);
-    // On the tab about what is the matter (its home when nothing is), its view on the map.
+    // On the tab about what is the matter (its home when nothing is).
     tabAt = openingTab(id);
-    showGoalView(tabView(id, tabNow(id)));
   }
   $('#pane').classList.add('managing');
   showGoalStats(id);
@@ -1745,6 +1747,9 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
     if ((fresh || !$('#app').classList.contains('pane-open')) && !at) setTimeout(cityAbovePane, 320);
     openPane();
   }
+  // Its view on the map, over a tool's own — while its panel shows: a phone's, opened from an alert about a place, waits
+  // for its chip.
+  if (changed) showGoalView(tabView(id, tabNow(id)));
   renderGoal(true);
   if (changed) refreshRecent();
   $('#pane').scrollTop = 0;
@@ -1860,11 +1865,10 @@ function openGoalAt(id: GoalId, part: string, view?: string): void {
   requestAnimationFrame(() => $(part).closest<HTMLElement>('.gs, .mg-sec')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
 }
 
-/** Phones: the built-up city glided into the map left above the pane. */
+/** Phones: the built-up city glided into the map left above the pane (an area's screen, or the city's own by its 보기). */
 function cityAbovePane(): void {
-  // (Not once the pane has gone down again: a view's 보기 opens its goal and then shows the map, and the city moved for
-  // a pane that was no longer there.)
-  if (!active || !$('#app').classList.contains('pane-open')) return;
+  // (Not once the pane has gone down again: the city moved for a pane that was no longer there.)
+  if (!$('#app').classList.contains('pane-open')) return;
   const v = renderer.canvas.getBoundingClientRect();
   const pane = $('#pane').getBoundingClientRect();
   // Beside the pane (landscape: it stands at the left) or between the top rows (or the view's card under them, when
@@ -3081,7 +3085,7 @@ function wireRow(row: HTMLElement): void {
     const b = t.closest<HTMLElement>('[data-strip-goal]');
     if (!b) return;
     const id = b.dataset.stripGoal as GoalId;
-    // (Wide, the open area's button again puts the pane away, the screen kept on the map, as the city button's does.)
+    // (Wide, the open area's button again puts it away — its panel, its map with it — as the city button's does.)
     if (!phone() && id === active && $('#app').classList.contains('pane-open')) {
       dismissPane();
       return;
@@ -3560,8 +3564,8 @@ export function setupGoals(): void {
       const k = all.length > 1 && spotTurn.key === spot.dataset.spots ? (spotTurn.k + 1) % all.length : 0;
       spotTurn = { key: spot.dataset.spots ?? '', k };
       const [x, y] = all[k]!.split(',').map(Number);
-      if (phone()) closePane();
-      centerOn(x!, y!, 6);
+      // (A phone's sheet stays up, the screen's map with it: the place in the band above it.)
+      centerOn(x!, y!, 6, phone() ? mapBand() : undefined);
       if (all.length > 1) {
         pingAt(x!, y!);
         spot.textContent = `보기 ${k + 1}/${all.length}`;

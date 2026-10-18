@@ -14,7 +14,7 @@ import { region, renderNeighbours } from './region';
 import { TYPE_COLOR } from './render';
 import { GROWTH_LABEL } from './views';
 import { checkLeft, checkText, renderAges, renderPolls, renderRewards, rewardRank, rewardShare } from './reports';
-import { blinkAt, centerOn, changeKey, city, cityGeneration, graphs, overlay, redraw, speed } from './state';
+import { blinkAt, centerOn, changeKey, city, cityGeneration, graphs, mapBand, overlay, redraw, speed } from './state';
 import { CATEGORIES, type CategoryId, categoryOf, chosen, openTray, pickStructure, refreshStructureLists, selectTool, structureStat, TOOLS } from './tools';
 import { journal, type Notice } from './journal';
 import { toast } from './toast';
@@ -63,12 +63,15 @@ document.addEventListener('click', (e) => {
     updatePanels();
     return;
   }
-  // (A view's 보기: the goal's tab that shows it, then the map.)
+  // (A view's 보기: the screen whose tab shows it, its panel up — a screen's map goes with its panel.)
   if (b.dataset.overlay) openViewTab(b.dataset.overlay);
-  revealMap();
+  // (A place's, from a screen: there, the screen kept with its map — on a phone, in the band its sheet leaves above it;
+  // from the news or a card, the map cleared for it.)
+  const kept = !!b.dataset.overlay || (!!b.closest('#pane') && paneShown());
+  if (!kept) revealMap();
   if (b.dataset.at) {
     const [x, y] = b.dataset.at.split(',').map(Number);
-    centerOn(x!, y!);
+    centerOn(x!, y!, 8, kept && matchMedia('(max-width: 860px)').matches ? mapBand() : undefined);
   }
   // (A building or a stretch of road it means, blinked twice once the map has landed there — a flash at the press was
   // over before the flight ended: the air's sources.)

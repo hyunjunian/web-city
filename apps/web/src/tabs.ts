@@ -114,38 +114,20 @@ export function closeInfo(): boolean {
   return true;
 }
 
-/**
- * Phones: the city's own screen put aside for the map by its 보기 (개발 막힘): the view stays on, and the city button,
- * lit, brings the screen back — as an area's screen put aside keeps its view and its chip. It ends as the pane comes
- * back or another screen opens, or with Esc (back).
- */
-export let cityAside = false;
-export function setCityAside(on: boolean): void {
-  cityAside = on;
-  markCity();
-}
-/** The city's screen put aside, put away (Esc, back): its view goes with it. */
-export function endCityAside(): boolean {
-  if (!cityAside) return false;
-  setCityAside(false);
-  restView();
-  return true;
-}
-
 /** The city pane: in beside the map on wide screens (from the left), up over it on a phone. */
 export function openPane(): void {
   if (phone()) {
     closeTray(); // both rise from the bottom
     closeSheet();
   }
-  cityAside = false; // (back up: its own screen, or an area's)
   const was = paneShown();
   // (It comes at its head — the region › city, the stage — not wherever it was last left scrolled.)
   if (!was && !$('#pane').classList.contains('managing')) $('#pane').scrollTop = 0;
   $('#app').classList.add('pane-open');
   document.getElementById('btn-city')?.classList.remove('unread'); // (news unread: read now)
   markOpen();
-  if (!active && !was) restView(); // (the city's own screen: 개발 막힘 on the map)
+  // A screen's map comes with its panel: the city's own (개발 막힘), or an area's back up (stepped aside for the map).
+  if (!was) restView();
   if (!was) {
     fitMapbar(); // (wide, the bars' middle clears it)
     document.dispatchEvent(new CustomEvent('sheet-open'));
@@ -158,7 +140,9 @@ export function closePane(): boolean {
   markOpen();
   fitMapbar();
   paneClosed();
-  if (!active) restView(); // (the city's own screen gone: its 개발 막힘 with it)
+  // A screen's map goes with its panel, always — wide, the screen too (a phone's, stepped aside for the map to build on,
+  // keeps its chip: pressed, it comes back with its map).
+  if (phone() || !closeGoal()) restView();
   return true;
 }
 
@@ -191,6 +175,7 @@ export function closeTopLayer(pane = true): boolean {
 export function dismissPane(): boolean {
   const had = $('#pane').contains(document.activeElement);
   if (!closePane()) return false;
+  closeGoal(); // (put away by the player — its ×, Esc, back, a swipe: the screen ends with it, a phone's too)
   if (had) document.getElementById('btn-city')?.focus({ preventScroll: true });
   return true;
 }
@@ -208,13 +193,9 @@ function markOpen(): void {
   });
 }
 
-/** The city button lit while the city's own screen (its residents) shows, not an area's — and, as an area's chip is,
- *  while that screen is put aside for the map (pressed, it comes back). */
+/** The city button lit while the city's own screen (its residents) shows, not an area's. */
 export function markCity(): void {
-  const b = document.getElementById('btn-city');
-  if (!b) return;
-  b.setAttribute('aria-expanded', String(paneShown() && !active));
-  b.classList.toggle('parked', cityAside && !active && !paneShown());
+  document.getElementById('btn-city')?.setAttribute('aria-expanded', String(paneShown() && !active));
 }
 
 /** Opens a sheet, or closes it when it is the one open (지역: the pane's head; J). */

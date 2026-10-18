@@ -2432,10 +2432,6 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .stage-ring path { stroke: var(--gold); }
 #btn-city[aria-expanded='true'] > .i { color: var(--accent-hi); }
 /* News unread in the pane (a notice, a step of 시작하기): a red dot on the button that opens it. */
-/* The city's screen put aside for the map (a phone's 개발 막힘 보기, its view kept on): lit as an area's chip is, to come
-   back to. */
-#btn-city.parked { background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--float-solid); box-shadow: var(--shadow-sm), inset 0 0 0 1.5px var(--accent); color: var(--active-ink); }
-#btn-city.parked > .i { color: var(--accent-hi); }
 #btn-city.unread::after { content: ''; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--float-solid); }
 
 /* The clock: the four speeds — pause, then slow to fast, the one on lit as in a gear — and round its edge, from the top
