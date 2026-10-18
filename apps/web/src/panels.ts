@@ -315,8 +315,6 @@ function renderBuildings(): void {
     <tbody>${rows}</tbody></table>` : '<p class="muted">구역을 지정하면 표시됩니다.</p>';
 }
 
-/** The RCI meter's classes: letter, name and zone colour. */
-const RCI_CLASSES = [['R', '주거', 'var(--zone-r)'], ['C', '상업', 'var(--zone-c)'], ['I', '산업', 'var(--zone-i)']] as const;
 
 /**
  * SC4's RCI meter for one class: its strongest demand (or weakest, when none is positive),
@@ -335,16 +333,6 @@ export function classDemand(k: 'R' | 'C' | 'I'): { v: number; capped: boolean; f
   // Only farms: an industrial zone would stay empty (farms grow on 농업 zones).
   const factories = Math.max(dem.demand.ID, dem.demand.IM, dem.demand.IHT);
   return { v, capped, farms, factories };
-}
-
-/** The RCI meter in small, beside 수요's figure on the watch list: three bars up (wanted) or down (surplus). */
-export function rciMini(): string {
-  const bars = RCI_CLASSES.map(([k, label]) => {
-    const { v, capped } = classDemand(k);
-    const h = Math.min(1, Math.sqrt(Math.abs(v) / 1000)); // (the RCI card's scale: full at ±1,000)
-    return `<i class="k-${k.toLowerCase()}${v < 0 ? ' neg' : ''}${capped ? ' cap' : ''}" style="--h:${(h * 100).toFixed(0)}%" title="${label} ${v >= 1 ? `+${fmt(Math.round(v))}` : fmt(Math.round(v))}${capped ? ' · 상한' : ''}"></i>`;
-  }).join('');
-  return `<span class="rci-mini" aria-hidden="true">${bars}</span>`;
 }
 
 /** A kind of zone's demand in words: its index, how many it is short or has spare, and its cap. */

@@ -1847,6 +1847,33 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .s-row.warn .s-val { color: var(--warn-ink); }
 .s-row.bad .s-val { color: var(--danger-ink); }
 .s-row.on { background: var(--accent-soft); }
+/* 수요's figure, on the rail and in a phone's 도시 상태: a line a class — its name, a bar out from the middle (wanted to
+   the right, too many to the left) and its figure; the class its state names in that state's colour, a capped one amber. */
+.r-rci { display: grid; gap: 1px; min-width: 0; }
+.r-rci > span { display: grid; grid-template-columns: 2.4em minmax(0, 1fr) 3.6em; align-items: center; column-gap: 7px; font-size: 10.5px; line-height: 1.15; }
+.r-rci em { color: var(--muted); font-style: normal; font-weight: 600; }
+.r-rci > span > i { position: relative; display: block; height: 5px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--line-strong) 35%, transparent); }
+.r-rci > span > i::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--line-strong); }
+.r-rci > span > i > i { position: absolute; top: 0; bottom: 0; background: var(--c); }
+.r-rci .neg > i > i { opacity: 0.55; }
+.r-rci .cap > i > i { background: repeating-linear-gradient(90deg, var(--c) 0 2px, transparent 2px 3px); }
+:is(#rail, #status) .r-rci b { overflow: hidden; color: var(--text); font-weight: 700; text-align: right; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.r-rci .k-r { --c: var(--zone-r); }
+.r-rci .k-c { --c: var(--zone-c); }
+.r-rci .k-i { --c: var(--zone-i); }
+:is(#rail, #status) .r-rci .cap b { color: var(--warn-ink); }
+:is(#rail, #status) .warn .r-rci .hot b { color: var(--warn-ink); font-weight: 800; }
+:is(#rail, #status) .bad .r-rci .hot b { color: var(--danger-ink); font-weight: 800; }
+/* 재정's: the money in hand, and last month's balance after it (green in, red out). */
+.r-money { display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; }
+:is(#rail, #status) .r-money b { font-weight: 700; }
+:is(#rail, #status) .r-money small { font-size: 11.5px; font-weight: 650; }
+:is(#rail, #status) .r-money small.pos { color: var(--good-ink); }
+:is(#rail, #status) .r-money small.neg { color: var(--danger-ink); }
+#rail .r-money { justify-content: flex-start; }
+/* (In a phone's 도시 상태: room for the class lines, the bars across it — shrunk to their figures, they had none.) */
+.s-val.s-own { width: 12.5em; white-space: normal; }
+.s-val.s-own > :is(.r-rci, .r-money) { flex: 1 1 auto; }
 .s-wait { margin-left: 3px; color: var(--accent-hi); font-size: 10px; letter-spacing: -1px; }
 /* (A line that does not wrap is cut at the pane's edge, not let widen it.) */
 #status, #status > section { grid-template-columns: minmax(0, 1fr); min-width: 0; }
@@ -2195,13 +2222,6 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
 }
 /* 개발·수요's line leads with the jobs, so its reason gets a third line where the pane is narrow. */
 .s-list .s-row[data-goal='growth'] .s-note { -webkit-line-clamp: 3; line-clamp: 3; }
-/* 개발·수요's figure: the RCI meter in small (three bars from a midline: up wanted, down surplus). */
-.rci-mini { position: relative; display: inline-flex; align-items: stretch; gap: 3px; height: 24px; margin: -3px 7px -3px 0; padding: 0 2px; }
-.rci-mini::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line-strong); }
-.rci-mini i { position: relative; width: 6px; }
-.rci-mini i::after { content: ''; position: absolute; left: 0; right: 0; bottom: 50%; height: max(2px, calc(var(--h) / 2)); border-radius: 2px 2px 0 0; background: var(--c); }
-.rci-mini i.neg::after { bottom: auto; top: 50%; border-radius: 0 0 2px 2px; opacity: 0.5; }
-.rci-mini i.cap::after { background: repeating-linear-gradient(0deg, var(--c) 0 2px, transparent 2px 3px); }
 .advice .adv-echo { color: var(--muted); font-weight: 500; }
 /* Who says it, set off from what is said by a hairline (보건·교육 위의 문제: read as "the problem above 보건·교육"). */
 .advice .adv-who { font-size: 0.92em; }
@@ -2211,9 +2231,6 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
 .s-legend { white-space: pre-wrap; }
 .s-legend .s-good { color: var(--good-ink, var(--good)); }
 .s-legend .s-bad { color: var(--danger-ink); }
-.rci-mini .k-r { --c: var(--zone-r); }
-.rci-mini .k-c { --c: var(--zone-c); }
-.rci-mini .k-i { --c: var(--zone-i); }
 /* An emergency (a fire, a riot) over 도시 상태, and a goal screen's 추천 조치 at its top. */
 .quality > .lead { margin-bottom: 10px; }
 .quality > .chips.alerts { margin-bottom: 8px; }
@@ -2654,6 +2671,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail .r-spark .sa { fill: var(--spark); fill-opacity: 0.13; stroke: none; }
   #rail .r-spark .s0 { stroke: var(--line-strong); stroke-width: 1px; }
   #rail .r-spark .sn { stroke: var(--line-strong); stroke-width: 2px; stroke-dasharray: 0 6px; }
+  /* 수요's and 재정's rows: their figures across the value's and the graph's room (no graph: .r-rci, .r-money). */
+  #rail :is(.r-rci, .r-money) { grid-column: 3 / -1; }
+  #rail .r-money b { font-size: 13.5px; }
   #rail #goal-strip .strip-start { margin: 0; }
   #rail #goal-strip .strip-start .r-val { color: var(--muted); }
   #rail :is(#goal-strip, #city-rows) .strip-on { display: flex; align-items: stretch; width: 100%; height: auto; border-radius: 12px; }

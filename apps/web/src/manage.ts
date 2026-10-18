@@ -13,7 +13,7 @@ import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, POLL_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { whyNoDeals } from './region';
 import { journal } from './journal';
-import { abandonHint, capBest, capHint, capLeads, demandList, jobHint, pushNotice, rciMini, updatePanels } from './panels';
+import { abandonHint, capBest, capHint, capLeads, classDemand, demandList, jobHint, pushNotice, updatePanels } from './panels';
 import { checklist } from './onboarding';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { GRAPH_KEYS } from './graphs';
@@ -134,7 +134,10 @@ function qualityGrid(counts: string, top: string, figs: PaneFigs): string {
     return `<button type="button" class="s-row ${s.tone || 'ok'}${s.tone || id === 'growth' ? ' has-note' : ''}${active === id ? ' on' : ''}" data-goal="${id}" title="${g.name}: ${escapeHtml(glue(s.note))} · 눌러서 자세히" aria-label="${g.name}${s.tone === 'bad' ? ', 조치 필요' : s.tone === 'warn' ? ', 주의' : ''}: ${s.value}">
       <span class="s-ic">${icon(g.icon)}</span><span class="s-main"><span class="s-name">${g.name}${wait}</span>${id === 'growth'
         ? `<small class="s-note"><span class="s-sub">일자리 ${fmt(figs.jobs)}${figs.jobsTrend}</span>${s.tone ? ` · ${escapeHtml(glue(s.note))}` : ''}</small>`
-        : s.tone ? `<small class="s-note">${escapeHtml(glue(s.note))}</small>` : ''}</span><b class="s-val">${drift(id)}${id === 'growth' ? `${rciMini()}${s.value.replace(' 수요 ', ' ')}` : s.value}</b>${icon('chevronRight', 's-go')}</button>`;
+        : s.tone ? `<small class="s-note">${escapeHtml(glue(s.note))}</small>` : ''}</span>${id === 'growth' || id === 'finance'
+        // (수요's and 재정's as the rail has them: what each class wants on a bar; the money and the month's balance.)
+        ? `<span class="s-val s-own">${(id === 'growth' ? railDemand(s.value) : railMoney()).html}</span>`
+        : `<b class="s-val">${drift(id)}${s.value}</b>`}${icon('chevronRight', 's-go')}</button>`;
   };
   let off = rows.filter(({ s }) => s.tone).map((r) => ({ key: r.id as string, html: row(r) }));
   let sound = rows.filter(({ s }) => !s.tone).map((r) => ({ key: r.id as string, html: row(r) }));
@@ -194,13 +197,15 @@ export function refreshStrip(): void {
     const fig = !wide ? '' : ((id === 'power' || id === 'water') && /여유/.test(note)) || ((id === 'health' || id === 'education') && /정원/.test(note)) ? '' : railFigure(id);
     // (The classes said, the class most wanted among them is said: "주거 +709 · 주거 +709 · 상업 …" read twice.)
     const head = id === 'growth' && !tone && fig ? fig : `${value}${fig ? ` · ${fig}` : ''}`;
-    const graph = wide && id !== 'amenity' ? railSpark(id) : null;
-    const words = `${head}${note ? ` · ${note}` : ''}${d ? ` · ${d.said}` : ''}${graph?.said ? ` · 그래프: ${graph.said}` : ''}`;
+    // (수요 and 재정 read without a graph: what each class wants on a bar, the money in hand and the month's balance.)
+    const own = !wide ? null : id === 'growth' ? railDemand(value) : id === 'finance' ? railMoney() : null;
+    const graph = wide && !own && id !== 'amenity' && id !== 'growth' && id !== 'finance' ? railSpark(id) : null;
+    const words = `${own ? own.said : head}${note ? ` · ${note}` : ''}${d ? ` · ${d.said}` : ''}${graph?.said ? ` · 그래프: ${graph.said}` : ''}`;
     return {
       key: id, tone, weight: WEIGHT[id],
       html: (on: boolean) => wide && id === 'amenity' ? amenityHead(tone, on, tab(id), d?.said)
         : wide
-        ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${words} · ${on ? '눌러서 패널 닫기·열기 (×는 화면 닫기)' : `눌러서 ${g.name} 화면`}`)}" aria-label="${escapeHtml(`${g.name}${said}: ${head}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span><span class="r-num">${graph!.val}</span>${graph!.svg}</button>`
+        ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${words} · ${on ? '눌러서 화면 닫기' : `눌러서 ${g.name} 화면`}`)}" aria-label="${escapeHtml(`${g.name}${said}: ${own ? own.said : head}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span>${own ? own.html : `<span class="r-num">${graph!.val}</span>${graph!.svg}`}</button>`
         : `<button type="button" class="${tone || 'ok'}${tone === 'bad' || on ? '' : ' bare'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${g.name}: ${escapeHtml(s.value)}${tone ? ` · ${escapeHtml(note)}` : ''} · 눌러서 ${g.name} 화면" aria-label="${g.name}${said}: ${escapeHtml(s.value)}"${on ? ' aria-pressed="true"' : ''}>${glyph}${tone === 'bad' || on ? g.name : ''}</button>`,
     };
   });
@@ -348,10 +353,10 @@ const peopled = (f: (h: HistoryPoint) => number | undefined) => (h: HistoryPoint
  * line the record doesn't hold as long (an older save's) gives way to the one after it, and counts that are mostly
  * none are drawn against a floor (one fire was a spike the row's height).
  */
-/** (Not 쾌적도's: its button heads its card with the rating big, on a bar — {@link amenityHead}.) */
-const SPARK: Record<Exclude<GoalId, 'amenity'>, { a: Series; b?: Series; alt?: Series; floor?: number }> = {
-  finance: { a: ['지출', (h) => h.expenses], b: ['수입', (h) => h.income] },
-  growth: { a: ['인구', (h) => h.population], b: ['일자리', (h) => h.jobs] },
+/** (Not 쾌적도's: its button heads its card with the rating big, on a bar — {@link amenityHead}; nor 수요's and 재정's,
+ *  read as they stand — {@link railDemand}, {@link railMoney}.) */
+type Sparked = Exclude<GoalId, 'amenity' | 'growth' | 'finance'>;
+const SPARK: Record<Sparked, { a: Series; b?: Series; alt?: Series; floor?: number }> = {
   power: { a: ['수요', (h) => h.powerDemand], b: ['공급', (h) => h.powerSupply] },
   water: { a: ['수요', (h) => h.waterDemand], b: ['공급', (h) => h.waterSupply] },
   garbage: { a: ['발생', (h) => h.garbageProduced], b: ['못 치움', (h) => h.garbageUncollected] },
@@ -363,6 +368,39 @@ const SPARK: Record<Exclude<GoalId, 'amenity'>, { a: Series; b?: Series; alt?: S
   environment: { a: ['대기 오염', (h) => h.air, 20] },
   land: { a: ['평균 땅값', (h) => h.landValue, 10, (v) => v.toFixed(1)] }, // (to a tenth, as its screen writes it: "0" beside its "0.0")
 };
+/** The classes 수요's row reads, as the screen names them. */
+const CLASS_NAME = { R: '주거', C: '상업', I: '산업' } as const;
+/**
+ * 수요's row on the rail: what each class wants — 주거, 상업, 산업 — a line each, a bar out from the middle (wanted to the
+ * right, too many to the left, on the RCI meter's scale: full at ±1,000 by its square root) and its figure; a class its
+ * cap holds back says 상한. The class its state names ("주거 상한") is the one whose figure takes the state's colour —
+ * all three in red read as though a 0 were urgent. (Industry counts the farms, as the meter does.)
+ */
+function railDemand(state: string): { html: string; said: string } {
+  const hot = (Object.keys(CLASS_NAME) as (keyof typeof CLASS_NAME)[]).find((k) => state.startsWith(CLASS_NAME[k]));
+  const rows = (['R', 'C', 'I'] as const).map((k) => {
+    const { v, capped } = classDemand(k);
+    const w = Math.min(50, Math.sqrt(Math.abs(v) / 1000) * 50);
+    const fig = capped ? '상한' : `${v >= 1 ? '+' : v <= -1 ? '−' : ''}${fmt(Math.abs(Math.round(v)))}`;
+    return {
+      said: `${CLASS_NAME[k]} ${fig}`,
+      html: `<span class="k-${k.toLowerCase()}${capped ? ' cap' : v <= -1 ? ' neg' : ''}${k === hot ? ' hot' : ''}"><em>${CLASS_NAME[k]}</em><i><i style="left:${(v >= 0 ? 50 : 50 - w).toFixed(1)}%;width:${w.toFixed(1)}%"></i></i><b>${fig}</b></span>`,
+    };
+  });
+  return { html: `<span class="r-rci" aria-hidden="true">${rows.map((r) => r.html).join('')}</span>`, said: rows.map((r) => r.said).join(' · ') };
+}
+/** 재정's row on the rail: the money in hand, and beside it last month's balance — what came in less what went out. */
+function railMoney(): { html: string; said: string } {
+  const s = city.state;
+  const b = s.lastBudget;
+  const net = b ? Math.round(b.income - b.expenses) : null;
+  const cash = `${s.funds < 0 ? '−' : ''}§${fmt(Math.abs(Math.round(s.funds)))}`;
+  const month = net === null ? '' : `${net < 0 ? '−' : '+'}§${fmt(Math.abs(net))}`;
+  return {
+    html: `<span class="r-num r-money"><b>${cash}</b>${month ? `<small class="${net! < 0 ? 'neg' : 'pos'}">월 ${month}</small>` : ''}</span>`,
+    said: `자금 ${cash}${month ? ` · 지난달 수지 ${month}` : ' · 첫 결산 전'}`,
+  };
+}
 /** The months a rail graph covers. */
 const SPARK_SPAN = 24;
 
@@ -372,7 +410,7 @@ const SPARK_SPAN = 24;
  * ("9.9k / 14k": the line's, then the dashed one's), and the words for it. Under two months to draw, faint dots in its
  * room (nothing read yet, as a figure's "—": not a line at nothing).
  */
-function railSpark(key: Exclude<GoalId, 'amenity'>): { svg: string; val: string; said: string } {
+function railSpark(key: Sparked): { svg: string; val: string; said: string } {
   const def = SPARK[key];
   const months = city.state.history.slice(-SPARK_SPAN);
   const read = (series: Series) => months.map((h) => {
