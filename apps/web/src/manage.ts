@@ -17,7 +17,7 @@ import { abandonHint, capBest, capHint, capLeads, demandGrid, jobHint, pushNotic
 import { checklist } from './onboarding';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { GRAPH_KEYS } from './graphs';
-import { closeInfo, closePane, closeSheet, dismissPane, markCity, openPane, paneShown, showTab } from './tabs';
+import { cityAside, closeInfo, closePane, closeSheet, dismissPane, markCity, openPane, paneShown, setCityAside, showTab } from './tabs';
 import { categoryOf, chosen, edgeFade, kindsFor, openTray, panTipAt, pickStructure, refreshRecent, restView, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice } from './choices';
@@ -161,14 +161,14 @@ const hoverable = () => matchMedia('(hover: hover)').matches;
 
 /**
  * Each area's state, a button each — 시작하기 first while its checklist shows (pressed, the city pane, which holds it);
- * the area whose screen is open lit, its × beside it. (The areas: growth, then 쾌적도 — read by the mayor's rating —
- * over the utilities and what makes a place pleasant to live in; money is the city's own: {@link refreshCityRows}.)
- * Wide, down the map's left under the city's card (the rail), in an order that never changes: 수요, then 쾌적도's card —
- * its button heading it as the city's heads its own, the rating big, and under it the areas it holds, a row each — each
- * row one line of one height, its name, its value and its graph over the last two years, its value's colour saying it
- * needs a hand (the rest of the why in its tooltip and on its screen). A phone, a row of chips under its top buttons:
- * the areas needing a hand first (anything burning first), compact, the urgent by name, the rest by their icons alone,
- * the open screen's first. What either can't show scrolls in, its cut edge faded.
+ * the area whose screen is open lit, its × beside it. (The areas: 수요 and 재정, the residents' and the city's money;
+ * then 쾌적도 — read by the mayor's rating — over the utilities and what makes a place pleasant to live in.)
+ * Wide, down the map's left in an order that never changes, two cards: the city's, 수요 and 재정 under its button
+ * (#city-rows), and 쾌적도's — its button heading it as the city's heads its own, the rating big, and under it the
+ * areas it holds — a row each, one line of one height: its name, its value and its graph over the last two years, its
+ * value's colour saying it needs a hand (the rest of the why in its tooltip and on its screen). A phone, one row of
+ * chips under its top buttons: the areas needing a hand first (anything burning first), compact, the urgent by name,
+ * the rest by their icons alone, the open screen's first. What either can't show scrolls in, its cut edge faded.
  */
 export function refreshStrip(): void {
   const el = $('#goal-strip');
@@ -176,8 +176,8 @@ export function refreshStrip(): void {
   // (A lone fire the stations are putting out is its row's amber, not red.)
   const inc = new Set(incidents().filter((x) => x.urgent).map((x) => x.goal as GoalId));
   const rank = (t: Tone) => (t === 'bad' ? 0 : t === 'warn' ? 1 : 2);
-  // (One stop for Tab in the row, the chip last in hand; the arrows go along it: a toolbar.)
-  const tab = (k: string) => `tabindex="${k === stripAt ? 0 : -1}" data-tk="${k}"`;
+  // (One stop for Tab in each row, the chip last in hand there — keepStop sets it; the arrows go along it: a toolbar.)
+  const tab = (k: string) => `tabindex="-1" data-tk="${k}"`;
   type Chip = { key: GoalId; tone: Tone; weight: number; html: (on: boolean) => string };
   const chips: Chip[] = GOAL_ORDER.map((id) => {
     const g = GOALS[id];
@@ -318,14 +318,11 @@ function markHidden(el: HTMLElement): void {
  */
 function keepStop(el: HTMLElement): void {
   const seen = (b: HTMLElement) => b.getClientRects().length > 0;
-  const stop = el.querySelector<HTMLElement>('[tabindex="0"]');
-  if (stop && (seen(stop) || !seen(el))) return;
-  const all = [...el.querySelectorAll<HTMLElement>('button')];
-  const to = (stop && el.querySelector<HTMLElement>('.strip-on [data-strip-goal]')) || all.find(seen) || all[0];
-  if (!to) return;
-  stop?.setAttribute('tabindex', '-1');
-  to.setAttribute('tabindex', '0');
-  stripAt = to.dataset.tk ?? 'start';
+  const all = [...el.querySelectorAll<HTMLElement>('[data-tk]')];
+  const stop = all.find((b) => b.dataset.tk === stripAt.get(el));
+  const to = stop && (seen(stop) || !seen(el)) ? stop : (stop && el.querySelector<HTMLElement>('.strip-on [data-strip-goal]')) || all.find(seen) || all[0];
+  for (const b of all) b.tabIndex = b === to ? 0 : -1;
+  if (to) stripAt.set(el, to.dataset.tk!);
 }
 /**
  * A series an item's rail graph draws from the city's monthly record: its name, its value in a month, for a level drawn
@@ -439,8 +436,9 @@ function railSpark(key: Exclude<GoalId, 'amenity'>): { svg: string; val: string;
   const from = Math.min(first, ...(vb.length ? [vb.findIndex((v) => v !== null)] : []));
   return { svg: `${open}${zero}${fill}${second}<path class="s1" d="${line(va)}"/></svg>`, val, said: `지난 ${n - from}개월 ${a[0]}${second ? `(실선)·${def.b![0]}(점선)` : ''}` };
 }
-/** The chip the row's Tab stop is on (its data-tk): the one last focused or arrowed to. */
-let stripAt = 'start';
+/** The chip each row's Tab stop is on (its data-tk): the one last focused or arrowed to there (the rail's two cards
+ *  each keep their own: one remembered for both sent the other's back to its first). */
+const stripAt = new WeakMap<HTMLElement, string>();
 
 /**
  * Brings a row of keyed chips (data-k) to `html` in place: a chip kept is the same element, brought to its new look
@@ -1519,9 +1517,10 @@ function showGoalView(view: string): void {
   refreshInfo();
 }
 
-/** The view the map rests on: the open goal's tab's, else the city as it is (a tool in hand may put its own over it). */
+/** The view the map rests on: the open goal's tab's, else the city's own screen's while it shows (or, on a phone, is put
+ *  aside for the map), else the city as it is (a tool in hand may put its own over it). */
 export function baseView(): string {
-  return active ? tabView(active, tabNow(active)) : paneShown() ? CITY_VIEW : 'none';
+  return active ? tabView(active, tabNow(active)) : paneShown() || cityAside ? CITY_VIEW : 'none';
 }
 
 // ------------------------------------------------------------------ a goal's tabs
@@ -1683,6 +1682,13 @@ export function openGoalView(id: GoalId, view: string): void {
 export function openViewTab(view: string): void {
   if (view === CITY_VIEW) {
     openCity();
+    // (A phone's pane, over the map, goes down for it: the screen put aside with its view, the city button lit to bring
+    // it back — as an area's 보기 puts its screen aside. Put away whole, it took the view with it: a bare map.)
+    if (phone()) {
+      setCityAside(true);
+      closePane();
+    }
+    showGoalView(CITY_VIEW); // (asked for by name: over a tool's own too)
     return;
   }
   const holds = (g: GoalId) => GOALS[g].tabs.some((t) => t.view === view || t.views?.some(([v]) => v === view));
@@ -1717,6 +1723,7 @@ function screenStart(): HTMLElement {
 
 /** Opens a goal's screen: its view on the map, its panel in the pane. */
 export function openGoal(id: GoalId, at?: [number, number], fromMap = false): void {
+  setCityAside(false); // (another screen: the city's put aside ends)
   const fresh = !active;
   const changed = active !== id;
   // Its notice ("수도: 단수 69곳 · 살펴보기") has done its job once the screen is open: on a phone it stayed over the
@@ -1933,9 +1940,10 @@ export function closeGoal(): boolean {
   restView();
   refreshRecent();
   updatePanels();
-  // Back where the overview was, focus on the goal's row if the keyboard was in the panel.
+  // Back where the overview was, focus on the goal's row if the keyboard was in the panel — or, where the overview lists
+  // no areas (wide: the rail does), on the pane's × (G pressed in a screen left it on the page).
   $('#pane').scrollTop = overviewScroll;
-  if (inPanel) $('#status').querySelector<HTMLElement>(`[data-goal="${was}"]`)?.focus({ preventScroll: true });
+  if (inPanel) ($('#status').querySelector<HTMLElement>(`[data-goal="${was}"]`) ?? (paneShown() ? $('#pane-close') : null))?.focus({ preventScroll: true });
   redraw();
   return true;
 }
@@ -3019,7 +3027,7 @@ export function renderGoal(force = false): void {
 }
 
 /** Attributes that pick out a control again after the panel is redrawn. */
-const KEYS = ['data-jump-guide', 'data-spot', 'data-spot-build', 'data-widen', 'data-line-path', 'data-landfill', 'data-zone', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-mg-tabk', 'data-goal', 'data-goal-open', 'data-mg-tab', 'data-at', 'data-power-dispatch', 'data-repair-network'];
+const KEYS = ['data-dem-type', 'data-jump-guide', 'data-spot', 'data-spot-build', 'data-widen', 'data-line-path', 'data-landfill', 'data-zone', 'data-tray', 'data-act', 'data-kind', 'data-fac', 'data-fund', 'data-d', 'data-mg-ord', 'data-mg-dept', 'data-mg-group', 'data-mg-view', 'data-mg-tabk', 'data-goal', 'data-goal-open', 'data-mg-tab', 'data-at', 'data-power-dispatch', 'data-repair-network'];
 
 /** A selector for the focused control inside the goal panel, to give focus back after a redraw ('' if none). */
 function focusKey(el: Element | null): string {
@@ -3076,7 +3084,7 @@ function wireRow(row: HTMLElement): void {
     if (t.closest('[data-strip-end]')) {
       // (From the keyboard, on to the area just closed — wide, still in its place — not the top of the row.)
       const was = active;
-      if (was) stripAt = was;
+      if (was) stripAt.set(row, was);
       closeGoal();
       if (keyboard) (row.querySelector<HTMLElement>(`[data-tk="${was}"]`) ?? row.querySelector<HTMLElement>('button') ?? $('#btn-city')).focus({ preventScroll: true });
       return;
@@ -3108,7 +3116,7 @@ function wireRow(row: HTMLElement): void {
   row.addEventListener('focusin', (e) => {
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-tk]');
     if (!b) return;
-    stripAt = b.dataset.tk!;
+    stripAt.set(row, b.dataset.tk!);
     for (const x of row.querySelectorAll<HTMLElement>('[data-tk]')) x.tabIndex = x === b ? 0 : -1;
   });
 }

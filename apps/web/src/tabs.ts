@@ -114,12 +114,31 @@ export function closeInfo(): boolean {
   return true;
 }
 
+/**
+ * Phones: the city's own screen put aside for the map by its 보기 (개발 막힘): the view stays on, and the city button,
+ * lit, brings the screen back — as an area's screen put aside keeps its view and its chip. It ends as the pane comes
+ * back or another screen opens, or with Esc (back).
+ */
+export let cityAside = false;
+export function setCityAside(on: boolean): void {
+  cityAside = on;
+  markCity();
+}
+/** The city's screen put aside, put away (Esc, back): its view goes with it. */
+export function endCityAside(): boolean {
+  if (!cityAside) return false;
+  setCityAside(false);
+  restView();
+  return true;
+}
+
 /** The city pane: in beside the map on wide screens (from the left), up over it on a phone. */
 export function openPane(): void {
   if (phone()) {
     closeTray(); // both rise from the bottom
     closeSheet();
   }
+  cityAside = false; // (back up: its own screen, or an area's)
   const was = paneShown();
   // (It comes at its head — the region › city, the stage — not wherever it was last left scrolled.)
   if (!was && !$('#pane').classList.contains('managing')) $('#pane').scrollTop = 0;
@@ -189,9 +208,13 @@ function markOpen(): void {
   });
 }
 
-/** The city button lit while the city's own screen (its residents) shows, not an area's. */
+/** The city button lit while the city's own screen (its residents) shows, not an area's — and, as an area's chip is,
+ *  while that screen is put aside for the map (pressed, it comes back). */
 export function markCity(): void {
-  document.getElementById('btn-city')?.setAttribute('aria-expanded', String(paneShown() && !active));
+  const b = document.getElementById('btn-city');
+  if (!b) return;
+  b.setAttribute('aria-expanded', String(paneShown() && !active));
+  b.classList.toggle('parked', cityAside && !active && !paneShown());
 }
 
 /** Opens a sheet, or closes it when it is the one open (지역: the pane's head; J). */

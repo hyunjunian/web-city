@@ -4,6 +4,7 @@
 
 import { closeClock } from './controls';
 import { active } from './manage';
+import { cityAside } from './tabs';
 import { tool } from './tools';
 import { $ } from './util';
 
@@ -13,10 +14,10 @@ let guarded = false;
 /** We are taking our entry back ourselves (its popstate is ours to ignore). */
 let consuming = false;
 
-/** Whether anything Esc would put away is out: a dialog, the menu or the speeds' card, the tool card, a card, a sheet, the pane, a goal's screen, a tool in hand. */
+/** Whether anything Esc would put away is out: a dialog, the menu or the speeds' card, the tool card, a card, a sheet, the pane, a goal's screen (or the city's, put aside), a tool in hand. */
 function anythingOpen(): boolean {
   return !!document.querySelector('dialog[open], details.dropdown[open], .mb-time.open') || !$('#tray').hidden || !$('#info-card').hidden || !$('#sheet').hidden
-    || $('#app').classList.contains('pane-open') || active !== null || tool.id !== 'query';
+    || $('#app').classList.contains('pane-open') || active !== null || cityAside || tool.id !== 'query';
 }
 
 /** After a press: an entry in front of the page while something is out, none once nothing is. */

@@ -1742,7 +1742,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #sheet .sheet-body .card-head { position: static; padding: 16px 12px 6px 18px; }
 }
 
-/* ------------------------------------------------------------------ 재정·정책 */
+/* ------------------------------------------------------------------ 재정 */
 
 .sec-title { font-size: 12.5px; font-weight: 650; color: var(--muted); letter-spacing: 0.01em; }
 .sec-go { width: 15px; height: 15px; margin-left: auto; color: var(--faint); flex: none; }
@@ -2133,24 +2133,8 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
 
 /* ------------------------------------------------------------------ the pane in two blocks */
 
-/* 도시: its size and the next reward, then the city's money (pressed, its tab) — its figure and the month's balance on
-   one line across the pane. */
+/* 인구: the city's size and the next reward. */
 .city-sum { display: grid; gap: 14px; }
-.city-stats { display: grid; gap: 8px; }
-.city-stats .cs {
-  display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; grid-template-areas: 'ic name val sub'; align-items: center;
-  column-gap: 6px; row-gap: 2px; min-width: 0; min-height: 0; padding: 9px 11px 10px; border-radius: var(--r-md);
-  background: var(--surface-2); color: var(--text); text-align: left; font: inherit;
-}
-.city-stats .cs-ic { grid-area: ic; display: inline-grid; color: var(--muted); }
-.city-stats .cs-ic .i { width: 15px; height: 15px; }
-.city-stats .cs-name { grid-area: name; color: var(--muted); font-size: 12px; font-weight: 600; }
-.city-stats .cs-val { grid-area: val; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; font-weight: 750; font-variant-numeric: tabular-nums; }
-.city-stats .cs-sub { grid-area: sub; color: var(--muted); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
-/* (Its figure says how it stands, in its colour and heavier: a whole cell tinted amber outshouted the rest.) */
-.city-stats .cs.warn .cs-val { color: var(--warn-ink); font-weight: 800; }
-.city-stats .cs.bad .cs-val { color: var(--danger-ink); font-weight: 800; }
-@media (hover: hover) { .city-stats .cs:hover { filter: brightness(0.97); } }
 /* The reward as the block's last line: a quiet card, its label before its name. */
 .city-sum .reward { padding: 10px 12px 10px 10px; column-gap: 10px; grid-template-columns: 30px minmax(0, 1fr) auto; }
 .city-sum .rw-icon { width: 30px; height: 30px; border-radius: 9px; }
@@ -2447,7 +2431,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .stage-ring path { stroke: var(--gold); }
 #btn-city[aria-expanded='true'] > .i { color: var(--accent-hi); }
 /* News unread in the pane (a notice, a step of 시작하기): a red dot on the button that opens it. */
-/* The city's screen put aside for the map (a phone's 보기, a tool, 지역): lit as an area's chip is, to come back to. */
+/* The city's screen put aside for the map (a phone's 개발 막힘 보기, its view kept on): lit as an area's chip is, to come
+   back to. */
 #btn-city.parked { background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--float-solid); box-shadow: var(--shadow-sm), inset 0 0 0 1.5px var(--accent); color: var(--active-ink); }
 #btn-city.parked > .i { color: var(--accent-hi); }
 #btn-city.unread::after { content: ''; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--float-solid); }

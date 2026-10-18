@@ -3,7 +3,8 @@
 // to be told. A reload, an undo or another city brings its own.
 
 import type { StructureKind } from '@web-city/engine';
-import { type GoalId, GOALS } from './goals';
+import { type GoalId, GOALS, goalOfStructure } from './goals';
+import { STRUCTURE_NAME } from './names';
 import { city } from './state';
 
 /** A line of 소식: bad news (warn), worth noting but neither good nor bad (info), else good. */
@@ -38,6 +39,14 @@ export function journal(): Journal {
       if (n.goal) n.goal = now(n.goal);
     }
     j.done = j.done.filter((d) => !!(d.goal = now(d.goal)!));
+    // (And the city's 쾌적도 tab's log, from before it was 쾌적도's: a park, landmark or reward built there or the road
+    // laid to one, and what it came to three months on — the rich it drew. Left under 재정, they read as the money's.)
+    const ours = new Set(Object.entries(STRUCTURE_NAME).filter(([k]) => goalOfStructure(k as StructureKind) === 'amenity').map(([, name]) => name));
+    for (const d of j.done) {
+      if (d.goal !== 'finance') continue;
+      const what = (d.base ?? d.text).split(' · ')[0]!;
+      if (d.key === 'result' ? d.text.includes('부유층 주민') : ours.has(what) || /^도로 [\d,]+칸$/.test(what)) d.goal = 'amenity';
+    }
     // (Unless its figure went with it: a park's from 부유층·고급화, from the old 환경·쾌적's 쾌적도 tab, or from the city's
     // 쾌적도 tab — its own slot there, or the money's before it had one — is 쾌적도's; a raise of the ground's from its
     // 땅값 tab, 땅값's.)

@@ -1314,7 +1314,7 @@ function renderFound(q: string): void {
   // Typed as initial consonants only (ㅅㅂㅅ), it matches names by theirs (소방서).
   const initials = /^[ㄱ-ㅎ]+$/.test(query);
   const key = (v: string) => (initials ? chosung(norm(v)) : norm(v));
-  // A name that starts with it first, then a word it answers to (물 finds the pumps, 세율 finds 재정·정책), then a
+  // A name that starts with it first, then a word it answers to (물 finds the pumps, 세율 finds 재정), then a
   // name with it inside (발전기 has 전기 in it), then where it sits (발전 finds the plants; 서비스 the services).
   // Terrain and disasters after all the rest, and the locked after the open.
   const tier = (f: Found, at: number) => (at === 0 ? 0 : !initials && (f.words ?? '').split(' ').some((w) => norm(w).startsWith(query)) ? 1

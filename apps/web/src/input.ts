@@ -15,7 +15,7 @@ import { facilityLine, newlyReached, plantsReached, roadLinked, smokeClear, subw
 import { goalOfStructure } from './goals';
 import { cam, centerOn, city, drag, fitCamera, glideTo, hover, mapBand, overlay, redraw, renderer, selected, setDrag, setHover, speed, stopFlight } from './state';
 import { drive, SPECIAL } from './udi';
-import { closeTopLayer, dismissPane, toggleSheet } from './tabs';
+import { closeTopLayer, dismissPane, endCityAside, toggleSheet } from './tabs';
 import { chosen, closeTray, openFind, previousTool, stepAlt, refreshToolChip, selectTool, STATION_HINT, tool, TOOL_KEYS, toolName, toolUsed, refreshEdgeHint } from './tools';
 import { $, ask, askText, escapeHtml, keyForControl, onHintRestore, flash, flashing, fmt, josa, touchFirst, flashYields, endFlash } from './util';
 
@@ -1558,9 +1558,9 @@ export function setupInput(): void {
       else if (document.querySelector('.mb-time.open')) closeClock(); // (a phone's speeds' card, first: it is the topmost)
       else if (!closeTray(true) && !closeTopLayer(!wideScreen())) {
         // Then the tool goes down — and wide, where the pane is beside the map rather than a sheet over it, then the
-        // pane goes (a screen put away with it ends after, at the next).
+        // pane goes (a screen put away with it ends after, at the next; the city's own, put aside for its view, too).
         if (tool.id !== 'query') selectTool('query');
-        else if (!(wideScreen() && dismissPane())) closeGoal();
+        else if (!(wideScreen() && dismissPane()) && !closeGoal()) endCityAside();
       }
       updatePreview();
       redraw();
