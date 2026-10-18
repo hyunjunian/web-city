@@ -658,6 +658,11 @@ kbd {
 .mg-sec { display: grid; gap: 6px; padding: 12px; background: var(--surface); border-radius: var(--r-lg); }
 .mg-sec h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 2px; font-size: 13px; font-weight: 700; }
 .mg-sec h3 .i { width: 15px; height: 15px; color: var(--muted); }
+/* A section's parts under its heading said quietly, as 추이's are (지난달 재정, 여론 조사): 부서 예산 under 부서 예산 · 대출
+   stood as bold as the heading itself. */
+.mg-sec h3.sub { display: block; margin: 14px 0 6px; color: var(--muted); font-size: 12.5px; font-weight: 600; letter-spacing: 0; }
+.mg-sec > h3 + div > h3.sub:first-child { margin-top: 6px; }
+#goal-stats h3.sub { color: var(--text); } /* (a group of graphs: its name over theirs, which are grey) */
 .mg-sec .advice { margin: 0; }
 .mg-sec .funding.dept { margin-top: 0; }
 .mg-sec .funding.mg-group { grid-template-columns: 92px minmax(0, 1fr) 52px; margin-top: 0; }
