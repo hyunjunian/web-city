@@ -2091,6 +2091,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @media (pointer: coarse) { .info-voice button.thought { min-height: 32px; } }
 /* Complaints and what they like, each under its word. */
 .th-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.info-voice .th-group { flex-basis: 100%; } /* (불만 and 만족 each a row of their own under 주민 생각, on a wide card as on a narrow one: 불만 rode the heading's line, 만족 the next) */
 .th-label { font-size: 11.5px; font-weight: 650; color: var(--muted); }
 .th-group.neg .th-label { color: var(--danger-ink); }
 /* The card's foot: its goal's screen and taking it down, side by side after what it says. */
