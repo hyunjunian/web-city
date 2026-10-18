@@ -757,8 +757,17 @@ kbd {
 @media (hover: hover) { .dl-r:hover { background: var(--surface-2); } }
 .dl-bar { position: relative; display: block; height: 8px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--line-strong) 35%, transparent); }
 .dl-bar::after { content: ''; position: absolute; top: -1px; bottom: -1px; left: 50%; width: 1px; background: var(--line-strong); }
-.dl-bar > i { position: absolute; top: 0; bottom: 0; }
+.dl-bar > i { position: absolute; top: 0; bottom: 0; border-radius: 0 999px 999px 0; background: var(--c); }
+/* (As the rail draws them: too many, to the left and fainter; held by a cap, the wanted half hatched.) */
+.dl-r.down .dl-bar > i { border-radius: 999px 0 0 999px; opacity: 0.6; }
+.dl-r.cap .dl-bar > i { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 75%, transparent) 0 2px, transparent 2px 4.5px); }
 .dl-detail { margin: 2px 6px 6px; }
+/* What the kinds share, under the list as named facts — the neutral tax, the jobless, the caps, the empty zones — not
+   one paragraph broken wherever the pane's width fell. */
+.dl-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 7px 14px; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); font-size: 12.5px; line-height: 1.45; }
+.dl-facts dt { color: var(--muted); font-weight: 600; white-space: nowrap; }
+.dl-facts dd { min-width: 0; margin: 0; font-variant-numeric: tabular-nums; }
+.dl-facts .advice-view { margin-left: 4px; vertical-align: 1px; }
 .bar { position: relative; height: 6px; border-radius: 3px; background: var(--surface-3); }
 .bar::after { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--line-strong); }
 .bar .fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
@@ -1890,6 +1899,14 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .s-val.s-own > .r-state { overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
 /* (The month's balance under the money where both don't fit the line: a narrow phone, a fortune.) */
 .s-val.s-own > .r-money { flex-wrap: wrap; row-gap: 2px; }
+/* (수요 as the rail has it: its name — and a state no one class answers — on the first line, the class bars across the
+   row under it, the reason under those; beside the name the bars had a third of the row.) */
+.s-list .s-row[data-goal='growth'] { grid-template-rows: auto auto auto; }
+.s-list .s-row[data-goal='growth'] .s-own { display: contents; }
+.s-list .s-row[data-goal='growth'] .s-ic { grid-row: 1; }
+.s-list .s-row[data-goal='growth'] .r-state { grid-column: 3; grid-row: 1; max-width: 12em; text-align: right; }
+.s-list .s-row[data-goal='growth'] .r-rci { grid-column: 2 / 4; grid-row: 2; margin: 5px 0 3px; text-align: left; }
+.s-list .s-row[data-goal='growth'] .s-note { grid-row: 3; }
 .s-wait { margin-left: 3px; color: var(--accent-hi); font-size: 10px; letter-spacing: -1px; }
 /* (A line that does not wrap is cut at the pane's edge, not let widen it.) */
 #status, #status > section { grid-template-columns: minmax(0, 1fr); min-width: 0; }

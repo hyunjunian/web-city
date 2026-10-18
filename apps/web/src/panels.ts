@@ -367,13 +367,15 @@ export function demandList(): string {
     // (Held back by its cap with people waiting: the RCI meter's own test.)
     const held = atCap(t) && dem.raw[t] > 0;
     const open = demandRow === t;
-    return `<button type="button" class="dl-r${v >= 100 ? ' up' : v <= -1 ? ' down' : ''}${held ? ' cap' : ''}" data-dem-type="${t}" aria-expanded="${open}" title="${escapeHtml(typeLine(t))}" aria-label="${escapeHtml(typeLine(t))}"><span class="dl-n">${name}</span><span class="dl-bar" aria-hidden="true"><i style="left:${(v >= 0 ? 50 : 50 - w).toFixed(1)}%;width:${w.toFixed(1)}%;background:${TYPE_COLOR[t]}"></i></span><b>${held ? `${icon('lock')}상한` : `${v >= 1 ? '+' : ''}${signed(v)}`}</b></button>${open ? `<p class="legend dl-detail">${escapeHtml(typeLine(t))}</p>` : ''}`;
+    // (Held, the wanted half hatched, as the rail draws it: they want in, the cap holds them.)
+    const [left, width] = held ? [50, 50] : v >= 0 ? [50, w] : [50 - w, w];
+    return `<button type="button" class="dl-r${held ? ' cap' : v >= 100 ? ' up' : v <= -1 ? ' down' : ''}" data-dem-type="${t}" aria-expanded="${open}" title="${escapeHtml(typeLine(t))}" aria-label="${escapeHtml(typeLine(t))}"><span class="dl-n">${name}</span><span class="dl-bar" aria-hidden="true"><i style="left:${left.toFixed(1)}%;width:${width.toFixed(1)}%;--c:${TYPE_COLOR[t]}"></i></span><b>${held ? `${icon('lock')}상한` : `${v >= 1 ? '+' : ''}${signed(v)}`}</b></button>${open ? `<p class="legend dl-detail">${escapeHtml(typeLine(t))}</p>` : ''}`;
   };
   const groups = DEMAND_LIST.map(([label, rows]) => `<div class="dl-g"><span class="dl-k">${label}</span><div class="dl-rows">${rows.map(([t, name]) => row(t, name)).join('')}</div></div>`).join('');
   return `<section class="mg-sec mg-dem"><h3>${icon('zones')}소득별·종류별 수요</h3>
     <div class="dl" role="group" aria-label="소득별·종류별 수요">${groups}</div>
-    <p class="legend">막대는 가운데에서 오른쪽으로 길수록 모자라고, 왼쪽은 남습니다(끝이 ±1,000) · 눌러서 자세히<br>중립 세율 ${dem.neutralTax.toFixed(1)}% · 실업 ${byWealth(city.census.unemployed.map(fmt))}${capRelief() ? `<br>${capRelief()}` : ''}</p>
-    ${emptyZones()}</section>`;
+    <p class="legend dl-key">막대는 가운데에서 오른쪽으로 길수록 모자라고, 왼쪽은 남습니다(끝이 ±1,000) · 눌러서 자세히</p>
+    <dl class="dl-facts"><dt>중립 세율</dt><dd>${dem.neutralTax.toFixed(1)}%</dd><dt>실업</dt><dd>${byWealth(city.census.unemployed.map(fmt))}</dd>${capFacts()}${emptyZones()}</dl></section>`;
 }
 
 /** Impeachment stops the game: say so once, with what to do. */
@@ -659,15 +661,16 @@ function renderTaxMood(): void {
   if (parts.length) el.innerHTML = `최근 주거 세율 변경이 시장 평점에 주는 영향: ${parts.map(([v, name]) => `주거 ${name} <b class="${v < 0 ? 'neg' : 'pos'}">${v > 0 ? '+' : '−'}${Math.abs(v)}</b>`).join(' · ')} (약 ${left}개월에 걸쳐 사라짐)`;
 }
 
-/** What lifts the demand caps: neighbour connections by kind (first of each kind lifts offices) and freight that reached one. */
-function capRelief(): string {
+/** 수요's facts on the caps: the kinds one holds back, and what lifts them — neighbour connections by kind (first of each kind
+ *  lifts offices) and freight that reached one. */
+function capFacts(): string {
   const per = city.connectionsPerEdge();
   const NAMES = { road: '도로', highway: '고속도로', rail: '철도', subway: '지하철' } as const;
   const kinds = (Object.keys(NAMES) as (keyof typeof NAMES)[]).map((k) => [NAMES[k], per[k].reduce((a, b) => a + b, 0)] as const).filter(([, v]) => v > 0);
   const dem = city.demand;
   const held = DEV_TYPES.filter((t) => t !== 'IA' && atCap(t) && dem.raw[t] > 0);
-  const capped = held.length ? `상한에 막힌 유형: ${held.map((t) => `${TYPE_SHORT[t]} ${fmt(dem.capPopulation[t])}/${fmt(dem.cap[t])}`).join(' · ')}<br>` : '';
-  return `${capped}상한 완화: 이웃 연결 ${kinds.length ? kinds.map(([k, v]) => `${k} ${v}`).join(' · ') : '없음'} · 지난달 도시 밖으로 나간 화물 ${fmt(city.state.freightTrips)}건 (산업 상한에 반영)`;
+  const capped = held.length ? `<dt>상한에 막힘</dt><dd>${held.map((t) => `<span class="nw">${TYPE_SHORT[t]} ${fmt(dem.capPopulation[t])} / ${fmt(dem.cap[t])}</span>`).join(' · ')}</dd>` : '';
+  return `${capped}<dt>상한 완화</dt><dd>이웃 연결 ${kinds.length ? kinds.map(([k, v]) => `${k} ${v}`).join(' · ') : '없음'} · 지난달 도시 밖으로 나간 화물 ${fmt(city.state.freightTrips)}건 (산업 상한에 반영)</dd>`;
 }
 
 /** The city pane's gauge whose details are open (tap to toggle). */
@@ -980,7 +983,7 @@ function later(key: string, work: (c: typeof city) => Generator<void, void>): vo
   setTimeout(run, 0);
 }
 
-/** Empty zone tiles by what keeps them empty, with a button to the growth view. */
+/** 수요's fact on the empty zone tiles: how many, by what keeps them empty, with a button to the growth view. */
 let emptyZonesCache: { map: Uint8Array; revision: number; html: string } | null = null;
 
 function emptyZones(): string {
@@ -1004,7 +1007,7 @@ function countEmptyZones(map: Uint8Array): string {
   }
   if (!total) return '';
   const parts = [...counts].sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="nw">${k} ${fmt(n)}</span>`).join(' · ');
-  return `<p class="legend">빈 구역 ${fmt(total)}칸: ${parts} <button type="button" class="advice-view" data-overlay="growth" title="빈 구역을 막는 것을 지도에서 보기">보기</button></p>`;
+  return `<dt>빈 구역 ${fmt(total)}칸</dt><dd>${parts} <button type="button" class="advice-view" data-overlay="growth" title="빈 구역을 막는 것을 지도에서 보기">보기</button></dd>`;
 }
 
 /** One-line advisor hints for the most pressing problem. */
