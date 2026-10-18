@@ -786,6 +786,7 @@ kbd {
 .dl-r.up b { color: var(--good-ink); }
 .dl-r.down b { color: var(--muted); }
 .dl-r.cap b { color: var(--warn-ink); }
+.dl-r.cap.bad b { color: var(--danger-ink); }
 .dl-r[aria-expanded='true'] { border-color: var(--accent); background: var(--surface-2); }
 @media (hover: hover) { .dl-r:hover { background: var(--surface-2); } }
 .dl-bar { position: relative; display: block; height: 8px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--line-strong) 35%, transparent); }
@@ -2252,6 +2253,12 @@ input[type='range']::-moz-range-track { height: 4px; border-radius: 2px; }
 input[type='range']::-moz-range-progress { height: 4px; border-radius: 2px; }
 input[type='range']::-moz-range-thumb { width: 18px; height: 18px; }
 @media (pointer: coarse) { input[type='range']::-webkit-slider-thumb { width: 24px; height: 24px; margin-top: -10px; } }
+/* Reached by the keyboard, a slider rings its knob, not a box round its whole row (it overlapped the line under it);
+   a fold's ring follows its corners. */
+input[type='range']:focus-visible { outline: none; }
+input[type='range']:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent-hi); }
+input[type='range']:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent-hi); }
+details > summary:focus-visible { border-radius: var(--r-sm); }
 /* No lone word on a last line ("… 3,816 / 더"): short texts wrap evenly. */
 p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { text-wrap: pretty; }
 /* All well: the card is calm (neutral, its check green), not a green block asking to be read. */
@@ -2837,6 +2844,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   @media (hover: hover) { #rail :is(#city-rows, #goal-strip .amenity-card) button:hover { background: color-mix(in srgb, var(--text) 5%, transparent); } } /* (over a lit row's accent too) */
   #rail :is(#city-rows, #goal-strip .amenity-card) button:active { background: color-mix(in srgb, var(--text) 9%, transparent); } /* (pressed: darker than hovered, not smaller) */
   #rail #city-rows button:focus-visible { outline-offset: -3px; }
+  #rail :is(#city-card, .amenity-card) button:focus-visible { outline-offset: -4px; border-radius: 12px; } /* (inside the card's rounded corners: square, they were cut off) */
   #rail #goal-strip .amenity-head {
     --am: var(--accent);
     grid-template-columns: 22px minmax(0, 1fr); grid-template-areas: 'ic name' 'score score' 'bar bar' 'next next';

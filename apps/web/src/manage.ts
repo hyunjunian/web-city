@@ -3000,7 +3000,7 @@ function goalParts(id: GoalId): { top: string; acts: string; more: string } {
     }).join('')}</div>` : ''}
     ${has('usage') ? usageBar(id) : ''}
     ${has('air') ? airCauses(id) : ''}
-    ${has('rci') && id === 'growth' ? demandList() : ''}
+    ${has('rci') && id === 'growth' ? demandList(s) : ''}
     ${has('outlook') ? ops.outlook : ''}`;
   const facs = has('facilities') && list.length ? `<section class="mg-sec"><h3>${icon('landmark')}시설 ${list.length}곳${allDept ? '<small class="sec-note">부서 예산으로 운영</small>' : ''}</h3><div class="mg-facs">${shown.map((f) => {
       const [line, tone] = facilityLine(f);

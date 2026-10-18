@@ -359,7 +359,7 @@ const DEMAND_LIST: [label: string, rows: [DevType, string][]][] = [
  * its figure, a cap holding it back said by a lock. Pressed, a row's own line under it; under the list, what the classes
  * share (the neutral tax, the jobless by wealth, what lifts the caps) and the empty zones.
  */
-export function demandList(): string {
+export function demandList(hot?: { cls?: 'R' | 'C' | 'I'; tone: string }): string {
   const dem = city.demand;
   const row = (t: DevType, name: string) => {
     const v = dem.demand[t];
@@ -370,7 +370,10 @@ export function demandList(): string {
     const open = demandRow === t;
     // (Held, the wanted half hatched, as the rail draws it: they want in, the cap holds them.)
     const [left, width] = held ? [50, 50] : v >= 0 ? [50, w] : [50 - w, w];
-    return `<button type="button" class="dl-r${held ? ' cap' : v >= 100 ? ' up' : v <= -1 ? ' down' : ''}" data-dem-type="${t}" aria-expanded="${open}" title="${escapeHtml(typeLine(t))}" aria-label="${escapeHtml(typeLine(t))}"><span class="dl-n">${name}</span><span class="dl-bar" aria-hidden="true"><i style="left:${left.toFixed(1)}%;width:${width.toFixed(1)}%;--c:${TYPE_COLOR[t]}"></i></span><b>${held ? `${icon('lock')}상한` : `${v >= 1 ? '+' : ''}${signed(v)}`}</b></button>${open ? `<p class="legend dl-detail">${escapeHtml(typeLine(t))}</p>` : ''}`;
+    // (Its 상한 in the state's colour where the state is about its class, as the rail has it: red there, orange here.)
+    const k = t === 'IA' ? '' : t[0];
+    const tone = held && hot?.tone && hot.cls === k ? ` ${hot.tone}` : '';
+    return `<button type="button" class="dl-r${held ? ' cap' : v >= 100 ? ' up' : v <= -1 ? ' down' : ''}${tone}" data-dem-type="${t}" aria-expanded="${open}" title="${escapeHtml(typeLine(t))}" aria-label="${escapeHtml(typeLine(t))}"><span class="dl-n">${name}</span><span class="dl-bar" aria-hidden="true"><i style="left:${left.toFixed(1)}%;width:${width.toFixed(1)}%;--c:${TYPE_COLOR[t]}"></i></span><b>${held ? `${icon('lock')}상한` : `${v >= 1 ? '+' : ''}${signed(v)}`}</b></button>${open ? `<p class="legend dl-detail">${escapeHtml(typeLine(t))}</p>` : ''}`;
   };
   const groups = DEMAND_LIST.map(([label, rows]) => `<div class="dl-g"><span class="dl-k">${label}</span><div class="dl-rows">${rows.map(([t, name]) => row(t, name)).join('')}</div></div>`).join('');
   return `<section class="mg-sec mg-dem"><h3>${icon('zones')}소득별·종류별 수요</h3>
