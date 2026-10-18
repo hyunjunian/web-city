@@ -944,6 +944,8 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 /* Against the map: how many tiles each colour holds; a colour the map doesn't show reads faint. */
 #overlay-legend .swatch-item small { color: var(--muted); font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; }
 #overlay-legend .swatch-item.absent { opacity: 0.38; }
+/* (None on the map at all — a new city — they are the key: whole, not fourteen ghosts in a grey wall.) */
+#overlay-legend:not(:has(.swatch-item:not(.absent))) .swatch-item.absent { opacity: 1; }
 #overlay-legend:has(.legend-rest):not(.show-rest) .swatch-item.absent { display: none; }
 #overlay-legend .legend-rest { margin: 0 0 3px; }
 #overlay-legend .swatch-item[role='button'] { cursor: pointer; border-radius: 6px; }
@@ -1005,7 +1007,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #minimap { position: static; display: block; width: 148px; height: 148px; padding: 0; border-radius: var(--r-lg); cursor: pointer; touch-action: none; image-rendering: pixelated; }
 #view.night { --view-bg: #0d1017; }
 /* Dark theme: the daytime map a touch dimmer beside the black chrome (it glared). */
-:root[data-theme='dark'] #view:not(.night) :is(#map, #minimap) { filter: brightness(0.88); }
+:root[data-theme='dark'] #view:not(.night) :is(#map, #minimap) { filter: brightness(0.8) saturate(0.9); } /* (at .88 the bright sage still stood out of the black frames) */
 #view.night #minimap { filter: brightness(0.55) saturate(0.8); }
 #view.info-open #minimap { display: none; } /* the card has the right side; the minimap would sit over the city */
 #view:has(#tray:not([hidden])) #minimap { display: none; } /* the open tool tray reaches up beside it */
@@ -2818,6 +2820,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail .am-score { grid-area: score; display: flex; align-items: baseline; gap: 3px; margin-top: 3px; }
   #rail .am-score b { font-size: 28px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
   #rail .am-score small { color: var(--muted); font-size: 13px; font-weight: 600; }
+  #rail .am-score b.none { color: var(--faint); font-weight: 500; } /* (not yet rated: a quiet dash, not a heavy stray line) */
   #rail .amenity-head.warn .am-score b { color: var(--warn-ink); }
   #rail .amenity-head.bad .am-score b { color: var(--danger-ink); }
   #rail .am-bar { grid-area: bar; position: relative; display: block; justify-self: stretch; height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--am) 20%, transparent); overflow: hidden; }
