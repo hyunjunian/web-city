@@ -880,11 +880,11 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 /* A lone action as a small pill in the accent — a step's one-press shortcut, 바로 보내기, 지역에서 이웃 고르기 ›, a budget
    row's 짓기 — not an underlined web link (those are kept for words inside a sentence). */
 /* (A plain list, not :is(): each keeps its own weight, so a finger's taller target below still overrides it.) */
-.steps .step-lay, .next-acts .next-send, .mg-links .link, .mg-sec > button.link, .funding.dept > button.link {
+.steps .step-lay, .next-acts .next-send, .mg-links .link, .mg-sec > button.link, .funding.dept > button.link, button.advice-more, #seed-reroll {
   display: inline-flex; align-items: center; gap: 4px; width: auto; min-height: 28px; padding: 3px 12px; border-radius: 999px;
   background: var(--accent-soft); color: var(--accent-hi); text-decoration: none; font-weight: 600; text-align: left;
 }
-@media (hover: hover) { .steps .step-lay:hover, .next-acts .next-send:hover, .mg-links .link:hover, .mg-sec > button.link:hover, .funding.dept > button.link:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); } }
+@media (hover: hover) { .steps .step-lay:hover, .next-acts .next-send:hover, .mg-links .link:hover, .mg-sec > button.link:hover, .funding.dept > button.link:hover, button.advice-more:hover, #seed-reroll:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); } }
 .steps .step-lay { justify-self: start; max-width: calc(100% - 36px); }
 /* (Under a finger, a taller target that keeps the line where it was.) */
 /* (A finger's margin around the link reached up into the step's own row: a tap meant to pick the step's tool laid
@@ -896,6 +896,9 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 .step-foot { display: flex; align-items: center; gap: 10px; }
 .step-foot .step-progress { flex: 1; min-width: 40px; }
 .step-foot .link { margin-left: 6px; }
+/* 그만 보기: a quiet way out beside the progress, not a link in the accent (nor a pill: it is not what to do next). */
+#onboarding-hide { color: var(--muted); text-decoration: none; font-weight: 500; }
+@media (hover: hover) { #onboarding-hide:hover { color: var(--text); } }
 
 /* ------------------------------------------------------------------ map */
 
@@ -1708,8 +1711,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #tool-chip #tool-alts button { min-height: 36px; }
   .graph-range button { min-height: 40px; }
   /* (Not the folds that draw their chevron with ::after: on phones it was thrown off to a corner. They are whole rows to hit anyway.) */
-  button.link, details:not(.watch-rest, .acts-more, .info-more, .tip, .dropdown) > summary { position: relative; }
-  button.link::after, details:not(.watch-rest, .acts-more, .info-more, .tip, .dropdown) > summary::after { content: ''; position: absolute; inset: -12px -8px; }
+  button.link, details:not(.watch-rest, .acts-more, .info-more, .tip, .dropdown, .steps-later, .new-more, .legend-more, #taxes details) > summary { position: relative; }
+  button.link::after, details:not(.watch-rest, .acts-more, .info-more, .tip, .dropdown, .steps-later, .new-more, .legend-more, #taxes details) > summary::after { content: ''; position: absolute; inset: -12px -8px; }
   .tile kbd { display: none; }
   /* The goal screens' small controls: a finger's margin, the rows unchanged. */
   :is(.watch-sort, .advice-view, .mg-kinds .vchip, .mg-chips .vchip, .mg-tax .tax-step, .fac-fund .tax-step) { position: relative; }
@@ -1771,6 +1774,14 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .acts-more[open] > summary::after { transform: rotate(180deg); }
 @media (hover: hover) { .acts-more > summary:hover { color: var(--text); } }
 .acts-more > .acts { margin-top: 4px; }
+/* One fold marker everywhere, the chevron after its words turning as it opens (native triangles stood beside it:
+   그다음 10개, 소득·유형별 세율, 설명·학력, 고급 설정). */
+:is(.steps-later, .new-more, .legend-more, #taxes details) > summary { display: flex; align-items: center; gap: 6px; list-style: none; }
+:is(.steps-later, .new-more, .legend-more, #taxes details) > summary::-webkit-details-marker { display: none; }
+:is(.steps-later, .new-more, .legend-more, #taxes details) > summary::after { content: ''; flex: none; width: 14px; height: 14px; background: var(--chevron) center / 14px no-repeat; transition: transform 0.2s var(--ease); }
+:is(.steps-later, .new-more, .legend-more, #taxes details)[open] > summary::after { transform: rotate(180deg); }
+@media (hover: hover) { :is(.steps-later, .new-more, .legend-more, #taxes details) > summary:hover { color: var(--text); } }
+@media (pointer: coarse) { :is(.steps-later, .new-more, .legend-more, #taxes details) > summary { min-height: 36px; } } /* (a finger's row of its own, as the margin round other folds gives them) */
 /* The info card's area readings, folded under its own story. */
 .info-more { margin-top: 14px; border-top: 1px solid var(--line); }
 .info-more > summary { display: flex; align-items: center; gap: 6px; padding: 12px 0 4px; color: var(--muted); font-size: 12.5px; cursor: pointer; list-style: none; }
