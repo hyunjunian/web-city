@@ -9,7 +9,7 @@ import {
   HandCoins, LayoutDashboard, Handshake, HeartPulse, Info, Landmark, Layers, LayoutGrid, Lock, Map as MapIcon, Maximize2, Megaphone, Mic, Minimize2,
   Minus, Moon, MoonStar, Mountain, MoveRight, PanelLeftClose, PanelLeftOpen, Plus, Recycle, Route, Scissors, Search, Shield, Shovel, Siren, Sun, Ticket,
   Tornado, Tractor, TrainFront, TrainFrontTunnel, TrainTrack, Trash2, TreePine, Trees, TriangleAlert, Trophy, Users,
-  Wallet, Waves, Wind, X, Zap, Gem, ThumbsUp, House, Store, Building, type IconNode,
+  Wallet, Waves, Wind, X, Zap, Gem, ThumbsUp, House, Store, Building, Bell, type IconNode,
 } from 'lucide';
 
 const line = (d: string): IconNode[number] => ['path', { d }];
@@ -69,6 +69,7 @@ const ICONS = {
   wind: Wind, alert: TriangleAlert, megaphone: Megaphone, walk: Footprints,
   // (A building's kind on its card: homes, shops, offices; factories and farms are factory and tractor.)
   home: House, store: Store, office: Building,
+  bell: Bell,
 } satisfies Record<string, IconNode>;
 
 export type IconName = keyof typeof ICONS;
