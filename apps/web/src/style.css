@@ -43,7 +43,7 @@
   --border-strong: var(--line-strong);
   --text: #f5f5f7;
   --muted: #a1a1a9;
-  --faint: #7c7c85; /* (4.3:1 on a card: legends and keys in it were 3.4:1) */
+  --faint: #8b8b94; /* (5:1 on a card and 4.6:1 on surface-2: small print at 11px needs it) */
   --accent: #3e6ae1;
   --accent-hi: #7b9cf5;
   --accent-ink: #ffffff;
@@ -94,7 +94,7 @@
   --line-strong: rgba(23, 26, 32, 0.16);
   --text: #171a20;
   --muted: #5c5e62;
-  --faint: #7a7d84; /* (4.1:1 on white: 2.7:1 left the arrows' key and other small print hard to read) */
+  --faint: #696c73; /* (5.3:1 on white and 4.6:1 on surface-2: small print at 11px needs it) */
   --accent: #3e6ae1;
   --accent-hi: #2f58cc;
   --accent-ink: #ffffff;
@@ -192,8 +192,9 @@ button.link:active { transform: none; }
 /* A wide button pressed darkens instead: at 290px a 0.97 scale moved its edges 4–5px against its card's frame and
    hairlines (the rail's buttons, a screen's action cards and facility rows). */
 #rail button:active, button.act:active, button.fac-main:active { transform: none; }
-#rail button:active { background-color: color-mix(in srgb, var(--text) 8%, transparent); }
-button:is(.act, .fac-main):active { filter: brightness(0.96); }
+#rail button:active { background-color: color-mix(in srgb, var(--text) 8%, var(--float-solid)); } /* (the 시작하기 and 주의 N pills are solid: over transparent the map showed through) */
+button.act:active { background-color: color-mix(in srgb, var(--text) 10%, var(--surface-2)); } /* (a tint: brightness() changed nothing on the dark card, and a facility row has no fill to darken) */
+button.fac-main:active { background-color: color-mix(in srgb, var(--text) 10%, transparent); }
 
 .icon-btn {
   width: 40px; height: 40px; min-height: 0; padding: 0; border-radius: 12px;
@@ -301,15 +302,15 @@ label.check { display: flex; gap: 10px; align-items: center; cursor: pointer; }
 .muted { color: var(--muted); }
 .legend { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; text-wrap: pretty; }
 h3.sub { font-size: 12px; color: var(--muted); margin: 16px 0 8px; font-weight: 600; letter-spacing: 0.02em; }
-#info h3.sub { font-size: 12.5px; color: var(--text); font-weight: 650; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); } /* the card's long list in parts */
-h3.sub .score { color: var(--text); font-size: 14px; margin-left: 2px; }
-h3.sub .score.neg { color: var(--danger); }
+#info h3.sub { font-size: 13px; color: var(--text); font-weight: 700; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); } /* the card's long list in parts */
+h3.sub .score { color: var(--text); font-size: 14px; font-weight: 700; margin-left: 2px; }
+h3.sub .score.neg { color: var(--danger-ink); }
 
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 td { padding: 5px 0; vertical-align: top; }
 td:last-child { text-align: right; }
-td.neg, .neg { color: var(--danger); }
-.pos { color: var(--good); }
+td.neg, .neg { color: var(--danger-ink); } /* (figures in text: the bright --good/--danger are for fills, dots and lines) */
+.pos { color: var(--good-ink); }
 
 kbd {
   display: inline-block; min-width: 1.6em; padding: 0 5px; border-radius: 6px;
@@ -411,6 +412,7 @@ kbd {
 #pane.scrolled:not(.managing)::before { opacity: 1; pointer-events: auto; } /* (a tap on the veil stops there: it reached the rename or a 바로 놓기 hidden under it) */
 /* Stuck, the head's band reaches past the × before its hairline (the × hung 8px over the line into the text below). */
 #pane.scrolled .mg-head { box-shadow: 0 var(--hx, 6px) 0 var(--surface), 0 calc(var(--hx, 6px) + 1px) 0 var(--line); }
+#pane.scrolled .mg-head:has(.mg-tabs) { box-shadow: none; } /* (its tabs' underline is the edge: a band under it drew a second line, and the × hangs below no head that tall) */
 @media (max-width: 860px) { #pane { --hx: 9px; } }
 /* Wide, its × kept to the top right as it scrolls (first in the column, stuck, taking no room from the row beside it).
    (A phone's sheet has its own, below.) */
@@ -478,8 +480,8 @@ kbd {
 .kpi .k-value { font-size: 16px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kpi.bad .k-value { color: var(--danger); }
 .k-sub { font-size: 12px; font-weight: 550; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.k-sub.pos { color: var(--good); }
-.k-sub.neg { color: var(--danger); }
+.k-sub.pos { color: var(--good-ink); }
+.k-sub.neg { color: var(--danger-ink); }
 
 .gauges { display: grid; padding: 4px 14px; background: var(--surface); border-radius: var(--r-lg); }
 .gauge {
@@ -669,7 +671,7 @@ kbd {
    stood as bold as the heading itself. */
 .mg-sec h3.sub { display: block; margin: 14px 0 6px; color: var(--muted); font-size: 12.5px; font-weight: 600; letter-spacing: 0; }
 .mg-sec > h3 + div > h3.sub:first-child { margin-top: 6px; }
-#goal-stats h3.sub { color: var(--text); } /* (a group of graphs: its name over theirs, which are grey) */
+#graphs > h3.sub { color: var(--text); } /* (a group of graphs: its name over theirs, which are grey — not 나이별's, which are reports as 소득별 is) */
 .mg-sec .advice { margin: 0; }
 .mg-sec .funding.dept { margin-top: 0; }
 .mg-sec .funding.mg-group { grid-template-columns: 92px minmax(0, 1fr) 52px; margin-top: 0; }
@@ -725,7 +727,7 @@ kbd {
 .fac.warn .fac-line { color: var(--warn-ink); }
 /* How full each facility is, under its figures: blue, amber past full. */
 .fac-bar { display: block; width: min(180px, 100%); height: 4px; margin-top: 4px; overflow: hidden; border-radius: 2px; background: var(--surface-3); }
-.fac-bar i { display: block; height: 100%; border-radius: 2px; background: var(--accent); }
+.fac-bar i { display: block; height: 100%; border-radius: 2px; background: var(--data); } /* (a figure's bar, neutral as 지난달 재정's: the accent is what to press) */
 .fac-bar.over i { background: var(--warn); }
 .fac.bad .fac-line { color: var(--danger-ink); }
 .fac-fund { display: inline-flex; align-items: center; gap: 4px; }
@@ -758,7 +760,7 @@ kbd {
 }
 
 .card { padding: 14px 14px; /* one inset with the KPIs and gauges */ background: var(--surface); border-radius: var(--r-lg); }
-.card h2 { margin: 0 0 10px; font-size: 13.5px; font-weight: 650; letter-spacing: 0.01em; }
+.card h2 { margin: 0 0 10px; font-size: 13px; font-weight: 700; letter-spacing: 0; }
 .card .card { background: var(--surface-2); }
 
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
@@ -977,7 +979,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #tool-chip {
   bottom: var(--bb); left: var(--bar-x, var(--mid)); transform: translateX(-50%); z-index: 4;
   display: flex; align-items: center; gap: 10px; max-width: calc(2 * min(var(--bar-x, var(--mid)) - var(--free-l), 100% - var(--bar-x, var(--mid)) - 14px));
-  padding: 5px 5px 5px 14px; border-radius: 16px; animation: pop-in 0.18s var(--ease);
+  padding: 5px 5px 5px 14px; border-radius: 18px; box-shadow: var(--shadow); animation: pop-in 0.18s var(--ease); /* (the build bar's corners and lift, 6px above it) */
   background: var(--float-solid); -webkit-backdrop-filter: none; backdrop-filter: none; /* (solid and rounded as the build bar under it: see-through, it read greener than the bar, a pill over a card) */
 }
 #tool-chip-icon { display: grid; place-items: center; color: var(--accent-hi); }
@@ -1121,8 +1123,8 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
   box-shadow: var(--shadow);
 }
 .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px 10px 8px 18px; flex: none; }
-.card-head h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 15.5px; font-weight: 650; }
-.card-head h2 .i { width: 20px; height: 20px; color: var(--muted); }
+.card-head h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 17px; font-weight: 700; } /* (a panel's title, as a screen's is) */
+.card-head h2 .i { width: 20px; height: 20px; color: var(--accent-hi); }
 
 /* The tool tray: rising from the building bar, up to the top rows — over the bar's middle (the city pane open beside
    it in a window too narrow for both, in the middle of the map it leaves). */
@@ -1183,7 +1185,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #tray-results .tile.locked { display: flex; }
 .find-none { grid-column: 1 / -1; margin: 4px 0 8px; }
 .tray-section { break-inside: avoid; padding-bottom: 16px; }
-.tray-section h3 { margin: 0 0 8px; font-size: 12.5px; font-weight: 700; color: var(--text); } /* (the name over its note, not the note louder than it) */
+.tray-section h3 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--text); } /* (the name over its note, not the note louder than it) */
 #tray.single .tray-section h3 { display: none; }
 .tile {
   flex-direction: column; justify-content: flex-start; gap: 5px; min-height: 86px; padding: 10px 8px 9px;
@@ -1243,6 +1245,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #info-card .card-head { position: absolute; top: 10px; right: 10px; z-index: 2; padding: 0; }
 /* It floats over the facts as they scroll: a solid button, not a stray glyph on the text. */
 #info-card .card-head .icon-btn { background: var(--surface-2); color: var(--text); box-shadow: var(--shadow-sm); } /* (the pane's own ×: a white circle here, a grey square there) */
+@media (min-width: 861px) { #info-card .card-head { top: 13px; right: 13px; } #info-card .card-head .icon-btn { width: 34px; height: 34px; } } /* (the pane's ×, often beside it: its size, and its inset from the card's corner) */
 #info-card .card-head h2 { display: none; }
 #info { flex: 1; min-height: 0; padding: 18px 18px 18px; overflow-y: auto; }
 #info > :first-child { padding-right: 40px; }
@@ -1256,7 +1259,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 .info-swatch { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 10px; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.16); color: #fff; }
 .info-swatch .i { width: 20px; height: 20px; margin-top: -2px; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.35)); }
 .info-title { display: grid; min-width: 0; }
-.info-title strong { overflow: hidden; font-size: 17px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.info-title strong { overflow: hidden; font-size: 17px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .info-title .muted { font-size: 12.5px; }
 .info-meter { height: 6px; overflow: hidden; border-radius: 999px; background: var(--surface-3); }
 .info-meter .fill { height: 100%; border-radius: 999px; }
@@ -1313,8 +1316,8 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 @media (max-width: 1330px) { #view.sheet-open #map-controls { visibility: hidden; } }
 
 /* Budget, taxes, ordinances, loans */
-#budget b.good { color: var(--good); }
-#budget b.bad { color: var(--danger); }
+#budget b.good { color: var(--good-ink); }
+#budget b.bad { color: var(--danger-ink); }
 .budget-table td:first-child { position: relative; padding-bottom: 9px; }
 .budget-table tr.sub td:first-child { padding-left: 14px; }
 .budget-table tr.head td { font-weight: 600; }
@@ -1332,7 +1335,7 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .tax-out { display: flex; align-items: center; justify-content: flex-end; gap: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); }
 .tax-step { display: none; width: 32px; min-height: 32px; padding: 0; border-radius: 50%; font-size: 17px; line-height: 1; }
 .tax-row small { display: block; font-size: 11px; line-height: 1.2; }
-.tax-row small.neg { color: var(--danger); }
+.tax-row small.neg { color: var(--danger-ink); }
 .tax-row small.pos { color: var(--good-ink); }
 .tax-row .tax-effect { grid-column: 2 / 4; margin-top: -6px; }
 .tax-row .tax-effect { min-height: 13px; } /* kept when empty: rows don't jump as a rate starts to bite */
@@ -1384,8 +1387,8 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .graph-delta.down { color: var(--danger-ink); }
 .graph canvas { display: block; width: 100%; background: var(--surface-2); border-radius: var(--r-sm); cursor: crosshair; }
 .graph-key { margin-left: 6px; color: var(--muted); font-size: 11.5px; white-space: nowrap; }
-.graph-key i { display: inline-block; width: 10px; height: 2px; margin: 0 3px 0 4px; vertical-align: middle; }
-.graph-key i.dash { width: 14px; background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px); } /* (the plot's own dashes, 4 on and 3 off: a 10px dashed border drew one solid dash) */
+.graph-key i { display: inline-block; width: 10px; height: 2px; margin: 0 3px 0 4px; vertical-align: middle; background: var(--accent); }
+.graph-key i.dash { width: 14px; color: var(--muted); background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px); } /* (the plot's own dashes, 4 on and 3 off: a 10px dashed border drew one solid dash) */
 
 /* Polls, ages, reward progress, wealth tables */
 .poll-row { display: grid; grid-template-columns: 68px minmax(0, 1fr) 42px; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
@@ -1509,7 +1512,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .help-tips p b { color: var(--text); }
 #help-body > h3.sub:first-child { margin-top: 0; }
 /* (The dialog's parts over their groups: 키보드 and 시간·저장 under it were one style.) */
-#help-body h3.sub { margin-top: 22px; color: var(--text); font-size: 13.5px; font-weight: 700; letter-spacing: 0; }
+#help-body h3.sub { margin-top: 22px; color: var(--text); font-size: 13px; font-weight: 700; letter-spacing: 0; }
 .help-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 28px; margin: 0; font-size: 13.5px; } /* (what is done beside its gesture: 2fr left a 230px gap after 끌기) */
 .help-grid dt { color: var(--muted); }
 .help-grid dd { margin: 0; }
@@ -1686,7 +1689,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .pane-clock { top: -14px; margin-top: -14px; margin-bottom: -16px; } /* (4px from the edge here too; this column's gap is 10px) */
   .pane-close { top: 7px; margin-top: -8px; margin-bottom: -24px; } /* (and so the ×'s insets: its middle on the head's row) */
   #pane.managing .pane-close { top: 10px; }
-  #view.info-open #toasts { width: calc(100% - min(420px, 58%) - 92px); }
+  #view.info-open #toasts, #view.sheet-open #toasts, #view:has(#tray:not([hidden])) #toasts { width: calc(100% - min(420px, 58%) - 92px); } /* (the tools card and 지역 sheet there too: a notice ran under them, its › and time hidden) */
 }
 
 /* Hospital and school grade: five dots, filled up to the grade. */
@@ -1696,11 +1699,11 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 
 /* Zone groups in the tray: how much the class is wanted now. */
 .zone-demand { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; color: var(--muted); font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; text-transform: none; letter-spacing: 0; }
-.zone-demand.up { color: var(--good); font-weight: 600; }
+.zone-demand.up { color: var(--good-ink); font-weight: 600; }
 .zone-demand.cap { color: var(--warn-ink); font-weight: 600; } /* (small print: the bright amber was 3.9:1 on the light card) */
 .zone-demand .i { width: 12px; height: 12px; }
 #tool-chip-label .zone-demand { margin-left: 0; font-size: 12px; }
-#tool-chip-label .zone-demand.up { color: var(--good); }
+#tool-chip-label .zone-demand.up { color: var(--good-ink); }
 #tool-chip-label .zone-demand.cap { color: var(--warn-ink); }
 
 .gauge[data-g] { cursor: pointer; }
@@ -1871,7 +1874,11 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .all-good .i { width: 15px; height: 15px; }
 
 /* The pane's other blocks (시작하기, 소식) under the same quiet heading as the overview's. */
-#pane > .card > h2 { margin: 0 0 8px; font-size: 12.5px; font-weight: 650; color: var(--muted); letter-spacing: 0.01em; }
+#pane > .card > h2 { margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--text); letter-spacing: 0; } /* (a section's heading, as a screen's are and 도시 상태 is) */
+/* 인구 현황's parts — 추이, 소득별, 나이별, 건물 현황, 보상 진행 — each under the same quiet heading: 추이 no louder than its
+   neighbours (as a screen's own section it keeps its icon). */
+#city-people #goal-stats > h3 { font-size: 12.5px; font-weight: 600; color: var(--muted); }
+#city-people #goal-stats > h3 > .i { display: none; }
 
 
 /* ------------------------------------------------------------------ the overview: five blocks, each read at a glance */
@@ -2173,8 +2180,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #toasts .toast:not(:last-child):not(.sticky):not(:hover):not(:focus-within)::after { opacity: 0; }
 }
 .toast {
-  position: relative; overflow: hidden; gap: 11px; padding: 11px 12px 12px 14px; border-radius: 14px;
-  background: var(--float-solid); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08);
+  position: relative; overflow: hidden; gap: 11px; padding: 11px 12px 12px 14px;
+  background: var(--float-solid); /* (corners and shadow those of the other floating cards: a black shadow of its own sat flat in the dark) */
   font-size: 13px; line-height: 1.45; animation: toast-in 0.28s var(--ease);
 }
 @keyframes toast-in { from { opacity: 0; transform: translateX(28px); } }
@@ -2302,7 +2309,7 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
 #view:has(#tray:not([hidden]) #tray-results:not([hidden])) .dock-btn.open { background: transparent; color: var(--muted); }
 #tray:has(#tray-results:not([hidden])) .tray-cat.open { background: transparent; color: var(--muted); } /* (a phone's tabs in the card, the same) */
 #tray:has(#tray-results:not([hidden])) .tray-cat.open .i { color: inherit; }
-.advice > .adv-i + b { font-weight: 600; opacity: 0.72; margin-right: 2px; } /* who says it, as a quiet label: what is said is the line */
+.advice > .adv-i + b { font-weight: 500; margin-right: 2px; } /* who says it, as a quiet label (the hairline after it sets it off): what is said is the line */
 .act-sub b { font-weight: 400; color: var(--text); } /* (figures in plain ink, as on the tool cards) */
 .mg-sec > button.link[data-mg-tab] { justify-self: start; justify-content: flex-start; width: auto; margin-left: 0; } /* (a section's way on, under its heading, not floated mid-pane) */
 /* An informational notice in grey (blue is what to press; green and red are good and bad news). */
@@ -2378,7 +2385,7 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
 .s-list .s-row[data-goal='growth'] .s-note { -webkit-line-clamp: 3; line-clamp: 3; }
 .advice .adv-echo { color: var(--muted); font-weight: 500; }
 /* Who says it, set off from what is said by a hairline (보건·교육 위의 문제: read as "the problem above 보건·교육"). */
-.advice .adv-who { font-size: 0.92em; }
+.advice .adv-who { font-size: 12px; }
 .advice .adv-who::after { content: ''; display: inline-block; width: 1px; height: 0.85em; margin: 0 1px 0 7px; background: currentColor; opacity: 0.35; vertical-align: -0.05em; }
 /* The arrows' key, under the list while any shows. */
 .s-legend { display: flex; align-items: center; gap: 2px; margin: 8px 6px 0; color: var(--faint); font-size: 11px; }
@@ -2463,7 +2470,7 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
    the top, red past it. */
 .mg-usage { display: flex; align-items: center; gap: 10px; margin: 2px 0 10px; font-size: 12px; color: var(--muted); }
 .mg-usage-bar { position: relative; flex: 1; height: 8px; overflow: hidden; border-radius: 4px; background: var(--surface-3); }
-.mg-usage-bar i { display: block; height: 100%; border-radius: 4px; background: var(--accent); transition: width 0.3s var(--ease); }
+.mg-usage-bar i { display: block; height: 100%; border-radius: 4px; background: var(--data); transition: width 0.3s var(--ease); }
 .mg-usage.warn .mg-usage-bar i { background: var(--warn); }
 .mg-usage.bad .mg-usage-bar i { background: var(--danger); }
 /* Where the air over the smoggy homes comes from: one bar in the sources' colours, their names under it. */

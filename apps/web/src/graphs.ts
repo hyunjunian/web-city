@@ -25,8 +25,6 @@ interface GraphDef {
   compare?: (h: HistoryPoint) => number;
   /** The space between the two series shaded by which is ahead (income over spending: the month's surplus or deficit). */
   gap?: true;
-  /** Colour tokens for the first and second series. */
-  colors?: [string, string];
   /** Which way is better (1 up, −1 down): the change over the period is coloured by it (none: plain). */
   better?: 1 | -1;
 }
@@ -50,8 +48,8 @@ const GRAPHS: GraphDef[] = [
   { key: 'jobs', goal: 'city', title: '일자리', value: (h) => h.jobs, format: fmt, better: 1 },
   { key: 'funds', goal: 'finance', title: '자금', value: (h) => h.funds, format: money, better: 1 },
   { key: 'mayorRating', goal: 'amenity', title: '시장 평점', value: (h) => h.mayorRating, format: fmt, better: 1 },
-  { key: 'crimes', goal: 'police', title: '범죄와 체포', better: -1, value: (h) => h.crimes, compare: (h) => h.arrests ?? 0, names: ['범죄', '체포'], colors: ['--danger', '--accent'], format: fmt },
-  { key: 'budget', goal: 'finance', title: '수입과 지출 (월)', value: (h) => h.income ?? 0, compare: (h) => h.expenses ?? 0, names: ['수입', '지출'], colors: ['--good', '--danger'], format: (v) => `§${fmt(v)}`, optional: true, gap: true },
+  { key: 'crimes', goal: 'police', title: '범죄와 체포', better: -1, value: (h) => h.crimes, compare: (h) => h.arrests ?? 0, names: ['범죄', '체포'], format: fmt },
+  { key: 'budget', goal: 'finance', title: '수입과 지출 (월)', value: (h) => h.income ?? 0, compare: (h) => h.expenses ?? 0, names: ['수입', '지출'], format: (v) => `§${fmt(v)}`, optional: true, gap: true },
   { key: 'abandoned', goal: 'city', title: '버려진 건물', value: (h) => h.abandoned ?? 0, format: (v) => `${fmt(v)}채`, optional: true, better: -1 },
   { key: 'commute', goal: 'traffic', title: '평균 통근 시간', value: (h) => h.commute ?? 0, format: minutes, optional: true, better: -1 },
   { key: 'power', goal: 'power', title: '전력 (수요 대 공급)', value: (h) => h.powerDemand ?? 0, compare: (h) => h.powerSupply ?? 0, names: ['수요', '공급'], format: (v) => `${fmt(v)} MWh`, optional: true },
@@ -72,6 +70,27 @@ const monthsOf = (g: GraphDef, history: readonly HistoryPoint[]): readonly Histo
   const from = g.kept ? history.findIndex(g.kept) : 0;
   return from < 0 ? [] : from ? history.slice(from) : history;
 };
+
+/** A graph's values and the axis they are drawn on. */
+function axisOf(g: GraphDef, history: readonly HistoryPoint[]) {
+  const months = monthsOf(g, history);
+  const vals = months.map((h) => g.value(h));
+  const other = g.compare ? months.map((h) => g.compare!(h)) : null;
+  const min = Math.min(...vals, ...(other ?? []));
+  const max = Math.max(...vals, ...(other ?? []));
+  // From zero, unless the values keep well away from it: then the axis fits
+  // them (funds falling from §330k to §261k read as flat against zero) and
+  // its ends are labelled.
+  const fit = (min > 0 && max - min < 0.5 * max) || (max < 0 && max - min < -0.5 * min);
+  // A fitted axis spans at least a tenth of the values: 57→58세 is not a cliff.
+  const pad = Math.max((max - min) * 0.1, (0.1 * Math.max(Math.abs(max), Math.abs(min)) - (max - min)) / 2);
+  const lo = fit ? min - pad : Math.min(min, 0);
+  let hi = fit ? max + pad : Math.max(max, 0);
+  if (hi === lo) hi = lo + 1;
+  // The axis' ends, labelled on a chip of the card's colour at its left.
+  const ends: [string, string] = [g.format(hi), g.format(lo)];
+  return { months, vals, other, fit, lo, hi, ends };
+}
 
 /** Each graph's key and the goal it is of (a goal's tabs share them out). */
 export const GRAPH_KEYS = GRAPHS.map(({ key, goal }) => ({ key, goal }));
@@ -129,7 +148,7 @@ export class Graphs {
       ${RANGES.map(([m, label]) => `<button type="button" data-range="${m}" class="${m === this.range ? 'active' : ''}">${label}</button>`).join('')}
     </div><small class="sec-note graph-span"></small>` + GRAPHS.map((g) => `${g.group ? `<h3 class="sub" data-goal="${g.goal}" data-stem="${g.key.split('-')[0]}">${g.group}</h3>` : ''}
       <figure class="graph" data-key="${g.key}" data-goal="${g.goal}">
-        <figcaption><span>${g.title}${g.names ? ` <span class="graph-key"><i style="background:var(${(g.colors ?? ['--accent', '--muted'])[0]})"></i>${g.names[0]} <i class="dash" style="color:var(${(g.colors ?? ['--accent', '--muted'])[1]})"></i>${g.names[1]}</span>` : ''}</span><span class="graph-value"></span></figcaption>
+        <figcaption><span>${g.title}${g.names ? ` <span class="graph-key"><i></i>${g.names[0]} <i class="dash"></i>${g.names[1]}</span>` : ''}</span><span class="graph-value"></span></figcaption>
         <canvas width="${W}" height="${H}" aria-label="${g.title} 추이"></canvas>
       </figure>`).join('');
     this.rangeEl = el.querySelector<HTMLElement>('.graph-range')!;
@@ -238,6 +257,8 @@ export class Graphs {
     this.spanEl.title = spanned.length >= 2 ? `아래 그래프가 보여 주는 ${spanned.length}개월` : '';
     const ink = css('--muted') || '#9aa1ad';
     const line = css('--accent') || '#5fb0ff';
+    const good = css('--good') || '#34c77b';
+    const bad = css('--danger') || '#ff5a5f';
     const grid = css('--border') || '#363b46';
     const chip = css('--surface-2') || '#f0f0f2'; // the plot's own background (style.css .graph canvas)
     // Which optional graphs show is settled first, then every width is read,
@@ -255,9 +276,16 @@ export class Graphs {
       const canvas = fig.querySelector('canvas')!;
       return { fig, canvas, label: fig.querySelector<HTMLElement>('.graph-value')!, w: canvas.clientWidth || W };
     });
+    // Each shown graph's axis, and the plot starting right of the widest of their labels (laid over its start, the 98
+    // hid where the rating began and the 0 where the population did): one left edge for all, so a month stands at the
+    // same x down the screen (수도 over 수질, the 교통량 small multiples), not each after its own labels.
+    const axes = GRAPHS.map((g, gi) => (history.length < 2 || figs[gi]!.fig.hidden || figs[gi]!.fig.classList.contains('off') ? null : axisOf(g, history)));
+    const measure = figs[0]!.canvas.getContext('2d')!;
+    measure.font = '10px system-ui, sans-serif';
+    const left = PAD + Math.max(0, ...axes.flatMap((a) => (a && a.months.length >= 2 ? a.ends.map((t) => measure.measureText(t).width) : []))) + 6 + 4;
     const dpr = window.devicePixelRatio || 1;
     for (const [gi, g] of GRAPHS.entries()) {
-      const { fig, canvas, label, w } = figs[gi]!;
+      const { canvas, label, w } = figs[gi]!;
       // Drawn at its displayed width, so marks aren't stretched.
       if (canvas.width !== Math.round(w * dpr)) canvas.width = Math.round(w * dpr);
       if (canvas.height !== H * dpr) canvas.height = H * dpr;
@@ -270,26 +298,10 @@ export class Graphs {
         label.textContent = '데이터 없음';
         continue;
       }
-      const months = monthsOf(g, history);
-      const vals = months.map((h) => g.value(h));
-      const other = g.compare ? months.map((h) => g.compare!(h)) : null;
-      if (fig.hidden || fig.classList.contains('off') || months.length < 2) continue;
-      const min = Math.min(...vals, ...(other ?? []));
-      const max = Math.max(...vals, ...(other ?? []));
-      // From zero, unless the values keep well away from it: then the axis fits
-      // them (funds falling from §330k to §261k read as flat against zero) and
-      // its ends are labelled.
-      const fit = (min > 0 && max - min < 0.5 * max) || (max < 0 && max - min < -0.5 * min);
-      // A fitted axis spans at least a tenth of the values: 57→58세 is not a cliff.
-      const pad = Math.max((max - min) * 0.1, (0.1 * Math.max(Math.abs(max), Math.abs(min)) - (max - min)) / 2);
-      let lo = fit ? min - pad : Math.min(min, 0);
-      let hi = fit ? max + pad : Math.max(max, 0);
-      if (hi === lo) hi = lo + 1;
-      // The axis' ends, labelled on a chip of the card's colour at its left, and the plot starting right of them (laid
-      // over its start, the 98 hid where the rating began and the 0 where the population did).
-      const ends: [string, string] = [g.format(hi), g.format(lo)];
+      const axis = axes[gi];
+      if (!axis || axis.months.length < 2) continue;
+      const { months, vals, other, fit, lo, hi, ends } = axis;
       ctx.font = '10px system-ui, sans-serif';
-      const left = PAD + Math.max(...ends.map((t) => ctx.measureText(t).width)) + 6 + 4;
       this.plotLeft.set(g.key, left);
       const x = (k: number) => left + (k / (vals.length - 1)) * (w - left - PAD);
       const y = (v: number) => H - PAD - ((v - lo) / (hi - lo)) * (H - 2 * PAD);
@@ -302,14 +314,16 @@ export class Graphs {
         ctx.lineTo(w - PAD, Math.round(y(0)) + 0.5);
         ctx.stroke();
       }
-      const [c1, c2] = g.colors ? g.colors.map((c) => css(c) || line) : [line, ink];
+      // Every graph's pair alike, as on the rail: its own figure the accent line, the one it is read against the grey
+      // dashes (범죄 drawn red read as trouble on a quiet month, and 지출 so as 지난달 재정's neutral bars don't).
+      const [c1, c2] = [line, ink];
       // (Two lines a few percent apart from zero up overlapped: §10,189 against §9,717 read as one. The gap between them,
       // green where income leads and red where spending does, is the month's balance at a glance.)
       if (other && g.gap) {
         ctx.save();
         ctx.globalAlpha = 0.3;
         for (let k = 0; k < vals.length - 1; k++) {
-          ctx.fillStyle = vals[k]! + vals[k + 1]! >= other[k]! + other[k + 1]! ? c1! : c2!;
+          ctx.fillStyle = vals[k]! + vals[k + 1]! >= other[k]! + other[k + 1]! ? good : bad;
           ctx.beginPath();
           ctx.moveTo(x(k), y(vals[k]!));
           ctx.lineTo(x(k + 1), y(vals[k + 1]!));
