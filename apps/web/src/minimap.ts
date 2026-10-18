@@ -128,9 +128,22 @@ export function drawMinimap(force = false): void {
     ctx.fillRect(0, y1, W, H - y1);
     ctx.fillRect(0, y0, x0, y1 - y0);
     ctx.fillRect(x1, y0, W - x1, y1 - y0);
-    ctx.lineWidth = 2 * dpr;
-    ctx.strokeStyle = '#1d6fd1';
-    ctx.strokeRect(x0 + dpr, y0 + dpr, Math.max(2, x1 - x0 - 2 * dpr), Math.max(2, y1 - y0 - 2 * dpr));
+    // (Its frame a little inside the minimap's rounded corners, rounded itself, on a light halo: square, on the edges,
+    // the corners cut it off and it read as a stray line on dark ground.)
+    const inset = 3 * dpr;
+    const fx = Math.max(inset, x0 + dpr);
+    const fy = Math.max(inset, y0 + dpr);
+    const fw = Math.max(2, Math.min(W - inset, x1 - dpr) - fx);
+    const fh = Math.max(2, Math.min(H - inset, y1 - dpr) - fy);
+    const r = Math.min(4 * dpr, fw / 2, fh / 2);
+    ctx.beginPath();
+    ctx.roundRect(fx, fy, fw, fh, r);
+    ctx.lineWidth = 3.5 * dpr;
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)';
+    ctx.stroke();
+    ctx.lineWidth = 1.75 * dpr;
+    ctx.strokeStyle = '#2f6fe0';
+    ctx.stroke();
   }
   // What can't wait — a building alight (red), a riot (orange) — a dot each, from anywhere on the map.
   const st = city.state;

@@ -1747,9 +1747,13 @@ export function openViewTab(view: string): void {
 export const CITY_VIEW = 'growth';
 /** The city's own screen: its residents, with 개발 막힘 on the map (an area's screen open or put away ends). */
 export function openCity(): void {
+  const was = paneShown();
   closeGoal();
   openPane();
   refreshStrip();
+  // (A phone's sheet rising over the town: the town moves into the strip above it, as for an area's screen — its 개발
+  // 막힘 is on the map there, and the strip showed the map's empty margin.)
+  if (phone() && !was) setTimeout(cityAbovePane, 320);
 }
 /** G: the city's own screen, 개발 막힘 on the map — or put away from it. */
 export function toggleCity(): void {

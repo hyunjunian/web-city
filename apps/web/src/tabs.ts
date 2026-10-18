@@ -4,7 +4,7 @@
 // the pane as a bottom sheet. Esc closes the topmost.
 // (주민 — My Sim, 직접 운전 — is not on the web screen for now: its sheet type stays for its unwired modules.)
 
-import { active, closeGoal, openFinance, paneClosed } from './manage';
+import { active, closeGoal, openCity, openFinance, paneClosed } from './manage';
 import { fitMapbar } from './controls';
 import { redraw, renderer, setSelected } from './state';
 import { closeTray, restView } from './tools';
@@ -150,8 +150,7 @@ export function closePane(): boolean {
  *  showing, goes — as an area's button brings its screen or, already on it, puts the pane away. */
 export function togglePane(): void {
   if (paneShown() && !active && dismissPane()) return;
-  closeGoal();
-  openPane();
+  openCity(); // (the city's own screen: on a phone, the town framed above its sheet)
 }
 
 /** Something to look at on the map: the sheet goes, and on phones the city pane (both cover it). */

@@ -704,6 +704,9 @@ kbd {
 .mg-more { justify-self: start; font-size: 12.5px; }
 .mg-links { background: transparent; padding: 0 4px; gap: 4px; }
 .mg-links .link { display: inline-flex; align-items: center; gap: 4px; justify-self: start; font-size: 13px; }
+/* (A section's lone link — 지역에서 이웃 고르기 — the size of the section's words, not a heading's.) */
+.mg-sec > button.link { display: inline-flex; align-items: center; gap: 3px; justify-self: start; font-size: 13px; }
+.mg-sec > button.link .i { width: 14px; height: 14px; }
 .mg-links .link .i { width: 14px; height: 14px; }
 .mg-tax { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; }
 .mg-tax .tax-effect { grid-column: 1 / -1; font-size: 11.5px; }
@@ -1411,7 +1414,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .key-groups { columns: 2; column-gap: 22px; }
 .key-group { break-inside: avoid; padding-bottom: 16px; }
 .key-group h4 { margin: 0 0 7px; color: var(--muted); font-size: 12px; font-weight: 650; }
-.key-list { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: 7px 10px; font-size: 13px; line-height: 1.4; }
+/* (Every group's words start on one line down its column: each group's own key column put them at four places.) */
+.key-list { display: grid; grid-template-columns: minmax(7.6em, max-content) minmax(0, 1fr); align-items: baseline; gap: 7px 10px; font-size: 13px; line-height: 1.4; }
 .key-list > span { display: contents; }
 .key-list kbd { justify-self: start; }
 .key-group.wide { column-span: all; padding-bottom: 0; }
