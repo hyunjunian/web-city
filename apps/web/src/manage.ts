@@ -650,7 +650,10 @@ function guideHtml(id: GoalId): { head: string; act: string } {
   const offGrid = id === 'power' && st.kind === 'line' && st.lay === 'powerline' && !['noPower', 'powerCutOff', 'idlePlant', 'powerShort'].includes(worst?.code ?? '');
   const said = st.said ?? (offGrid ? `전기 없는 구역이 ${fmt(unpoweredZones().off)}칸 있습니다` : told);
   const problem = said || s.note;
-  const title = said ? `<b>${escapeHtml(glue(said))}</b>` : `<b>${escapeHtml(s.value)}</b> <span class="g-note">${escapeHtml(glue(s.note))}</span>`;
+  // (Its first clause the headline, the rest on a quieter line of its own: run on, it broke where the width fell —
+  // "…정원의 203% · / 전체 116%".)
+  const [first, ...more] = said ? said.split(' · ') : [];
+  const title = said ? `<b>${escapeHtml(glue(first!))}</b>${more.length ? `<span class="g-note lead-more">${escapeHtml(glue(more.join(' · ')))}</span>` : ''}` : `<b>${escapeHtml(s.value)}</b> <span class="g-note">${escapeHtml(glue(s.note))}</span>`;
   const spot = suggestSpot(id);
   let action: string;
   if (st.wait) {
@@ -2493,7 +2496,7 @@ function spotLine(id: GoalId): string {
   }
   // (Water short only for want of pipes between networks: where the dry ones are, to pipe to.)
   if (id === 'water' && waterApart()) {
-    return `<p class="mg-spot">${icon('target')}<span><b>물이 끊긴 건물</b>이 가장 많이 모인 곳 · ${spot.blds ? `${fmt(spot.blds)}채` : `${fmt(spot.tiles)}칸`}: 물이 남는 수도망에서 수도관을 이어 오세요</span>
+    return `<p class="mg-spot">${icon('target')}<span><b>물이 끊긴 건물</b>이 가장 많이 모인 <span class="nw">곳 · ${spot.blds ? `${fmt(spot.blds)}채` : `${fmt(spot.tiles)}칸`}</span>: 물이 남는 수도망에서 수도관을 이어 오세요</span>
     <button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button></p>`;
   }
   // (Traffic: the worst-jammed stretch, widened to an avenue in one press, beside 보기.)
@@ -2508,7 +2511,7 @@ function spotLine(id: GoalId): string {
     // (Not when the guide above widens it already: the same button twice.)
     const widen = run && p && (p.ok || p.message === 'not enough funds') && !(guideSite?.id === id && guideSite.path)
       ? `<button type="button" class="advice-view spot-build" data-widen="${run.join(',')}" data-widen-kind="${to}" title="가장 많이 막힌 구간: ${was} ${fmt(tiles)}칸을 ${word}로 바로 넓히기 · §${fmt(p.cost)}">${icon('plus')}${was} ${fmt(tiles)}칸 → ${word} · §${fmt(p.cost)}${p.ok ? '' : ' · 자금 부족'}</button>` : '';
-    return `<p class="mg-spot">${icon('target')}<span><b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${fmt(spot.tiles)}칸</span>
+    return `<p class="mg-spot">${icon('target')}<span><b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 <span class="nw">곳 · ${fmt(spot.tiles)}칸</span></span>
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button>${widen}</span></p>`;
   }
   const site = id === 'power' || id === 'water';
@@ -2533,7 +2536,7 @@ function spotLine(id: GoalId): string {
     ? `<b>${SPOT_WORD[id]}</b>: ${id === 'power' ? '전기 없는 구역' : '물이 없는 건물'} ${id === 'water' && spot.blds ? `${fmt(spot.blds)}채` : `${fmt(lit || spot.tiles)}칸`}${far ? (kind && smokyPlant(kind) ? '에서 연기가 주거에 닿지 않을 만큼 떨어진' : '에서 가장 가까운') : lit ? '에 한 번에 닿는,' : ' 가까이,'} 도로 옆${!far && id === 'power' && kind && smokyPlant(kind) ? ' · 주거에서 떨어진' : ''} 빈 땅`
     // (A plant out of fire cover, which the spot is weighed for, named as one: "건물 1채" was the plant.)
     : spot.plants ? `<b>소방이 닿지 않는 발전소</b> ${fmt(spot.plants)}곳${spot.blds ? ` · 건물 ${fmt(spot.blds)}채가` : '이'} 있는 곳 · 불타면 폭발합니다`
-    : `<b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 곳 · ${spot.blds ? `${fmt(spot.blds)}채` : `${fmt(spot.tiles)}칸`}`}</span>
+    : `<b>${SPOT_WORD[id]}</b>${josa(SPOT_WORD[id]!, '이', '가')} 가장 많이 모인 <span class="nw">곳 · ${spot.blds ? `${fmt(spot.blds)}채` : `${fmt(spot.tiles)}칸`}</span>`}</span>
     <span class="advice-acts"><button type="button" class="advice-view" data-spot="${spot.x},${spot.y}" title="지도에서 그곳 보기">보기</button>${build}</span></p>`;
 }
 

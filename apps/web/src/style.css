@@ -50,8 +50,8 @@
   --accent-soft: rgba(62, 106, 225, 0.2);
   --danger: #ff5a5f;
   --danger-soft: rgba(232, 33, 39, 0.16);
-  --warn: #f5a524;
-  --warn-soft: rgba(245, 165, 36, 0.14);
+  --warn: #f39436; /* (orange, apart from the stage's gold: a warning read as progress) */
+  --warn-soft: rgba(243, 148, 54, 0.15);
   --good: #34c77b;
   --good-soft: rgba(52, 199, 123, 0.14);
   --float: rgba(24, 24, 27, 0.84);
@@ -60,7 +60,7 @@
   --shadow-sm: 0 4px 14px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.06);
   --view-bg: #12150f; /* the map's margin: the land's dark, not black (a third of a phone's map is margin) */
   --active-ink: #dbe6ff;
-  --warn-ink: #ffd08a;
+  --warn-ink: #ffb870;
   --good-ink: #a4ebc4;
   --danger-ink: #ffb6b8;
   --gold-ink: #f0d07a;
@@ -101,8 +101,8 @@
   --accent-soft: rgba(62, 106, 225, 0.12);
   --danger: #d4262c;
   --danger-soft: rgba(212, 38, 44, 0.1);
-  --warn: #b37400;
-  --warn-soft: rgba(214, 150, 40, 0.15);
+  --warn: #d97706; /* (orange, apart from the stage's gold: a warning read as progress) */
+  --warn-soft: rgba(217, 119, 6, 0.13);
   --good: #12894a;
   --good-soft: rgba(18, 137, 74, 0.1);
   --float: rgba(255, 255, 255, 0.86);
@@ -111,7 +111,7 @@
   --shadow-sm: 0 2px 10px rgba(23, 26, 32, 0.07), 0 0 0 1px rgba(23, 26, 32, 0.05);
   --view-bg: #d6dbcd; /* the land's grey: beside its green the margin reads as more of it, faded */
   --active-ink: #1f3f99;
-  --warn-ink: #774800;
+  --warn-ink: #a94e08; /* (4.9:1 on its own tint) */
   --good-ink: #0d6b39;
   --danger-ink: #a5161b;
   --gold-ink: #8a6400;
@@ -294,7 +294,7 @@ label.check { display: flex; gap: 10px; align-items: center; cursor: pointer; }
 .gear button .i { width: 18px; height: 18px; stroke-width: 1.5; }
 
 .muted { color: var(--muted); }
-.legend { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; }
+.legend { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; text-wrap: pretty; }
 h3.sub { font-size: 12px; color: var(--muted); margin: 16px 0 8px; font-weight: 600; letter-spacing: 0.02em; }
 #info h3.sub { font-size: 12.5px; color: var(--text); font-weight: 650; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); } /* the card's long list in parts */
 h3.sub .score { color: var(--text); font-size: 14px; margin-left: 2px; }
@@ -692,9 +692,9 @@ kbd {
 .act-more { background: transparent; box-shadow: none; border: 1px dashed var(--line-strong); }
 .act-fx { font-size: 11px; font-weight: 600; color: var(--good-ink); }
 .act-fx.neg { color: var(--danger-ink); }
-.mg-spot { display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 12px; background: var(--accent-soft); border-radius: var(--r-md); font-size: 12.5px; line-height: 1.4; }
+.mg-spot { display: flex; align-items: center; gap: 8px; margin: 0; padding: 9px 12px; background: var(--surface-2); border-radius: var(--r-md); font-size: 12.5px; line-height: 1.4; } /* (neutral, its target blue: under the ringed 추천 조치 it made three blue cards in a row) */
 .mg-spot > .i { flex: none; width: 18px; height: 18px; color: var(--accent-hi); }
-.mg-spot > span { flex: 1; min-width: 0; }
+.mg-spot > span { flex: 1; min-width: 0; text-wrap: pretty; word-break: keep-all; }
 .mg-spot > .advice-acts { flex: none; margin: 0; } /* (its buttons at the end: as a span they took half the line, 보기 adrift in the middle) */
 .mg-spot .advice-view { flex: none; background: var(--surface); }
 /* With 여기에 짓기 the buttons go under the words (beside them the words were squeezed to a column). */
@@ -1152,7 +1152,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #tray-results .tile.locked { display: flex; }
 .find-none { grid-column: 1 / -1; margin: 4px 0 8px; }
 .tray-section { break-inside: avoid; padding-bottom: 16px; }
-.tray-section h3 { margin: 0 0 8px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.tray-section h3 { margin: 0 0 8px; font-size: 12.5px; font-weight: 700; color: var(--text); } /* (the name over its note, not the note louder than it) */
 #tray.single .tray-section h3 { display: none; }
 .tile {
   flex-direction: column; justify-content: flex-start; gap: 5px; min-height: 86px; padding: 10px 8px 9px;
@@ -1163,17 +1163,17 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 .tile.active .tile-icon { color: var(--accent-hi); }
 .tile-icon .i { width: 28px; height: 28px; stroke-width: 1.6; }
 .tile-icon .swatch { display: block; width: 26px; height: 26px; border-radius: 8px; box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.18); }
-.tile-label { font-size: 13px; font-weight: 600; line-height: 1.25; word-break: keep-all; overflow-wrap: anywhere; } /* (a word longer than the tile — 노이슈반슈타인 — breaks rather than spill over) */
+.tile-label { font-size: 13px; font-weight: 600; line-height: 1.25; word-break: keep-all; overflow-wrap: break-word; text-wrap: balance; } /* (a word longer than the tile — 노이슈반슈타인 — breaks rather than spill over; one that fits, whole) */
 /* Every button of the tools' card is a tile: its glyph, its name, what it does (a facility's figures, a line each; why
    it is locked), then what it costs at its foot — at once, and a month after (upkeep at a full budget; a deal's pay). */
 .tile-stat {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; max-width: 100%;
-  color: var(--muted); font-size: 10px; font-weight: 500; line-height: 1.3; letter-spacing: -0.01em; word-break: keep-all; font-variant-numeric: tabular-nums;
+  color: var(--muted); font-size: 11px; font-weight: 500; line-height: 1.3; letter-spacing: -0.01em; word-break: keep-all; font-variant-numeric: tabular-nums;
 }
 .tile-cost { display: flex; flex-direction: column; align-items: center; margin-top: auto; padding-top: 1px; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tile-price { font-size: 11.5px; font-weight: 650; color: var(--text); }
 .tile-price.short { color: var(--danger-ink); }
-.tile-month { font-size: 10.5px; font-weight: 500; color: var(--muted); }
+.tile-month { font-size: 11px; font-weight: 500; color: var(--muted); }
 .tile-month.gain { color: var(--good-ink, var(--good)); font-weight: 600; }
 .tile.active .tile-price:not(.short) { color: var(--accent-hi); } /* (one the funds can't cover stays red, in hand too) */
 .tile-icon .pick-swatch { width: 24px; height: 24px; border-radius: 7px; font-size: 13px; box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18), 0 0 0 1px var(--line-strong); }
@@ -1355,7 +1355,7 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .poll-row .label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .poll-row .bar { height: 6px; overflow: hidden; }
 .poll-row .bar::after { display: none; }
-.poll-row .fill { left: 0; height: 100%; border-radius: 0 3px 3px 0; background: var(--data); }
+.poll-row .fill { left: 0; height: 100%; border-radius: 0 3px 3px 0; background: color-mix(in srgb, var(--data) 55%, transparent); } /* (seven full white bars were the loudest thing on the screen) */
 .poll-row.warn .fill { background: var(--warn); }
 .poll-row.bad .fill { background: var(--danger); }
 .poll-row.bad .value { color: var(--danger-ink); }
@@ -1370,6 +1370,7 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .wealth-table th { padding: 2px 0 6px; color: var(--muted); font-size: 11.5px; font-weight: 600; text-align: right; }
 .wealth-table th:first-child, .wealth-table td:first-child { text-align: left; }
 .wealth-table td { text-align: right; font-variant-numeric: tabular-nums; }
+.wealth-table :is(th, td) + :is(th, td) { padding-left: 12px; } /* (534 and 252 side by side read as one number) */
 
 /* Region */
 .region-grid { display: grid; gap: 4px; margin: 8px 0; }
@@ -1645,9 +1646,9 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .grade i.on { background: var(--data); }
 
 /* Zone groups in the tray: how much the class is wanted now. */
-.zone-demand { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; color: var(--muted); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; text-transform: none; letter-spacing: 0; }
-.zone-demand.up { color: var(--good); }
-.zone-demand.cap { color: var(--warn-ink); } /* (small print: the bright amber was 3.9:1 on the light card) */
+.zone-demand { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; color: var(--muted); font-size: 11.5px; font-weight: 500; font-variant-numeric: tabular-nums; text-transform: none; letter-spacing: 0; }
+.zone-demand.up { color: var(--good); font-weight: 600; }
+.zone-demand.cap { color: var(--warn-ink); font-weight: 600; } /* (small print: the bright amber was 3.9:1 on the light card) */
 .zone-demand .i { width: 12px; height: 12px; }
 #tool-chip-label .zone-demand { margin-left: 0; font-size: 12px; }
 #tool-chip-label .zone-demand.up { color: var(--good); }
@@ -2029,6 +2030,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .info-path { display: inline-flex; align-items: center; gap: 5px; color: var(--text); }
 .info-path i { width: 10px; height: 4px; border-radius: 2px; display: inline-block; }
 .info-voice .thought { margin: 0; }
+.info-voice button.thought { min-height: 26px; } /* (a chip's height: a button's 36 made the two rows the card's heaviest part) */
+@media (pointer: coarse) { .info-voice button.thought { min-height: 32px; } }
 /* Complaints and what they like, each under its word. */
 .th-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .th-label { font-size: 11.5px; font-weight: 650; color: var(--muted); }
@@ -2090,6 +2093,10 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #toasts .toast:not(:last-child):not(.sticky):not(:hover):not(:focus-within) .toast-text { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   #toasts .toast:not(:last-child):not(.sticky):not(:hover):not(:focus-within) .toast-text b { display: inline; margin-right: 6px; }
   #toasts .toast:not(:last-child):not(.sticky):not(:hover):not(:focus-within) .toast-badge { width: 24px; height: 24px; border-radius: 8px; }
+  /* (Their words on the open ones' line — the smaller badge's room given back — and their time lines away: three
+     stacked read as stripes. Opened again, each shows how long it has.) */
+  #toasts .toast:not(:last-child):not(.sticky):not(:hover):not(:focus-within) { column-gap: 17px; }
+  #toasts .toast:not(:last-child):not(.sticky):not(:hover):not(:focus-within)::after { opacity: 0; }
 }
 .toast {
   position: relative; overflow: hidden; gap: 11px; padding: 11px 12px 12px 14px; border-radius: 14px;
@@ -2197,6 +2204,8 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
 /* 추천 reads the same wherever it is: the action's blue ring and tag (green said "good" in the goal screen and
    "recommended" nowhere else); what it would do stays green, as a gain. */
 .act.best { box-shadow: inset 0 0 0 1.5px var(--accent); }
+/* (Its ring once: where 추천 조치 already holds it, the 짓기 list's own says 추천 by its tag alone.) */
+#manage:has(.mg-guide .g-act) .act.best { box-shadow: none; }
 .act-best { background: var(--accent-soft); color: var(--accent-hi); }
 /* (A zone much wanted is not the 추천: its demand in green says so, without the 추천's ring — with it, 테니스장 above
    and 농업 here both read as the recommendation.) */
@@ -2331,12 +2340,13 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
    the one to press first — on its own surface, not the problem's amber or red, which read as a second warning.) */
 #pane .mg-guide .g-act { box-shadow: inset 0 0 0 1.5px var(--accent); }
 .mg-guide { scroll-margin-top: 120px; } /* (brought into sight by the problem's 추천 조치 ↓: clear of the sticky head) */
-.lead-risk .mg-jump { margin-left: 4px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.lead-risk .mg-jump { margin-left: 4px; font-size: 12px; font-weight: 600; white-space: nowrap; color: inherit; text-decoration-color: currentColor; } /* (in the alert's colour: blue in red read as a stray link) */
 .mg-lead { margin-top: 2px; }
 .mg-guide > .g-act, .mg-guide > .g-label, .mg-guide > .g-wait { grid-column: 1 / -1; }
 /* (A flex column: the lead's grid placed the cost line after the label.) */
 .mg-guide { display: flex; flex-direction: column; align-items: stretch; }
 .g-note { color: var(--muted); font-weight: 400; }
+.lead-title .lead-more { display: block; margin-top: 1px; font-size: 13px; }
 .s-sub { display: inline-flex; align-items: baseline; gap: 3px; color: var(--muted); }
 .s-sub .k-sub { font-size: 10.5px; }
 
@@ -2507,6 +2517,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .city-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 14.5px; font-weight: 700; letter-spacing: -0.01em; }
 .city-stage { flex: none; padding: 2px 8px; border-radius: 999px; background: var(--gold-soft); color: var(--gold-ink); font-size: 11.5px; font-weight: 650; }
 .stage-ring path { stroke: var(--gold); }
+/* (The way still to go a faint track under it: the gap at the top read as a glitch, the gold alone as "selected".) */
+.edge-ring path.track { stroke: color-mix(in srgb, var(--gold) 28%, transparent); stroke-dasharray: none; }
+.stage-ring path { stroke-width: 1.75; }
 #btn-city[aria-expanded='true'] > .i { color: var(--accent-hi); }
 /* News unread in the pane (a notice, a step of 시작하기): a red dot on the button that opens it. */
 #btn-city.unread::after { content: ''; position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--float-solid); } /* (inside the rounded corner: on it, it sat over the edge and a phone's gold ring) */
@@ -2518,7 +2531,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .month-ring path { stroke: var(--accent); }
 #clock.stopped .month-ring path { stroke: var(--faint); } /* (stopped, the month stands still: the ring says so, greyed) */
 .mb-time { position: relative; display: flex; align-items: center; }
-#clock .gear { display: flex; gap: 2px; padding: 2px; border-radius: 11px; background: var(--surface-2); }
+#clock .gear { display: flex; gap: 2px; padding: 0; border-radius: 11px; background: transparent; } /* (no track of its own: a pill in the bar's pill) */
 #clock .gear button { min-width: 0; width: 38px; height: 30px; padding: 0; border-radius: 9px; background: transparent; color: var(--muted); }
 #clock .gear button .i { width: 17px; height: 17px; }
 #clock .gear button.active { background: var(--accent-soft); color: var(--accent-hi); box-shadow: none; }
@@ -2626,8 +2639,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #goal-strip > * { pointer-events: auto; }
 #goal-strip button {
   position: relative; flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 4px;
-  height: var(--strip-h); min-height: 0; padding: 0 11px 0 9px; border: 1px solid var(--line); border-radius: 999px;
-  background: var(--float-solid); box-shadow: var(--shadow-sm); color: var(--text);
+  height: var(--strip-h); min-height: 0; padding: 0 11px 0 9px; border: 0; border-radius: 999px;
+  background: var(--float-solid); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--line); color: var(--text); /* (one edge and a light lift: a border and a shadow each, a row of them read as bubble wrap) */
   font-size: 12.5px; font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 #goal-strip button .i { width: 16px; height: 16px; }
@@ -2732,6 +2745,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail .r-spark .s1 { stroke: var(--spark); stroke-width: 1.75px; }
   #rail .r-spark .s2 { stroke: var(--muted); stroke-width: 1.25px; stroke-dasharray: 3px 2.5px; }
   #rail .r-spark .sa { fill: var(--spark); fill-opacity: 0.13; stroke: none; }
+  :root:not([data-theme='light']) #rail .r-spark .sa { fill-opacity: 0.07; } /* (on the dark card .13 stood as navy blocks) */
   #rail .r-spark .s0 { stroke: var(--line-strong); stroke-width: 1px; }
   #rail .r-spark .sn { stroke: var(--line-strong); stroke-width: 2px; stroke-dasharray: 0 6px; }
   /* 재정's row: its figures across the value's and the graph's room (no graph). 수요's: its name, then its classes'
@@ -2862,7 +2876,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #btn-time { display: grid; place-items: center; width: calc(var(--mb-h) - 2px); height: 100%; padding: 0; border-radius: 13px; color: var(--text); }
   #btn-time .time-glyph { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 10px; background: var(--accent-soft); color: var(--accent-hi); }
   #btn-time .time-glyph .i { width: 18px; height: 18px; }
-  #btn-time.stopped .time-glyph { background: var(--surface-2); color: var(--text); }
+  #btn-time.stopped .time-glyph { background: transparent; color: var(--text); }
   #btn-time.held .time-glyph { box-shadow: inset 0 0 0 1.5px var(--accent); }
   .mb-time { height: 100%; }
   .mb-time.open #btn-time { background: var(--accent-soft); }

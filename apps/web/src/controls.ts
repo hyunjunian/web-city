@@ -664,7 +664,7 @@ export function markMonth(pct: number): void {
  *  residents gained since this stage began, of those it takes (full at the last stage). */
 let stageAt = '';
 export function markStage(pct: number): void {
-  const path = document.querySelector<SVGPathElement>('#btn-city .stage-ring path');
+  const path = document.querySelector<SVGPathElement>('#btn-city .stage-ring path:not(.track)');
   const at = `${Math.max(0, Math.min(100, pct)).toFixed(1)} 100`;
   if (!path || at === stageAt) return;
   stageAt = at;
@@ -675,16 +675,18 @@ export function markStage(pct: number): void {
  *  top middle clockwise; its length counted as 100, so a share is its dash. */
 function drawRing(host: HTMLElement): void {
   const svg = host.querySelector<SVGSVGElement>(':scope > .edge-ring');
-  const path = svg?.querySelector('path');
-  if (!svg || !path) return;
+  const paths = svg?.querySelectorAll('path');
+  if (!svg || !paths?.length) return;
   const [w, h] = [host.offsetWidth, host.offsetHeight];
   if (!w || !h) return;
   const s = 1; // (half the ring's width in from the edge: over the border, and as far inside it)
   const r = Math.max(s, Math.min(parseFloat(getComputedStyle(host).borderTopLeftRadius) || 0, w / 2, h / 2));
   const a = r - s;
   const f = (n: number) => +n.toFixed(2);
-  path.setAttribute('d', `M${f(w / 2)} ${s}H${f(w - r)}A${f(a)} ${f(a)} 0 0 1 ${f(w - s)} ${f(r)}V${f(h - r)}A${f(a)} ${f(a)} 0 0 1 ${f(w - r)} ${f(h - s)}`
-    + `H${f(r)}A${f(a)} ${f(a)} 0 0 1 ${s} ${f(h - r)}V${f(r)}A${f(a)} ${f(a)} 0 0 1 ${f(r)} ${s}Z`);
+  const d = `M${f(w / 2)} ${s}H${f(w - r)}A${f(a)} ${f(a)} 0 0 1 ${f(w - s)} ${f(r)}V${f(h - r)}A${f(a)} ${f(a)} 0 0 1 ${f(w - r)} ${f(h - s)}`
+    + `H${f(r)}A${f(a)} ${f(a)} 0 0 1 ${s} ${f(h - r)}V${f(r)}A${f(a)} ${f(a)} 0 0 1 ${f(r)} ${s}Z`;
+  // (Its track too, where it has one: the way still to go, faint under the gone.)
+  paths.forEach((p) => p.setAttribute('d', d));
 }
 
 /** Whether the per-type tax rates are shown (the classes are always). */
