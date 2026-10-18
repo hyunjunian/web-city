@@ -55,7 +55,8 @@ const GRAPHS: GraphDef[] = [
   { key: 'water', goal: 'water', title: '수도 (수요 대 공급)', value: (h) => h.waterDemand ?? 0, compare: (h) => h.waterSupply ?? 0, names: ['수요', '공급'], format: (v) => `${fmt(v)} m³`, optional: true },
   { key: 'garbage', goal: 'garbage', title: '쓰레기 발생 (월, 재활용·조례 감축 전)', value: (h) => h.garbageProduced ?? 0, format: (v) => `${fmt(v)} t`, optional: true },
   { key: 'air', goal: 'environment', title: '대기 오염 (도시 평균)', value: (h) => h.air ?? 0, format: (v) => dec(v), optional: true, better: -1 },
-  { key: 'waterPollution', goal: 'environment', title: '수질 오염 (도시 평균)', value: (h) => h.waterPollution ?? 0, format: (v) => dec(v), optional: true, better: -1 },
+  { key: 'waterPollution', goal: 'water', title: '수질 오염 (도시 평균)', value: (h) => h.waterPollution ?? 0, format: (v) => dec(v), optional: true, better: -1 },
+  { key: 'landValue', goal: 'land', title: '평균 땅값 (건물이 선 칸)', value: (h) => h.landValue ?? 0, format: (v) => dec(v), optional: true, better: 1 },
   { key: 'eq', goal: 'education', title: '교육 지수 (평균)', value: (h) => h.eq ?? 0, format: (v) => v.toFixed(0), optional: true, better: 1 },
   { key: 'life', goal: 'health', title: '기대 수명', value: (h) => h.lifeExpectancy ?? 0, format: (v) => `${v.toFixed(0)}세`, optional: true, better: 1 },
   ...TRAFFIC.map(([k, title], i): GraphDef => ({

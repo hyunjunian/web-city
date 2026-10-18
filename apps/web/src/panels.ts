@@ -352,7 +352,7 @@ export function classDemand(k: 'R' | 'C' | 'I'): { v: number; capped: boolean; f
   return { v, capped, farms, factories };
 }
 
-/** The RCI meter in small, beside 개발·수요's figure on the watch list: three bars up (wanted) or down (surplus). */
+/** The RCI meter in small, beside 수요's figure on the watch list: three bars up (wanted) or down (surplus). */
 export function rciMini(): string {
   const bars = RCI_CLASSES.map(([k, label]) => {
     const { v, capped } = classDemand(k);
@@ -379,7 +379,7 @@ export function updatePanels(): void {
   // they are costly); opening one brings it up to date (the 'sheet-open' event).
   const goal = paneShown() ? active : null;
   const budget = goal === 'finance';
-  if (goal === 'environment') renderWealth();
+  if (goal === 'finance') renderWealth(); // (the city's 쾌적도 tab)
   if (goal === 'growth') renderBuildings();
   // Milestones by the monthly record (the live count swings within a month: a passing peak isn't a milestone).
   checkMilestone(city.state.history.at(-1)?.population ?? 0);
@@ -518,7 +518,7 @@ export function updatePanels(): void {
   }
   if (sheetShown('region')) renderNeighbours();
   if (goal === 'finance') renderPolls();
-  if (goal === 'environment') renderRewards();
+  if (goal === 'finance') renderRewards();
   if (goal === 'growth' || goal === 'education') renderAges();
   renderOnboarding();
   refreshStrip(); // (after the checklist: its score chip says 시작하기 while it shows)
@@ -1192,12 +1192,12 @@ export function advice(): string {
   const shown = adviceAll ? news : news.slice(0, ADVICE_SHOWN);
   const when = (day: number) => `${2000 + Math.floor(day / 360)}.${Math.floor((day % 360) / 30) + 1}`;
   const more = news.length > ADVICE_SHOWN ? `<button type="button" class="link advice-more" aria-expanded="${adviceAll}">${adviceAll ? '줄여 보기' : `소식 ${news.length - ADVICE_SHOWN}개 더 보기`}</button>` : '';
-  // (A damage report's rubble is cleared on 개발·수요, whose card leads with it: one link there, on the newest report that
+  // (A damage report's rubble is cleared on 수요, whose card leads with it: one link there, on the newest report that
   // left any. Each report carried the city-wide "잔해 치우기 §400" beside a smaller 복구비, read as two bills; and the
   // pane's resting state is for watching, the screens for doing.)
-  // (Only while 개발·수요 has it to clear — rubble on its zones: a few tiles on the roads or bare land are the
+  // (Only while 수요 has it to clear — rubble on its zones: a few tiles on the roads or bare land are the
   // bulldozer's, and the link led to a screen that said nothing of them.)
   const rubbleNews = adviceFor('growth').some((a) => a.code === 'rubble') ? shown.find((n) => n.rubble) : undefined;
   const rubble = rubbleNews ? city.clearRubble(true) : null;
-  return shown.map((n) => `<p class="advice news ${n.warn ? 'bad' : n.info ? 'neutral' : 'good'}">${icon(n.warn ? 'alert' : n.info ? 'info' : 'award', 'adv-i')}<span class="news-when">${when(n.day ?? n.until - 90)}</span>${escapeHtml(n.text)}${n.at || n.goal || buildable(n) ? `<span class="advice-acts">${n.at ? `<button type="button" class="advice-view" data-at="${n.at.join(',')}" title="지도에서 그곳 보기">보기</button>` : ''}${n === rubbleNews && rubble?.ok ? `<button type="button" class="advice-goal" data-goal="growth" title="도시에 남은 잔해 ${fmt(rubble.tiles)}칸 · 개발·수요 화면에서 모두 치웁니다">잔해 ${fmt(rubble.tiles)}칸 · 개발·수요 ${icon('chevronRight')}</button>` : ''}${buildable(n) ? `<button type="button" class="advice-view" data-build="${n.build}" title="${STRUCTURE_NAME[n.build!]} 도구 들기">${icon('plus')}짓기</button>` : ''}${n.goal ? `<button type="button" class="advice-goal" data-goal="${n.goal}">${GOALS[n.goal].name} 화면 ${icon('chevronRight')}</button>` : ''}</span>` : ''}</p>`).join('') + more;
+  return shown.map((n) => `<p class="advice news ${n.warn ? 'bad' : n.info ? 'neutral' : 'good'}">${icon(n.warn ? 'alert' : n.info ? 'info' : 'award', 'adv-i')}<span class="news-when">${when(n.day ?? n.until - 90)}</span>${escapeHtml(n.text)}${n.at || n.goal || buildable(n) ? `<span class="advice-acts">${n.at ? `<button type="button" class="advice-view" data-at="${n.at.join(',')}" title="지도에서 그곳 보기">보기</button>` : ''}${n === rubbleNews && rubble?.ok ? `<button type="button" class="advice-goal" data-goal="growth" title="도시에 남은 잔해 ${fmt(rubble.tiles)}칸 · 수요 화면에서 모두 치웁니다">잔해 ${fmt(rubble.tiles)}칸 · 수요 ${icon('chevronRight')}</button>` : ''}${buildable(n) ? `<button type="button" class="advice-view" data-build="${n.build}" title="${STRUCTURE_NAME[n.build!]} 도구 들기">${icon('plus')}짓기</button>` : ''}${n.goal ? `<button type="button" class="advice-goal" data-goal="${n.goal}">${GOALS[n.goal].name} 화면 ${icon('chevronRight')}</button>` : ''}</span>` : ''}</p>`).join('') + more;
 }

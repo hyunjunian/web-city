@@ -1577,12 +1577,18 @@ export class City {
     let land = 0;
     let air = 0;
     let water = 0;
+    let built = 0;
+    let value = 0;
     for (let i = 0; i < s.terrain.length; i++) {
       if ((i & 0x1fff) === 0x1fff) yield;
       if (s.terrain[i] === Terrain.Water) continue;
       land++;
       air += Math.max(0, this.fields.air[i]!);
       water += Math.max(0, this.fields.waterPollution[i]!);
+      if (s.occupant[i]! > 0) {
+        built++;
+        value += this.fields.landValue[i]!;
+      }
     }
     const r1 = (v: number) => Math.round(v * 10) / 10;
     return {
@@ -1595,7 +1601,7 @@ export class City {
       garbageCapacity: Math.round(st.garbage.capacity), garbageProduced: Math.round(st.garbage.produced),
       garbageUncollected: Math.round(st.garbage.uncollected),
       fires: st.safety.fires, burned: st.safety.burned,
-      air: land ? r1(air / land) : 0, waterPollution: land ? r1(water / land) : 0,
+      air: land ? r1(air / land) : 0, waterPollution: land ? r1(water / land) : 0, landValue: built ? r1(value / built) : undefined,
       eq: people ? r1(eq / people) : 0, hq: people ? r1(hq / people) : 0, lifeExpectancy: people ? r1(life / people) : 0,
       income: Math.round(s.lastBudget?.income ?? 0), expenses: Math.round(s.lastBudget?.expenses ?? 0),
       abandoned: [...s.buildings.values()].filter((b) => !b.type).length,

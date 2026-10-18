@@ -1189,11 +1189,11 @@ function wordsFor(t: Tool, d?: (typeof STRUCTURES)[StructureKind]): string {
  * said nothing; now 재정·정책 comes up.
  */
 const SCREEN_WORDS: Record<GoalId, string> = {
-  finance: '세율 세금 예산 부서 대출 빚 조례 수입 지출 자금 돈 결산 시장평점 여론', growth: '수요 인구 일자리 실업 재개발 빈구역 개발막힘',
-  power: '전기 발전 정전 송전', water: '물 급수 단수 펌프 수도관 정수', garbage: '매립 소각 재활용 수거',
+  finance: '세율 세금 예산 부서 대출 빚 조례 수입 지출 자금 돈 결산 시장평점 여론 공원 쾌적도 부유층 고급 보상 랜드마크', growth: '수요 인구 일자리 실업 재개발 빈구역 개발막힘',
+  power: '전기 발전 정전 송전', water: '물 급수 단수 펌프 수도관 정수 수질', garbage: '쓰레기 매립 소각 재활용 수거 청결',
   police: '범죄 경찰 교도소 감방 폭동 체포', fire: '화재 불 소방차 출동', health: '건강 병원 수명 HQ 보건소',
   education: '학교 교육지수 EQ 대학 도서관', traffic: '통근 혼잡 대중교통 버스 지하철 철도 정류장',
-  environment: '오염 공기 대기 수질 공원 쾌적도 부유층 고급 땅값 보상 랜드마크',
+  environment: '오염 공기 대기 연기 스모그 방사능', land: '땅값 물가 고지대 부유층',
 };
 
 /** The screens the box finds besides tools: each goal's, 지역, and the help. (Not 주민: off the web screen for now.) */

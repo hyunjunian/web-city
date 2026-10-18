@@ -359,6 +359,8 @@ export const HEINOUS: ReadonlySet<string> = new Set(['arson', 'bankRobbery', 'as
 export const FIRE_RISK = 54;
 export const RISK_IN = 'rgba(240,150,30,0.62)';
 export const RISK_OUT = 'rgba(220,30,30,0.72)';
+/** A home or works whose trip reaches nothing within the limit (it is left in six months). */
+export const NO_TRIP = 'rgb(110,20,20)';
 /** Over the congestion view: rail broken (by a disaster, or worn out with transit unfunded). */
 export const BROKEN_RAIL = 'rgba(120,20,20,0.95)';
 
@@ -1840,7 +1842,7 @@ export class Renderer {
               const b = occ > 0 ? s.buildings.get(occ) : undefined;
               if (!b?.type || (b.type[0] !== 'R' && b.type[0] !== 'I')) continue;
               const limit = DEFAULT_CONFIG.transport.tripLimit;
-              color = b.commute < 0 || b.commute > limit ? 'rgb(110,20,20)' : heat(1 - b.commute / limit);
+              color = b.commute < 0 || b.commute > limit ? NO_TRIP : heat(1 - b.commute / limit);
               break;
             }
             case 'zones':
@@ -1857,9 +1859,18 @@ export class Renderer {
               color = `rgba(170,255,40,${Math.min(0.95, 0.35 + s.radiation[i]! / 120).toFixed(3)})`;
               break;
             case 'traffic': {
-              // Volume against capacity: green when free-flowing, red at twice capacity; broken rail apart.
+              // Volume against capacity: green when free-flowing, red at twice capacity; broken rail apart. Between the
+              // networks the homes and works, by how long their trip takes, as the commute view had them (the traffic
+              // screen's one map: where it jams, and whom it keeps waiting).
               const code = s.net[i]!;
-              if (code === Net.None) continue;
+              if (code === Net.None) {
+                const occ = s.occupant[i]!;
+                const b = occ > 0 ? s.buildings.get(occ) : undefined;
+                if (!b?.type || (b.type[0] !== 'R' && b.type[0] !== 'I')) continue;
+                const limit = DEFAULT_CONFIG.transport.tripLimit;
+                color = b.commute < 0 || b.commute > limit ? NO_TRIP : heat(1 - b.commute / limit);
+                break;
+              }
               if (s.railDamage[i]) {
                 color = BROKEN_RAIL;
                 break;

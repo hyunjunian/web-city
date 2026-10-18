@@ -607,6 +607,8 @@ export interface HistoryPoint {
   /** Citywide average air and water pollution over land. */
   air?: number;
   waterPollution?: number;
+  /** Average land value under the buildings (absent in older saves, and while nothing is built). */
+  landValue?: number;
   /** Resident-weighted average EQ, HQ (absent in older saves) and life expectancy (years). */
   eq?: number;
   hq?: number;

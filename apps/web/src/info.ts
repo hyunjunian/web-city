@@ -314,7 +314,7 @@ export function showInfo(x: number, y: number): void {
     b && !b.powered ? `<button type="button" class="chip bad"${go('power')} title="${city.cfg.services.noPowerMonths}개월이 되면 버려집니다 · 눌러서 전력 화면">${icon('zap')}전기 끊김 ${b.noPowerMonths}/${city.cfg.services.noPowerMonths}개월</button>` : '',
     b?.type && !b.watered && waterNeeded ? `<button type="button" class="chip bad"${go('water')} title="${city.cfg.services.noWaterMonths}개월이 되면 버려집니다 · 눌러서 수도 화면">${icon('droplet')}물 끊김 ${b.noWaterMonths}/${city.cfg.services.noWaterMonths}개월</button>` : '',
     b?.type && b.noRoadMonths ? `<span class="chip bad" title="도로가 다시 이어지지 않으면 버려집니다">${icon('road')}도로 끊김 ${b.noRoadMonths}/${city.cfg.development.noRoadMonths}개월</span>` : '',
-    b?.type && b.noJobMonths ? `<button type="button" class="chip bad"${go('growth')} title="2.5시간 안에 닿는 일터가 없거나 닿는 일자리가 모두 찼으면 버려집니다 · 눌러서 개발·수요 화면">${icon('briefcase')}일자리 못 구함 ${b.noJobMonths}/${city.cfg.transport.noJobMonths}개월</button>` : '',
+    b?.type && b.noJobMonths ? `<button type="button" class="chip bad"${go('growth')} title="2.5시간 안에 닿는 일터가 없거나 닿는 일자리가 모두 찼으면 버려집니다 · 눌러서 수요 화면">${icon('briefcase')}일자리 못 구함 ${b.noJobMonths}/${city.cfg.transport.noJobMonths}개월</button>` : '',
     b?.type && b.distressMonths ? (city.understaffed(b.id)
       ? `<span class="chip warn" title="일자리의 절반도 못 채우는데 그 소득층 주민이 더 들어올 수 없으면(수요 상한·수요 없음) 버려집니다">${icon('trendDown')}일할 사람 부족 ${b.distressMonths}/${city.cfg.development.distressMonths}개월</span>`
       : `<span class="chip warn" title="쾌적도가 계속 낮으면 더 낮은 소득층이 들어오거나 버려집니다">${icon('trendDown')}쾌적도 낮음 ${b.distressMonths}/${city.cfg.development.distressMonths}개월</span>`) : '',
@@ -466,7 +466,7 @@ ${paths}${voice}
     <h3 class="sub">환경과 교통</h3>
     <table>
       ${where && where !== title ? `<tr><td>지형</td><td>${where}</td></tr>` : ''}
-      ${land ? `<tr${row('environment')}><td title="물가에 가깝거나 평균보다 높은 땅일수록 올라갑니다">땅값 보너스 (물가·고지대)</td><td>${q.landValue.toFixed(0)}</td></tr>` : ''}
+      ${land ? `<tr${row('land')}><td title="물가에 가깝거나 평균보다 높은 땅일수록 올라갑니다">땅값 보너스 (물가·고지대)</td><td>${q.landValue.toFixed(0)}</td></tr>` : ''}
       ${q.terrain === 'water' && !q.network ? '' : `<tr><td>고도 · 경사</td><td>${q.height} m · ${q.slope} m</td></tr>`}
       <tr${row('environment')}><td>오염</td><td>대기 ${q.airPollution.toFixed(0)} · 수질 ${q.waterPollution.toFixed(0)}</td></tr>
       ${traffic ? `<tr${row('traffic')}><td>교통량</td><td>${traffic}</td></tr>` : ''}
@@ -666,7 +666,7 @@ function growthSection(x: number, y: number): string {
       case 'noPower': return ['bad', '전기가 없습니다 — 발전소나 송전선을 4칸 안으로'];
       case 'noRoad': return ['bad', '도로에 닿지 않습니다 (산업·농업은 도로에서 몇 칸 안)'];
       case 'noJobs': return ['bad', '이 길로 2시간 30분 안에 닿는 일자리가 없거나 사는 사람보다 적습니다. 가까이에 상업·산업 구역을 짓거나, 더 빠른 길(도로·대로)이나 길을 지도 가장자리(이웃 도시)까지 이으세요'];
-      case 'noDemand': return ['bad', '이 구역 종류의 수요가 없습니다 (개발·수요의 구역별 수요·세율 확인)'];
+      case 'noDemand': return ['bad', '이 구역 종류의 수요가 없습니다 (수요의 구역별 수요·세율 확인)'];
       case 'noWorkers': return ['bad', '일할 사람이 모자라 새 사업체가 들어서지 않습니다 — 주거 구역을 늘리거나 주거지가 자랄 수 있게 하세요'];
       case 'noWater': return ['bad', '이 단계 건물은 수도가 필요합니다 — 수도관을 6칸 안으로'];
       case 'lowDesirability': return ['bad', `쾌적도가 낮습니다: ${TYPE_NAME[b.type]} ${b.value.toFixed(0)} / 필요 ${b.need} (아래 요인 확인)`];

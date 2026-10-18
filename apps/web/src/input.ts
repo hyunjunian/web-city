@@ -1496,7 +1496,7 @@ export function setupInput(): void {
     // (A Latin letter as typed, so AZERTY's Z is Z; by the key's place only when it types something else.)
     const letter = /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
     if (letter === 'n' && !e.ctrlKey && !e.metaKey) toggleNight();
-    // G: 개발·수요 on its 개발 막힘 tab (what keeps zones empty), or back. (No key of its own for the map's view: a goal's
+    // G: 수요 on its 개발 막힘 tab (what keeps zones empty), or back. (No key of its own for the map's view: a goal's
     // tab puts it on.)
     if (letter === 'g' && !e.ctrlKey && !e.metaKey) toggleGrowthTab();
     // M: the goal most in need of action (its screen), or back to the overview.

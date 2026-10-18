@@ -218,10 +218,16 @@ function readStatus(id: GoalId): Status {
       return pick(air > 40 && homes > 0 ? 'warn' : '', `대기 오염 ${air.toFixed(0)}`,
         homes > 0 ? `공기 나쁜 주거지 ${fmt(homes)}칸 · ${from}` : '낮을수록 좋음 · 주거지 공기는 괜찮음');
     }
+    case 'land': {
+      // What the ground under the buildings is worth (by the water, above the town's average height): a figure to build
+      // by — where the wealthy will want to live — not an alarm.
+      const v = landValue();
+      return pick('', v >= 0.5 ? `평균 땅값 ${v.toFixed(1)}` : '—', v >= 0.5 ? '물가와 주변보다 높은 땅일수록 높음' : '평지라 차이 없음 · 물가나 높은 땅이 값을 올립니다');
+    }
   }
 }
 
-/** Each class's demand in words, as 개발·수요's row says it: "주거 +709 · 상업 +172 · 산업 +294 · 농업 +172". */
+/** Each class's demand in words, as 수요's row says it: "주거 +709 · 상업 +172 · 산업 +294 · 농업 +172". */
 export function demandWords(): string {
   const dem = city.demand.demand;
   const top = (k: string) => Math.max(...DEV_TYPES.filter((t) => t[0] === k && t !== 'IA').map((t) => dem[t]));
@@ -232,7 +238,7 @@ export function demandWords(): string {
  * What an area's rail button says beside its own figure, in its tooltip (its face has the graph): the share used of
  * what it has (power, water), how much of the town its service reaches (police, fire), how full its places run
  * (health, education), how long the landfill lasts or how busy the incinerators are, each class's demand and the
- * jobs (개발·수요). '' with nothing to read.
+ * jobs (수요). '' with nothing to read.
  */
 export function railFigure(id: GoalId): string {
   const st = readStats();
@@ -353,7 +359,7 @@ function landValue(): number {
 
 /** The figures that size up a goal. */
 /** What the residents say about a goal's subject (the opinion poll), as a figure on its screen. */
-const POLL_OF: Partial<Record<GoalId, PollTopic[]>> = { police: ['safety'], environment: ['environment', 'landValue'], traffic: ['traffic'], health: ['health'], education: ['education'], finance: ['taxes'] };
+const POLL_OF: Partial<Record<GoalId, PollTopic[]>> = { police: ['safety'], environment: ['environment'], land: ['landValue'], traffic: ['traffic'], health: ['health'], education: ['education'], finance: ['taxes'] };
 let pollMemo: { key: string; polls: ReturnType<typeof city.opinionPolls> } | null = null;
 function pollMetric(id: GoalId): Metric[] {
   const topics = POLL_OF[id];
@@ -404,6 +410,8 @@ function goalMetrics(id: GoalId): Metric[] {
         ['대출', s.loans.length ? `${s.loans.length}건 · 월 §${fmt(sum(s.loans.map((x) => x.payment)))}` : '없음'],
         // (For its 시장 평점 tab.)
         ratingRated() ? ['시장 평점', String(st.mayorRating), st.mayorRating < 0 ? 'bad' : '', st.mayorRating, 1] : ['시장 평점', '—', '', undefined, 1, '주민이 든 달이 지나면 매겨집니다'],
+        // (For its 쾌적도 tab: those a pleasant place draws, and what they want built — the wealthy come where it is high.)
+        ...amenityMetrics(),
       ];
     }
     case 'growth': {
@@ -500,23 +508,39 @@ function goalMetrics(id: GoalId): Metric[] {
         // Long commutes with no stop at all: transit is the step not yet taken.
         ['정류장·역', `${list.length}곳`, !list.length && (h?.commute ?? 0) > 1 ? 'warn' : '', list.length, 0, !list.length && (h?.commute ?? 0) > 1 ? '통근이 깁니다: 버스 정류장부터 놓아 보세요' : undefined]];
     }
+    case 'land': {
+      // (Buildings on ground with any value at all: by the water or above the town's average height.)
+      const lv = city.fields.landValue;
+      let built = 0;
+      let valued = 0;
+      for (let i = 0; i < s.occupant.length; i++) {
+        if (s.occupant[i]! <= 0) continue;
+        built++;
+        if (lv[i]! >= 1) valued++;
+      }
+      const share = built ? Math.round((valued / built) * 100) : undefined;
+      return [['평균 땅값', landValue() >= 0.5 ? landValue().toFixed(1) : '평지라 차이 없음', '', Math.round(landValue()), 1, '건물이 선 칸의 평균: 물가와 주변보다 높은 땅이 올립니다 (모두 평평한 내륙이면 0)'],
+        ['땅값이 붙은 건물', share !== undefined ? `${share}%` : '—', '', share, 1, '물가나 도시 평균보다 높은 땅에 선 건물의 비율']];
+    }
     case 'environment': {
       const h = s.history.at(-1);
-      const parks = [...s.structures.values()].filter((x) => STRUCTURES[x.kind].category === 'park').length;
       const homes = smoggyHomes();
-      // (Its 쾌적도 tab: those a pleasant place draws, and what they want built — the wealthy come where it is high.)
-      const total = Math.max(1, sum(st.residents));
-      const dem = city.demand.demand;
-      const d = (t: 'R$$$' | 'Cs$$$' | 'Co$$$'): Metric => [`${RICH_WORD[t]} 수요`, dem[t] >= 1 ? `+${fmt(dem[t])}` : dem[t] <= -1 ? `−${fmt(-dem[t])}` : '0', dem[t] >= 100 ? 'good' : dem[t] < 0 ? 'warn' : ''];
       return [['대기 오염', h?.air !== undefined ? h.air.toFixed(0) : '—', (h?.air ?? 0) > 40 && homes > 0 ? 'warn' : '', h?.air !== undefined ? Math.round(h.air) : undefined, -1],
-        ['공기 나쁜 주거지', `${fmt(homes)}칸`, homes > 0 && (h?.air ?? 0) > 40 ? 'warn' : '', homes, -1, '대기 오염이 40을 넘는 주거 구역 칸 · 공장·발전소·차가 많은 길 가까이에서 생깁니다'],
-        ['수질 오염', h?.waterPollution !== undefined ? h.waterPollution.toFixed(0) : '—', '', h?.waterPollution !== undefined ? Math.round(h.waterPollution) : undefined, -1],
-        ['공원', `${parks}곳`, '', parks, 1],
-        ['부유층 주민', `${fmt(st.residents[2])}명 · ${Math.round((st.residents[2] / total) * 100)}%`, '', st.residents[2], 1],
-        ['중산층 주민', `${fmt(st.residents[1])}명`, '', st.residents[1], 1], d('R$$$'), d('Cs$$$'), d('Co$$$'),
-        ['평균 땅값', landValue() >= 0.5 ? landValue().toFixed(1) : '평지라 차이 없음', '', Math.round(landValue()), 1, '건물이 선 칸의 평균: 물가와 주변보다 높은 땅이 올립니다 (모두 평평한 내륙이면 0)']];
+        ['공기 나쁜 주거지', `${fmt(homes)}칸`, homes > 0 && (h?.air ?? 0) > 40 ? 'warn' : '', homes, -1, '대기 오염이 40을 넘는 주거 구역 칸 · 공장·발전소·차가 많은 길 가까이에서 생깁니다']];
     }
   }
+}
+
+/** The city's 쾌적도 figures (its screen's tab): its parks, those a pleasant place draws, and what they want built. */
+function amenityMetrics(): Metric[] {
+  const st = readStats();
+  const parks = [...city.state.structures.values()].filter((x) => STRUCTURES[x.kind].category === 'park').length;
+  const total = Math.max(1, sum(st.residents));
+  const dem = city.demand.demand;
+  const d = (t: 'R$$$' | 'Cs$$$' | 'Co$$$'): Metric => [`${RICH_WORD[t]} 수요`, dem[t] >= 1 ? `+${fmt(dem[t])}` : dem[t] <= -1 ? `−${fmt(-dem[t])}` : '0', dem[t] >= 100 ? 'good' : dem[t] < 0 ? 'warn' : ''];
+  return [['공원', `${parks}곳`, '', parks, 1],
+    ['부유층 주민', `${fmt(st.residents[2])}명 · ${Math.round((st.residents[2] / total) * 100)}%`, '', st.residents[2], 1],
+    ['중산층 주민', `${fmt(st.residents[1])}명`, '', st.residents[1], 1], d('R$$$'), d('Cs$$$'), d('Co$$$')];
 }
 
 /**

@@ -13,10 +13,11 @@
   --mb-h: 44px;
   --strip-h: 34px;
   --bar-h: calc(14px + var(--mb-h));
-  --rail-w: 264px;
+  --rail-w: 292px;
   --rail-c: 52px;
   --rail-row: 42px; /* (every item on the rail as tall) */
-  --rail-name: 72px; /* (the items' names in one column: their graphs start on one line) */
+  --rail-name: 60px; /* (the items' names in one column: their graphs start on one line) */
+  --rail-num: 70px; /* (the graphs' values in one column at the right: "9.9k / 14k") */
   --dock-h: 64px;
   --bb: calc(14px + var(--dock-h) + 10px);
   /* The map left of --free-l is under what stands down its left (wide: the rail, and the city pane beside it while it
@@ -581,7 +582,9 @@ kbd {
 #pane.managing > :not(#manage):not(.pane-grip):not(.pane-close):not(.pane-clock):not(.city-head) { display: none; }
 /* The city's screen (its overview, and 재정·정책's tabs): region › name over it, then its tabs; an area's has its own head. */
 #pane.managing:not(.city-screen) > .city-head { display: none; }
-#city-tabs { flex: none; margin: -2px -4px 0; }
+#city-tabs { flex: none; gap: 0; margin: -2px -4px 0; }
+/* (Six of them — 도시 · 쾌적도 · 재정 · 세율 · 조례 · 시장 평점 — closer together, so the last isn't cut off.) */
+#city-tabs .mg-tab { padding: 0 8px; }
 .mg-head { display: flex; align-items: center; gap: 8px; position: sticky; top: -18px; z-index: 1; margin: -18px -16px 0; padding: 14px 16px 10px; background: var(--pane); }
 .mg-head h2 { display: inline-flex; align-items: center; gap: 8px; min-width: 0; margin: 0; font-size: 17px; font-weight: 700; }
 .mg-head h2 > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* (재정·/정책 broke over two lines in a 288px pane) */
@@ -1457,6 +1460,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @media (max-width: 1360px) {
   :root { --pane-w: 310px; --info-w: 360px; }
   .hero-value { font-size: 52px; }
+  #city-tabs .mg-tab { padding: 0 5px; font-size: 13px; } /* (the city's six in a 288–310px pane) */
 }
 
 @media (max-width: 1180px) {
@@ -2639,8 +2643,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail #city-rows { display: flex; flex-direction: column; }
   /* Every item on the rail one line of one height: its icon, its name, and its graph over the last two years. */
   #rail .strip-city {
-    display: grid; grid-template-columns: 20px var(--rail-name) minmax(0, 1fr); grid-template-areas: 'ic name spark';
-    align-items: center; column-gap: 10px; width: 100%; height: var(--rail-row); padding: 0 13px 0 12px; /* (the card's border their own: lined up with the areas') */
+    display: grid; grid-template-columns: 20px var(--rail-name) minmax(0, 1fr) var(--rail-num); grid-template-areas: 'ic name spark num';
+    align-items: center; column-gap: 8px; width: 100%; height: var(--rail-row); padding: 0 13px 0 12px; /* (the card's border their own: lined up with the areas') */
     border: 0; border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 0;
     background: transparent; box-shadow: none; text-align: left; color: var(--text); font: inherit;
   }
@@ -2677,14 +2681,18 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
     margin: -4px -10px -10px; padding: 4px 10px 10px; /* (room for the buttons' shadows inside the scroll) */
   }
   #rail #goal-strip button {
-    display: grid; grid-template-columns: 20px var(--rail-name) minmax(0, 1fr); grid-template-areas: 'ic name spark';
-    align-items: center; justify-content: stretch; column-gap: 10px; width: 100%; height: var(--rail-row); min-height: 0;
+    display: grid; grid-template-columns: 20px var(--rail-name) minmax(0, 1fr) var(--rail-num); grid-template-areas: 'ic name spark num';
+    align-items: center; justify-content: stretch; column-gap: 8px; width: 100%; height: var(--rail-row); min-height: 0;
     padding: 0 13px 0 12px; border-radius: 13px; text-align: left; color: var(--text);
   }
   #rail #goal-strip button > .i { grid-area: ic; width: 19px; height: 19px; }
   #rail #goal-strip button.ok > .i { color: var(--muted); }
   #rail .r-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 650; }
-  #rail .r-val { grid-area: spark; justify-self: end; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  #rail .r-val { grid-area: num; justify-self: end; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  /* The graph's last values: its line's, then the dashed one's, smaller ("9.9k / 14k"). */
+  #rail .r-num { grid-area: num; justify-self: end; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  #rail .r-num b { font-weight: 750; }
+  #rail .r-num small { color: var(--muted); font-size: 11.5px; font-weight: 600; }
   /* The graph: its line in the item's state (amber, red when it wants a hand) over a faint fill, what to read it against
      dashed, a line at nothing when it goes below; dotted with nothing read yet. */
   #rail .r-spark { grid-area: spark; display: block; width: 100%; height: 24px; overflow: visible; --spark: var(--accent); }
@@ -2720,7 +2728,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail #goal-strip.more-up.more-down { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
   /* The pane open beside them: their icons alone — each button as tall as with its words, so that the one pressed
      is still under the pointer's line (pressed again, it puts the pane away: shorter, the next one down was there). */
-  #app.pane-open #rail :is(#btn-city, #goal-strip button, .strip-city) { grid-template-columns: minmax(0, 1fr) 0 0; column-gap: 0; padding-inline: 0; }
+  #app.pane-open #rail :is(#btn-city, #goal-strip button, .strip-city) { grid-template-columns: minmax(0, 1fr) 0 0 0; column-gap: 0; padding-inline: 0; }
   #app.pane-open #rail :is(#btn-city, #goal-strip button, .strip-city) > .i { justify-self: center; }
   /* (The city's bar stands up under its trophy there, filling from below.) */
   #app.pane-open #rail #btn-city::before {

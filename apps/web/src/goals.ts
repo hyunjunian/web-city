@@ -1,13 +1,14 @@
 // The goals the city pane is organised around: what each one watches, the map views,
 // tools, budgets and ordinances that bear on it, and which goal an advisor's word or a
-// facility belongs to. The areas are growth, the utilities, and what makes a place pleasant
-// to live in (쾌적도); money and the mayor's rating are the city's own.
+// facility belongs to. The areas are demand, the utilities, and what makes a place pleasant
+// to live in (쾌적도); money, the mayor's rating and the 쾌적도 itself (parks, landmarks,
+// the wealthy they draw) are the city's own.
 
 import { STRUCTURES, type OrdinanceId, type StructureKind } from '@web-city/engine';
 import { type IconName } from './icons';
 import { city } from './state';
 
-export type GoalId = 'finance' | 'growth' | 'power' | 'water' | 'garbage' | 'police' | 'fire' | 'health' | 'education' | 'traffic' | 'environment';
+export type GoalId = 'finance' | 'growth' | 'power' | 'water' | 'garbage' | 'police' | 'fire' | 'health' | 'education' | 'traffic' | 'environment' | 'land';
 
 export type Dept = keyof typeof city.state.departments;
 export type Tone = '' | 'warn' | 'bad' | 'good';
@@ -51,8 +52,10 @@ export interface Goal {
   icon: IconName;
   /** What the screen is for, in a line. */
   aim: string;
-  /** Its parts, each under a tab with its own map view (the screen opens on the one about the trouble, else the first). */
+  /** Its parts, each under a tab with its own map view (the screen opens on the one about the trouble, else its home). */
   tabs: GoalTab[];
+  /** The tab it opens on when nothing is the matter, and where what no tab names goes (else its first). */
+  home?: string;
   /** Tools that act on it: a tool id (a facility tool lists its kinds). */
   tools: string[];
   ordinances: OrdinanceId[];
@@ -67,20 +70,23 @@ export interface Goal {
 const isKind = (pred: (d: (typeof STRUCTURES)[StructureKind]) => unknown) => (k: StructureKind) => !!pred(STRUCTURES[k]);
 
 export const GOALS: Record<GoalId, Goal> = {
-  // (Not an area of its own but the city's: its tabs stand beside the city's overview, opened by the city button.)
+  // (Not an area of its own but the city's: its tabs stand beside the city's overview, opened by the city button — what
+  // draws people and the wealthy (쾌적도) first, by the city's size, then its money and how it rates its mayor.)
   finance: {
-    name: '재정·정책', icon: 'wallet', aim: '수입과 지출을 맞추고 자금을 지킵니다: 세율, 부서 예산, 대출, 조례. 주민이 시장을 어떻게 보는지도 여기서.',
+    name: '재정·정책', icon: 'wallet', aim: '수입과 지출을 맞추고 자금을 지킵니다: 세율, 부서 예산, 대출, 조례. 주민이 시장을 어떻게 보는지, 공원·랜드마크로 쾌적도를 올려 부유층을 부르는 것도 여기서.',
     tabs: [
+      { label: '쾌적도', view: 'desirability', figs: ['공원', '부유층 주민', '중산층 주민', '부유층 주거 수요', '고급 상점 수요', '고급 오피스 수요'], reports: ['wealth', 'rewards'], tools: ['park', 'landmark', 'reward'], depts: ['parks', 'landmarks'], ordinances: ['tourismPromotion'], codes: ['noParks'] },
       { label: '재정', view: 'none', figs: ['자금', '지난달 수지', '수입', '지출', '바닥까지', '다음 달 예상', '대출'], graphs: ['funds', 'budget'], reports: ['budget'], parts: ['fix', 'depts', 'outlook'], codes: ['broke', 'deficit', 'surplus'] },
       { label: '세율', view: 'mayor', figs: ['poll'], parts: ['taxes'], codes: ['taxHigh', 'taxEasing'] },
       { label: '조례', view: 'mayor', parts: ['ords'] },
       { label: '시장 평점', view: 'mayor', figs: ['시장 평점'], graphs: ['mayorRating'], reports: ['polls'], codes: ['mayorLow', 'mayorHigh'] },
     ],
-    tools: [], ordinances: ['legalizeGambling', 'tourismPromotion'],
-    depts: [],
+    home: '재정',
+    tools: ['park', 'landmark', 'reward'], ordinances: ['legalizeGambling', 'tourismPromotion'],
+    depts: [['parks', '공원 미화'], ['landmarks', '랜드마크']],
   },
   growth: {
-    name: '개발·수요', icon: 'zones', aim: '수요가 있는 곳에 구역을 내고, 빈 구역이 왜 비었는지 찾아 풉니다. 더 높은 밀도로 다시 칠하면 재개발됩니다.',
+    name: '수요', icon: 'zones', aim: '수요가 있는 곳에 구역을 내고, 빈 구역이 왜 비었는지 찾아 풉니다. 더 높은 밀도로 다시 칠하면 재개발됩니다.',
     tabs: [
       { label: '개발 막힘', view: 'growth', figs: ['인구', '일자리', '실업', '버려진 건물'], graphs: ['population', 'jobs', 'abandoned'], reports: ['buildings'], tools: ['road', 'bulldoze'], codes: ['noGrowth', 'abandoned', 'atRisk', 'rubble', 'unemployment', 'understaffed'] },
       { label: '수요', view: 'zones', figs: ['주거 수요', '상업 수요', '산업 수요', '농업 수요'], parts: ['rci'], tools: ['R-low', 'R-medium', 'R-high', 'C-low', 'C-medium', 'C-high', 'I-medium', 'I-high', 'A', 'park'], ordinances: ['tourismPromotion'], codes: ['capRes', 'capOffice', 'capIndustry', 'zoneR', 'zoneC', 'zoneI', 'zoneA'] },
@@ -108,7 +114,7 @@ export const GOALS: Record<GoalId, Goal> = {
     depts: [['water', '수도 (펌프·관)']], facility: isKind((d) => d.pump || d.treatment),
   },
   garbage: {
-    name: '쓰레기', icon: 'trash', aim: '나오는 쓰레기를 매립·소각·재활용하고, 쌓이지 않게 수거합니다.',
+    name: '청결', icon: 'trash', aim: '나오는 쓰레기를 매립·소각·재활용하고, 쌓이지 않게 수거해 도시를 깨끗이 합니다.',
     tabs: [
       { label: '수거·처리', view: 'garbage' },
     ],
@@ -151,30 +157,33 @@ export const GOALS: Record<GoalId, Goal> = {
     tools: ['education'], ordinances: ['proReading'],
     depts: [], facility: isKind((d) => d.school),
   },
+  // (One tab, one map: the networks by how jammed they run, the homes and works by how long their trips take.)
   traffic: {
     name: '교통', icon: 'route', aim: '막힌 길을 넓히거나 대중교통으로 나눠, 통근 시간을 줄입니다.',
     tabs: [
-      { label: '혼잡', view: 'traffic', figs: ['평균 통근', '막힌 길', '하루 통행'], graphs: ['commute'], tools: ['road', 'avenue', 'highway', 'onramp'], depts: ['roads'], parts: ['spot'], codes: ['congestion', 'potholes', 'facilityNoRoad'] },
-      { label: '통근', view: 'commute', figs: ['평균 통근', '대중교통 비중', '정류장·역', 'poll'], graphs: ['commute'], tools: ['transport', 'subway', 'rail'], depts: ['transit'], ordinances: ['carpool', 'commuterShuttle'], parts: ['facilities'], codes: ['noCommute', 'stationFull'] },
-      { label: '통행량', view: 'volume:road', figs: ['하루 통행'], graphs: ['trips'],
-        views: [['volume:road', '도로'], ['volume:evening', '저녁 퇴근'], ['volume:highway', '고속도로'], ['volume:rail', '철도'], ['volume:subway', '지하철'], ['subway', '지하철 노선'], ['volume:monorail', '모노레일'], ['volume:ferry', '페리']] },
+      { label: '교통', view: 'traffic', figs: ['평균 통근', '막힌 길', '하루 통행', '대중교통 비중', '정류장·역', 'poll'], graphs: ['commute', 'trips'], tools: ['road', 'avenue', 'highway', 'onramp', 'transport', 'subway', 'rail'], depts: ['roads', 'transit'], ordinances: ['carpool', 'commuterShuttle'], parts: ['spot', 'facilities'], codes: ['congestion', 'potholes', 'facilityNoRoad', 'noCommute', 'stationFull'] },
     ],
     tools: ['road', 'avenue', 'highway', 'onramp', 'rail', 'subway', 'transport'], ordinances: ['carpool', 'commuterShuttle'],
     depts: [['roads', '도로 유지'], ['transit', '대중교통']], facility: isKind((d) => d.station || d.parking || d.airport || d.seaport),
   },
-  // What makes a place pleasant (clean air and water, parks and landmarks, dear land), and those it draws: the wealthy
-  // come where it is high.
+  // The air the homes breathe (the water's is 수도's), and the ground poisoned where there is some.
   environment: {
-    name: '환경·쾌적', icon: 'trees', aim: '공기와 물을 맑게 하고, 공원·랜드마크로 쾌적도와 땅값을 올립니다: 쾌적하고 땅값 높은 곳에 부유층이 옵니다.',
+    name: '대기', icon: 'wind', aim: '공장·발전소·차의 연기가 주거지에 닿지 않게 해 공기를 맑게 합니다.',
     tabs: [
       { label: '대기', view: 'air', figs: ['대기 오염', '공기 나쁜 주거지', '환경에'], graphs: ['air'], tools: ['trees'], ordinances: ['cleanAir', 'automobileEmission'], parts: ['air', 'spot'], codes: ['smog'] },
-      { label: '수질', view: 'waterPollution', figs: ['수질 오염'], graphs: ['waterPollution'] },
-      { label: '쾌적도', view: 'desirability', figs: ['공원', '부유층 주민', '중산층 주민', '부유층 주거 수요', '고급 상점 수요', '고급 오피스 수요'], reports: ['wealth', 'rewards'], tools: ['park', 'landmark', 'reward'], depts: ['parks', 'landmarks'], ordinances: ['tourismPromotion'], codes: ['noParks'] },
-      { label: '땅값', view: 'landValue', figs: ['평균 땅값', '땅값에'] },
       { label: '방사능', view: 'radiation', codes: ['radiation'], optional: true },
     ],
-    tools: ['park', 'trees', 'landmark', 'reward'], ordinances: ['cleanAir', 'automobileEmission', 'tourismPromotion'],
-    depts: [['parks', '공원 미화'], ['landmarks', '랜드마크']],
+    tools: ['trees'], ordinances: ['cleanAir', 'automobileEmission'],
+    depts: [],
+  },
+  // What the ground itself is worth — by the water and above the town's average height — which the wealthy look for.
+  land: {
+    name: '땅값', icon: 'gem', aim: '물가와 주변보다 높은 땅이 값이 높습니다: 물을 파거나 땅을 높여 부유층이 찾는 땅을 만듭니다.',
+    tabs: [
+      { label: '땅값', view: 'landValue', figs: ['평균 땅값', '물가 건물', '땅값에'], graphs: ['landValue'], tools: ['dig', 'raise'] },
+    ],
+    tools: ['dig', 'raise'], ordinances: [],
+    depts: [],
   },
 };
 
@@ -193,7 +202,7 @@ const ADVICE_GOAL: Record<string, GoalId> = {
   noHospital: 'health', hospitalFull: 'health', hospitalStrike: 'health', hqLow: 'health',
   noSchool: 'education', schoolFull: 'education', schoolStrike: 'education', eqLow: 'education',
   congestion: 'traffic', stationFull: 'traffic', noCommute: 'traffic', potholes: 'traffic', facilityNoRoad: 'traffic',
-  smog: 'environment', radiation: 'environment', noParks: 'environment', mayorLow: 'finance', mayorHigh: 'finance',
+  smog: 'environment', radiation: 'environment', noParks: 'finance', mayorLow: 'finance', mayorHigh: 'finance',
 };
 const ADVISOR_GOAL: Record<string, GoalId> = {
   planner: 'growth', finance: 'finance', utilities: 'power', safety: 'police', healthEducation: 'health', transportation: 'traffic', environment: 'environment',
@@ -210,7 +219,7 @@ export function goalOfStructure(k: StructureKind): GoalId | null {
   if (d.health) return 'health';
   if (d.school) return 'education';
   if (d.station || d.parking || d.airport || d.seaport) return 'traffic';
-  if (d.category === 'park' || d.category === 'reward' || d.category === 'landmark') return 'environment';
+  if (d.category === 'park' || d.category === 'reward' || d.category === 'landmark') return 'finance'; // (the city's 쾌적도)
   return null;
 }
 

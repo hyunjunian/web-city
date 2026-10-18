@@ -12,8 +12,8 @@ export interface Done { goal: GoalId; day: number; text: string; key?: string; b
 export interface Pending { text: string; key?: string; count: number; day: number; label: string; value: string; n: number; better: number; /** a second figure told with it (transit's share beside the commute) */ also?: { label: string; value: string } }
 export interface Journal { notices: Notice[]; done: Done[]; pending: Partial<Record<GoalId, Pending>> }
 
-/** A goal a save may name that is no more, and where its screen went (부유층·고급화: into 환경·쾌적). */
-const MOVED: Record<string, GoalId> = { wealth: 'environment' };
+/** A goal a save may name that is no more, and where its screen went (부유층·고급화: the city's 쾌적도 tab). */
+const MOVED: Record<string, GoalId> = { wealth: 'finance' };
 /** Journals already brought up to the goals as they are. */
 const current = new WeakSet<object>();
 

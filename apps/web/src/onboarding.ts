@@ -325,7 +325,7 @@ function takeStep(step: string): void {
     openGoal(step.slice(5) as GoalId);
     return;
   }
-  // (A view: the goal's tab that shows it — 개발·수요's 개발 막힘 — with the map.)
+  // (A view: the goal's tab that shows it — 수요's 개발 막힘 — with the map.)
   if (step.startsWith('view:')) {
     openViewTab(step.slice(5));
     return;

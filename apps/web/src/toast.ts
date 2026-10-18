@@ -121,7 +121,7 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
   el.className = `toast ${tone}`;
   if (goal) el.dataset.goal = goal;
   el.title = label ?? (open ? '눌러서 관리 화면 열기' : at ? '눌러서 그곳 보기' : '닫기');
-  // A tone badge, the text (its subject in bold: "개발·수요: …"), and a chevron when it leads somewhere.
+  // A tone badge, the text (its subject in bold: "수요: …"), and a chevron when it leads somewhere.
   const badge = document.createElement('span');
   badge.className = 'toast-badge';
   // (gold: a milestone the city reached, with the stage's trophy; news that is neither good nor bad: no award)

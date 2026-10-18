@@ -79,7 +79,8 @@ export function overlayReading(city: City, overlay: Overlay, x: number, y: numbe
     case 'radiation': return s.radiation[i] ? `방사능 ${r(s.radiation[i]!)}` : '방사능 없음';
     case 'traffic': {
       const code = s.net[i]!;
-      if (code === Net.None) return '';
+      // (Off the networks, a home's commute or a works' freight, as the view colours them.)
+      if (code === Net.None) return overlayReading(city, { ...overlay, kind: 'commute' } as Overlay, x, y);
       if (s.railDamage[i]) return '망가진 철로 (대중교통 예산 100% 넘으면 고쳐짐)';
       const speed = DEFAULT_CONFIG.transport.speed;
       const cap = code === Net.Rail ? speed.rail.capacity : speed[NETWORK_KINDS[code]!].capacity;
