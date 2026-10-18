@@ -864,11 +864,19 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 .steps li.next .step-go { color: var(--accent-hi); }
 /* A step's one-press shortcut, under its words (the first road: laid along the dashed route). */
 .steps .step-lay { display: block; margin: 2px 0 6px 36px; font-size: 12.5px; text-align: left; } /* (a long one, 추천 자리에 천연가스 발전소 바로 짓기, wraps under its start, not centred) */
+/* A lone action as a small pill in the accent — a step's one-press shortcut, 바로 보내기, 지역에서 이웃 고르기 ›, a budget
+   row's 짓기 — not an underlined web link (those are kept for words inside a sentence). */
+:is(.steps .step-lay, .next-acts .next-send, .mg-links .link, .mg-sec > button.link, .funding.dept > button.link) {
+  display: inline-flex; align-items: center; gap: 4px; width: auto; min-height: 28px; padding: 3px 12px; border-radius: 999px;
+  background: var(--accent-soft); color: var(--accent-hi); text-decoration: none; font-weight: 600; text-align: left;
+}
+@media (hover: hover) { :is(.steps .step-lay, .next-acts .next-send, .mg-links .link, .mg-sec > button.link, .funding.dept > button.link):hover { background: color-mix(in srgb, var(--accent) 22%, transparent); } }
+.steps .step-lay { justify-self: start; max-width: calc(100% - 36px); }
 /* (Under a finger, a taller target that keeps the line where it was.) */
 /* (A finger's margin around the link reached up into the step's own row: a tap meant to pick the step's tool laid
    the road and spent the money. The link is its own 40px-high target instead, clear of the row above.) */
 @media (pointer: coarse) and (hover: none) {
-  .steps .step-lay { min-height: 40px; padding: 10px 12px 10px 0; margin: 0 0 0 36px; }
+  .steps .step-lay { min-height: 40px; padding: 8px 14px; margin: 0 0 6px 36px; }
   .steps .step-lay::after { display: none; }
 }
 .step-foot { display: flex; align-items: center; gap: 10px; }
@@ -1689,7 +1697,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .mg-switch button { height: 40px; }
   /* Two links one above the other: each its own 40px row (their margins overlapped, the lower one took the upper's tap). */
   .mg-links { gap: 0; }
-  .mg-links .link { min-height: 40px; }
+  .mg-links .link { min-height: 40px; margin-bottom: 6px; }
   .mg-links .link::after { display: none; }
   /* Demand rows open their type's breakdown: rows a finger can pick one of (22px stacked, the neighbour took the tap). */
   #hint { -webkit-line-clamp: 4; max-height: calc(5.8em + 18px); }
