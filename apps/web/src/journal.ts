@@ -34,16 +34,21 @@ export function journal(): Journal {
   if (!current.has(j)) {
     current.add(j);
     const now = (g: string | undefined): GoalId | undefined => (!g ? undefined : g in GOALS ? (g as GoalId) : MOVED[g]);
-    for (const n of j.notices) if (n.goal) n.goal = now(n.goal);
+    for (const n of j.notices) {
+      // (부유층·고급화's news opens the tab it became: the city's 쾌적도.)
+      if (n.goal === ('wealth' as GoalId)) n.view = 'desirability';
+      if (n.goal) n.goal = now(n.goal);
+    }
     j.done = j.done.filter((d) => !!(d.goal = now(d.goal)!));
-    // (Unless its figure went with it: a park's from the old 환경·쾌적's 쾌적도 tab, or the city's before it had its own
-    // slot, is the 쾌적도's; a raise of the ground's from its 땅값 tab, 땅값's.)
+    // (Unless its figure went with it: a park's from 부유층·고급화, from the old 환경·쾌적's 쾌적도 tab, or from the city's
+    // before it had its own slot, is the 쾌적도's; a raise of the ground's from its 땅값 tab, 땅값's.)
     const pend = j.pending as Record<string, Pending | undefined>;
     const move = (from: string, label: string, to: Slot) => {
       if (pend[from]?.label !== label) return;
       pend[to] ??= pend[from];
       delete pend[from];
     };
+    move('wealth', '부유층 주민', AMENITY_SLOT);
     move('environment', '부유층 주민', AMENITY_SLOT);
     move('environment', '평균 땅값', 'land');
     move('finance', '부유층 주민', AMENITY_SLOT);

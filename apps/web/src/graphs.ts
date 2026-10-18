@@ -227,9 +227,12 @@ export class Graphs {
       b.title = b.disabled ? `기록이 ${all.length}개월이라 전체와 같습니다` : '';
       b.classList.toggle('active', m === span);
     }
-    // The months every graph below spans (they share one time axis).
-    this.spanEl.textContent = history.length >= 2 ? spanText(history[0]!.month, history.at(-1)!.month) : '';
-    this.spanEl.title = history.length >= 2 ? `아래 그래프가 보여 주는 ${history.length}개월` : '';
+    // The months the graphs below span (they share one time axis): the longest of those shown — one kept only lately
+    // (땅값) starts later, and alone under the heading it was said to span the whole window.
+    const shown = GRAPHS.filter((g) => !this.el.querySelector(`figure[data-key="${g.key}"]`)?.classList.contains('off'));
+    const spanned = shown.length ? shown.map((g) => monthsOf(g, history)).reduce((a, m) => (m.length > a.length ? m : a)) : history;
+    this.spanEl.textContent = spanned.length >= 2 ? spanText(spanned[0]!.month, spanned.at(-1)!.month) : '';
+    this.spanEl.title = spanned.length >= 2 ? `아래 그래프가 보여 주는 ${spanned.length}개월` : '';
     const ink = css('--muted') || '#9aa1ad';
     const line = css('--accent') || '#5fb0ff';
     const grid = css('--border') || '#363b46';

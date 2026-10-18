@@ -18,7 +18,7 @@ import { checklist } from './onboarding';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { GRAPH_KEYS } from './graphs';
 import { closeInfo, closePane, closeSheet, dismissPane, markCity, openPane, paneShown, showTab } from './tabs';
-import { categoryOf, chosen, edgeFade, kindsFor, openTray, panTipAt, pickStructure, restView, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
+import { categoryOf, chosen, edgeFade, kindsFor, openTray, panTipAt, pickStructure, refreshRecent, restView, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice } from './choices';
 import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, short, stoppedNote, straightRuns, touchFirst } from './util';
@@ -815,7 +815,9 @@ function pollutionGoal(): { goal: GoalId; view?: string } {
   for (const b of city.state.buildings.values()) {
     if (!b.type || b.type[0] !== 'R' || b.occupancy <= 0) continue;
     const m = city.mayorAt(b.x + (b.w >> 1), b.y + (b.h >> 1));
-    if (!m) continue;
+    // (Only the homes that mind, as the poll counts them — the four together below nothing: many content homes with a
+    // little bad water outweighed fewer that minded their air.)
+    if (!m || m.air + m.water + m.garbage + m.radiation >= 0) continue;
     for (const k of Object.keys(felt) as (keyof typeof felt)[]) felt[k] += Math.min(0, m[k]) * b.capacity * b.occupancy;
   }
   const worst = (Object.keys(felt) as (keyof typeof felt)[]).reduce((a, k) => (felt[k] < felt[a] ? k : a));
@@ -1226,7 +1228,8 @@ export function layPath(lay: Lay, path: [number, number][], owner: GoalId | null
   if (lay === 'road' && laid) city.buildNetwork(path.at(-1)![0], path.at(-1)![1], path.at(-1)![0], path.at(-1)![1], 'road');
   if (!laid) return false;
   city.refreshIfDirty();
-  if (owner && owner === active) noteAction(`${LAY_WORD[lay]} ${fmt(path.length)}칸 · −§${fmt(laid)}`);
+  // (The city's owns only parks, rewards and landmarks: a road to one is the 쾌적도's, whichever of its tabs is open.)
+  if (owner && owner === active) noteAction(`${LAY_WORD[lay]} ${fmt(path.length)}칸 · −§${fmt(laid)}`, undefined, undefined, owner === 'finance' ? AMENITY_SLOT : undefined);
   flash(`${LAY_WORD[lay]} ${fmt(path.length)}칸을 이었습니다 · −§${fmt(laid)}`, 'info');
   for (const [x, y] of path) renderer.effect('flash', x, y);
   // (Laid out of sight — off the screen, or under the city pane or a bar — the map goes to it, at the zoom it had: what
@@ -1354,7 +1357,7 @@ let baselineCity = -1;
 /** What was done from this screen, newest first: when, and what. */
 
 /** A step taken while a goal is open (a build, a budget, an ordinance), kept on its screen. */
-export function noteAction(text: string, merge?: string, toolId?: string): void {
+export function noteAction(text: string, merge?: string, toolId?: string, slot?: Slot): void {
   if (!active) return;
   // A build counts here only with a tool of this goal (a road laid while the budget is open isn't the budget's doing).
   // (Nor one handed out elsewhere: a school built from the info card while 재정 was open is not 재정's doing.)
@@ -1373,7 +1376,7 @@ export function noteAction(text: string, merge?: string, toolId?: string): void 
   if (merge && last && last.goal === active && last.key === merge && city.state.day - last.day < 30) done.shift();
   done.unshift({ goal: active, day: city.state.day, text, key: merge });
   if (done.length > 40) done.length = 40;
-  followUp(slotOf(active, toolId), text, merge);
+  followUp(slot ?? slotOf(active, toolId), text, merge);
 }
 
 // ------------------------------------------------------------------ watching while time runs
@@ -1663,13 +1666,14 @@ const tabSaid = (tone: '' | 'warn' | 'bad') => (tone === 'bad' ? ' · 문제 있
  * then the worst said; else its home tab (an area's first, the city's 재정). (The map's view comes with it: what the
  * trouble is seen in.)
  */
-function openingTab(id: GoalId): number {
+function openingTab(id: GoalId, moneyOnly = false): number {
   const tabs = goalTabs(id);
   // (A code no tab names is the home tab's — an area's first, the city's 재정 — as 진단 has it: by the names alone, a card
   // led by an unnamed code opened on another tab's trouble, its own on the home tab.)
   const by = (code: string | undefined) => (code ? tabs.findIndex((t) => codeOn(id, t, code)) : -1);
   // (The city's: its money's trouble first, else its rating's tab, else its 쾌적도's — each as its row or tab stands.)
-  const side = id !== 'finance' || goalStatus(id).tone ? null : ratingTone(readStats().mayorRating) ? '시장 평점' : amenityStatus().tone ? '쾌적도' : null;
+  // (Not for B and the policy links, which are for the money: the screen opened on 쾌적도 when only it was amber.)
+  const side = id !== 'finance' || moneyOnly || goalStatus(id).tone ? null : ratingTone(readStats().mayorRating) ? '시장 평점' : amenityStatus().tone ? '쾌적도' : null;
   if (side) return Math.max(0, tabs.findIndex((t) => t.label === side));
   const inc = incidents().find((x) => x.goal === id);
   const lead = inc ? incidentCode(inc) : (capFirst(id) ?? guideSaid(id, 'money').worst)?.code;
@@ -1690,6 +1694,7 @@ function selectTab(k: number, focus = false): void {
   renderGoal(true);
   refreshCityTabs();
   if (active === 'finance') refreshCityRows(!phone()); // (its row lit: 시장 평점's, or 재정's for the money's tabs)
+  refreshRecent(); // (the tool card's row of the screen's tools: the city's 쾌적도 tab has them, its money's not)
   // (Back in sight if the screen was scrolled down: its new part starts under the tabs, which stay at the top.)
   $('#pane').scrollTop = 0;
   if (focus) document.getElementById(`mg-tab-${k}`)?.focus({ preventScroll: true });
@@ -1872,6 +1877,7 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
     openPane();
   }
   renderGoal(true);
+  if (changed) refreshRecent();
   $('#pane').scrollTop = 0;
   // From the keyboard, carry on in the panel (the row that was focused is hidden now).
   if (byKeyboard || $('#manage').contains(document.activeElement)) screenStart().focus({ preventScroll: true });
@@ -1918,10 +1924,16 @@ function clearOfCards(): void {
   centerOn(spot.x + (spot.w >> 1), spot.y + (spot.h >> 1), cam.scale, { left, top: top0, right: Math.max(left + 1, right), bottom: Math.max(top0 + 1, bottom) });
 }
 
-/** 재정·정책: opens it, or on it already brings its policy into sight (an advisor's "재정 열기", the policy links). */
+/**
+ * 재정·정책: opens it on the money's tabs, or on it already brings its policy into sight (an advisor's "재정 열기", the
+ * policy links, B).
+ */
 export function openFinance(): void {
-  if (active !== 'finance') openGoal('finance');
-  else {
+  if (active !== 'finance' || sideNow('finance') !== 'money') {
+    openGoal('finance');
+    const k = openingTab('finance', true);
+    if (k !== tabAt) selectTab(k);
+  } else {
     openPane();
     // (Its first part: #policy itself draws no box, and asked to come into sight it never moved.)
     ($('#policy').querySelector<HTMLElement>(':scope > :not([hidden])') ?? $('#policy')).scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -2041,6 +2053,7 @@ export function closeGoal(): boolean {
   // The screen's view goes with it: the city as it is, or the view of a tool still in hand. (Putting back the view from
   // before it opened brought back a tool's — a station held then — with nothing left to take it off.)
   restView();
+  refreshRecent();
   updatePanels();
   // Back where the overview was, focus on the goal's row if the keyboard was in the panel (the city's own screen: on its
   // overview's tab — it is no row of a list, and the keyboard was left on nothing).

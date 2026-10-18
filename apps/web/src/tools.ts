@@ -1272,6 +1272,11 @@ function noteRecent(t: Tool): void {
   if (!$('#tray').hidden) renderRecent();
 }
 
+/** The tool card's row again while it is open: the screen's tools in it change with the screen and its tab. */
+export function refreshRecent(): void {
+  if (!$('#tray').hidden) renderRecent();
+}
+
 /** The current pick's key, to mark it among the found and the recent. */
 const currentKey = () => (tool.kind === 'structure' ? `${tool.id}:${chosen[tool.id]}` : tool.id);
 
