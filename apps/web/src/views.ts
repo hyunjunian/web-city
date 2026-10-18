@@ -79,13 +79,18 @@ export function overlayReading(city: City, overlay: Overlay, x: number, y: numbe
     case 'radiation': return s.radiation[i] ? `방사능 ${r(s.radiation[i]!)}` : '방사능 없음';
     case 'traffic': {
       const code = s.net[i]!;
-      // (Off the networks, a home's commute or a works' freight, as the view colours them.)
-      if (code === Net.None) return overlayReading(city, { ...overlay, kind: 'commute' } as Overlay, x, y);
-      if (s.railDamage[i]) return '망가진 철로 (대중교통 예산 100% 넘으면 고쳐짐)';
       const speed = DEFAULT_CONFIG.transport.speed;
-      const cap = code === Net.Rail ? speed.rail.capacity : speed[NETWORK_KINDS[code]!].capacity;
-      const v = code === Net.Rail ? f.railTraffic[i]! : f.traffic[i]!;
-      return `혼잡 ${r((v / cap) * 100)}% (${r(v)} / ${cap})`;
+      // Each way here as its band draws it: how many go over it a day (its width) and how near its capacity (its colour).
+      const way = (name: string, v: number, cap: number) => `${name}통행 ${fmt(r(v))} · 혼잡 ${r((v / cap) * 100)}%`;
+      const up = s.elevated[i]!;
+      const over = up ? way(`${['', '고가 철도', '모노레일', '고가 고속도로'][up]} `, (up === 1 ? f.subwayTraffic : up === 2 ? f.monorailTraffic : f.highTraffic)[i]!,
+        up === 1 ? speed.elrail.capacity : up === 2 ? speed.monorail.capacity : speed.highway.capacity) : '';
+      const ferry = s.terrain[i] === Terrain.Water && f.ferryTraffic[i]! > 0 ? way('페리 ', f.ferryTraffic[i]!, speed.ferry.capacity) : '';
+      // (Off the networks, a home's commute or a works' freight, as the view colours them.)
+      if (code === Net.None) return [ferry, over].filter(Boolean).join(' · ') || overlayReading(city, { ...overlay, kind: 'commute' } as Overlay, x, y);
+      if (s.railDamage[i]) return '망가진 철로 (대중교통 예산 100% 넘으면 고쳐짐)';
+      const ground = code === Net.Rail ? way('', f.railTraffic[i]!, speed.rail.capacity) : way('', f.traffic[i]!, speed[NETWORK_KINDS[code]!].capacity);
+      return [ground, over].filter(Boolean).join(' · ');
     }
     case 'volume': {
       const v = volumeAt(s, f, overlay.network, i);

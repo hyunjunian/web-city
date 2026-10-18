@@ -890,6 +890,8 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #overlay-legend .swatch-item { display: inline-flex; align-items: center; gap: 5px; margin: 0 10px 3px 0; white-space: nowrap; }
 #overlay-legend .swatch-item i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; box-shadow: 0 0 0 1px var(--line-strong); } /* outside: a near-black swatch kept its edge on the dark card */
 #overlay-legend .swatch-item i.dot { border-radius: 50%; box-shadow: 0 0 0 1px #1a1a1a; } /* (the crimes' dots, as the map draws them) */
+/* The traffic view's width key: a band widening as more go over it. */
+#overlay-legend .swatch-item i.band { width: 16px; border-radius: 0; box-shadow: none; background: var(--muted); clip-path: polygon(0 40%, 100% 0, 100% 100%, 0 60%); }
 /* Against the map: how many tiles each colour holds; a colour the map doesn't show reads faint. */
 #overlay-legend .swatch-item small { color: var(--muted); font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; }
 #overlay-legend .swatch-item.absent { opacity: 0.38; }
@@ -2147,10 +2149,9 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
 .city-stats .cs-name { grid-area: name; color: var(--muted); font-size: 12px; font-weight: 600; }
 .city-stats .cs-val { grid-area: val; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; font-weight: 750; font-variant-numeric: tabular-nums; }
 .city-stats .cs-sub { grid-area: sub; color: var(--muted); font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.city-stats .cs.warn { background: var(--warn-soft); }
-.city-stats .cs.warn :is(.cs-ic, .cs-val) { color: var(--warn-ink); }
-.city-stats .cs.bad { background: var(--danger-soft); }
-.city-stats .cs.bad :is(.cs-ic, .cs-val) { color: var(--danger-ink); }
+/* (Its figure says how it stands, in its colour and heavier: a whole cell tinted amber outshouted the rest.) */
+.city-stats .cs.warn .cs-val { color: var(--warn-ink); font-weight: 800; }
+.city-stats .cs.bad .cs-val { color: var(--danger-ink); font-weight: 800; }
 @media (hover: hover) { .city-stats .cs:hover { filter: brightness(0.97); } }
 /* The reward as the block's last line: a quiet card, its label before its name. */
 .city-sum .reward { padding: 10px 12px 10px 10px; column-gap: 10px; grid-template-columns: 30px minmax(0, 1fr) auto; }
@@ -2166,35 +2167,27 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
 
 /* ------------------------------------------------------------------ 도시 상태, one column */
 
-/* Each area a row: its icon on a badge that says how it stands (red, amber, grey), its name and
-   why in a line when off, its figure at the right. Worst first; the sound ones after a quiet rule. */
+/* Each area a row: its icon, its name and why in a line when off, its figure at the right — the figure in red or amber
+   and heavier when it wants a hand (a filled red row, an amber badge and mark shouted). Worst first; the sound ones
+   after a quiet rule. */
 .s-list { display: grid; gap: 4px; }
 .s-list .s-row {
   display: grid; grid-template-columns: 30px minmax(0, 1fr) auto 14px; align-items: center; column-gap: 10px;
   width: 100%; min-height: 0; margin: 0; padding: 8px 6px; border-radius: var(--r-md); box-shadow: none;
   background: transparent; color: inherit; text-align: left; font-weight: 400;
 }
-.s-list .s-row.bad { background: var(--danger-soft); }
-.s-list .s-row.warn { background: var(--warn-soft); }
-@media (hover: hover) {
-  .s-list .s-row.ok:hover { background: var(--surface-2); }
-  .s-list .s-row:is(.bad, .warn):hover { filter: brightness(0.98); }
-}
+@media (hover: hover) { .s-list .s-row:hover { background: var(--surface-2); } }
 .s-list .s-row.on { box-shadow: inset 0 0 0 1.5px var(--accent); }
 .s-ic { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px; background: var(--surface-2); color: var(--muted); }
 .s-ic .i { width: 16px; height: 16px; }
-.s-row.bad .s-ic { background: var(--danger); color: #fff; }
-.s-row.warn .s-ic { background: var(--warn); color: #fff; }
 .s-main { display: grid; gap: 1px; min-width: 0; }
 .s-list .s-name { display: flex; align-items: baseline; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; }
 .s-row.ok .s-name { font-weight: 500; }
 .s-note { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.s-row.bad .s-note { color: var(--danger-ink); }
-.s-row.warn .s-note { color: var(--warn-ink); }
 .s-list .s-val { margin: 0; font-size: 13px; font-weight: 650; text-align: right; }
 .s-list .s-row.ok .s-val { font-weight: 500; color: var(--muted); }
-.s-list .s-row.warn .s-val { color: var(--warn-ink); }
-.s-list .s-row.bad .s-val { color: var(--danger-ink); }
+.s-list .s-row.warn .s-val { color: var(--warn-ink); font-weight: 800; }
+.s-list .s-row.bad .s-val { color: var(--danger-ink); font-weight: 800; }
 .s-go { width: 14px; height: 14px; color: var(--faint); }
 .s-list .s-wait { font-size: 10.5px; font-weight: 500; color: var(--accent-hi); letter-spacing: 0; }
 /* The sound ones: tighter rows under a quiet rule. */
@@ -2202,17 +2195,8 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
 .s-split::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 .s-list .s-row.ok { padding-top: 4px; padding-bottom: 4px; }
 .s-list .s-row.ok .s-ic { width: 26px; height: 26px; margin: 0 2px; background: transparent; }
-/* Only what is urgent is a filled row; a warning is its amber badge (six amber cards read as a wall) and a short
-   amber mark at its edge (with the badge alone, in the dark, 주의 read much as 양호 did). */
-.s-list .s-row.warn { position: relative; background: transparent; }
-.s-list .s-row.warn::before { content: ''; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px; border-radius: 2px; background: var(--warn); }
-@media (hover: hover) { .s-list .s-row.warn:hover { background: var(--surface-2); filter: none; } }
-.s-row.warn .s-ic { background: var(--warn-soft); color: var(--warn-ink); }
-.s-row.warn .s-note { color: var(--muted); }
-.s-list .s-row.warn .s-val { color: var(--text); }
-.s-list .s-row:not(.bad) + .s-row:not(.bad) { border-top: 1px solid var(--line); border-radius: 0; }
+.s-list .s-row + .s-row { border-top: 1px solid var(--line); border-radius: 0; }
 .s-list { gap: 0; }
-.s-list .s-row.bad { margin-bottom: 4px; }
 /* Why an area needs a hand is read whole: its line runs under the name and the figure, two lines at most
    (cut at one line, "환자 수가 정원의 181%(81% 초…" said nothing). */
 .s-list .s-row { grid-template-rows: auto; row-gap: 2px; }
@@ -2588,12 +2572,12 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 }
 #goal-strip button .i { width: 16px; height: 16px; }
 @media (hover: hover) { #goal-strip button:hover { filter: brightness(0.97); } }
-/* (Sound, or amber: its icon alone — its name in its title — the amber tinted; red ones say their names.) */
+/* (Sound, or amber: its icon alone — its name in its title; red ones say their names. One wanting a hand is no other
+   chip — a row of tinted chips outshouted the map — but its icon is in its colour, and a red one's name too.) */
 #goal-strip button.bare { width: var(--strip-h); padding: 0; }
 #goal-strip button.ok { color: var(--muted); }
-#goal-strip button.bad { background: linear-gradient(var(--danger-soft), var(--danger-soft)), var(--float-solid); border-color: color-mix(in srgb, var(--danger) 45%, transparent); color: var(--danger-ink); }
+#goal-strip button.bad { color: var(--danger-ink); font-weight: 800; }
 #goal-strip button.bad .i { color: var(--danger); }
-#goal-strip button.warn { background: linear-gradient(var(--warn-soft), var(--warn-soft)), var(--float-solid); border-color: color-mix(in srgb, var(--warn) 45%, transparent); color: var(--warn-ink); }
 #goal-strip button.warn .i { color: var(--warn); }
 #goal-strip .strip-start { gap: 5px; margin-right: 3px; padding: 0 12px 0 10px; font-weight: 700; }
 #goal-strip .strip-start .i { color: var(--gold); }
@@ -2642,19 +2626,15 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail #city-card > #btn-city { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
   #rail #city-card > #btn-city:is([aria-expanded='true'], .parked) { background: var(--accent-soft); box-shadow: none; }
   #rail #city-rows { display: flex; flex-direction: column; }
-  /* Every item on the rail one line of one height: its icon, its name, and its graph over the last two years. */
+  /* Every item on the rail one line of one height: its icon, its name, its value, and its graph over the last two years. */
   #rail .strip-city {
-    display: grid; grid-template-columns: 20px var(--rail-name) minmax(0, 1fr) var(--rail-num); grid-template-areas: 'ic name spark num';
+    display: grid; grid-template-columns: 20px var(--rail-name) var(--rail-num) minmax(0, 1fr); grid-template-areas: 'ic name num spark';
     align-items: center; column-gap: 8px; width: 100%; height: var(--rail-row); padding: 0 13px 0 12px; /* (the card's border their own: lined up with the areas') */
     border: 0; border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 0;
     background: transparent; box-shadow: none; text-align: left; color: var(--text); font: inherit;
   }
   #rail .strip-city > .i { grid-area: ic; width: 19px; height: 19px; }
-  #rail .strip-city.ok > .i { color: var(--muted); }
-  #rail .strip-city.warn { background: var(--warn-soft); color: var(--warn-ink); }
-  #rail .strip-city.warn > .i { color: var(--warn); }
-  #rail .strip-city.bad { background: var(--danger-soft); color: var(--danger-ink); }
-  #rail .strip-city.bad > .i { color: var(--danger); }
+  #rail .strip-city > .i { color: var(--muted); }
   #rail .strip-city.on { background: var(--accent-soft); color: var(--active-ink); }
   #rail .strip-city.on > .i { color: var(--accent-hi); }
   @media (hover: hover) { #rail .strip-city:not(.on):hover { filter: brightness(0.97); } }
@@ -2682,24 +2662,26 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
     margin: -4px -10px -10px; padding: 4px 10px 10px; /* (room for the buttons' shadows inside the scroll) */
   }
   #rail #goal-strip button {
-    display: grid; grid-template-columns: 20px var(--rail-name) minmax(0, 1fr) var(--rail-num); grid-template-areas: 'ic name spark num';
+    display: grid; grid-template-columns: 20px var(--rail-name) var(--rail-num) minmax(0, 1fr); grid-template-areas: 'ic name num spark';
     align-items: center; justify-content: stretch; column-gap: 8px; width: 100%; height: var(--rail-row); min-height: 0;
     padding: 0 13px 0 12px; border-radius: 13px; text-align: left; color: var(--text);
   }
-  #rail #goal-strip button > .i { grid-area: ic; width: 19px; height: 19px; }
-  #rail #goal-strip button.ok > .i { color: var(--muted); }
+  #rail #goal-strip button > .i { grid-area: ic; width: 19px; height: 19px; color: var(--muted); }
+  /* An item that wants a hand is no other button (a whole row tinted amber or red outshouted the map): its value says it,
+     in its colour and heavier. (Beside the pane, its icon alone: in its colour there.) */
+  #rail #goal-strip > button.bad { color: var(--text); font-weight: 650; } /* (the one lit keeps its own) */
+  #rail :is(#goal-strip button, .strip-city).warn .r-num b { color: var(--warn-ink); font-weight: 800; }
+  #rail :is(#goal-strip button, .strip-city).bad .r-num b { color: var(--danger-ink); font-weight: 800; }
   #rail .r-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 650; }
-  #rail .r-val { grid-area: num; justify-self: end; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  /* The graph's last values: its line's, then the dashed one's, smaller ("9.9k / 14k"). */
-  /* (Its column's width, set right: shrunk to its text, a long one ran left over the graph instead of ending in "…".) */
-  #rail .r-num { grid-area: num; justify-self: stretch; text-align: right; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-  #rail .r-num b { font-weight: 750; }
+  #rail .r-val { grid-area: num; justify-self: start; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  /* The graph's last values after the name: its line's, then the dashed one's, smaller ("9.9k / 14k"). */
+  /* (Its column's width: shrunk to its text, a long one ran over the graph instead of ending in "…".) */
+  #rail .r-num { grid-area: num; justify-self: stretch; text-align: left; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  #rail .r-num b { font-weight: 650; }
   #rail .r-num small { color: var(--muted); font-size: 11.5px; font-weight: 600; }
-  /* The graph: its line in the item's state (amber, red when it wants a hand) over a faint fill, what to read it against
+  /* The graph: its line over a faint fill (one colour for all: the value beside it says the state), what to read it against
      dashed, a line at nothing when it goes below; dotted with nothing read yet. */
   #rail .r-spark { grid-area: spark; display: block; width: 100%; height: 24px; overflow: visible; --spark: var(--accent); }
-  #rail :is(#goal-strip button, .strip-city).warn .r-spark { --spark: var(--warn); }
-  #rail :is(#goal-strip button, .strip-city).bad .r-spark { --spark: var(--danger); }
   #rail .r-spark path { fill: none; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
   #rail .r-spark .s1 { stroke: var(--spark); stroke-width: 1.75px; }
   #rail .r-spark .s2 { stroke: var(--muted); stroke-width: 1.25px; stroke-dasharray: 3px 2.5px; }
@@ -2732,6 +2714,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
      is still under the pointer's line (pressed again, it puts the pane away: shorter, the next one down was there). */
   #app.pane-open #rail :is(#btn-city, #goal-strip button, .strip-city) { grid-template-columns: minmax(0, 1fr) 0 0 0; column-gap: 0; padding-inline: 0; }
   #app.pane-open #rail :is(#btn-city, #goal-strip button, .strip-city) > .i { justify-self: center; }
+  #app.pane-open #rail :is(#goal-strip button, .strip-city).warn > .i { color: var(--warn); }
+  #app.pane-open #rail :is(#goal-strip button, .strip-city).bad > .i { color: var(--danger); }
   /* (The city's bar stands up under its trophy there, filling from below.) */
   #app.pane-open #rail #btn-city::before {
     content: ''; position: absolute; top: 46px; bottom: 14px; left: 50%; width: 6px; margin-left: -3px; border-radius: 999px;

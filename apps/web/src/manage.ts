@@ -232,7 +232,7 @@ export function refreshStrip(): void {
     return {
       key: id, tone, weight: WEIGHT[id],
       html: (on: boolean) => wide
-        ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${words} · ${on ? '눌러서 도시 현황 닫기·열기 (×는 화면 닫기)' : `눌러서 ${g.name} 화면`}`)}" aria-label="${escapeHtml(`${g.name}${said}: ${head}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span>${graph!.svg}<span class="r-num">${graph!.val}</span></button>`
+        ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${words} · ${on ? '눌러서 도시 현황 닫기·열기 (×는 화면 닫기)' : `눌러서 ${g.name} 화면`}`)}" aria-label="${escapeHtml(`${g.name}${said}: ${head}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span><span class="r-num">${graph!.val}</span>${graph!.svg}</button>`
         : `<button type="button" class="${tone || 'ok'}${tone === 'bad' || on ? '' : ' bare'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${g.name}: ${escapeHtml(s.value)}${tone ? ` · ${escapeHtml(note)}` : ''} · 눌러서 ${g.name} 화면" aria-label="${g.name}${said}: ${escapeHtml(s.value)}"${on ? ' aria-pressed="true"' : ''}>${glyph}${tone === 'bad' || on ? g.name : ''}</button>`,
     };
   });
@@ -306,7 +306,7 @@ function refreshCityRows(wide: boolean): void {
     const d = driftOf(key);
     const on = lit === key;
     const graph = railSpark(key);
-    return `<button type="button" class="strip-city ${tone || 'ok'}${on ? ' on' : ''}" data-k="${key}" data-city-row="${key}" aria-pressed="${on}" title="${escapeHtml(`${name}: ${words}${d ? ` · ${d.said}` : ''}${graph.said ? ` · 그래프: ${graph.said}` : ''} · ${on ? '눌러서 닫기' : `눌러서 도시 화면의 ${name} 탭`}`)}" aria-label="${escapeHtml(`${name}${tone ? `, ${said(tone)}` : ''}: ${words}`)}">${icon(glyph)}<span class="r-name">${name}</span>${graph.svg}<span class="r-num">${graph.val}</span></button>`;
+    return `<button type="button" class="strip-city ${tone || 'ok'}${on ? ' on' : ''}" data-k="${key}" data-city-row="${key}" aria-pressed="${on}" title="${escapeHtml(`${name}: ${words}${d ? ` · ${d.said}` : ''}${graph.said ? ` · 그래프: ${graph.said}` : ''} · ${on ? '눌러서 닫기' : `눌러서 도시 화면의 ${name} 탭`}`)}" aria-label="${escapeHtml(`${name}${tone ? `, ${said(tone)}` : ''}: ${words}`)}">${icon(glyph)}<span class="r-name">${name}</span><span class="r-num">${graph.val}</span>${graph.svg}</button>`;
   };
   // (The month's balance once: its own, or the line that says it with how long the money lasts.)
   const net = monthNet();

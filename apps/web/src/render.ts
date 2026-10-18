@@ -1,6 +1,6 @@
 // Canvas 2D top-down renderer for a City.
 
-import { DEFAULT_CONFIG, DEV_TYPES, GROWTH_CODES, isLocalNet, isRail, Net, NETWORK_KINDS, STRUCTURES, Terrain, ZONES, type City, type DevType, type Rect, type RouteTrip, type StructureKind, type TripMeans, type ZoneKind } from '@web-city/engine';
+import { DEFAULT_CONFIG, DEV_TYPES, GROWTH_CODES, isLocalNet, isRail, Net, NETWORK_KINDS, STRUCTURES, Terrain, tilesLinked, ZONES, type City, type DevType, type Rect, type RouteTrip, type StructureKind, type TripMeans, type ZoneKind } from '@web-city/engine';
 import { ABANDONED_COLOR, buildingRisk, coverageRadius, GROWTH_COLOR, growthNow, RISK_COLOR, volumeAt } from './views';
 
 /** Networks the volume view can show, one at a time (a button per network). */
@@ -363,6 +363,25 @@ export const RISK_OUT = 'rgba(220,30,30,0.72)';
 export const NO_TRIP = 'rgb(110,20,20)';
 /** Over the congestion view: rail broken (by a disaster, or worn out with transit unfunded). */
 export const BROKEN_RAIL = 'rgba(120,20,20,0.95)';
+/**
+ * The traffic view's bands: from this many pixels a tile, each network tile is drawn as a band along the way it runs,
+ * as wide as the trips over it (closer than this a width can't be told: the tile's colour alone).
+ */
+const BAND_MIN = 3;
+/** A band's width at the busiest tile in the city (in tiles), and at the fewest trips (at least a pixel or so). */
+const BAND_WIDE = 0.86;
+const BAND_THIN = 0.12;
+/** A band's colour by how near its capacity the trips come (0 free → 1 at twice it), in this many steps. */
+const BAND_STEPS = 10;
+/**
+ * The congestion colour (t: 0 free-flowing → 1 at twice the capacity): green, yellow at the capacity, red — the ramp the
+ * homes and works between take for their trips (straight from green to red, the middle was a muddy olive).
+ */
+const jamColor = (t: number, alpha = 1) => {
+  const r = t < 0.5 ? Math.round(50 + t * 2 * 175) : 225;
+  const g = t < 0.5 ? 205 : Math.round(205 - (t - 0.5) * 2 * 150);
+  return `rgba(${r},${g},55,${alpha.toFixed(3)})`;
+};
 
 function heat(v: number): string {
   // 0 → red, 0.5 → yellow, 1 → green.
@@ -435,6 +454,9 @@ export class Renderer {
 
   /** Offscreen canvas the overlay is painted on (one pixel per tile). */
   private layer = document.createElement('canvas');
+
+  /** The busiest network tile's trips, for the traffic view's widths: worked out again after a day or an edit. */
+  private bandMax: { city: City | null; key: string; max: number } = { city: null, key: '', max: 0 };
 
   /** True when the last frame drew moving cars, so the caller keeps redrawing. */
   animating = false;
@@ -1379,6 +1401,78 @@ export class Renderer {
 
   /** Frames drawn (what is looked at once a frame keys by it). */
   private frames = 0;
+
+  /**
+   * The traffic view's ways close up: each network tile a band along the ways it joins, as wide as the trips over it
+   * against the busiest tile in the city (so a road keeps its width as the view pans), coloured by how near its capacity
+   * they come — roads, rail and ferry routes, then the elevated lines over them. Where two tiles join, the band takes
+   * the width between theirs (no step at the seam); a way nobody takes is left to the faint tile under it.
+   */
+  private paintTrafficBands(ctx: CanvasRenderingContext2D, city: City, x0: number, y0: number, x1: number, y1: number, sc: number): void {
+    const s = city.state;
+    const f = city.fields;
+    const n = s.size;
+    const speed = DEFAULT_CONFIG.transport.speed;
+    const key = `${s.day}|${city.revision}`;
+    if (this.bandMax.city !== city || this.bandMax.key !== key) {
+      let max = 0;
+      for (let i = 0; i < n * n; i++) {
+        const c = s.net[i]!;
+        if (c && c !== Net.Rail) max = Math.max(max, f.traffic[i]!);
+        if (isRail(c) && !s.railDamage[i]) max = Math.max(max, f.railTraffic[i]!);
+        const up = s.elevated[i]!;
+        if (up) max = Math.max(max, (up === 1 ? f.subwayTraffic : up === 2 ? f.monorailTraffic : f.highTraffic)[i]!);
+        if (s.terrain[i] === Terrain.Water) max = Math.max(max, f.ferryTraffic[i]!);
+      }
+      this.bandMax = { city, key, max };
+    }
+    const max = this.bandMax.max;
+    if (!max) return;
+    const thin = Math.max(BAND_THIN, 1.2 / sc); // (a pixel or so, however far out)
+    const width = (v: number) => (v > 0 ? thin + (BAND_WIDE - thin) * Math.sqrt(Math.min(1, v / max)) : 0);
+    type Layer = { on: (i: number) => boolean; trips: Float32Array; cap: (i: number) => number; joins: (i: number, j: number) => boolean };
+    const water = (i: number) => s.terrain[i] === Terrain.Water && f.ferryTraffic[i]! > 0;
+    const layers: Layer[] = [
+      { on: (i) => s.net[i] !== Net.None && s.net[i] !== Net.Rail, trips: f.traffic, cap: (i) => speed[NETWORK_KINDS[s.net[i]!]!].capacity, joins: (i, j) => tilesLinked(s, i, j) },
+      { on: (i) => isRail(s.net[i]!) && !s.railDamage[i], trips: f.railTraffic, cap: () => speed.rail.capacity, joins: () => true },
+      { on: water, trips: f.ferryTraffic, cap: () => speed.ferry.capacity, joins: () => true },
+      ...([[1, f.subwayTraffic, speed.elrail.capacity], [2, f.monorailTraffic, speed.monorail.capacity], [3, f.highTraffic, speed.highway.capacity]] as const)
+        .map(([k, trips, cap]): Layer => ({ on: (i) => s.elevated[i] === k, trips, cap: () => cap, joins: () => true })),
+    ];
+    for (const L of layers) {
+      const paths: (Path2D | null)[] = new Array(BAND_STEPS).fill(null);
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          const i = y * n + x;
+          if (!L.on(i)) continue;
+          const v = L.trips[i]!;
+          const w = width(v);
+          if (!w) continue;
+          const step = Math.round(Math.min(1, v / L.cap(i) / 2) * (BAND_STEPS - 1));
+          const p = (paths[step] ??= new Path2D());
+          p.rect(x + 0.5 - w / 2, y + 0.5 - w / 2, w, w);
+          // Half a tile toward each joined neighbour that carries trips too, at the width between the two.
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+            const xx = x + dx;
+            const yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= n || yy >= n) continue;
+            const j = yy * n + xx;
+            if (!L.on(j) || !L.joins(i, j)) continue;
+            const wj = width(L.trips[j]!);
+            if (!wj) continue;
+            const h = (w + wj) / 4;
+            if (dx) p.rect(dx > 0 ? x + 0.5 : x, y + 0.5 - h, 0.5, 2 * h);
+            else p.rect(x + 0.5 - h, dy > 0 ? y + 0.5 : y, 2 * h, 0.5);
+          }
+        }
+      }
+      paths.forEach((p, k) => {
+        if (!p) return;
+        ctx.fillStyle = jamColor(k / (BAND_STEPS - 1));
+        ctx.fill(p);
+      });
+    }
+  }
   draw(city: City, cam: Camera, overlay: Overlay, preview: Preview | null, selected: Rect | null): void {
     this.frames++;
     const { ctx } = this;
@@ -1717,6 +1811,8 @@ export class Renderer {
       // Against the busiest tile in the whole city (a road's colour must not change as the view pans).
       if (overlay.kind === 'volume') for (let i = 0; i < n * n; i++) volumeMax = Math.max(volumeMax, volumeAt(s, f, overlay.network, i));
       const onWater = overlay.kind === 'volume' && overlay.network === 'ferry';
+      // The traffic view close enough for widths: its ways drawn as bands after the tiles.
+      const bands = overlay.kind === 'traffic' && sc >= BAND_MIN;
       // A tile where people live: zoned for homes (codes 1–3), or a home stands on it.
       const homeAt = (i: number): boolean => {
         const z = s.zone[i]!;
@@ -1875,12 +1971,17 @@ export class Renderer {
                 color = BROKEN_RAIL;
                 break;
               }
+              // Close enough for widths: a faint way under its band (paintTrafficBands), which says the rest.
+              if (bands) {
+                color = this.night ? 'rgba(150,150,160,0.3)' : 'rgba(110,110,118,0.28)';
+                break;
+              }
               const speed = DEFAULT_CONFIG.transport.speed;
               const u = code === Net.Rail ? f.railTraffic[i]! / speed.rail.capacity
                 : f.traffic[i]! / speed[NETWORK_KINDS[code]!].capacity;
               const t = Math.min(1, u / 2);
               // Free-flowing roads recede; jams stand out (every road a solid bar read as a green lattice).
-              color = `rgba(${Math.round(80 + 175 * t)},${Math.round(200 - 170 * t)},60,${(0.4 + 0.55 * Math.min(1, t * 1.6)).toFixed(3)})`;
+              color = jamColor(t, 0.4 + 0.55 * Math.min(1, t * 1.6));
               break;
             }
             case 'volume': {
@@ -1919,6 +2020,7 @@ export class Renderer {
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(this.layer, x0, y0, x1 - x0, y1 - y0, x0, y0, x1 - x0, y1 - y0);
       ctx.imageSmoothingEnabled = true;
+      if (bands) this.paintTrafficBands(ctx, city, x0, y0, x1, y1, sc);
       // Streets stay as the map's reference over area data (views of the networks colour them already).
       if (!NETWORK_VIEWS.has(overlay.kind)) {
         ctx.fillStyle = this.night ? 'rgba(200,200,210,0.28)' : 'rgba(60,60,64,0.42)';
