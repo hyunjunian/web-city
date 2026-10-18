@@ -130,13 +130,14 @@ function qualityGrid(counts: string, top: string, figs: PaneFigs): string {
   const row = ({ id, s }: (typeof rows)[number]) => {
     const g = GOALS[id];
     const wait = journal().pending[id] ? '<small class="s-wait" title="한 조치의 결과를 기다리는 중 (석 달 뒤 알려 드립니다)">결과 기다리는 중</small>' : '';
+    // (수요's and 재정's as the rail has them: what each class wants on a bar; the money and the month's balance.)
+    const own = id === 'growth' ? railDemand(s, true) : id === 'finance' ? railMoney() : null;
     // (A row with a line under it lays that line across the row: has-note.)
-    return `<button type="button" class="s-row ${s.tone || 'ok'}${s.tone || id === 'growth' ? ' has-note' : ''}${active === id ? ' on' : ''}" data-goal="${id}" title="${g.name}: ${escapeHtml(glue(s.note))} · 눌러서 자세히" aria-label="${g.name}${s.tone === 'bad' ? ', 조치 필요' : s.tone === 'warn' ? ', 주의' : ''}: ${s.value}">
+    return `<button type="button" class="s-row ${s.tone || 'ok'}${s.tone || id === 'growth' ? ' has-note' : ''}${active === id ? ' on' : ''}" data-goal="${id}" title="${g.name}: ${escapeHtml(glue(s.note))} · 눌러서 자세히" aria-label="${g.name}${s.tone === 'bad' ? ', 조치 필요' : s.tone === 'warn' ? ', 주의' : ''}: ${escapeHtml(own ? own.said : s.value)}">
       <span class="s-ic">${icon(g.icon)}</span><span class="s-main"><span class="s-name">${g.name}${wait}</span>${id === 'growth'
         ? `<small class="s-note"><span class="s-sub">일자리 ${fmt(figs.jobs)}${figs.jobsTrend}</span>${s.tone ? ` · ${escapeHtml(glue(s.note))}` : ''}</small>`
-        : s.tone ? `<small class="s-note">${escapeHtml(glue(s.note))}</small>` : ''}</span>${id === 'growth' || id === 'finance'
-        // (수요's and 재정's as the rail has them: what each class wants on a bar; the money and the month's balance.)
-        ? `<span class="s-val s-own">${(id === 'growth' ? railDemand(s.value) : railMoney()).html}</span>`
+        : s.tone ? `<small class="s-note">${escapeHtml(glue(s.note))}</small>` : ''}</span>${own
+        ? `<span class="s-val s-own">${own.html}</span>`
         : `<b class="s-val">${drift(id)}${s.value}</b>`}${icon('chevronRight', 's-go')}</button>`;
   };
   let off = rows.filter(({ s }) => s.tone).map((r) => ({ key: r.id as string, html: row(r) }));
@@ -198,7 +199,7 @@ export function refreshStrip(): void {
     // (The classes said, the class most wanted among them is said: "주거 +709 · 주거 +709 · 상업 …" read twice.)
     const head = id === 'growth' && !tone && fig ? fig : `${value}${fig ? ` · ${fig}` : ''}`;
     // (수요 and 재정 read without a graph: what each class wants on a bar, the money in hand and the month's balance.)
-    const own = !wide ? null : id === 'growth' ? railDemand(value) : id === 'finance' ? railMoney() : null;
+    const own = !wide ? null : id === 'growth' ? railDemand(s) : id === 'finance' ? railMoney() : null;
     const graph = wide && !own && id !== 'amenity' && id !== 'growth' && id !== 'finance' ? railSpark(id) : null;
     const words = `${own ? own.said : head}${note ? ` · ${note}` : ''}${d ? ` · ${d.said}` : ''}${graph?.said ? ` · 그래프: ${graph.said}` : ''}`;
     return {
@@ -373,11 +374,16 @@ const CLASS_NAME = { R: '주거', C: '상업', I: '산업' } as const;
 /**
  * 수요's row on the rail: what each class wants — 주거, 상업, 산업 — a line each, a bar out from the middle (wanted to the
  * right, too many to the left, on the RCI meter's scale: full at ±1,000 by its square root) and its figure; a class its
- * cap holds back says 상한. The class its state names ("주거 상한") is the one whose figure takes the state's colour —
- * all three in red read as though a 0 were urgent. (Industry counts the farms, as the meter does.)
+ * cap holds back says 상한. The class its state is about (at its cap, its zones full) is the one whose figure takes the
+ * state's colour — all three in red read as though a 0 were urgent; a state no one class answers (실업, power, buildings
+ * left) is said over them in its colour. (Industry is the factories': farms, in the words, grow on zones of their own.)
  */
-function railDemand(state: string): { html: string; said: string } {
-  const hot = (Object.keys(CLASS_NAME) as (keyof typeof CLASS_NAME)[]).find((k) => state.startsWith(CLASS_NAME[k]));
+function railDemand(s: ReturnType<typeof goalStatus>, noteShown = false): { html: string; said: string } {
+  const hot = s.tone ? s.cls : undefined;
+  // (That state in a few words: its own figure — 실업 10,298명 — or, where its headline is only the demand the bars
+  // show, what its note says is wrong — 버려진 건물이 23채 있습니다 — though not where the note is read under it.)
+  const fromNote = /수요/.test(s.value);
+  const state = !s.tone || s.cls ? '' : !fromNote ? s.value : noteShown ? '' : s.note.split(/ · |\. /)[0]!.replace(/\.$/, '');
   const rows = (['R', 'C', 'I'] as const).map((k) => {
     const { v, capped } = classDemand(k);
     const w = Math.min(50, Math.sqrt(Math.abs(v) / 1000) * 50);
@@ -389,7 +395,11 @@ function railDemand(state: string): { html: string; said: string } {
       html: `<span class="k-${k.toLowerCase()}${capped ? ' cap' : v <= -1 ? ' neg' : ''}${k === hot ? ' hot' : ''}"><em>${CLASS_NAME[k]}</em><i><i style="left:${left.toFixed(1)}%;width:${width.toFixed(1)}%"></i></i><b>${fig}</b></span>`,
     };
   });
-  return { html: `<span class="r-rci" aria-hidden="true">${rows.map((r) => r.html).join('')}</span>`, said: rows.map((r) => r.said).join(' · ') };
+  const farms = Math.round(city.demand.demand.IA);
+  return {
+    html: `${state ? `<b class="r-state">${escapeHtml(state)}</b>` : ''}<span class="r-rci" aria-hidden="true">${rows.map((r) => r.html).join('')}</span>`,
+    said: `${state && !fromNote ? `${state} · ` : ''}${rows.map((r) => r.said).join(' · ')}${farms >= 1 ? ` · 농업 +${fmt(farms)}` : ''} · 일자리 ${fmt(readStats().jobs)}`,
+  };
 }
 /** 재정's row on the rail: the money in hand, and beside it last month's balance — what came in less what went out — as
  *  a rate ("+§369 / 월"). */
@@ -397,11 +407,14 @@ function railMoney(): { html: string; said: string } {
   const s = city.state;
   const b = s.lastBudget;
   const net = b ? Math.round(b.income - b.expenses) : null;
-  const cash = `${s.funds < 0 ? '−' : ''}§${fmt(Math.abs(Math.round(s.funds)))}`;
-  const month = net === null ? '' : `${net < 0 ? '−' : '+'}§${fmt(Math.abs(net))}`;
+  // (In full while they fit the row; past §10,000,000 — a month past §100,000 — as the graphs' values are written: §12M,
+  // §123k. Its words keep every digit.)
+  const money = (v: number, sign: string, from: number) => `${v < 0 ? '−' : sign}§${Math.abs(v) >= from ? sparkNum(Math.abs(v)) : fmt(Math.abs(Math.round(v)))}`;
+  const cash = money(s.funds, '', 1e7);
+  const month = net === null ? '' : money(net, '+', 1e5);
   return {
     html: `<span class="r-num r-money"><b>${cash}</b>${month ? `<small class="${net! < 0 ? 'neg' : 'pos'}">${month}<span> / 월</span></small>` : ''}</span>`,
-    said: `자금 ${cash}${month ? ` · 지난달 수지 ${month}` : ' · 첫 결산 전'}`,
+    said: `자금 ${money(s.funds, '', Infinity)}${net === null ? ' · 첫 결산 전' : ` · 지난달 수지 ${money(net, '+', Infinity)}`}`,
   };
 }
 /** The months a rail graph covers. */

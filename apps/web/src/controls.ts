@@ -9,10 +9,10 @@ import { TYPE_NAME, TYPE_SHORT, WEALTH_NAME } from './names';
 import { updatePanels } from './panels';
 import { BROKEN_RAIL, FIRE_RISK, FOUL_HARM, FOUL_RGB, HEINOUS, INDEX_FULL, indexColor, NO_TRIP, RIOT_DOT, RISK_IN, RISK_OUT, type Overlay, UNHAPPY_DOT, type VolumeNetwork, WORN_COLOR } from './render';
 import { ABANDONED_COLOR, buildingRisk, GROWTH_COLOR, GROWTH_LABEL, growthNow, RISK_COLOR, volumeAt } from './views';
-import { centerOn, pingAt, changeKey, city, cityGeneration, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
+import { centerOn, pingAt, changeKey, city, cityGeneration, mapBand, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
 import { selectTool, SPEEDS, TOOL_KEYS, toolName, TOOLS } from './tools';
 import { drive } from './udi';
-import { revealMap } from './tabs';
+import { closeSheet, paneShown, revealMap } from './tabs';
 import { $, flash, fmt, keyLabel } from './util';
 import { choice } from './choices';
 import { type GoalId } from './goals';
@@ -408,6 +408,12 @@ const TRADE_NAME = ['공해', '제조', '첨단'];
 let devTier = 0;
 const devKind = () => DEV_PICK.find(([, , types]) => types.includes(overlayType))!;
 
+/** The type 쾌적도's map shows, in the picker's words: 주거 저소득층, 산업 첨단, 농업. */
+function devPickName(): string {
+  const [kind, name, types] = devKind();
+  return types.length < 2 ? name : `${name} ${(kind === 'I' ? TRADE_NAME : WEALTH_NAME)[types.indexOf(overlayType)]}`;
+}
+
 /** The picker's buttons as the view's type stands. */
 function markDevPick(): void {
   const pick = document.querySelector<HTMLElement>('#overlay-type');
@@ -479,14 +485,15 @@ export function buildOverlay(): void {
     // The view's short name heads the card; what it leaves out (보건 → 병원이 닿는 범위; 개발 막힘 → 빈 구역·버려진 건물)
     // as a quiet line over the legend, not the name said again.
     const short = VIEW_GROUPS.flatMap(([, , views]) => views).find(([v]) => v === kind.value)?.[1] ?? '';
-    $('#layer-name').textContent = off ? '' : short;
+    // (쾌적도's, the type it shows after it — seen while the card is folded, its picker with the legend.)
+    $('#layer-name').innerHTML = off ? '' : kind.value === 'desirability' ? `${short}<span class="layer-type"> · ${devPickName()}</span>` : short;
     const full = kind.selectedOptions[0]?.textContent ?? '';
     // (Only what the name leaves out, in brackets: "통행량: 도로" under 도로 통행량 said it again.)
     const aside = /^.+? \((.+)\)$/.exec(full)?.[1] ?? '';
     const legendEl = $('#overlay-legend');
     if (!off && aside) legendEl.dataset.title = aside;
     else delete legendEl.dataset.title;
-    $('#layer-title').title = off ? '' : `지도 보기: ${full} · 범례 펼치기·접기`;
+    $('#layer-title').title = off ? '' : `지도 보기: ${full}${kind.value === 'desirability' ? ` · ${devPickName()} · 범례와 종류·소득 펼치기·접기` : ' · 범례 펼치기·접기'}`;
     $('#map-layer').classList.toggle('off', off);
     $('#overlay-legend').textContent = ({
       desirability: '빨강 = 낮음, 노랑 = 50 (이 이상이어야 개발됨), 초록 = 150 이상.',
@@ -926,17 +933,25 @@ export function refreshViewSummary(): void {
     if (!sumSpots.length) return;
     const k = sumNext++ % sumSpots.length;
     const i = sumSpots[k]!;
-    revealMap();
-    const [x, y] = [i % city.size, Math.floor(i / city.size)];
     // (Close enough to see the tile, and ringed once the map lands: at the usual zoom it only panned, and a faint
     // flash marked it. Which one of how many, on the button.)
-    centerOn(x, y, 14);
-    pingAt(x, y);
+    goToSpot(i % city.size, Math.floor(i / city.size));
     (e.currentTarget as HTMLButtonElement).textContent = `찾아가기 ${k + 1}/${sumSpots.length}곳`; // (places: beside 막힌 길 139칸, 1/18 read as tiles)
   });
 }
 let sumSpots: number[] = [];
 let sumNext = 0;
+
+/** A place the view's card counted (찾아가기, a legend's swatch): the map goes there and rings it. A screen's panel stays
+ *  up — the view is its, and goes with it — a phone's sheet under the map's band it leaves; with none up, the map is
+ *  cleared first. */
+function goToSpot(x: number, y: number): void {
+  const kept = paneShown();
+  if (kept) closeSheet();
+  else revealMap();
+  centerOn(x, y, 14, kept && matchMedia('(max-width: 860px)').matches ? mapBand() : undefined);
+  pingAt(x, y);
+}
 
 /** The summary of a view that scans the whole map, kept for a week of game time or until the city changes. */
 const SCANNED = new Set(['air', 'waterPollution', 'garbage', 'commute']);
@@ -1228,9 +1243,6 @@ function legendGo(e: Event): void {
   const k = legendNext.get(color) ?? 0;
   legendNext.set(color, k + 1);
   const i = tiles[k % tiles.length]!;
-  const [x, y] = [i % city.size, Math.floor(i / city.size)];
-  revealMap();
-  centerOn(x, y, 14);
-  pingAt(x, y); // (as 찾아가기 marks what it found)
+  goToSpot(i % city.size, Math.floor(i / city.size)); // (as 찾아가기 marks what it found)
 }
 

@@ -65,8 +65,8 @@ document.addEventListener('click', (e) => {
   }
   // (A view's 보기: the screen whose tab shows it, its panel up — a screen's map goes with its panel.)
   if (b.dataset.overlay) openViewTab(b.dataset.overlay);
-  // (A place's, from a screen: there, the screen kept with its map — on a phone, in the band its sheet leaves above it;
-  // from the news or a card, the map cleared for it.)
+  // (A place's, from the pane — a screen, or the news in a phone's 인구 sheet: there, the pane kept with its map — on a
+  // phone, in the band its sheet leaves above it; from a notice or a card, the map cleared for it.)
   const kept = !!b.dataset.overlay || (!!b.closest('#pane') && paneShown());
   if (!kept) revealMap();
   if (b.dataset.at) {
@@ -318,22 +318,19 @@ function renderBuildings(): void {
 
 
 /**
- * SC4's RCI meter for one class: its strongest demand (or weakest, when none is positive),
- * whether its cap holds Sims back, and for industry whether farms are what is wanted.
+ * SC4's RCI meter for one class: its strongest demand (or weakest, when none is positive) and whether its cap holds
+ * Sims back. (Industry is the factories' — farms are a zone of their own.)
  */
-export function classDemand(k: 'R' | 'C' | 'I'): { v: number; capped: boolean; farms: boolean; factories: number } {
+export function classDemand(k: 'R' | 'C' | 'I'): { v: number; capped: boolean } {
   const dem = city.demand;
-  const vals = DEV_TYPES.filter((t) => t[0] === k).map((t) => dem.demand[t]);
+  // (Industry without the farms: they grow on 농업 zones, and "산업 +521" sent factories' zones where farms were wanted.)
+  const vals = DEV_TYPES.filter((t) => t[0] === k && t !== 'IA').map((t) => dem.demand[t]);
   // Sims want in but the class's cap holds them back (the bar alone would read as no demand).
   // (By the cap test the rest of the pane uses.)
   const capped = DEV_TYPES.some((t) => t[0] === k && t !== 'IA' && atCap(t) && dem.raw[t] > 0);
   // Strongest demand, else weakest; a capped class reads 0 rather than another type's surplus.
   const v = Math.max(...vals) > 0 ? Math.max(...vals) : capped ? 0 : Math.min(...vals);
-  // The I bar counts farms too: say when they are what's wanted.
-  const farms = k === 'I' && v > 0 && dem.demand.IA >= v;
-  // Only farms: an industrial zone would stay empty (farms grow on 농업 zones).
-  const factories = Math.max(dem.demand.ID, dem.demand.IM, dem.demand.IHT);
-  return { v, capped, farms, factories };
+  return { v, capped };
 }
 
 /** A kind of zone's demand in words: its index, how many it is short or has spare, and its cap. */

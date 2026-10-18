@@ -719,8 +719,6 @@ kbd {
   /* (Up to the sheet's edge from where the column puts it, under the clock's row: its title row as low at the top of
      the screen as when it sticks there, level with the ×.) */
   .mg-head { top: -26px; margin-top: -36px; padding-top: 32px; padding-right: 52px; }
-  /* Half the screen: the goal's map view stays in sight above it. */
-  #pane.managing { max-height: min(60dvh, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)); }
 }
 
 .card { padding: 14px 14px; /* one inset with the KPIs and gauges */ background: var(--surface); border-radius: var(--r-lg); }
@@ -1486,7 +1484,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
      it, its × and back put it away.) */
   #pane {
     position: fixed; top: auto; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom) + 8px); z-index: 20; width: auto;
-    max-height: min(80dvh, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)); padding-top: 26px; padding-bottom: 24px;
+    max-height: min(60dvh, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)); padding-top: 26px; padding-bottom: 24px;
     border: 1px solid var(--line); border-radius: var(--r-xl); box-shadow: var(--shadow);
     transform: translateY(calc(100% + env(safe-area-inset-bottom) + 8px)); visibility: hidden;
     transition: transform 0.26s var(--ease), visibility 0s 0.26s;
@@ -1591,7 +1589,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
     padding-top: 18px;
     transform: translateX(calc(-100% - 16px));
   }
-  #pane.managing { max-height: none; } /* (beside the map, an area's screen keeps the full height: held upright it is half, to leave the map above) */
   .pane-grip { display: none; }
   /* Little height: the view list takes what there is; the hint sits beside the tool's bar's end, not mid-map. */
   /* The city pane on the left: the hint and toasts keep to the map beside it. */
@@ -1855,12 +1852,13 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .s-row.bad .s-val { color: var(--danger-ink); }
 .s-row.on { background: var(--accent-soft); }
 /* 수요's figure, on the rail and in a phone's 도시 상태: a line a class — its name, a bar out from one axis down the
-   three (wanted to the right, too many to the left; full at ±1,000) and its figure. The class its state names takes that
-   state's colour; a capped one reads 상한 in amber over a hatched right half (they want in, the cap holds them). */
-.r-rci { position: relative; display: grid; gap: 7px; min-width: 0; font-size: 11.5px; line-height: 14px; }
-/* (The axis, at the tracks' middle: the name's 2.4em before them, the figure's 3.4em after, 10px between.) */
-.r-rci::before { content: ''; position: absolute; top: -2px; bottom: -2px; left: calc(50% - 0.5em); width: 1px; background: var(--line-strong); }
-.r-rci > span { display: grid; grid-template-columns: 2.4em minmax(0, 1fr) 3.4em; align-items: center; column-gap: 10px; }
+   three (wanted to the right, too many to the left; full at ±1,000) and its figure. The class its state is about takes
+   that state's colour; a capped one reads 상한 over a hatched right half (they want in, the cap holds them). A state no
+   one class answers (실업, power) is said over the bars in its colour (.r-state). */
+.r-rci { --rci-name: 2.4em; --rci-fig: 4em; position: relative; display: grid; gap: 7px; min-width: 0; font-size: 11.5px; line-height: 14px; }
+/* (The axis, at the tracks' middle: the name's column before them, the figure's after — "−1,000" whole — 10px between.) */
+.r-rci::before { content: ''; position: absolute; top: -2px; bottom: -2px; left: calc(50% + (var(--rci-name) - var(--rci-fig)) / 2); width: 1px; background: var(--line-strong); }
+.r-rci > span { display: grid; grid-template-columns: var(--rci-name) minmax(0, 1fr) var(--rci-fig); align-items: center; column-gap: 10px; }
 .r-rci em { color: var(--muted); font-style: normal; font-weight: 600; }
 .r-rci > span > i { position: relative; display: block; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--line-strong) 26%, transparent); }
 .r-rci > span > i > i { position: absolute; top: 0; bottom: 0; border-radius: 0 999px 999px 0; background: var(--c); }
@@ -1870,7 +1868,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .r-rci .k-r { --c: var(--zone-r); }
 .r-rci .k-c { --c: var(--zone-c); }
 .r-rci .k-i { --c: var(--zone-i); }
-:is(#rail, #status) .r-rci .cap b { color: var(--warn-ink); }
 :is(#rail, #status) .warn .r-rci .hot b { color: var(--warn-ink); font-weight: 800; }
 :is(#rail, #status) .bad .r-rci .hot b { color: var(--danger-ink); font-weight: 800; }
 /* 재정's: the money in hand, and last month's balance after it as a rate — "+§369 / 월" (green in, red out). */
@@ -1881,9 +1878,14 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 :is(#rail, #status) .r-money small.neg { color: var(--danger-ink); }
 :is(#rail, #status) .r-money small > span { color: var(--muted); font-weight: 550; }
 #rail .r-money { justify-content: flex-start; }
-/* (In a phone's 도시 상태: room for the class lines, the bars across it — shrunk to their figures, they had none.) */
+/* (In a phone's 도시 상태: room for the class lines, the bars across it — shrunk to their figures, they had none — and
+   수요's state over them when no one class answers it.) */
 .s-val.s-own { width: 12.5em; white-space: normal; }
+.s-list .s-val.s-own { flex-direction: column; align-items: stretch; gap: 5px; }
 .s-val.s-own > :is(.r-rci, .r-money) { flex: 1 1 auto; }
+.s-val.s-own > .r-state { overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+/* (The month's balance under the money where both don't fit the line: a narrow phone, a fortune.) */
+.s-val.s-own > .r-money { flex-wrap: wrap; row-gap: 2px; }
 .s-wait { margin-left: 3px; color: var(--accent-hi); font-size: 10px; letter-spacing: -1px; }
 /* (A line that does not wrap is cut at the pane's edge, not let widen it.) */
 #status, #status > section { grid-template-columns: minmax(0, 1fr); min-width: 0; }
@@ -2514,11 +2516,14 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 }
 #view.fit4 #map-layer .layer-title > .i:first-child { display: none; }
 #layer-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* (Folded, 쾌적도's card says which type it shows beside its name: its picker folds away with the legend.) */
+#layer-name .layer-type { display: none; color: var(--muted); font-weight: 550; }
+:is(#view.fit4 #map-layer:not(.open), #view:not(.fit4) #map-layer.tucked) #layer-name .layer-type { display: inline; }
 #view.fit4 #map-layer .legend-toggle { display: inline-flex; margin-left: 0; color: var(--muted); transition: transform 0.2s var(--ease); }
 #view.fit4 #map-layer.open .legend-toggle { transform: rotate(180deg); }
 #view.fit4 #overlay { order: 1; flex: 1 0 100%; min-width: 0; }
 #view.fit4 #map-layer:not(.off) #overlay { gap: 6px; }
-#view.fit4 #map-layer:not(.open) :is(#overlay-legend, #overlay-scale) { display: none !important; }
+#view.fit4 #map-layer:not(.open) :is(#overlay-legend, #overlay-scale, #overlay-type) { display: none !important; }
 /* (With a tool in hand the legend steps aside: no unfolding then.) */
 #view.holding #map-layer .legend-toggle { display: none; }
 #view.holding #map-layer .layer-title { pointer-events: none; }
@@ -2684,15 +2689,17 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   /* 재정's row: its figures across the value's and the graph's room (no graph). 수요's: its name, then its classes'
      bars across the row under it — a line of the rows' height had them cramped and short. */
   #rail .r-money { grid-column: 3 / -1; }
-  #rail #city-rows button[data-strip-goal='growth'] { height: auto; grid-template-areas: 'ic name name name' '. rci rci rci'; row-gap: 9px; padding-block: 11px 13px; }
+  #rail #city-rows button[data-strip-goal='growth'] { height: auto; grid-template-areas: 'ic name state state' '. rci rci rci'; row-gap: 9px; padding-block: 11px 13px; }
   #rail .r-rci { grid-area: rci; }
+  /* (A state no one class answers — 실업, power — on its name's line, as the other rows' values stand.) */
+  #rail .r-state { grid-area: state; justify-self: start; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  #rail #city-rows button.warn .r-state { color: var(--warn-ink); }
+  #rail #city-rows button.bad .r-state { color: var(--danger-ink); }
   #rail .r-money b { font-size: 13.5px; }
   #rail #goal-strip .strip-start { margin: 0; }
   #rail #goal-strip .strip-start .r-val { color: var(--muted); }
   #rail :is(#goal-strip, #city-rows) .strip-on { display: flex; align-items: stretch; width: 100%; height: auto; border-radius: 12px; }
-  #rail :is(#goal-strip, #city-rows) .strip-on > button:first-child { flex: 1 1 auto; min-width: 0; width: auto; padding-right: 4px; }
-  #rail :is(#goal-strip, #city-rows) .strip-on [data-strip-end] { display: grid; place-items: center; flex: none; width: 32px; min-height: 0; margin: 0; padding: 0; color: var(--muted); }
-  #rail #city-rows .strip-on [data-strip-end] .i { width: 14px; height: 14px; }
+  #rail :is(#goal-strip, #city-rows) .strip-on > button:first-child { flex: 1 1 auto; min-width: 0; width: auto; }
   /* (Lit in the bars' way, whatever its state: the rail's own colours for its buttons had won over it.) */
   #rail :is(#goal-strip, #city-rows) .strip-on > [data-strip-goal] { border: 1px solid transparent; color: var(--active-ink); } /* (as tall as it was unlit: the rows under it kept their places) */
   #rail :is(#goal-strip, #city-rows) .strip-on > [data-strip-goal] > .i { color: var(--accent-hi); }
@@ -2762,7 +2769,6 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   }
   #app.pane-open #rail :is(#btn-city, #goal-strip button, #city-rows button) > :not(.i):not(.edge-ring) { visibility: hidden; }
   #app.pane-open #rail :is(#goal-strip button, #city-rows button) { overflow: hidden; }
-  #app.pane-open #rail :is(#goal-strip, #city-rows) .strip-on [data-strip-end] { display: none; }
 }
 
 /* ---- over the building bar: the tool in hand and the hint over it (both waiting while the tools' card is up) */
@@ -2882,11 +2888,6 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
      away — placed by the bars, the city pane jumped as it went, the bars coming back before it slid down.) The tools'
      card and 지역 reach the top: 전체 보기 waits for them. */
   #view:is(:has(#tray:not([hidden])), .sheet-open) #map-controls { visibility: hidden; }
-}
-/* Held upright, the city pane rising over the map puts the view's card away (its top peeked out above the pane) — not
-   an area's screen, which leaves the map its upper half: its tab's view needs its key there (folded to its name). */
-@media (max-width: 860px) and (orientation: portrait) {
-  #app.pane-open:not(:has(#pane.managing)) #view #map-layer { display: none; }
 }
 /* A phone held upright: with a tool in hand the card keeps clear of 전체 보기 (at 220px its × lay under 전체 on a 320px
    screen). */

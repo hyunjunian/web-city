@@ -39,7 +39,9 @@ export function adviceFor(id: GoalId) {
   return adviceMemo.filter((a) => goalOfAdvice(a) === id).sort((a, b) => rank[a.level] - rank[b.level]);
 }
 
-type Status = { tone: Tone; value: string; note: string; bar?: number };
+/** (`cls`, 수요's: the class its state is about — at its cap, its zones full, its tax holding it back — whose figure on
+ *  the row takes the state's colour; none where no one class answers it: 실업, power, buildings left.) */
+type Status = { tone: Tone; value: string; note: string; bar?: number; cls?: 'R' | 'C' | 'I' };
 
 /** Each goal's state, worked out once per panel update (the list, the switcher and the chip all read it). */
 const statusMemo = new Map<GoalId, Status>();
@@ -116,25 +118,31 @@ function readStatus(id: GoalId): Status {
         const [name, v] = top(lead) < 10 && dem.IA > top(lead) ? ['농업', dem.IA] : [CLASS_WORD[lead], top(lead)];
         return v >= 10 ? `${name} 수요 +${short(v)}` : v >= 1 ? '수요 적음' : '수요 없음';
       };
+      // The class the advisors' first word is about (its note becomes the row's): a cap, full zones, a tax.
+      const told = first?.code === 'capRes' || first?.code === 'zoneR' ? 'R'
+        : first?.code === 'capOffice' || first?.code === 'zoneC' ? 'C'
+        : first?.code === 'capIndustry' || first?.code === 'zoneI' ? 'I'
+        : first?.code === 'taxHigh' && first.type && first.type !== 'IA' ? (first.type[0] as 'R' | 'C' | 'I') : undefined;
+      const about = (out: Status, cls = told): Status => (out.tone && cls ? { ...out, cls } : out);
       const z = unpoweredZones();
-      if (z.off >= 10 && z.off >= z.all * 0.1) return pick('warn', headline(), `전기 없는 구역 ${fmt(z.off)}칸 · 개발 안 됨`);
+      if (z.off >= 10 && z.off >= z.all * 0.1) return about(pick('warn', headline(), `전기 없는 구역 ${fmt(z.off)}칸 · 개발 안 됨`));
       // Homes without work: jobs are what the town needs (a town of 120 with none was sent to its traffic,
       // which was only the long way to the neighbours' jobs).
       const jobless = sum(st.unemployed);
       if (st.population >= 100 && jobless > st.population * 0.2) {
         const cls = top('I') >= top('C') ? 'I' : 'C';
-        return pick('warn', `실업 ${fmt(jobless)}명`, `일자리가 모자랍니다 · ${cls === 'I' ? '산업' : '상업'} 구역을 더 내세요 (${(['R', 'C', 'I'] as const).map(word).join(' · ')})`);
+        return about(pick('warn', `실업 ${fmt(jobless)}명`, `일자리가 모자랍니다 · ${cls === 'I' ? '산업' : '상업'} 구역을 더 내세요 (${(['R', 'C', 'I'] as const).map(word).join(' · ')})`));
       }
       // The class most wanted has filled its zones: more of them is the whole of what it needs.
       if (top(lead) >= 300 && adviceFor('growth').some((a) => a.code === `zone${lead}`))
-        return pick('warn', `${CLASS_WORD[lead]} 수요 +${short(top(lead))}`, `빈 ${CLASS_WORD[lead]} 구역이 없습니다 · 구역을 더 칠하세요`);
+        return about(pick('warn', `${CLASS_WORD[lead]} 수요 +${short(top(lead))}`, `빈 ${CLASS_WORD[lead]} 구역이 없습니다 · 구역을 더 칠하세요`), lead);
       // A class held at its cap leads when nothing else is wanted much (the "농업 +520" headline hid it), or when the
       // row's word is the cap (a trickle of demand left at it kept "농업 수요 +521" over "주거 … 상한에 닿았습니다").
       const capWord = first?.code === 'capRes' ? 'R' : first?.code === 'capOffice' ? 'C' : first?.code === 'capIndustry' ? 'I' : undefined;
       const cappedCls = capWord ?? (['R', 'C', 'I'] as const).find((k) => DEV_TYPES.some((t) => t[0] === k && t !== 'IA' && capped(t)));
-      if (cappedCls && (capWord || top(lead) < 100)) return pick('warn', `${CLASS_WORD[cappedCls]} 상한`, demandWords());
-      return pick(st.abandoned > 0 ? 'warn' : '', headline(),
-        `${demandWords()}${st.abandoned ? ` · 버려짐 ${fmt(st.abandoned)}` : ''}`);
+      if (cappedCls && (capWord || top(lead) < 100)) return about(pick('warn', `${CLASS_WORD[cappedCls]} 상한`, demandWords()), cappedCls);
+      return about(pick(st.abandoned > 0 ? 'warn' : '', headline(),
+        `${demandWords()}${st.abandoned ? ` · 버려짐 ${fmt(st.abandoned)}` : ''}`));
     }
     case 'power': {
       const p = st.power;

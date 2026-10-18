@@ -29,7 +29,8 @@ const PLAY2: IconNode = [solid('M3.5 7v10l7.5-5z'), solid('M12.5 7v10l7.5-5z')];
 const PLAY3: IconNode = [solid('M1.5 8.5v7l5.5-3.5z'), solid('M9.25 8.5v7l5.5-3.5z'), solid('M17 8.5v7l5.5-3.5z')];
 const ELEVATED: IconNode = [line('M2 8h20'), line('M2 12h20'), line('M6 12v9'), line('M18 12v9'), line('M12 12v9')];
 /** The city's stages (panels.ts), 마을 to 메트로폴리스: its skyline on one ground line, growing with them — a house by
- *  a tree, two houses, a steeple between houses, a block by it, then mid-rises, towers, and a spire among towers. */
+ *  a tree, two houses, a steeple between houses, a block by it, then mid-rises, towers, and a spire among towers (its
+ *  tallest building never lower than the stage before's). */
 const GROUND = line('M2 21h20');
 const STAGE1: IconNode = [GROUND, line('M2.5 21v-7l4.5-4 4.5 4v7'), line('M7 16.5h.01'),
   line('M15.5 18a2.5 2.5 0 0 1-.9-4.8 2.6 2.6 0 0 1 5-1 2.5 2.5 0 0 1 1.9 4.3A2.5 2.5 0 0 1 19.5 18z'), line('M17.5 18v3')];
@@ -39,11 +40,11 @@ const STAGE4: IconNode = [GROUND, line('M2.5 21V12a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1
   line('M11.5 21V11l2.5-6 2.5 6v10'), line('M16.5 16l2.5-2.5 2.5 2.5v5')];
 const STAGE5: IconNode = [GROUND, line('M2.5 21v-7a1 1 0 0 1 1-1H8'), line('M8 21V7a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v14'), line('M10.5 9.5h3'),
   line('M10.5 13h3'), line('M10.5 16.5h3'), line('M16 16l2.75-2.5 2.75 2.5v5')];
-const STAGE6: IconNode = [GROUND, line('M3 21V8a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v13'), line('M5.5 10.5h2'), line('M5.5 14h2'), line('M5.5 17.5h2'),
+const STAGE6: IconNode = [GROUND, line('M3 21V6a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v15'), line('M5.5 8.5h2'), line('M5.5 12h2'), line('M5.5 15.5h2'),
   line('M10 21v-6h4'), line('M14 21V11a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v10'), line('M16.5 13.5h2'), line('M16.5 17h2')];
 const STAGE7: IconNode = [GROUND, line('M2.5 21v-9a1 1 0 0 1 1-1H8'), line('M8 21V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v17'), line('M10.5 6.5h3'),
   line('M10.5 10h3'), line('M10.5 13.5h3'), line('M10.5 17h3'), line('M16 13h4.5a1 1 0 0 1 1 1v7')];
-const STAGE8: IconNode = [GROUND, line('M2.5 21V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v16'), line('M5.5 7.5v.01'), line('M5.5 11v.01'), line('M5.5 14.5v.01'),
+const STAGE8: IconNode = [GROUND, line('M2.5 21V3.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V21'), line('M5.5 6v.01'), line('M5.5 9.5v.01'), line('M5.5 13v.01'), line('M5.5 16.5v.01'),
   line('M8.5 21v-8h3'), line('M11.5 21V8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v13'), line('M14.5 10.5v.01'), line('M14.5 14v.01'), line('M17.5 21v-6h3a1 1 0 0 1 1 1v5')];
 const STAGE9: IconNode = [GROUND, line('M2.5 21V9a1 1 0 0 1 1-1H7'), line('M7 21V7l2.5-2.5V2'), line('M9.5 4.5 12 7v14'), line('M12 21V9.5h3'),
   line('M15 21V6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v15'), line('M9.5 10v.01'), line('M9.5 13.5v.01'), line('M9.5 17v.01'), line('M18 8.5v.01'), line('M18 12v.01'), line('M18 15.5v.01')];
