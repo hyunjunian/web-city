@@ -306,8 +306,8 @@ h3.sub { font-size: 12px; color: var(--muted); margin: 16px 0 8px; font-weight: 
 h3.sub .score { color: var(--text); font-size: 14px; font-weight: 700; margin-left: 2px; }
 h3.sub .score.neg { color: var(--danger-ink); }
 
-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-td { padding: 5px 0; vertical-align: top; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; } /* (one size for a row of figures, in any panel: 14px here, 12.5px there read as two kinds) */
+td { padding: 4px 0; vertical-align: top; }
 td:last-child { text-align: right; }
 td.neg, .neg { color: var(--danger-ink); } /* (figures in text: the bright --good/--danger are for fills, dots and lines) */
 .pos { color: var(--good-ink); }
@@ -1318,7 +1318,7 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 /* Budget, taxes, ordinances, loans */
 #budget b.good { color: var(--good-ink); }
 #budget b.bad { color: var(--danger-ink); }
-.budget-table td:first-child { position: relative; padding-bottom: 9px; }
+.budget-table td:first-child { position: relative; padding-bottom: 8px; }
 .budget-table tr.sub td:first-child { padding-left: 14px; }
 .budget-table tr.head td { font-weight: 600; }
 .budget-table tr.head + tr.head td, .budget-table tr.sub + tr.head td { padding-top: 10px; }
@@ -1330,7 +1330,7 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .budget-table .share.in { background: var(--good); }
 .budget-table .share.out { background: var(--data); }
 .budget-table tr.total td { padding-top: 8px; border-top: 1px solid var(--line); }
-.tax-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 52px; align-items: center; gap: 10px; margin: 2px 0; }
+.tax-row { display: grid; grid-template-columns: 92px minmax(0, 1fr) 52px; align-items: center; gap: 10px; margin: 2px 0; font-size: 13px; }
 .tax-row input { width: 100%; }
 .tax-out { display: flex; align-items: center; justify-content: flex-end; gap: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); }
 .tax-step { display: none; width: 32px; min-height: 32px; padding: 0; border-radius: 50%; font-size: 17px; line-height: 1; }
@@ -1353,7 +1353,7 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 /* The type whose own rate cuts its demand, as the problem names it: its name in the warning's ink, a dot before it. */
 .tax-row.cutting > span:first-child { color: var(--warn-ink); font-weight: 650; }
 .tax-row.cutting > span:first-child::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 5px; border-radius: 50%; background: var(--warn); vertical-align: 2px; }
-.funding { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 10px; margin-top: 10px; }
+.funding { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 4px 10px; margin-top: 10px; font-size: 13px; }
 .funding span { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
 .funding input { width: 100%; min-width: 0; }
 .funding.dept { grid-template-columns: 92px minmax(0, 1fr) 52px; margin-top: 4px; }
@@ -1412,7 +1412,8 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .wealth-table td { text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
 .wealth-table :is(th, td) + :is(th, td) { padding-left: 12px; } /* (534 and 252 side by side read as one number) */
 /* (On the narrowest panes the columns close up: at 12px apart the table outgrew the pane and pushed it sideways.) */
-@media (min-width: 861px) and (max-width: 1180px) { .wealth-table :is(th, td) + :is(th, td) { padding-left: 5px; } }
+@media (min-width: 861px) and (max-width: 1400px) { .wealth-table :is(th, td) + :is(th, td) { padding-left: 5px; } } /* (the pane is 288–310px wide there) */
+#wealth, #buildings { overflow-x: auto; } /* (a metropolis's six-digit columns scroll in their own block, not the whole pane sideways) */
 
 /* Region */
 .region-grid { display: grid; gap: 4px; margin: 8px 0; }
@@ -1513,7 +1514,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 #help-body > h3.sub:first-child { margin-top: 0; }
 /* (The dialog's parts over their groups: 키보드 and 시간·저장 under it were one style.) */
 #help-body h3.sub { margin-top: 22px; color: var(--text); font-size: 13px; font-weight: 700; letter-spacing: 0; }
-.help-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 28px; margin: 0; font-size: 13.5px; } /* (what is done beside its gesture: 2fr left a 230px gap after 끌기) */
+.help-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 28px; margin: 0; font-size: 13px; } /* (what is done beside its gesture: 2fr left a 230px gap after 끌기) */
 .help-grid dt { color: var(--muted); }
 .help-grid dd { margin: 0; }
 /* A phone: each gesture over what it does (beside it, 끄는 중에 두 번째 손가락 left the doing a 130px column of four lines). */
@@ -1721,8 +1722,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #tool-chip #tool-alts button { min-height: 36px; }
   .graph-range button { min-height: 40px; }
   /* (Not the folds that draw their chevron with ::after: on phones it was thrown off to a corner. They are whole rows to hit anyway.) */
-  button.link, details:not(.watch-rest, .acts-more, .info-more, .tip, .dropdown, .steps-later, .new-more, .legend-more, #taxes details) > summary { position: relative; }
-  button.link::after, details:not(.watch-rest, .acts-more, .info-more, .tip, .dropdown, .steps-later, .new-more, .legend-more, #taxes details) > summary::after { content: ''; position: absolute; inset: -12px -8px; }
+  button.link, details:not(.watch-rest, .acts-more, .info-more, .tip, .dropdown, .steps-later, .steps-done, .new-more, .legend-more, #taxes details) > summary { position: relative; }
+  button.link::after, details:not(.watch-rest, .acts-more, .info-more, .tip, .dropdown, .steps-later, .steps-done, .new-more, .legend-more, #taxes details) > summary::after { content: ''; position: absolute; inset: -12px -8px; }
   .tile kbd { display: none; }
   /* The goal screens' small controls: a finger's margin, the rows unchanged. */
   :is(.watch-sort, .advice-view, .mg-kinds .vchip, .mg-chips .vchip, .mg-tax .tax-step, .fac-fund .tax-step) { position: relative; }
@@ -1734,6 +1735,10 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .mg-links .link { min-height: 40px; margin-bottom: 6px; }
   .mg-links .link::after { display: none; }
   /* Demand rows open their type's breakdown: rows a finger can pick one of (22px stacked, the neighbour took the tap). */
+  .dl-r { min-height: 38px; }
+  /* The pane head's 지역 › 도시 이름 and the info card's foot: a finger's height, as the buttons round them. */
+  .place-link { height: 40px; }
+  .info-own .info-goal, .info-own .info-bulldoze { min-height: 40px; }
   #hint { -webkit-line-clamp: 4; max-height: calc(5.8em + 18px); }
 }
 
@@ -1786,12 +1791,12 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .acts-more > .acts { margin-top: 4px; }
 /* One fold marker everywhere, the chevron after its words turning as it opens (native triangles stood beside it:
    그다음 10개, 소득·유형별 세율, 설명·학력, 고급 설정). */
-:is(.steps-later, .new-more, .legend-more, #taxes details) > summary { display: flex; align-items: center; gap: 6px; list-style: none; }
-:is(.steps-later, .new-more, .legend-more, #taxes details) > summary::-webkit-details-marker { display: none; }
-:is(.steps-later, .new-more, .legend-more, #taxes details) > summary::after { content: ''; flex: none; width: 14px; height: 14px; background: var(--chevron) center / 14px no-repeat; transition: transform 0.2s var(--ease); }
-:is(.steps-later, .new-more, .legend-more, #taxes details)[open] > summary::after { transform: rotate(180deg); }
-@media (hover: hover) { :is(.steps-later, .new-more, .legend-more, #taxes details) > summary:hover { color: var(--text); } }
-@media (pointer: coarse) { :is(.steps-later, .new-more, .legend-more, #taxes details) > summary { min-height: 36px; } } /* (a finger's row of its own, as the margin round other folds gives them) */
+:is(.steps-later, .steps-done, .new-more, .legend-more, #taxes details) > summary { display: flex; align-items: center; gap: 6px; list-style: none; }
+:is(.steps-later, .steps-done, .new-more, .legend-more, #taxes details) > summary::-webkit-details-marker { display: none; }
+:is(.steps-later, .steps-done, .new-more, .legend-more, #taxes details) > summary::after { content: ''; flex: none; width: 14px; height: 14px; background: var(--chevron) center / 14px no-repeat; transition: transform 0.2s var(--ease); }
+:is(.steps-later, .steps-done, .new-more, .legend-more, #taxes details)[open] > summary::after { transform: rotate(180deg); }
+@media (hover: hover) { :is(.steps-later, .steps-done, .new-more, .legend-more, #taxes details) > summary:hover { color: var(--text); } }
+@media (pointer: coarse) { :is(.steps-later, .steps-done, .new-more, .legend-more, #taxes details) > summary { min-height: 36px; } } /* (a finger's row of its own, as the margin round other folds gives them) */
 /* The info card's area readings, folded under its own story. */
 .info-more { margin-top: 14px; border-top: 1px solid var(--line); }
 .info-more > summary { display: flex; align-items: center; gap: 6px; padding: 12px 0 4px; color: var(--muted); font-size: 12.5px; cursor: pointer; list-style: none; }
@@ -2149,7 +2154,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   font-size: 12px; font-weight: 600; white-space: nowrap;
 }
 @media (hover: hover) { :is(.overlay-sum .sum-go, #overlay-legend .legend-rest):hover { background: var(--surface-3); } }
-@media (pointer: coarse) { .overlay-sum .sum-go, #overlay-legend .legend-rest { min-height: 30px; } }
+@media (pointer: coarse) { .overlay-sum .sum-go, #overlay-legend .legend-rest { min-height: 36px; } }
 /* A chip or glance item that opens its goal's screen. */
 #info [data-row-goal]:not(tr) { cursor: pointer; }
 #info button.chip { border: 0; font: inherit; }
@@ -2851,7 +2856,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail .r-state { grid-area: state; justify-self: start; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums; }
   #rail #city-rows button.warn .r-state { color: var(--warn-ink); }
   #rail #city-rows button.bad .r-state { color: var(--danger-ink); }
-  #rail .r-money b { font-size: 13.5px; }
+  #rail .r-money b { font-size: 13px; } /* (the demand figures' size, just above it) */
   #rail #goal-strip .strip-start { margin: 0; }
   #rail #goal-strip .strip-start .r-val { color: var(--muted); }
   #rail :is(#goal-strip, #city-rows) .strip-on { display: flex; align-items: stretch; width: 100%; height: auto; border-radius: 12px; }
