@@ -929,12 +929,15 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #overlay-legend .swatch-item i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; box-shadow: 0 0 0 1px var(--line-strong); } /* outside: a near-black swatch kept its edge on the dark card */
 #overlay-legend .swatch-item i.dot { border-radius: 50%; box-shadow: 0 0 0 1px #1a1a1a; } /* (the crimes' dots, as the map draws them) */
 /* The traffic view's width key: a band widening as more go over it. */
-#overlay-legend .swatch-item i.band { width: 16px; border-radius: 0; box-shadow: none; background: var(--muted); clip-path: polygon(0 40%, 100% 0, 100% 100%, 0 60%); }
+#overlay-legend .swatch-item i.band {
+  width: 16px; height: 13px; border-radius: 0; box-shadow: none; /* (three lines widening down: a wedge read as a back arrow) */
+  background: linear-gradient(var(--muted) 0 0) 0 1px / 100% 1px no-repeat, linear-gradient(var(--muted) 0 0) 0 4.5px / 100% 2.5px no-repeat, linear-gradient(var(--muted) 0 0) 0 9px / 100% 4px no-repeat;
+}
 /* Against the map: how many tiles each colour holds; a colour the map doesn't show reads faint. */
 #overlay-legend .swatch-item small { color: var(--muted); font-size: 11px; font-weight: 650; font-variant-numeric: tabular-nums; }
 #overlay-legend .swatch-item.absent { opacity: 0.38; }
 #overlay-legend:has(.legend-rest):not(.show-rest) .swatch-item.absent { display: none; }
-#overlay-legend .legend-rest { margin: 0 0 3px; font-size: 11.5px; }
+#overlay-legend .legend-rest { margin: 0 0 3px; }
 #overlay-legend .swatch-item[role='button'] { cursor: pointer; border-radius: 6px; }
 @media (hover: hover) { #overlay-legend .swatch-item[role='button']:hover { color: var(--text); text-decoration: underline; text-underline-offset: 3px; } }
 #overlay-legend .swatch-item[role='button']:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -2064,11 +2067,18 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @media (hover: hover) { .toast-look:hover { background: var(--surface-3); } }
 /* A view showing what needs a look now: a small dot by its name. */
 /* The view's count under its legend: how many go without (red), or that none do (green). */
-.overlay-sum { margin: 2px 0 0; font-size: 12.5px; font-weight: 650; }
-.overlay-sum.bad { color: var(--danger-ink); }
-.overlay-sum.good { color: var(--good, #2e9e57); }
-.overlay-sum { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.overlay-sum .sum-go { font-size: 12px; font-weight: 600; }
+.overlay-sum { margin: 2px 0 0; color: var(--text); font-size: 12.5px; font-weight: 500; text-wrap: pretty; }
+.overlay-sum b { font-weight: 700; }
+.overlay-sum.bad b { color: var(--danger-ink); }
+.overlay-sum.good { color: var(--good-ink); font-weight: 600; }
+.overlay-sum { display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; }
+/* Its actions small pills, not underlined web links (찾아가기, 나머지 N개). */
+.overlay-sum .sum-go, #overlay-legend .legend-rest {
+  min-height: 24px; padding: 1px 10px; border-radius: 999px; background: var(--surface-2); color: var(--accent-hi);
+  font-size: 12px; font-weight: 600; white-space: nowrap;
+}
+@media (hover: hover) { :is(.overlay-sum .sum-go, #overlay-legend .legend-rest):hover { background: var(--surface-3); } }
+@media (pointer: coarse) { .overlay-sum .sum-go, #overlay-legend .legend-rest { min-height: 30px; } }
 /* A chip or glance item that opens its goal's screen. */
 #info [data-row-goal]:not(tr) { cursor: pointer; }
 #info button.chip { border: 0; font: inherit; }

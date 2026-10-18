@@ -931,7 +931,9 @@ export function refreshViewSummary(): void {
   box.hidden = !text;
   box.className = `overlay-sum${tone ? ` ${tone}` : ''}`;
   // Where some go without: a way to each of them in turn.
-  box.innerHTML = `<span>${text}</span>${spots.length ? '<button type="button" class="link sum-go" title="하나씩 차례로 지도에서 보기">찾아가기</button>' : ''}`;
+  // (Its counts in its tone, the words plain: the whole line in bold red shouted over the legend.)
+  const counted = text.replace(/\d[\d,.]*(?:칸|채|곳|건|명|대|개|%)?/g, '<b>$&</b>');
+  box.innerHTML = `<span>${counted}</span>${spots.length ? '<button type="button" class="sum-go" title="하나씩 차례로 지도에서 보기">찾아가기</button>' : ''}`;
   box.querySelector<HTMLButtonElement>('.sum-go')?.addEventListener('click', (e) => {
     if (!sumSpots.length) return;
     const k = sumNext++ % sumSpots.length;
@@ -1206,7 +1208,7 @@ function markLegend(byColor: Map<string, number>): void {
     if (!rest) {
       rest = document.createElement('button');
       rest.type = 'button';
-      rest.className = 'link legend-rest';
+      rest.className = 'legend-rest';
       rest.onclick = () => {
         legend.classList.toggle('show-rest');
         markLegend(growthSum.byColor); // (the counts as they are now, not as when the button was made)
