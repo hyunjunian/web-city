@@ -91,7 +91,7 @@ document.addEventListener('click', (e) => {
   updatePanels();
 });
 
-/** The kind of zone 수요's table spells out under it (its tooltip, which touch screens never show). */
+/** The kind of zone 수요's list spells out under its row (its tooltip, which touch screens never show). */
 let demandRow: DevType | null = null;
 document.addEventListener('click', (e) => {
   const c = (e.target as HTMLElement).closest<HTMLElement>('[data-dem-type]');
@@ -353,36 +353,37 @@ function typeLine(t: DevType): string {
   return `${TYPE_NAME[t]} · 수요 지수 ${signed(dem.demand[t])} (−1,000~+1,000) · ${gap} · ${cap}`;
 }
 
-/** 수요's table: a row a kind of zone, a column the wealth of those it is for (industry by its kind, as SC4 has it). */
-const DEMAND_GRID: [label: string, types: (DevType | null)[], subs?: string[]][] = [
-  ['주거', ['R$', 'R$$', 'R$$$']],
-  ['상점', ['Cs$', 'Cs$$', 'Cs$$$']],
-  ['오피스', [null, 'Co$$', 'Co$$$']],
-  ['산업', ['ID', 'IM', 'IHT'], ['공해', '제조', '첨단']],
-  ['농업', ['IA', null, null]],
+/** 수요's list: a group a kind of zone, a row the wealth of those it is for (industry by its kind, as SC4 has it; farms
+ *  one row). */
+const DEMAND_LIST: [label: string, rows: [DevType, string][]][] = [
+  ['주거', [['R$', WEALTH_NAME[0]], ['R$$', WEALTH_NAME[1]], ['R$$$', WEALTH_NAME[2]]]],
+  ['상점', [['Cs$', WEALTH_NAME[0]], ['Cs$$', WEALTH_NAME[1]], ['Cs$$$', WEALTH_NAME[2]]]],
+  ['오피스', [['Co$$', WEALTH_NAME[1]], ['Co$$$', WEALTH_NAME[2]]]],
+  ['산업', [['ID', '공해'], ['IM', '제조'], ['IHT', '첨단']]],
+  ['농업', [['IA', '']]],
 ];
 
 /**
- * 수요's screen at a glance: what each kind of zone wants, by the wealth of those it is for — each its figure over a bar
- * out from the middle (−1,000 to +1,000: to the right wanted, to the left too many), a cap holding it back said by a
- * lock. Pressed, a kind's own line under the table; under that, what the classes share (the neutral tax, the jobless
- * by wealth, what lifts the caps) and the empty zones.
+ * 수요's screen at a glance: what each kind of zone wants, down a list — a group a kind, a row the wealth of those it is
+ * for, each a bar out from the middle across the pane (−1,000 to +1,000: to the right wanted, to the left too many) and
+ * its figure, a cap holding it back said by a lock. Pressed, a row's own line under it; under the list, what the classes
+ * share (the neutral tax, the jobless by wealth, what lifts the caps) and the empty zones.
  */
-export function demandGrid(): string {
+export function demandList(): string {
   const dem = city.demand;
-  const cell = (t: DevType | null, sub = '') => {
-    if (!t) return '<span class="dg-none" aria-hidden="true">·</span>';
+  const row = (t: DevType, name: string) => {
     const v = dem.demand[t];
-    const w = Math.min(50, (Math.abs(v) / 1000) * 50);
+    // (On the RCI meter's scale, full at ±1,000 by its square root: on a straight one −137 was a sliver.)
+    const w = Math.min(50, Math.sqrt(Math.abs(v) / 1000) * 50);
     // (Held back by its cap with people waiting: the RCI meter's own test.)
     const held = atCap(t) && dem.raw[t] > 0;
-    return `<button type="button" class="dg-c${v >= 100 ? ' up' : v <= -1 ? ' down' : ''}${held ? ' cap' : ''}" data-dem-type="${t}" aria-expanded="${demandRow === t}" title="${escapeHtml(typeLine(t))}" aria-label="${escapeHtml(typeLine(t))}">${sub ? `<small>${sub}</small>` : ''}<b>${held ? `${icon('lock')}상한` : `${v >= 1 ? '+' : ''}${signed(v)}`}</b><span class="dg-bar" aria-hidden="true"><i style="left:${(v >= 0 ? 50 : 50 - w).toFixed(1)}%;width:${w.toFixed(1)}%;background:${TYPE_COLOR[t]}"></i></span></button>`;
+    const open = demandRow === t;
+    return `<button type="button" class="dl-r${v >= 100 ? ' up' : v <= -1 ? ' down' : ''}${held ? ' cap' : ''}" data-dem-type="${t}" aria-expanded="${open}" title="${escapeHtml(typeLine(t))}" aria-label="${escapeHtml(typeLine(t))}"><span class="dl-n">${name}</span><span class="dl-bar" aria-hidden="true"><i style="left:${(v >= 0 ? 50 : 50 - w).toFixed(1)}%;width:${w.toFixed(1)}%;background:${TYPE_COLOR[t]}"></i></span><b>${held ? `${icon('lock')}상한` : `${v >= 1 ? '+' : ''}${signed(v)}`}</b></button>${open ? `<p class="legend dl-detail">${escapeHtml(typeLine(t))}</p>` : ''}`;
   };
-  const rows = DEMAND_GRID.map(([label, types, subs]) => `<span class="dg-k">${label}</span>${types.map((t, k) => cell(t, subs?.[k])).join('')}`).join('');
+  const groups = DEMAND_LIST.map(([label, rows]) => `<div class="dl-g"><span class="dl-k">${label}</span><div class="dl-rows">${rows.map(([t, name]) => row(t, name)).join('')}</div></div>`).join('');
   return `<section class="mg-sec mg-dem"><h3>${icon('zones')}소득별·종류별 수요</h3>
-    <div class="dg" role="group" aria-label="소득별·종류별 수요"><span></span>${WEALTH_NAME.map((w) => `<span class="dg-h">${w}</span>`).join('')}${rows}</div>
-    ${demandRow ? `<p class="legend g-detail">${escapeHtml(typeLine(demandRow))}</p>` : ''}
-    <p class="legend">막대는 가운데에서 오른쪽으로 길수록 모자라고, 왼쪽은 남습니다(−1,000~+1,000) · 눌러서 자세히<br>중립 세율 ${dem.neutralTax.toFixed(1)}% · 실업 ${byWealth(city.census.unemployed.map(fmt))}${capRelief() ? `<br>${capRelief()}` : ''}</p>
+    <div class="dl" role="group" aria-label="소득별·종류별 수요">${groups}</div>
+    <p class="legend">막대는 가운데에서 오른쪽으로 길수록 모자라고, 왼쪽은 남습니다(끝이 ±1,000) · 눌러서 자세히<br>중립 세율 ${dem.neutralTax.toFixed(1)}% · 실업 ${byWealth(city.census.unemployed.map(fmt))}${capRelief() ? `<br>${capRelief()}` : ''}</p>
     ${emptyZones()}</section>`;
 }
 
@@ -405,7 +406,7 @@ export function updatePanels(): void {
   // (The city's own screen, its residents', the pane holding no other: by wealth, by age, the buildings, the rewards.)
   const own = paneShown() && !active;
   const budget = goal === 'finance';
-  if (own || goal === 'amenity') renderWealth(); // (and 쾌적도's own tab)
+  if (own || goal === 'amenity') renderWealth(); // (and 쾌적도's: the rich it draws)
   if (own) renderBuildings();
   // Milestones by the monthly record (the live count swings within a month: a passing peak isn't a milestone).
   checkMilestone(city.state.history.at(-1)?.population ?? 0);
@@ -521,7 +522,7 @@ export function updatePanels(): void {
   if (sheetShown('region')) renderNeighbours();
   if (goal === 'amenity') renderPolls();
   if (own || goal === 'amenity') renderRewards();
-  if (own || goal === 'education') renderAges();
+  if (own) renderAges();
   renderOnboarding();
   refreshStrip(); // (after the checklist: its score chip says 시작하기 while it shows)
 }
@@ -1064,7 +1065,7 @@ export function capHint(): string {
 const alarms: { goal: GoalId; code: string; text: string; at?: [number, number] }[] = [];
 export function flushAlarms(): void {
   for (const a of alarms.splice(0)) {
-    // (쾌적도's own notice tells that, opening its rating's tab: watchGoals.)
+    // (쾌적도's own notice tells that: watchGoals.)
     if (a.code === 'mayorLow') continue;
     // (Not when its goal's own notice spoke lately: the two came together with two figures for one cap, 21,310 and 21,290.)
     // (Counted forward only: a day before it, in a city loaded since, is not "lately".)

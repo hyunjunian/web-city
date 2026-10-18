@@ -40,7 +40,8 @@ export function overlayReading(city: City, overlay: Overlay, x: number, y: numbe
   };
   switch (overlay.kind) {
     case 'none': return '';
-    case 'desirability': return `${TYPE_NAME[overlay.type]} 쾌적도 ${r(city.desirabilityMap(overlay.type)[i]!)}`;
+    // (And on a home, its residents' rating: the view's marks.)
+    case 'desirability': return `${TYPE_NAME[overlay.type]} 쾌적도 ${r(city.desirabilityMap(overlay.type)[i]!)}${f.mayorSet[i] ? ` · 시장 평점 ${r(f.mayor[i]!)}` : ''}`;
     case 'landValue': return `땅값 ${r(f.landValue[i]!)}`;
     case 'air': return `대기 오염 ${r(f.air[i]!)}`;
     case 'police': return `경찰 보호 ${r(f.policeCover[i]!)}${s.crime[i]! >= 0.05 ? ` · 범죄 ${s.crime[i]!.toFixed(1)}` : ''}`;
@@ -48,7 +49,8 @@ export function overlayReading(city: City, overlay: Overlay, x: number, y: numbe
     case 'mayor': return f.mayorSet[i] ? `시장 평점 ${r(f.mayor[i]!)}` : '';
     case 'garbage': return s.zone[i] === 10 ? `매립 ${r(s.landfill[i]!)} / 300 t` : `쌓인 쓰레기 ${r(s.garbage[i]!)} t`;
     case 'waterPollution': return `수질 오염 ${r(f.waterPollution[i]!)}`;
-    case 'waterService': return s.pipe[i] ? `수도관 · 노후 ${s.pipeWear[i]}${s.pipeWear[i]! >= 50 ? ' (터질 수 있음)' : ''}` : f.watered[i] ? '급수 범위' : f.waterNet[i]! >= 0 ? '관은 있지만 공급 없음' : '물 없음';
+    // (And how foul the water runs there, as the view browns it: from where its brown starts.)
+    case 'waterService': return `${s.pipe[i] ? `수도관 · 노후 ${s.pipeWear[i]}${s.pipeWear[i]! >= 50 ? ' (터질 수 있음)' : ''}` : f.watered[i] ? '급수 범위' : f.waterNet[i]! >= 0 ? '관은 있지만 공급 없음' : '물 없음'}${f.waterPollution[i]! > 20 ? ` · 수질 오염 ${r(f.waterPollution[i]!)}` : ''}`;
     case 'power': return `${f.powered[i] ? '전력망에 연결됨' : '전기 없음'}${s.power[i] ? ` · 송전선 노후 ${s.lineWear[i]}${s.lineWear[i]! >= 50 ? ' (불꽃이 튈 수 있음)' : ''}` : ''}`;
     // (The home's own index beside the reach: as the view's own names say them, not HQ and EQ.)
     case 'health': { const b = resident(); return `병원 효과 ${r(f.healthQuality[i]! * 100)}%${b ? ` · 건강 지수 ${r(b.hq)}` : ''}`; }

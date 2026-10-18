@@ -736,27 +736,29 @@ kbd {
 .chip.warn { background: var(--warn-soft); color: var(--warn-ink); }
 .chip.gold { background: var(--gold-soft); color: var(--gold-ink); }
 
-/* 수요's table: a row a kind of zone, a column a wealth — each its figure over a bar out from the middle (wanted to the
-   right, too many to the left), a held one locked. */
-.dg { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 4px; align-items: stretch; }
-.dg-h { padding-bottom: 2px; color: var(--muted); font-size: 11.5px; font-weight: 600; text-align: center; }
-.dg-k { align-self: center; padding-right: 6px; font-size: 12.5px; font-weight: 650; white-space: nowrap; }
-.dg-none { display: grid; place-items: center; color: var(--line-strong); }
-.dg-c {
-  display: grid; gap: 4px; align-content: center; min-width: 0; min-height: 0; padding: 6px 6px 7px; border: 1px solid transparent;
-  border-radius: var(--r-sm); background: var(--surface-2); color: var(--text); font: inherit; text-align: center; cursor: pointer;
+/* 수요's list: a group a kind of zone (its name at the left), a row a wealth — its name, a bar out from the middle across
+   the pane (wanted to the right, too many to the left) and its figure, a held one locked; pressed, its own line under it. */
+.dl { display: grid; }
+.dl-g { display: grid; grid-template-columns: 3.4em minmax(0, 1fr); column-gap: 6px; align-items: start; padding: 6px 0; border-top: 1px solid var(--line); }
+.dl-g:first-child { padding-top: 0; border-top: 0; }
+.dl-k { padding-top: 5px; font-size: 12.5px; font-weight: 650; white-space: nowrap; }
+.dl-rows { display: grid; gap: 1px; min-width: 0; }
+.dl-r {
+  display: grid; grid-template-columns: 3.6em minmax(0, 1fr) 4.6em; align-items: center; column-gap: 8px; min-width: 0; min-height: 26px;
+  padding: 3px 6px; border: 1px solid transparent; border-radius: var(--r-sm); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer;
 }
-.dg-c small { color: var(--muted); font-size: 10.5px; font-weight: 600; line-height: 1; }
-.dg-c b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
-.dg-c b .i { width: 12px; height: 12px; margin-right: 2px; vertical-align: -1px; }
-.dg-c.up b { color: var(--good-ink); }
-.dg-c.down b { color: var(--muted); }
-.dg-c.cap b { color: var(--warn-ink); }
-.dg-c[aria-expanded='true'] { border-color: var(--accent); }
-@media (hover: hover) { .dg-c:hover { filter: brightness(0.97); } }
-.dg-bar { position: relative; display: block; height: 5px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--line-strong) 45%, transparent); }
-.dg-bar::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--line-strong); }
-.dg-bar > i { position: absolute; top: 0; bottom: 0; }
+.dl-n { overflow: hidden; color: var(--muted); font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.dl-r b { overflow: hidden; font-size: 13px; font-weight: 700; text-align: right; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dl-r b .i { width: 12px; height: 12px; margin-right: 2px; vertical-align: -1px; }
+.dl-r.up b { color: var(--good-ink); }
+.dl-r.down b { color: var(--muted); }
+.dl-r.cap b { color: var(--warn-ink); }
+.dl-r[aria-expanded='true'] { border-color: var(--accent); background: var(--surface-2); }
+@media (hover: hover) { .dl-r:hover { background: var(--surface-2); } }
+.dl-bar { position: relative; display: block; height: 8px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--line-strong) 35%, transparent); }
+.dl-bar::after { content: ''; position: absolute; top: -1px; bottom: -1px; left: 50%; width: 1px; background: var(--line-strong); }
+.dl-bar > i { position: absolute; top: 0; bottom: 0; }
+.dl-detail { margin: 2px 6px 6px; }
 .bar { position: relative; height: 6px; border-radius: 3px; background: var(--surface-3); }
 .bar::after { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--line-strong); }
 .bar .fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; }

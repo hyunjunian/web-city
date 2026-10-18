@@ -443,12 +443,12 @@ function goalMetrics(id: GoalId): Metric[] {
     }
     case 'amenity':
       return [
-        // (Its headline, for its 시장 평점 tab.)
+        // (Its headline.)
         ratingRated() ? ['시장 평점', String(st.mayorRating), ratingTone(st.mayorRating), st.mayorRating, 1, '−100~100 · 주민의 불만에서 나옵니다'] : ['시장 평점', '—', '', undefined, 1, '주민이 든 달이 지나면 매겨집니다'],
         // (For its 쾌적도 tab: those a pleasant place draws, and what they want built — the wealthy come where it is high.)
         ...amenityMetrics(),
       ];
-    // (Its figure is its table, each kind of zone by wealth — demandGrid; its people, the city's own.)
+    // (Its figure is its list, each kind of zone by wealth — demandList; its people, the city's own.)
     case 'growth': return [];
     case 'power': {
       const p = st.power;
@@ -477,7 +477,7 @@ function goalMetrics(id: GoalId): Metric[] {
         // (Red as the row is, from 3,000 people — or with some past the stage that needs water; amber before: a small
         // town's red figure stood beside the view's 아직은 물 없이 자라는 단계.)
         ...(w.supply <= 0 && dry() ? [['물 없는 건물', `${fmt(dry())}채`, st.population > 3000 || thirsty() ? 'bad' : 'warn', dry(), -1] as Metric] : [['단수', w.shortages ? `${fmt(w.shortages)}곳` : '없음', w.shortages ? 'bad' : '', w.shortages, -1] as Metric]), ['수도 시설', `${list.length}곳`, '', list.length, 0],
-        // (For its 수질 tab: how foul the water runs, and the pumps it has stopped.)
+        // (How foul the water runs, and the pumps it has stopped: the map browns it over the supply.)
         ...((h) => (h?.waterPollution !== undefined ? [['수질 오염', h.waterPollution.toFixed(0), '', Math.round(h.waterPollution), -1, '도시 평균 · 주거지에서 100을 넘으면 건강과 시장 평점이 떨어집니다'] as Metric] : []))(s.history.at(-1)),
         ['오염으로 멈춘 펌프', fouledPumps() ? `${fmt(fouledPumps())}곳` : '없음', fouledPumps() ? 'bad' : '', fouledPumps(), -1, `땅의 수질 오염이 ${fmt(city.cfg.services.pumpPollutionLimit)}을 넘은 양수 펌프는 물을 뽑지 못합니다`],
         wornMetric('낡은 수도관', 'pipe')];
@@ -556,7 +556,7 @@ export function cityMetrics(): Metric[] {
     ['버려진 건물', fmt(st.abandoned), st.abandoned ? 'warn' : '', st.abandoned, -1]];
 }
 
-/** 쾌적도's own figures (its 쾌적도 tab): its parks, those a pleasant place draws, and what they want built. */
+/** 쾌적도's own figures beside its rating: its parks, those a pleasant place draws, and what they want built. */
 function amenityMetrics(): Metric[] {
   const st = readStats();
   const parks = [...city.state.structures.values()].filter((x) => STRUCTURES[x.kind].category === 'park').length;

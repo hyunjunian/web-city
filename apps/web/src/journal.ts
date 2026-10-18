@@ -8,12 +8,12 @@ import { STRUCTURE_NAME } from './names';
 import { city } from './state';
 
 /** A line of 소식: bad news (warn), worth noting but neither good nor bad (info), else good. */
-export interface Notice { text: string; until: number; day?: number; warn?: boolean; info?: boolean; at?: [number, number]; goal?: GoalId; /** the goal's tab it opens on, by its view (a 쾌적도 result: its own tab) */ view?: string; /** a reward or deal it offers, to take up from the news */ build?: StructureKind; /** a damage report: the rubble it left, cleared from the news */ rubble?: true }
+export interface Notice { text: string; until: number; day?: number; warn?: boolean; info?: boolean; at?: [number, number]; goal?: GoalId; /** the goal's tab it opens on, by its view */ view?: string; /** a reward or deal it offers, to take up from the news */ build?: StructureKind; /** a damage report: the rubble it left, cleared from the news */ rubble?: true }
 export interface Done { goal: GoalId; day: number; text: string; key?: string; base?: string; n?: number }
 export interface Pending { text: string; key?: string; count: number; day: number; label: string; value: string; n: number; better: number; /** a second figure told with it (transit's share beside the commute) */ also?: { label: string; value: string } }
 export interface Journal { notices: Notice[]; done: Done[]; pending: Partial<Record<GoalId, Pending>> }
 
-/** A goal a save may name that is no more, and where its screen went (부유층·고급화: 쾌적도's own tab). */
+/** A goal a save may name that is no more, and where its screen went (부유층·고급화: 쾌적도's). */
 const MOVED: Record<string, GoalId> = { wealth: 'amenity' };
 /** Journals already brought up to the goals as they are. */
 const current = new WeakSet<object>();
@@ -32,7 +32,7 @@ export function journal(): Journal {
     current.add(j);
     const now = (g: string | undefined): GoalId | undefined => (!g ? undefined : g in GOALS ? (g as GoalId) : MOVED[g]);
     for (const n of j.notices) {
-      // (부유층·고급화's news opens the tab it became: 쾌적도's own.)
+      // (부유층·고급화's news opens what it became: 쾌적도, on its map of the 쾌적도.)
       if (n.goal === ('wealth' as GoalId)) n.view = 'desirability';
       // (And the city's 쾌적도 tab's results, from before it was 쾌적도's.)
       if (n.goal === 'finance' && n.view === 'desirability') n.goal = 'amenity';

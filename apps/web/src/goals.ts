@@ -92,14 +92,13 @@ export const GOALS: Record<GoalId, Goal> = {
     depts: [],
   },
   // How the residents find the place: read by the mayor's rating, which all the areas under it move, with what is built
-  // only to make it pleasant (parks, landmarks, rewards) and the wealthy that draws. Its button heads the areas.
+  // only to make it pleasant (parks, landmarks, rewards) and the wealthy that draws. Its button heads the areas. (One
+  // tab: the rating, its trend and poll beside the parks and the rich; one map, the 쾌적도 with the unhappy homes on it.)
   amenity: {
     name: '쾌적도', icon: 'trees', aim: '주민이 이 도시를 어떻게 느끼는지 시장 평점이 말합니다: 아래의 전력부터 땅값까지가 모두 움직이고, 공원·랜드마크·보상으로 쾌적도를 올리면 부유층이 찾아옵니다.',
     tabs: [
-      { label: '시장 평점', view: 'mayor', figs: ['시장 평점'], graphs: ['mayorRating'], reports: ['polls'], codes: ['mayorLow', 'mayorHigh'] },
-      { label: '쾌적도', view: 'desirability', figs: ['공원', '부유층 주민', '중산층 주민', '부유층 주거 수요', '고급 상점 수요', '고급 오피스 수요'], reports: ['wealth', 'rewards'], tools: ['park', 'landmark', 'reward'], depts: ['parks', 'landmarks'], ordinances: ['tourismPromotion'], codes: ['noParks', 'facilityNoRoad'] },
+      { label: '쾌적도', view: 'desirability', figs: ['시장 평점', '공원', '부유층 주민', '중산층 주민', '부유층 주거 수요', '고급 상점 수요', '고급 오피스 수요'], graphs: ['mayorRating'], reports: ['polls', 'wealth', 'rewards'], tools: ['park', 'landmark', 'reward'], depts: ['parks', 'landmarks'], ordinances: ['tourismPromotion'], codes: ['mayorLow', 'mayorHigh', 'noParks', 'facilityNoRoad'] },
     ],
-    home: '시장 평점',
     tools: ['park', 'landmark', 'reward'], ordinances: ['tourismPromotion'],
     depts: [['parks', '공원 미화'], ['landmarks', '랜드마크']],
   },
@@ -112,11 +111,11 @@ export const GOALS: Record<GoalId, Goal> = {
     tools: ['power', 'powerline'], ordinances: ['powerConservation', 'nuclearFreeZone', 'landfillGas'],
     depts: [['power', '송전선 유지']], facility: isKind((d) => d.plant),
   },
+  // (One tab, one map: the supply, the pipes and their wear, and how foul the water runs — it stops the pumps on it.)
   water: {
-    name: '수도', icon: 'droplet', aim: '펌프·급수탑으로 수요를 채우고 수도관으로 건물에 닿게 합니다. 낡은 수도관은 예산으로 고칩니다.',
+    name: '수도', icon: 'droplet', aim: '펌프·급수탑으로 수요를 채우고 수도관으로 건물에 닿게 합니다. 낡은 수도관은 예산으로 고치고, 더러워진 물은 정수장으로 맑힙니다.',
     tabs: [
-      { label: '급수', view: 'waterService', figs: ['수요', '공급', '여유', '단수', '물 없는 건물', '수도 시설', '낡은 수도관'], graphs: ['water'], tools: ['water', 'pipe'], depts: ['water'], ordinances: ['waterConservation'], parts: ['usage', 'outlook', 'deals', 'facilities', 'spot'], codes: ['noWater', 'waterShort', 'pumpsOff', 'pipesNoSource', 'pumpOld', 'idlePump', 'dryBuildings', 'pipesWorn'] },
-      { label: '수질', view: 'waterPollution', figs: ['수질 오염', '오염으로 멈춘 펌프'], graphs: ['waterPollution'] },
+      { label: '수도', view: 'waterService', figs: ['수요', '공급', '여유', '단수', '물 없는 건물', '수도 시설', '낡은 수도관', '수질 오염', '오염으로 멈춘 펌프'], graphs: ['water', 'waterPollution'], tools: ['water', 'pipe'], depts: ['water'], ordinances: ['waterConservation'], parts: ['usage', 'outlook', 'deals', 'facilities', 'spot'], codes: ['noWater', 'waterShort', 'pumpsOff', 'pipesNoSource', 'pumpOld', 'idlePump', 'dryBuildings', 'pipesWorn'] },
     ],
     tools: ['water', 'pipe'], ordinances: ['waterConservation'],
     depts: [['water', '수도 (펌프·관)']], facility: isKind((d) => d.pump || d.treatment),
@@ -158,9 +157,9 @@ export const GOALS: Record<GoalId, Goal> = {
   },
   education: {
     name: '교육', icon: 'school', aim: '학교 정원과 반경을 넉넉히 해 교육 지수(EQ)를 올립니다: 고급 일자리와 부유층의 바탕.',
+    // (The residents' ages are the 인구 screen's: who lives here, not what the schools do.)
     tabs: [
       { label: '학교', view: 'school', figs: ['학생', '학교', '교육 지수', 'poll'], graphs: ['eq'], tools: ['education'], ordinances: ['proReading'], parts: ['facilities', 'spot'], codes: ['noSchool', 'schoolFull', 'schoolStrike', 'eqLow'] },
-      { label: '나이', view: 'age', reports: ['ages'] },
     ],
     tools: ['education'], ordinances: ['proReading'],
     depts: [], facility: isKind((d) => d.school),

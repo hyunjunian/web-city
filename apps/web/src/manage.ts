@@ -13,7 +13,7 @@ import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, POLL_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { whyNoDeals } from './region';
 import { journal } from './journal';
-import { abandonHint, capBest, capHint, capLeads, demandGrid, jobHint, pushNotice, rciMini, updatePanels } from './panels';
+import { abandonHint, capBest, capHint, capLeads, demandList, jobHint, pushNotice, rciMini, updatePanels } from './panels';
 import { checklist } from './onboarding';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { GRAPH_KEYS } from './graphs';
@@ -75,26 +75,24 @@ const WATCHED: readonly GoalId[] = GOAL_ORDER;
 export interface PaneFigs { jobs: number; jobsTrend: string }
 
 /**
- * 쾌적도's screen's two, each judged and guided on its own tab: its headline, the mayor's rating (시장 평점), and the
- * 쾌적도 itself — the parks, landmarks and rewards built for it (쾌적도). An area's screen is all one side.
+ * 쾌적도's screen's two, judged apart on its one screen: its headline, the mayor's rating, and the 쾌적도 itself — the
+ * parks, landmarks and rewards built for it. An area's screen is all one side.
  */
 type Side = 'all' | 'rating' | 'amenity';
-// (A park, reward or landmark off the roads is the 쾌적도's by its kind: its rating's tab offered the road to it.)
+// (A park, reward or landmark off the roads is the 쾌적도's by its kind: the rating's guide offered the road to it.)
 const SIDE_OF_CODE: Record<string, Side> = { noParks: 'amenity', facilityNoRoad: 'amenity' };
-const SIDE_OF_TAB: Record<string, Side> = { '시장 평점': 'rating', 쾌적도: 'amenity' };
-/** The side a goal's screen shows now: 쾌적도's by its tab (its rating's while it is shut); an area's all one. */
-const sideNow = (id: GoalId): Side => (id !== 'amenity' ? 'all' : active === 'amenity' ? SIDE_OF_TAB[tabNow('amenity').label] ?? 'rating' : 'rating');
-/** 쾌적도's own tab is the one showing (an info card's 쾌적도 관리 is then no way anywhere). */
-export const amenityOpen = () => active === 'amenity' && sideNow('amenity') === 'amenity';
+/** The side a goal's screen is guided by: 쾌적도's rating's (what the residents mind most), unless that stands well and
+ *  its parks want a hand; an area's all one. */
+const sideNow = (id: GoalId): Side => (id !== 'amenity' ? 'all' : !goalStatus('amenity').tone && amenityStatus().tone ? 'amenity' : 'rating');
 /** A goal's advisors' words on one side of it (an area's: all of them). */
 const sideAdvice = (id: GoalId, side: Side) => adviceFor(id).filter((a) => id !== 'amenity' || (SIDE_OF_CODE[a.code] ?? 'rating') === side);
-/** 쾌적도's own tab as its guide reads it: amber with no park at all (the advisor's word), else sound. */
+/** 쾌적도's parks as its guide reads them: amber with no park at all (the advisor's word), else sound. */
 function amenityStatus(): { tone: Tone; value: string; note: string } {
   const said = sideAdvice('amenity', 'amenity').filter((a) => a.level !== 'good');
   const parks = [...city.state.structures.values()].filter((x) => STRUCTURES[x.kind].category === 'park').length;
   return { tone: said.some((a) => a.level === 'bad') ? 'bad' : said.length ? 'warn' : '', value: `공원 ${fmt(parks)}곳`, note: '공원은 쾌적도를 높이고 주거 상한을 풉니다' };
 }
-/** A side's state: a goal's own (쾌적도's, its rating's), or 쾌적도's own tab's. */
+/** A side's state: a goal's own (쾌적도's, its rating's), or 쾌적도's parks'. */
 const sideTone = (id: GoalId, side: Side): Tone => (side === 'amenity' ? amenityStatus().tone : goalStatus(id).tone);
 
 export function problemsHtml(alerts: string, figs: PaneFigs): string {
@@ -720,9 +718,9 @@ function guideHtml(id: GoalId): { head: string; act: string } {
  */
 const POLL_GOAL: Record<PollTopic, GoalId> = { safety: 'police', environment: 'environment', traffic: 'traffic', health: 'health', education: 'education', taxes: 'finance', landValue: 'land' };
 /**
- * The guide on 쾌적도's 시장 평점 tab (its own tab has the parks'): what is wrong as its button says it and what it costs,
- * then the step — what the residents mind most in the poll under it, and the screen to mend that on (taxes: the city's
- * 세율 tab). None while the rating stands well.
+ * 쾌적도's guide while its rating stands low (while it stands well, its parks', if they want a hand): what is wrong as its
+ * button says it and what it costs, then the step — what the residents mind most in the poll under it, and the screen
+ * to mend that on (taxes: 재정's 세율). None while the rating stands well.
  */
 function ratingGuide(): { head: string; act: string } {
   const st = readStats();
@@ -755,7 +753,7 @@ function ratingGuide(): { head: string; act: string } {
 let pollutionMemo: { key: string; goal: GoalId; view?: string } | null = null;
 /**
  * The screen (and its tab, by its view) that mends the poll's 환경 complaint: where the factor its residents mind most
- * is mended — dirty water on 수도's 수질, rubbish on 청결, the air and fallout on 대기's 대기 and 방사능 (all four were
+ * is mended — dirty water on 수도, rubbish on 청결, the air and fallout on 대기's 대기 and 방사능 (all four were
  * sent to 대기, which mends only the air).
  */
 function pollutionGoal(): { goal: GoalId; view?: string } {
@@ -771,7 +769,7 @@ function pollutionGoal(): { goal: GoalId; view?: string } {
     for (const k of Object.keys(felt) as (keyof typeof felt)[]) felt[k] += Math.min(0, m[k]) * b.capacity * b.occupancy;
   }
   const worst = (Object.keys(felt) as (keyof typeof felt)[]).reduce((a, k) => (felt[k] < felt[a] ? k : a));
-  const to: { goal: GoalId; view?: string } = worst === 'water' ? { goal: 'water', view: 'waterPollution' } : worst === 'garbage' ? { goal: 'garbage' }
+  const to: { goal: GoalId; view?: string } = worst === 'water' ? { goal: 'water' } : worst === 'garbage' ? { goal: 'garbage' }
     : { goal: 'environment', view: worst === 'radiation' ? 'radiation' : 'air' };
   pollutionMemo = { key, ...to };
   return pollutionMemo;
@@ -926,11 +924,11 @@ function capStep(a: ReturnType<typeof adviceFor>[number]): GuideStep | null {
 
 function goalStep(id: GoalId, side: Side = 'all'): GuideStep {
   // (쾌적도's rating has no step of its own to take: its guide sends to the screen that mends what the residents mind
-  // most — ratingGuide. Its parks', on its own tab.)
+  // most — ratingGuide. Its parks' while the rating stands well.)
   if (id === 'amenity' && side !== 'amenity') return { kind: 'open', what: '', why: '', fixAct: '', act: '', glyph: '', sub: '', fx: '', site: false };
   // The trouble the card leads with ends with a budget (worn lines, a strike for want of funds): that first, before
   // anything to build (a striking station's card said 예산 부족 and recommended a kiosk).
-  // (One side's: 쾌적도's park was offered on its rating's tab once both were the one goal's.)
+  // (One side's: 쾌적도's park was offered for its rating once both were the one goal's.)
   const { worst } = guideSaid(id, side);
   const due = worst && BUDGET_FIX[worst.code] ? budgetStep(id, worst) : null;
   if (due) return due;
@@ -1463,8 +1461,6 @@ export function watchGoals(): void {
     if (day - p.day < FOLLOW_DAYS) continue;
     delete j.pending[id];
     const name = GOALS[id].name;
-    // (쾌적도's, on its own tab — its parks' — not its rating's.)
-    const view = id === 'amenity' ? 'desirability' : undefined;
     // (The figure it was told against, whichever tab is open now.)
     const m = figureOf(id, p.label);
     if (!m || m[3] === undefined) continue;
@@ -1479,8 +1475,8 @@ export function watchGoals(): void {
     // Told on the goal's log too, under what was done.
     j.done.unshift({ goal: id, day, text: `└ 3개월 뒤: ${line}`, key: 'result' });
     // (Toned as its toast is: a figure that held — "변화 없음" — came as a red warning in the news, the toast grey.)
-    pushNotice({ text: `${name} · ${p.text}${p.count > 1 ? ` 외 ${p.count - 1}건` : ''} → 3개월 뒤 ${line}`, warn: !!d && better === false, info: !d, goal: id, ...(view ? { view } : {}), until: day + 360 });
-    toast(`${name} · ${p.text}${p.count > 1 ? ` 외 ${p.count - 1}건` : ''} 3개월 뒤: ${line}`, !d ? 'info' : better === false ? 'bad' : 'good', undefined, () => (view ? openGoalView(id, view) : openGoal(id)), false, undefined, id);
+    pushNotice({ text: `${name} · ${p.text}${p.count > 1 ? ` 외 ${p.count - 1}건` : ''} → 3개월 뒤 ${line}`, warn: !!d && better === false, info: !d, goal: id, until: day + 360 });
+    toast(`${name} · ${p.text}${p.count > 1 ? ` 외 ${p.count - 1}건` : ''} 3개월 뒤: ${line}`, !d ? 'info' : better === false ? 'bad' : 'good', undefined, () => openGoal(id), false, undefined, id);
   }
 }
 
@@ -1506,8 +1502,6 @@ const currentView = () => $<HTMLSelectElement>('#overlay-kind').value;
 
 /** The open goal's name and tools (tool ids, a facility tool standing for its kinds), for the tray. */
 export function goalTools(): { name: string; keys: string[] } | null {
-  // (쾌적도's on its own tab: its rating's has none — the parks led the card there, and a park mends no complaint.)
-  if (active === 'amenity' && !amenityOpen()) return null;
   return active ? { name: GOALS[active].name, keys: GOALS[active].tools } : null;
 }
 
@@ -1566,17 +1560,9 @@ const codeOn = (id: GoalId, t: GoalTab, code: string) => onTab(id, t, code, (x) 
 /** The code an incident is read by (a fire: 'fires'; a riot or an arsonist: 'riot'). */
 const incidentCode = (x: { goal: string }) => (x.goal === 'fire' ? 'fires' : 'riot');
 
-/**
- * A tab's mark: red where an advisor's alarm about its part stands, or a fire or a riot it shows; 쾌적도's two as their
- * sides are judged, amber too (an amber 쾌적도 — no park at all — had no mark anywhere).
- */
+/** A tab's mark: red where an advisor's alarm about its part stands, or a fire or a riot it shows. */
 function tabTone(id: GoalId, t: GoalTab): '' | 'warn' | 'bad' {
   if (incidents().some((x) => x.goal === id && codeOn(id, t, incidentCode(x)))) return 'bad';
-  const side = id === 'amenity' ? SIDE_OF_TAB[t.label] : undefined;
-  if (side) {
-    const tone = sideTone(id, side);
-    return tone === 'bad' || tone === 'warn' ? tone : '';
-  }
   return adviceFor(id).some((a) => a.level === 'bad' && codeOn(id, t, a.code)) ? 'bad' : '';
 }
 /** A tab's mark as drawn: a dot in its tone, and the words its title ends with. */
@@ -1585,14 +1571,12 @@ const tabSaid = (tone: '' | 'warn' | 'bad') => (tone === 'bad' ? ' · 문제 있
 
 /**
  * The tab a goal's screen opens on, by what is the matter now: a fire or a riot, then the trouble its card leads with,
- * then the worst said; else its home tab (an area's first, the city's 재정, 쾌적도's 시장 평점). (The map's view comes
- * with it: what the trouble is seen in.)
+ * then the worst said; else its home tab (its first, or the one it names). (The map's view comes with it: what the
+ * trouble is seen in.)
  */
 function openingTab(id: GoalId): number {
   const tabs = goalTabs(id);
-  // (쾌적도's: its own tab while only its parks want a look, else its rating's — each as its button or tab stands.)
-  if (id === 'amenity') return Math.max(0, tabs.findIndex((t) => t.label === (!goalStatus(id).tone && amenityStatus().tone ? '쾌적도' : '시장 평점')));
-  // (A code no tab names is the home tab's — an area's first, the city's 재정 — as 진단 has it: by the names alone, a card
+  // (A code no tab names is the home tab's — an area's first — as 진단 has it: by the names alone, a card
   // led by an unnamed code opened on another tab's trouble, its own on the home tab.)
   const by = (code: string | undefined) => (code ? tabs.findIndex((t) => codeOn(id, t, code)) : -1);
   const inc = incidents().find((x) => x.goal === id);
@@ -1612,7 +1596,7 @@ function selectTab(k: number, focus = false): void {
   showGoalView(tabView(active, tabs[k]!));
   showGoalStats(active);
   renderGoal(true);
-  refreshRecent(); // (the tool card's row of the screen's tools: 쾌적도's own tab has them, its rating's not)
+  refreshRecent(); // (the tool card's row of the screen's tools)
   // (Back in sight if the screen was scrolled down: its new part starts under the tabs, which stay at the top.)
   $('#pane').scrollTop = 0;
   if (focus) document.getElementById(`mg-tab-${k}`)?.focus({ preventScroll: true });
@@ -2946,7 +2930,7 @@ function goalParts(id: GoalId): { top: string; acts: string; more: string } {
     }).join('')}</div>` : ''}
     ${has('usage') ? usageBar(id) : ''}
     ${has('air') ? airCauses(id) : ''}
-    ${has('rci') && id === 'growth' ? demandGrid() : ''}
+    ${has('rci') && id === 'growth' ? demandList() : ''}
     ${has('outlook') ? ops.outlook : ''}`;
   const facs = has('facilities') && list.length ? `<section class="mg-sec"><h3>${icon('landmark')}시설 ${list.length}곳${allDept ? '<small class="sec-note">부서 예산으로 운영</small>' : ''}</h3><div class="mg-facs">${shown.map((f) => {
       const [line, tone] = facilityLine(f);
@@ -3225,7 +3209,7 @@ export function setupGoals(): void {
     if (!b) return;
     e.preventDefault(); // (inside a label: not its checkbox)
     closeSheet();
-    // (On the tab its view names, where it has one: the poll's dirty water, 수도's 수질; or at the part it names: 재정's 세율.)
+    // (On the tab its view names, where it has one: the poll's fallout, 대기's 방사능; or at the part it names: 재정's 세율.)
     if (b.dataset.goalView) openGoalView(b.dataset.goalOpen as GoalId, b.dataset.goalView);
     else if (b.dataset.goalPart) openGoalAt(b.dataset.goalOpen as GoalId, b.dataset.goalPart);
     else openGoal(b.dataset.goalOpen as GoalId);
@@ -3387,9 +3371,7 @@ export function setupGoals(): void {
     const b = (e.target as HTMLElement).closest<HTMLElement>('.info-goal[data-goal]');
     if (!b) return;
     if (phone()) closeInfo(); // one sheet at a time there
-    // (A park's: 쾌적도's own tab, by its view.)
-    if (b.dataset.goalView) openGoalView(b.dataset.goal as GoalId, b.dataset.goalView);
-    else openGoal(b.dataset.goal as GoalId);
+    openGoal(b.dataset.goal as GoalId);
   });
   const el = $('#manage');
   // A build button under the pointer (or focused) lights its target on the map: where it will build, before it does.

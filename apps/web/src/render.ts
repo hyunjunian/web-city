@@ -355,6 +355,9 @@ export const indexColor = (v: number) => `rgba(40,110,230,${(0.24 + 0.56 * Math.
 export const WORN_COLOR = 'rgba(196,64,214,0.95)';
 /** The crimes drawn larger and red on the police view (the rest smaller, yellow), and visited first. */
 export const HEINOUS: ReadonlySet<string> = new Set(['arson', 'bankRobbery', 'assault', 'stickUp']);
+/** The 쾌적도 view's marks on homes unhappy with the mayor: below 0, and below −50 (where riots gather). */
+export const UNHAPPY_DOT = '#ff9f1c';
+export const RIOT_DOT = '#ff2d2d';
 /** Over the fire view: what catches easily (risk from 54, where fires break out), inside the stations' reach and out of it. */
 export const FIRE_RISK = 54;
 export const RISK_IN = 'rgba(240,150,30,0.62)';
@@ -447,6 +450,25 @@ function ramp(v: number): string {
   // 0 → transparent, 1 → strong purple.
   const t = Math.max(0, Math.min(1, v));
   return `rgba(120,40,160,${(t * 0.7).toFixed(3)})`;
+}
+
+/** The brown the 수도 view lays over the water as it fouls. */
+export const FOUL_RGB = [120, 85, 45] as const;
+/**
+ * How deep that brown lies on water as foul as `p`: none while it runs nearly clean (20), deepest (0.7) where it stops a
+ * pump (`limit`). (In steps of 0.02: the colours are parsed and kept by their string.)
+ */
+export function foulness(p: number, limit: number): number {
+  return Math.round(Math.min(1, Math.max(0, p - 20) / (limit - 20)) * 35) / 50;
+}
+/** `rgb` at alpha `a` laid over `under` (an rgba string, or '' for nothing), as one colour: the water's dirt over its service. */
+function over(rgb: readonly [number, number, number], a: number, under: string): string {
+  if (!under) return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
+  const c = rgbaOf(under);
+  const ua = (c & 255) / 255;
+  const oa = a + ua * (1 - a);
+  const mix = (k: 0 | 1 | 2, u: number) => Math.round((rgb[k] * a + u * ua * (1 - a)) / oa);
+  return `rgba(${mix(0, c >>> 24)},${mix(1, (c >>> 16) & 255)},${mix(2, (c >>> 8) & 255)},${oa.toFixed(3)})`;
 }
 
 /** A view colour (rgb(), rgba() or #rrggbb) as packed RGBA bytes, remembered (the views reuse a few hundred). */
@@ -1871,6 +1893,7 @@ export class Renderer {
       const f = city.fields;
       const desir = overlay.kind === 'desirability' ? city.desirabilityMap(overlay.type) : null;
       const growth = overlay.kind === 'growth' ? growthNow(city) : null;
+      const pumpLimit = city.cfg.services.pumpPollutionLimit;
       let volumeMax = 0;
       // Against the busiest tile in the whole city (a road's colour must not change as the view pans).
       if (overlay.kind === 'volume') for (let i = 0; i < n * n; i++) volumeMax = Math.max(volumeMax, volumeAt(s, f, overlay.network, i));
@@ -1938,14 +1961,20 @@ export class Renderer {
             case 'waterPollution':
               color = `rgba(120,85,45,${Math.min(0.75, f.waterPollution[i]! / 80).toFixed(3)})`;
               break;
-            case 'waterService':
-              // Underground view: pipes (the worn ones apart), coverage, and dry lots.
-              if (s.pipe[i]) color = s.pipeWear[i]! >= 50 ? WORN_COLOR : 'rgba(20,90,200,0.95)';
-              else if (f.watered[i]) color = 'rgba(70,150,255,0.35)';
-              else if (f.waterNet[i]! >= 0) color = 'rgba(255,150,40,0.4)';
-              else if ((s.zone[i] && s.zone[i] !== 10) || s.occupant[i]! > 0) color = 'rgba(230,40,40,0.3)';
-              else continue;
+            case 'waterService': {
+              // Underground view: pipes (the worn ones apart), coverage and dry lots — and over them how foul the water
+              // runs, browner the fouler, deepest where it stops a pump (수질, one map with the supply).
+              if (s.pipe[i]) {
+                color = s.pipeWear[i]! >= 50 ? WORN_COLOR : 'rgba(20,90,200,0.95)';
+                break;
+              }
+              const under = f.watered[i] ? 'rgba(70,150,255,0.35)' : f.waterNet[i]! >= 0 ? 'rgba(255,150,40,0.4)'
+                : (s.zone[i] && s.zone[i] !== 10) || s.occupant[i]! > 0 ? 'rgba(230,40,40,0.3)' : '';
+              const dirt = foulness(f.waterPollution[i]!, pumpLimit);
+              if (!dirt && !under) continue;
+              color = dirt ? over(FOUL_RGB, dirt, under) : under;
               break;
+            }
             case 'power':
               // (The worn lines apart: the grid's own trouble, mended by its budget.)
               if (s.power[i] && s.lineWear[i]! >= 50) color = WORN_COLOR;
@@ -2153,6 +2182,27 @@ export class Renderer {
         ctx.lineWidth = 0.06;
         ctx.beginPath();
         ctx.arc(x + 0.5, y + 0.5, big ? 0.42 : 0.3, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+
+    // The 쾌적도 view: over the land's 쾌적도, the homes whose residents are unhappy with the mayor — its rating, where it
+    // is low (amber below 0, red below −50, where riots gather), a mark at each home's middle.
+    if (overlay.kind === 'desirability' && sc >= 3) {
+      const f = city.fields;
+      for (const b of s.buildings.values()) {
+        if (b.type?.[0] !== 'R') continue;
+        const x = b.x + (b.w >> 1);
+        const y = b.y + (b.h >> 1);
+        if (x < x0 || y < y0 || x >= x1 || y >= y1) continue;
+        const r = f.mayor[y * n + x]!;
+        if (!f.mayorSet[y * n + x] || r >= 0) continue;
+        ctx.fillStyle = r <= -50 ? RIOT_DOT : UNHAPPY_DOT;
+        ctx.strokeStyle = '#1a1a1a';
+        ctx.lineWidth = 0.06;
+        ctx.beginPath();
+        ctx.arc(x + 0.5, y + 0.5, r <= -50 ? 0.42 : 0.32, 0, Math.PI * 2);
         ctx.fill();
         ctx.stroke();
       }

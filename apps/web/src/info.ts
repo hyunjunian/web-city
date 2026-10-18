@@ -16,7 +16,7 @@ import { structureStat, toolGlyph, TOOLS } from './tools';
 import { choice } from './choices';
 import { coverageRadius, overlayReading } from './views';
 import { GOAL_ORDER, type GoalId, goalOfStructure, GOALS, goalsOfOrdinance } from './goals';
-import { active, amenityOpen, guideOrdinances } from './manage';
+import { active, guideOrdinances } from './manage';
 
 /** Why a Route Query found no trips here. */
 function none(b: Building | null | undefined): string {
@@ -468,7 +468,8 @@ ${paths}${voice}
       ${where && where !== title ? `<tr><td>지형</td><td>${where}</td></tr>` : ''}
       ${land ? `<tr${row('land')}><td title="물가에 가깝거나 평균보다 높은 땅일수록 올라갑니다">땅값 보너스 (물가·고지대)</td><td>${q.landValue.toFixed(0)}</td></tr>` : ''}
       ${q.terrain === 'water' && !q.network ? '' : `<tr><td>고도 · 경사</td><td>${q.height} m · ${q.slope} m</td></tr>`}
-      <tr${row('environment')}><td>오염</td><td>대기 ${q.airPollution.toFixed(0)} · 수질 ${q.waterPollution.toFixed(0)}</td></tr>
+      <tr${row('environment')}><td>대기 오염</td><td>${q.airPollution.toFixed(0)}</td></tr>
+      <tr${row('water')}><td>수질 오염</td><td>${q.waterPollution.toFixed(0)}</td></tr>
       ${traffic ? `<tr${row('traffic')}><td>교통량</td><td>${traffic}</td></tr>` : ''}
       ${q.powerLine || q.pipe || q.railDamaged ? `<tr><td title="50을 넘으면 송전선은 불꽃, 수도관은 파열 위험">노후도</td><td>${[
         q.powerLine ? `<span class="${q.lineWear >= 50 ? 'neg' : ''}">송전선 ${q.lineWear}</span>` : '',
@@ -697,11 +698,9 @@ const CAP_RELIEF = {
 function goalLink(kind: Structure['kind'] | undefined, zone: string, way = false): string {
   // (A road, rail or the like: the traffic screen, its jams and what to build against them.)
   const id: GoalId | null = kind ? goalOfStructure(kind) : way ? 'traffic' : zone === 'landfill' ? 'garbage' : zone !== 'none' ? 'growth' : null;
-  // (A park, reward or landmark is 쾌적도's: its own tab, not its rating's.)
-  const amenity = id === 'amenity';
-  if (!id || (amenity ? amenityOpen() : active === id)) return ''; // (its screen is already open)
+  if (!id || active === id) return ''; // (its screen is already open)
   const name = GOALS[id].name;
-  return `<button type="button" class="info-goal" data-goal="${id}"${amenity ? ' data-goal-view="desirability"' : ''} title="${name}의 관리 화면: 같은 종류의 시설 모두, 지도 보기, 예산과 조례">${icon(GOALS[id].icon)}${name} 관리${icon('chevronRight')}</button>`;
+  return `<button type="button" class="info-goal" data-goal="${id}" title="${name}의 관리 화면: 같은 종류의 시설 모두, 지도 보기, 예산과 조례">${icon(GOALS[id].icon)}${name} 관리${icon('chevronRight')}</button>`;
 }
 
 /**
