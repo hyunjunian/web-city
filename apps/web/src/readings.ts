@@ -97,7 +97,7 @@ function readStatus(id: GoalId): Status {
       return { tone, value: money(st.funds), note: b ? `지난달 ${net < 0 ? '−' : '+'}§${fmt(Math.abs(Math.round(net)))}${left}` : '첫 결산 전' };
     }
     case 'amenity': {
-      // Read by the mayor's rating, its headline (what its parks lack is its 쾌적도 tab's to say).
+      // Read by the mayor's rating, its headline (what its parks lack its screen's guide says, while the rating stands well).
       const r = st.mayorRating;
       const rated = ratingRated();
       // (Its own tone, not the advisors': a park missing coloured a sound rating amber.)
@@ -445,7 +445,7 @@ function goalMetrics(id: GoalId): Metric[] {
       return [
         // (Its headline.)
         ratingRated() ? ['시장 평점', String(st.mayorRating), ratingTone(st.mayorRating), st.mayorRating, 1, '−100~100 · 주민의 불만에서 나옵니다'] : ['시장 평점', '—', '', undefined, 1, '주민이 든 달이 지나면 매겨집니다'],
-        // (For its 쾌적도 tab: those a pleasant place draws, and what they want built — the wealthy come where it is high.)
+        // (Then the 쾌적도's own: those a pleasant place draws, and what they want built — the wealthy come where it is high.)
         ...amenityMetrics(),
       ];
     // (Its figure is its list, each kind of zone by wealth — demandList; its people, the city's own.)

@@ -452,23 +452,32 @@ function ramp(v: number): string {
   return `rgba(120,40,160,${(t * 0.7).toFixed(3)})`;
 }
 
-/** The brown the 수도 view lays over the water as it fouls. */
+/** The brown the 수도 view lays under the water's supply as it fouls. */
 export const FOUL_RGB = [120, 85, 45] as const;
+/** Where on the 수도 view's brown the water starts to harm the homes on it (100), as its scale's share. */
+export const FOUL_HARM = 0.3;
 /**
- * How deep that brown lies on water as foul as `p`: none while it runs nearly clean (20), deepest (0.7) where it stops a
- * pump (`limit`). (In steps of 0.02: the colours are parsed and kept by their string.)
+ * How deep that brown lies on water as foul as `p`: none while it runs nearly clean (20), plain by where it harms the
+ * homes on it (0.3 at 100: at 0.12 it read as the blue beside it), deepest (0.45) where it stops a pump (`limit`).
+ * (In steps of 0.01: the colours are parsed and kept by their string.)
  */
 export function foulness(p: number, limit: number): number {
-  return Math.round(Math.min(1, Math.max(0, p - 20) / (limit - 20)) * 35) / 50;
+  const a = p <= 20 ? 0 : p <= 100 ? (FOUL_HARM * (p - 20)) / 80 : FOUL_HARM + 0.15 * Math.min(1, (p - 100) / (limit - 100));
+  return Math.round(a * 100) / 100;
 }
-/** `rgb` at alpha `a` laid over `under` (an rgba string, or '' for nothing), as one colour: the water's dirt over its service. */
-function over(rgb: readonly [number, number, number], a: number, under: string): string {
-  if (!under) return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${a})`;
-  const c = rgbaOf(under);
-  const ua = (c & 255) / 255;
-  const oa = a + ua * (1 - a);
-  const mix = (k: 0 | 1 | 2, u: number) => Math.round((rgb[k] * a + u * ua * (1 - a)) / oa);
-  return `rgba(${mix(0, c >>> 24)},${mix(1, (c >>> 16) & 255)},${mix(2, (c >>> 8) & 255)},${oa.toFixed(3)})`;
+/**
+ * `top` (an rgba string, or '' for nothing) laid over the foul brown at alpha `a`, as one colour (source-over): the supply
+ * keeps its own colour over the dirt, which browns what shows through it. (The dirt laid over the supply hid it: a fouled
+ * district's dry lots read as brown, not red.)
+ */
+function overDirt(top: string, a: number): string {
+  const [r, g, b] = FOUL_RGB;
+  if (!top) return `rgba(${r},${g},${b},${a})`;
+  const c = rgbaOf(top);
+  const ta = (c & 255) / 255;
+  const oa = ta + a * (1 - ta);
+  const mix = (t: number, u: number) => Math.round((t * ta + u * a * (1 - ta)) / oa);
+  return `rgba(${mix(c >>> 24, r)},${mix((c >>> 16) & 255, g)},${mix((c >>> 8) & 255, b)},${oa.toFixed(3)})`;
 }
 
 /** A view colour (rgb(), rgba() or #rrggbb) as packed RGBA bytes, remembered (the views reuse a few hundred). */
@@ -1962,17 +1971,17 @@ export class Renderer {
               color = `rgba(120,85,45,${Math.min(0.75, f.waterPollution[i]! / 80).toFixed(3)})`;
               break;
             case 'waterService': {
-              // Underground view: pipes (the worn ones apart), coverage and dry lots — and over them how foul the water
-              // runs, browner the fouler, deepest where it stops a pump (수질, one map with the supply).
+              // Underground view: pipes (the worn ones apart), coverage and dry lots — and under them how foul the
+              // water runs, browner the fouler, deepest where it stops a pump (수질, one map with the supply).
               if (s.pipe[i]) {
                 color = s.pipeWear[i]! >= 50 ? WORN_COLOR : 'rgba(20,90,200,0.95)';
                 break;
               }
-              const under = f.watered[i] ? 'rgba(70,150,255,0.35)' : f.waterNet[i]! >= 0 ? 'rgba(255,150,40,0.4)'
+              const supply = f.watered[i] ? 'rgba(70,150,255,0.35)' : f.waterNet[i]! >= 0 ? 'rgba(255,150,40,0.4)'
                 : (s.zone[i] && s.zone[i] !== 10) || s.occupant[i]! > 0 ? 'rgba(230,40,40,0.3)' : '';
               const dirt = foulness(f.waterPollution[i]!, pumpLimit);
-              if (!dirt && !under) continue;
-              color = dirt ? over(FOUL_RGB, dirt, under) : under;
+              if (!dirt && !supply) continue;
+              color = dirt ? overDirt(supply, dirt) : supply;
               break;
             }
             case 'power':
@@ -2197,7 +2206,7 @@ export class Renderer {
         const y = b.y + (b.h >> 1);
         if (x < x0 || y < y0 || x >= x1 || y >= y1) continue;
         const r = f.mayor[y * n + x]!;
-        if (!f.mayorSet[y * n + x] || r >= 0) continue;
+        if (f.mayorSet[y * n + x] !== 1 || r >= 0) continue; // (lived in: an empty home's rating riots nobody)
         ctx.fillStyle = r <= -50 ? RIOT_DOT : UNHAPPY_DOT;
         ctx.strokeStyle = '#1a1a1a';
         ctx.lineWidth = 0.06;

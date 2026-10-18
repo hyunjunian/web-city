@@ -735,7 +735,7 @@ function ratingGuide(): { head: string; act: string } {
   // (Nobody minding anything much: no topic to send to — where it is lowest is on the map's view.)
   const action = approve >= 0.95
     ? `<div class="g-act"><p class="g-act-head">${icon('search')}<b>원인부터 살펴보세요</b></p>
-      <p class="g-act-why">여론 조사에 큰 불만은 없습니다 · 지도에서 평점이 낮은 곳(붉은 곳)과 그곳의 조례·세율을 살펴보세요</p></div>`
+      <p class="g-act-why">여론 조사에 큰 불만은 없습니다 · 지도의 주황·빨강 점(시장에게 불만인 집)이 모인 곳과 조례·세율을 살펴보세요</p></div>`
     : `<div class="g-act"><p class="g-act-head">${glyph}<b>${POLL_NAME[topic]} 불만부터</b><small>불만 없는 주민 ${Math.round(approve * 100)}%</small></p>
       <p class="g-act-why">시장 평점은 주민의 불만에서 나옵니다: 아래 여론 조사에서 불만이 가장 큰 것을 고치면 오릅니다</p>
       <div class="g-act-btns">${goal === 'finance'
@@ -1561,13 +1561,13 @@ const codeOn = (id: GoalId, t: GoalTab, code: string) => onTab(id, t, code, (x) 
 const incidentCode = (x: { goal: string }) => (x.goal === 'fire' ? 'fires' : 'riot');
 
 /** A tab's mark: red where an advisor's alarm about its part stands, or a fire or a riot it shows. */
-function tabTone(id: GoalId, t: GoalTab): '' | 'warn' | 'bad' {
+function tabTone(id: GoalId, t: GoalTab): '' | 'bad' {
   if (incidents().some((x) => x.goal === id && codeOn(id, t, incidentCode(x)))) return 'bad';
   return adviceFor(id).some((a) => a.level === 'bad' && codeOn(id, t, a.code)) ? 'bad' : '';
 }
 /** A tab's mark as drawn: a dot in its tone, and the words its title ends with. */
-const tabDot = (tone: '' | 'warn' | 'bad') => (tone ? `<i class="mg-tab-dot ${tone}" aria-hidden="true"></i>` : '');
-const tabSaid = (tone: '' | 'warn' | 'bad') => (tone === 'bad' ? ' · 문제 있음' : tone === 'warn' ? ' · 주의' : '');
+const tabDot = (tone: '' | 'bad') => (tone ? '<i class="mg-tab-dot" aria-hidden="true"></i>' : '');
+const tabSaid = (tone: '' | 'bad') => (tone ? ' · 문제 있음' : '');
 
 /**
  * The tab a goal's screen opens on, by what is the matter now: a fire or a riot, then the trouble its card leads with,
@@ -1641,8 +1641,13 @@ export function stepTab(by: number): void {
     return;
   }
   const n = goalTabs(active).length;
+  // (A screen of one tab has none to step to: "수도 › 수도" said nothing.)
+  if (n < 2) {
+    flash(`${GOALS[active].name} 화면에는 탭이 하나뿐입니다`, 'info');
+    return;
+  }
   // (Focus on a tab goes on to the new one: given back to the old, it sat on a tab out of the Tab order.)
-  if (n > 1) selectTab((Math.min(tabAt, n - 1) + by + n) % n, !!document.activeElement?.closest('.mg-tabs'));
+  selectTab((Math.min(tabAt, n - 1) + by + n) % n, !!document.activeElement?.closest('.mg-tabs'));
   flash(`${GOALS[active].name} › ${tabNow(active).label}`, 'info');
 }
 
@@ -3196,8 +3201,8 @@ export function setupGoals(): void {
     else if (row) openGoal(row.dataset.goal as GoalId);
   });
   // The rows of chips — under the top buttons, or wide the rail's (the city's card's 수요 and 재정, and the rest): 시작하기
-  // opens the city's own screen (an open screen put away ends), an item its screen (the open one's back up — 쾌적도's on
-  // its rating), its × ends it. (The rail's scrolling one, its cut edges faded.)
+  // opens the city's own screen (an open screen put away ends), an item its screen (the open one's back up), its × ends
+  // it. (The rail's scrolling one, its cut edges faded.)
   const strip = $('#goal-strip');
   strip.addEventListener('scroll', () => fadeStrip(strip), { passive: true });
   for (const row of [strip, $('#city-rows')]) wireRow(row);
