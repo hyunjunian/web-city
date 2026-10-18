@@ -1982,6 +1982,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
    what the box finds). */
 :is(.tray-section .tiles, .picker) { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 6px; }
 .tray-section .tiles > :is(.group, .picker) { display: contents; }
+/* (개발 구역's sections are three densities each: three across, not three and an empty fourth.) */
+#tray[data-cat='zones'] .tray-section .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
 /* ------------------------------------------------------------------ the tool in hand: one bar */
 
