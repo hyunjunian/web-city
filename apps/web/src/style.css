@@ -1854,16 +1854,18 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .s-row.warn .s-val { color: var(--warn-ink); }
 .s-row.bad .s-val { color: var(--danger-ink); }
 .s-row.on { background: var(--accent-soft); }
-/* 수요's figure, on the rail and in a phone's 도시 상태: a line a class — its name, a bar out from the middle (wanted to
-   the right, too many to the left) and its figure; the class its state names in that state's colour, a capped one amber. */
-.r-rci { display: grid; gap: 1px; min-width: 0; }
-.r-rci > span { display: grid; grid-template-columns: 2.4em minmax(0, 1fr) 3.6em; align-items: center; column-gap: 7px; font-size: 10.5px; line-height: 1.15; }
+/* 수요's figure, on the rail and in a phone's 도시 상태: a line a class — its name, a bar out from one axis down the
+   three (wanted to the right, too many to the left; full at ±1,000) and its figure. The class its state names takes that
+   state's colour; a capped one reads 상한 in amber over a hatched right half (they want in, the cap holds them). */
+.r-rci { position: relative; display: grid; gap: 7px; min-width: 0; font-size: 11.5px; line-height: 14px; }
+/* (The axis, at the tracks' middle: the name's 2.4em before them, the figure's 3.4em after, 10px between.) */
+.r-rci::before { content: ''; position: absolute; top: -2px; bottom: -2px; left: calc(50% - 0.5em); width: 1px; background: var(--line-strong); }
+.r-rci > span { display: grid; grid-template-columns: 2.4em minmax(0, 1fr) 3.4em; align-items: center; column-gap: 10px; }
 .r-rci em { color: var(--muted); font-style: normal; font-weight: 600; }
-.r-rci > span > i { position: relative; display: block; height: 5px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--line-strong) 35%, transparent); }
-.r-rci > span > i::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--line-strong); }
-.r-rci > span > i > i { position: absolute; top: 0; bottom: 0; background: var(--c); }
-.r-rci .neg > i > i { opacity: 0.55; }
-.r-rci .cap > i > i { background: repeating-linear-gradient(90deg, var(--c) 0 2px, transparent 2px 3px); }
+.r-rci > span > i { position: relative; display: block; height: 6px; border-radius: 999px; background: color-mix(in srgb, var(--line-strong) 26%, transparent); }
+.r-rci > span > i > i { position: absolute; top: 0; bottom: 0; border-radius: 0 999px 999px 0; background: var(--c); }
+.r-rci .neg > i > i { border-radius: 999px 0 0 999px; opacity: 0.6; }
+.r-rci .cap > i > i { background: repeating-linear-gradient(135deg, color-mix(in srgb, var(--c) 75%, transparent) 0 2px, transparent 2px 4.5px); }
 :is(#rail, #status) .r-rci b { overflow: hidden; color: var(--text); font-weight: 700; text-align: right; text-overflow: ellipsis; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .r-rci .k-r { --c: var(--zone-r); }
 .r-rci .k-c { --c: var(--zone-c); }
@@ -1871,12 +1873,13 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 :is(#rail, #status) .r-rci .cap b { color: var(--warn-ink); }
 :is(#rail, #status) .warn .r-rci .hot b { color: var(--warn-ink); font-weight: 800; }
 :is(#rail, #status) .bad .r-rci .hot b { color: var(--danger-ink); font-weight: 800; }
-/* 재정's: the money in hand, and last month's balance after it (green in, red out). */
-.r-money { display: flex; align-items: baseline; justify-content: flex-end; gap: 8px; }
+/* 재정's: the money in hand, and last month's balance after it as a rate — "+§369 / 월" (green in, red out). */
+.r-money { display: flex; align-items: baseline; justify-content: flex-end; gap: 10px; }
 :is(#rail, #status) .r-money b { font-weight: 700; }
-:is(#rail, #status) .r-money small { font-size: 11.5px; font-weight: 650; }
+:is(#rail, #status) .r-money small { font-size: 12px; font-weight: 700; white-space: nowrap; }
 :is(#rail, #status) .r-money small.pos { color: var(--good-ink); }
 :is(#rail, #status) .r-money small.neg { color: var(--danger-ink); }
+:is(#rail, #status) .r-money small > span { color: var(--muted); font-weight: 550; }
 #rail .r-money { justify-content: flex-start; }
 /* (In a phone's 도시 상태: room for the class lines, the bars across it — shrunk to their figures, they had none.) */
 .s-val.s-own { width: 12.5em; white-space: normal; }
@@ -2678,8 +2681,11 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail .r-spark .sa { fill: var(--spark); fill-opacity: 0.13; stroke: none; }
   #rail .r-spark .s0 { stroke: var(--line-strong); stroke-width: 1px; }
   #rail .r-spark .sn { stroke: var(--line-strong); stroke-width: 2px; stroke-dasharray: 0 6px; }
-  /* 수요's and 재정's rows: their figures across the value's and the graph's room (no graph: .r-rci, .r-money). */
-  #rail :is(.r-rci, .r-money) { grid-column: 3 / -1; }
+  /* 재정's row: its figures across the value's and the graph's room (no graph). 수요's: its name, then its classes'
+     bars across the row under it — a line of the rows' height had them cramped and short. */
+  #rail .r-money { grid-column: 3 / -1; }
+  #rail #city-rows button[data-strip-goal='growth'] { height: auto; grid-template-areas: 'ic name name name' '. rci rci rci'; row-gap: 9px; padding-block: 11px 13px; }
+  #rail .r-rci { grid-area: rci; }
   #rail .r-money b { font-size: 13.5px; }
   #rail #goal-strip .strip-start { margin: 0; }
   #rail #goal-strip .strip-start .r-val { color: var(--muted); }
@@ -2706,14 +2712,13 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail #city-rows button:focus-visible { outline-offset: -3px; }
   #rail #goal-strip .amenity-head {
     --am: var(--accent);
-    grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: 'ic name what' 'score score score' 'bar bar bar' 'next next next';
+    grid-template-columns: 22px minmax(0, 1fr); grid-template-areas: 'ic name' 'score score' 'bar bar' 'next next';
     justify-items: start; column-gap: 9px; row-gap: 3px; height: auto; padding: 11px 14px 12px;
   }
   #rail #goal-strip .amenity-head.warn { --am: var(--warn); }
   #rail #goal-strip .amenity-head.bad { --am: var(--danger); }
   #rail #goal-strip .amenity-head > .i { grid-area: ic; width: 22px; height: 22px; color: var(--accent-hi); }
   #rail #goal-strip .amenity-head .r-name { font-size: 15px; font-weight: 700; }
-  #rail .am-what { grid-area: what; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--muted) 14%, transparent); color: var(--muted); font-size: 11.5px; font-weight: 650; white-space: nowrap; }
   #rail .am-score { grid-area: score; display: flex; align-items: baseline; gap: 3px; margin-top: 3px; }
   #rail .am-score b { font-size: 28px; font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
   #rail .am-score small { color: var(--muted); font-size: 13px; font-weight: 600; }
@@ -2742,6 +2747,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
      is still under the pointer's line (pressed again, it puts the pane away: shorter, the next one down was there). */
   #app.pane-open #rail :is(#btn-city, #goal-strip button, #city-rows button) { grid-template-columns: minmax(0, 1fr) 0 0 0; column-gap: 0; padding-inline: 0; }
   #app.pane-open #rail :is(#btn-city, #goal-strip button, #city-rows button) > .i { justify-self: center; }
+  #app.pane-open #rail #city-rows button[data-strip-goal='growth'] > .i { grid-row: 1 / -1; align-self: center; } /* (수요's, as tall as its bars) */
   #app.pane-open #rail :is(#goal-strip > button, .amenity-card > button, #city-rows > button).warn > .i { color: var(--warn); } /* (the one lit keeps its accent) */
   #app.pane-open #rail :is(#goal-strip > button, .amenity-card > button, #city-rows > button).bad > .i { color: var(--danger); }
   /* (The city's bar stands up under its stage icon there, filling from below.) */

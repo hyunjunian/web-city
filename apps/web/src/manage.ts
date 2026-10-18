@@ -266,7 +266,7 @@ function amenityHead(tone: Tone, on: boolean, tab: string, drift?: string): stri
   const moved = move === null ? '' : move ? `3개월 ${move > 0 ? '▲' : '▼'}${Math.abs(move)}` : '3개월 그대로';
   const note = ratingNote(r);
   const reading = rated ? `시장 평점 ${num(r)} (−100~100)` : '시장 평점 아직 없음 (주민이 든 달이 지나면 매겨집니다)';
-  return `<button type="button" class="amenity-head ${tone || 'ok'}"${on ? '' : ' data-k="amenity"'} ${tab} data-strip-goal="amenity" style="--lo:${lo}%;--hi:${hi}%" title="${escapeHtml(`쾌적도: ${reading}${note ? ` · ${note}` : ''}${drift ? ` · ${drift}` : ''} · 아래의 전력부터 땅값까지가 모두 평점을 움직입니다 · ${on ? '눌러서 패널 닫기·열기 (×는 화면 닫기)' : '눌러서 쾌적도 화면 (시장 평점과 공원·보상)'}`)}" aria-label="${escapeHtml(`쾌적도${said}: ${rated ? `시장 평점 ${num(r)}` : '시장 평점 아직 없음'}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${icon('trees')}<span class="r-name">쾌적도</span><span class="am-what">시장 평점</span><span class="am-score"><b>${rated ? num(r) : '—'}</b>${rated ? '<small>점</small>' : ''}</span><span class="am-bar" aria-hidden="true"><i></i></span><span class="am-next"><span>${mood}</span>${moved ? `<b>${moved}</b>` : ''}</span></button>`;
+  return `<button type="button" class="amenity-head ${tone || 'ok'}"${on ? '' : ' data-k="amenity"'} ${tab} data-strip-goal="amenity" style="--lo:${lo}%;--hi:${hi}%" title="${escapeHtml(`쾌적도: ${reading}${note ? ` · ${note}` : ''}${drift ? ` · ${drift}` : ''} · 아래의 전력부터 땅값까지가 모두 평점을 움직입니다 · ${on ? '눌러서 화면 닫기' : '눌러서 쾌적도 화면 (시장 평점과 공원·보상)'}`)}" aria-label="${escapeHtml(`쾌적도${said}: ${rated ? `시장 평점 ${num(r)}` : '시장 평점 아직 없음'}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${icon('trees')}<span class="r-name">쾌적도</span><span class="am-score"><b>${rated ? num(r) : '—'}</b>${rated ? '<small>점</small>' : ''}</span><span class="am-bar" aria-hidden="true"><i></i></span><span class="am-next"><span>${mood}</span>${moved ? `<b>${moved}</b>` : ''}</span></button>`;
 }
 /** The row's cut edges faded where it scrolls: sideways on a phone, up and down in the rail. */
 function fadeStrip(el: HTMLElement): void {
@@ -382,14 +382,17 @@ function railDemand(state: string): { html: string; said: string } {
     const { v, capped } = classDemand(k);
     const w = Math.min(50, Math.sqrt(Math.abs(v) / 1000) * 50);
     const fig = capped ? '상한' : `${v >= 1 ? '+' : v <= -1 ? '−' : ''}${fmt(Math.abs(Math.round(v)))}`;
+    // (Capped, the wanted half hatched: they want in, the cap holds them — its index reads nothing to draw.)
+    const [left, width] = capped ? [50, 50] : v >= 0 ? [50, w] : [50 - w, w];
     return {
       said: `${CLASS_NAME[k]} ${fig}`,
-      html: `<span class="k-${k.toLowerCase()}${capped ? ' cap' : v <= -1 ? ' neg' : ''}${k === hot ? ' hot' : ''}"><em>${CLASS_NAME[k]}</em><i><i style="left:${(v >= 0 ? 50 : 50 - w).toFixed(1)}%;width:${w.toFixed(1)}%"></i></i><b>${fig}</b></span>`,
+      html: `<span class="k-${k.toLowerCase()}${capped ? ' cap' : v <= -1 ? ' neg' : ''}${k === hot ? ' hot' : ''}"><em>${CLASS_NAME[k]}</em><i><i style="left:${left.toFixed(1)}%;width:${width.toFixed(1)}%"></i></i><b>${fig}</b></span>`,
     };
   });
   return { html: `<span class="r-rci" aria-hidden="true">${rows.map((r) => r.html).join('')}</span>`, said: rows.map((r) => r.said).join(' · ') };
 }
-/** 재정's row on the rail: the money in hand, and beside it last month's balance — what came in less what went out. */
+/** 재정's row on the rail: the money in hand, and beside it last month's balance — what came in less what went out — as
+ *  a rate ("+§369 / 월"). */
 function railMoney(): { html: string; said: string } {
   const s = city.state;
   const b = s.lastBudget;
@@ -397,7 +400,7 @@ function railMoney(): { html: string; said: string } {
   const cash = `${s.funds < 0 ? '−' : ''}§${fmt(Math.abs(Math.round(s.funds)))}`;
   const month = net === null ? '' : `${net < 0 ? '−' : '+'}§${fmt(Math.abs(net))}`;
   return {
-    html: `<span class="r-num r-money"><b>${cash}</b>${month ? `<small class="${net! < 0 ? 'neg' : 'pos'}">월 ${month}</small>` : ''}</span>`,
+    html: `<span class="r-num r-money"><b>${cash}</b>${month ? `<small class="${net! < 0 ? 'neg' : 'pos'}">${month}<span> / 월</span></small>` : ''}</span>`,
     said: `자금 ${cash}${month ? ` · 지난달 수지 ${month}` : ' · 첫 결산 전'}`,
   };
 }
