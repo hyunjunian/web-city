@@ -302,7 +302,7 @@ label.check { display: flex; gap: 10px; align-items: center; cursor: pointer; }
 .muted { color: var(--muted); }
 .legend { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.5; text-wrap: pretty; }
 h3.sub { font-size: 12px; color: var(--muted); margin: 16px 0 8px; font-weight: 600; letter-spacing: 0.02em; }
-#info h3.sub { font-size: 13px; color: var(--text); font-weight: 700; margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); } /* the card's long list in parts */
+#info h3.sub { font-size: 13px; color: var(--text); font-weight: 700; margin-top: 18px; margin-bottom: 4px; padding-top: 12px; border-top: 1px solid var(--line); } /* the card's long list in parts */
 h3.sub .score { color: var(--text); font-size: 14px; font-weight: 700; margin-left: 2px; }
 h3.sub .score.neg { color: var(--danger-ink); }
 
@@ -604,7 +604,7 @@ kbd {
 
 /* A goal's screen takes the pane; the overview steps aside until it closes. */
 #manage { display: none; }
-#pane.managing #manage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; align-content: start; } /* (one column the pane's width: at 320px a wide line made it 19px wider, under the ×) */
+#pane.managing #manage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-content: start; } /* (one column the pane's width: at 320px a wide line made it 19px wider, under the ×) */
 /* A screen comes in faded, not slid: each is one of the city's (no deeper, no back), the city's own its button's. */
 #pane.managing #manage { animation: goal-in 0.18s var(--ease); }
 #pane:not(.managing) > #status { animation: goal-in 0.18s var(--ease); }
@@ -697,7 +697,7 @@ kbd {
   display: grid; justify-content: stretch; justify-items: start; gap: 2px; min-width: 0; padding: 8px 10px; text-align: left;
   background: var(--surface-2); border-radius: var(--r-md);
 }
-.act-best { margin-left: 2px; padding: 0 5px; border-radius: 999px; background: var(--good-soft); color: var(--good-ink); font-size: 10.5px; font-style: normal; font-weight: 650; }
+.act-best { margin-left: 2px; padding: 0 6px; border-radius: 999px; background: var(--good-soft); color: var(--good-ink); font-size: 10.5px; font-style: normal; font-weight: 700; line-height: 1.6; }
 .act-name { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 12.5px; font-weight: 600; line-height: 1.25; word-break: keep-all; }
 .act-name .i { flex: none; width: 15px; height: 15px; }
 .act-name .swatch { flex: none; width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
@@ -738,11 +738,11 @@ kbd {
 .fac-fund.dept-note { font-size: 11px; color: var(--muted); padding: 3px 8px; margin-right: 4px; white-space: nowrap; border-radius: 999px; background: var(--surface-2); }
 .mg-more { justify-self: start; font-size: 12.5px; }
 .mg-links { background: transparent; padding: 0 4px; gap: 4px; }
-.mg-links .link { display: inline-flex; align-items: center; gap: 4px; justify-self: start; font-size: 13px; }
+.mg-links .link { display: inline-flex; align-items: center; gap: 4px; justify-self: start; }
 /* (A section's lone link — 지역에서 이웃 고르기 — the size of the section's words, not a heading's.) */
-.mg-sec > button.link { display: inline-flex; align-items: center; gap: 3px; justify-self: start; font-size: 13px; }
-.mg-sec > button.link .i { width: 14px; height: 14px; }
-.mg-links .link .i { width: 14px; height: 14px; }
+.mg-sec > button.link { display: inline-flex; align-items: center; gap: 3px; justify-self: start; }
+.mg-sec > button.link .i { width: 14px; height: 14px; stroke-width: 2; }
+.mg-links .link .i { width: 14px; height: 14px; stroke-width: 2; }
 .mg-tax { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; }
 .mg-tax .tax-effect { grid-column: 1 / -1; font-size: 11.5px; }
 .mg-tax .tax-step { display: inline-grid; place-items: center; width: 28px; min-height: 28px; }
@@ -821,11 +821,12 @@ kbd {
 .advice .adv-i { width: 15px; height: 15px; margin-right: 5px; vertical-align: -3px; stroke-width: 2; }
 .advice-view {
   min-height: 26px; margin: 4px 4px 0 0; /* wrapped onto a line of their own they sit at its start */ padding: 2px 10px; border-radius: 999px; vertical-align: middle;
-  background: var(--surface-2); color: var(--text); font-size: 12px; font-weight: 600;
+  background: var(--surface-2); color: var(--accent-hi); font-size: 12px; font-weight: 600; /* (accent, as 찾아가기 and every other button to press) */
 }
 /* On a tinted advice card the pill is the card's surface (on a plain card, surface-2 above). */
 .advice .advice-view { background: var(--surface); }
-.advice-view .i { width: 13px; height: 13px; margin-right: 3px; stroke-width: 2.4; }
+.advice-view .i { width: 14px; height: 14px; margin-right: 3px; stroke-width: 2; } /* (a pill's icon: 14px at 2, as every pill's) */
+p > .advice-view { margin-top: 0; } /* (inline in a line of text: its top margin set it 2–3px below the line) */
 .growth .advice-view { background: var(--surface-2); }
 @media (hover: hover) { .growth .advice-view:hover { background: var(--surface-3); } }
 @media (hover: hover) { .advice-view:hover { background: var(--surface-3); } }
@@ -836,7 +837,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
   display: inline-flex; align-items: center; gap: 6px; justify-self: start; min-height: 30px; margin: 2px 0 4px; padding: 0 8px 0 10px;
   border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 12.5px; font-weight: 600;
 }
-.info-goal .i { width: 14px; height: 14px; }
+.info-goal .i { width: 14px; height: 14px; stroke-width: 2; }
 @media (hover: hover) { .info-goal:hover { filter: brightness(1.05); } }
 .advice-goal {
   display: inline-flex; align-items: center; gap: 2px; min-height: 26px; margin: 2px 0 0 2px; padding: 0 6px 0 9px; border-radius: 999px;
@@ -884,7 +885,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 /* (A plain list, not :is(): each keeps its own weight, so a finger's taller target below still overrides it.) */
 .steps .step-lay, .next-acts .next-send, .mg-links .link, .mg-sec > button.link, .funding.dept > button.link, button.advice-more, #seed-reroll {
   display: inline-flex; align-items: center; gap: 4px; width: auto; min-height: 28px; padding: 3px 12px; border-radius: 999px;
-  background: var(--accent-soft); color: var(--accent-hi); text-decoration: none; font-weight: 600; text-align: left;
+  background: var(--accent-soft); color: var(--accent-hi); text-decoration: none; font-size: 12.5px; font-weight: 600; text-align: left; /* (one size: 예산's 짓기 was 14px beside 13px and 12.5px ones) */
 }
 @media (hover: hover) { .steps .step-lay:hover, .next-acts .next-send:hover, .mg-links .link:hover, .mg-sec > button.link:hover, .funding.dept > button.link:hover, button.advice-more:hover, #seed-reroll:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); } }
 .steps .step-lay { justify-self: start; max-width: calc(100% - 36px); }
@@ -1370,7 +1371,7 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .ord-desc { display: block; margin-top: 2px; }
 .ord-goals { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
 .ord-goals .goal-tag { margin-left: 0; }
-.ord-rec { margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 11px; font-weight: 650; font-style: normal; vertical-align: 1px; }
+.ord-rec { margin-left: 4px; padding: 0 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 10.5px; font-weight: 700; font-style: normal; line-height: 1.6; vertical-align: 1px; } /* (추천 as on an action card and a tile) */
 .ordinance.muted { cursor: default; }
 .loan-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; font-size: 13px; }
 .loan-row select { flex: 1; min-width: 0; }
@@ -1751,7 +1752,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 #ask-dialog .ask-text { margin: 0; font-size: 15px; line-height: 1.55; }
 #text-dialog { width: min(400px, calc(100vw - 32px)); }
 #text-dialog .ask-title { margin: 0 0 4px; font-size: 20px; }
-.advice-more { display: block; margin: 10px 0 0; font-size: 13px; }
+.advice-more { display: block; margin: 10px 0 0; }
 /* A sheet's title takes focus when it opens (for screen readers), not to be ringed. */
 [tabindex='-1']:focus { outline: none; }
 #overlay-legend[data-title]::before { content: attr(data-title); display: block; color: var(--text); font-weight: 600; } /* a heading line (a trailing · hung at line ends) */
@@ -1814,7 +1815,12 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 #pane .watch-card { padding-left: 0; padding-right: 0; }
 #pane .mg-head { background: var(--surface); }
 #pane .mg-m { background: var(--surface-2); }
-#pane .mg-sec { background: transparent; border-radius: 0; padding: 14px 0 4px; border-top: 1px solid var(--line); }
+#pane .mg-sec { background: transparent; border-radius: 0; padding: 16px 0 0; border-top: 1px solid var(--line); } /* (16px either side of every divider: the gap above it, this below) */
+#graphs:has(> .graph:not(.off):not([hidden])) { margin-bottom: -12px; } /* (the last graph's own margin: 28–33px stood above the next divider) */
+#graphs:has(> .graph:not(.off):not([hidden])) ~ .gs:not([hidden]):not(.gs:not([hidden]) ~ .gs) { margin-top: 6px; } /* (and the report under them: 10px above its divider, 16px below) */
+#pane .mg-sec > details.acts-more:last-child:not([open]) { margin-bottom: -6px; } /* (다른 선택 N개 closing a section: its row's padding made 25px above the divider) */
+#pane.managing .mg-usage { margin-bottom: 0; } /* (the screen's gap is under it already) */
+.mg-sec > h3 + .acts-more { margin-top: 0; } /* (조례 over its only fold: 23px from heading to row) */
 /* The app sheet, likewise: one surface, its sections ruled by hairlines. */
 #sheet { background: var(--surface); }
 #sheet [data-pane] > .card { background: transparent; border-radius: 0; margin: 0; padding: 16px 4px 18px; border-top: 1px solid var(--line); }
@@ -1894,7 +1900,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .score-stage { display: flex; align-items: center; gap: 6px; color: var(--accent-hi); }
 .score-stage .i { width: 17px; height: 17px; }
 .score-stage b { font-size: 15px; font-weight: 750; letter-spacing: -0.01em; }
-.score-stage span { padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); font-size: 11px; font-weight: 650; }
+.score-stage span { padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); font-size: 11.5px; font-weight: 650; } /* (the rail's stage pill's size) */
 .score-main { display: flex; align-items: baseline; gap: 4px; }
 .score .sum-value { font-size: 40px; }
 .score-unit { font-size: 15px; font-weight: 600; color: var(--muted); }
@@ -2083,7 +2089,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* The kind a short service would build first: marked 추천 (its goal's screen says why). */
 .tile.suggested { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent); }
 .tile.suggested.active { box-shadow: inset 0 0 0 2px var(--accent); }
-.tile.suggested::before { content: '추천'; position: absolute; top: 3px; right: 3px; padding: 0 4px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 10px; font-weight: 700; line-height: 1.6; } /* (in its corner, where a tool's key goes: a facility has none; clear of the icon) */
+.tile.suggested::before { content: '추천'; position: absolute; top: 3px; right: 3px; padding: 0 5px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 10.5px; font-weight: 700; line-height: 1.6; } /* (in its corner, where a tool's key goes: a facility has none; clear of the icon) */
 .tile-more:not([data-more])[aria-expanded='true'] .tile-icon .i { transform: rotate(180deg); } /* (접기: the chevron up — not the locked kinds' padlock) */
 #tool-chip-label { background: transparent; color: inherit; min-height: 0; font-weight: 400; border: 0; }
 /* Siblings cut off by a narrow bar fade at that edge (a swipe brings them in). */
@@ -2271,6 +2277,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .fac-line, .fac-line b { font-weight: 400; } /* (the button's bold reached its figures) */
 /* A goal's figures: a ruled grid, not eight grey boxes; colour only on a figure that is off. */
 #pane .mg-metrics { gap: 0 18px; }
+#pane.managing .mg-metrics { margin-bottom: -8px; } /* (its last row's own padding: the divider under it stood 27px off, not 16px) */
+#city-people #goal-stats { margin-top: 6px; } /* (in the city's card, under its figures: 11px above the divider, 17px below) */
 #pane .mg-m { background: transparent; border-radius: 0; padding: 9px 0 8px; border-top: 1px solid var(--line); }
 #pane .mg-m:nth-child(-n + 2) { border-top: 0; padding-top: 2px; }
 /* A name too long for its half wraps whole (치안·소방에 불만 없… hid its point), and the pair beside it keeps its figure on the
@@ -2400,7 +2408,7 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
 /* An emergency (a fire, a riot) over 도시 상태, and a goal screen's 추천 조치 at its top. */
 .quality > .lead { margin-bottom: 10px; }
 .quality > .chips.alerts { margin-bottom: 8px; }
-.mg-guide { margin: 4px 0 2px; }
+.mg-guide { margin: 0; }
 .mg-guide .lead-risk, .mg-guide .lead-do, .mg-guide .next-acts { margin-left: 24px !important; }
 
 /* ------------------------------------------------------------------ a goal screen's 추천 조치 */
