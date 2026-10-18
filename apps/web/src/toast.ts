@@ -2,7 +2,7 @@
 // disasters, My Sims news); the full list stays in the city pane.
 
 import { chooseSpeed, runningSpeed } from './controls';
-import { icon } from './icons';
+import { icon, type IconName } from './icons';
 import { centerOn, redraw, renderer, speed } from './state';
 import { paneShown, revealMap } from './tabs';
 import { glue } from './util';
@@ -104,8 +104,9 @@ function holdUnder(box: HTMLElement, held: boolean): void {
   }
 }
 
-/** `at`: a tile the notice is about; clicking the notice then shows it. `goal`: the screen it opens, to put it away when that opens. */
-export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'good', at?: [number, number], open?: () => void, sticky = false, label?: string, goal?: string, unread = true): void {
+/** `at`: a tile the notice is about; clicking the notice then shows it. `goal`: the screen it opens, to put it away when that opens.
+ *  `glyph`: its own icon instead of the tone's. */
+export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'good', at?: [number, number], open?: () => void, sticky = false, label?: string, goal?: string, unread = true, glyph?: IconName): void {
   const box = document.querySelector('#toasts');
   if (!box) return;
   // The same words about the same place already showing: not again (picking two checklist steps stacked two of
@@ -124,8 +125,8 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
   // A tone badge, the text (its subject in bold: "수요: …"), and a chevron when it leads somewhere.
   const badge = document.createElement('span');
   badge.className = 'toast-badge';
-  // (gold: a milestone the city reached, with the stage's trophy; news that is neither good nor bad: no award)
-  badge.innerHTML = icon(tone === 'bad' ? 'alert' : tone === 'info' ? 'info' : tone === 'gold' ? 'trophy' : 'award');
+  // (gold: a milestone the city reached — with the new stage's city, given; news that is neither good nor bad: no award)
+  badge.innerHTML = icon(glyph ?? (tone === 'bad' ? 'alert' : tone === 'info' ? 'info' : tone === 'gold' ? 'trophy' : 'award'));
   const body = document.createElement('span');
   body.className = 'toast-text';
   // (The stopped clock is said by the 계속 button, not in words at the end.)

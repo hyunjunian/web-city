@@ -1,6 +1,7 @@
 // Line icons for the interface (lucide, ISC licence), as inline SVG strings so
-// templates can use them. A few road icons lucide doesn't have are drawn here
-// in the same 24-unit, round-stroke style. Size and stroke come from CSS (.i).
+// templates can use them. A few icons lucide doesn't have (roads, a pipe, the
+// player's buttons, the city's stages) are drawn here in the same 24-unit,
+// round-stroke style. Size and stroke come from CSS (.i).
 
 import {
   ArrowDownToLine, Scan, ArrowLeft, ArrowUpDown, Target, ArrowUpFromLine, Award, Building2, Bus, Cable, CableCar, ChartLine, Check, ChevronDown, ChevronRight,
@@ -27,6 +28,28 @@ const PLAY: IconNode = [solid('M8.5 6v12l9-6z')];
 const PLAY2: IconNode = [solid('M3.5 7v10l7.5-5z'), solid('M12.5 7v10l7.5-5z')];
 const PLAY3: IconNode = [solid('M1.5 8.5v7l5.5-3.5z'), solid('M9.25 8.5v7l5.5-3.5z'), solid('M17 8.5v7l5.5-3.5z')];
 const ELEVATED: IconNode = [line('M2 8h20'), line('M2 12h20'), line('M6 12v9'), line('M18 12v9'), line('M12 12v9')];
+/** The city's stages (panels.ts), 마을 to 메트로폴리스: its skyline on one ground line, growing with them — a house by
+ *  a tree, two houses, a steeple between houses, a block by it, then mid-rises, towers, and a spire among towers. */
+const GROUND = line('M2 21h20');
+const STAGE1: IconNode = [GROUND, line('M2.5 21v-7l4.5-4 4.5 4v7'), line('M7 16.5h.01'),
+  line('M15.5 18a2.5 2.5 0 0 1-.9-4.8 2.6 2.6 0 0 1 5-1 2.5 2.5 0 0 1 1.9 4.3A2.5 2.5 0 0 1 19.5 18z'), line('M17.5 18v3')];
+const STAGE2: IconNode = [GROUND, line('M3.5 21v-8l5-4.5 5 4.5v8'), line('M13.5 16l3.5-3 3.5 3v5'), line('M8.5 16h.01'), line('M17 18h.01')];
+const STAGE3: IconNode = [GROUND, line('M9.5 21V11l2.5-6 2.5 6v10'), line('M2.5 21v-5l3.5-3 3.5 3'), line('M14.5 16l3.5-3 3.5 3v5'), line('M12 14h.01')];
+const STAGE4: IconNode = [GROUND, line('M2.5 21V12a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v9'), line('M5.5 14h3'), line('M5.5 17.5h3'),
+  line('M11.5 21V11l2.5-6 2.5 6v10'), line('M16.5 16l2.5-2.5 2.5 2.5v5')];
+const STAGE5: IconNode = [GROUND, line('M2.5 21v-7a1 1 0 0 1 1-1H8'), line('M8 21V7a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v14'), line('M10.5 9.5h3'),
+  line('M10.5 13h3'), line('M10.5 16.5h3'), line('M16 16l2.75-2.5 2.75 2.5v5')];
+const STAGE6: IconNode = [GROUND, line('M3 21V8a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v13'), line('M5.5 10.5h2'), line('M5.5 14h2'), line('M5.5 17.5h2'),
+  line('M10 21v-6h4'), line('M14 21V11a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v10'), line('M16.5 13.5h2'), line('M16.5 17h2')];
+const STAGE7: IconNode = [GROUND, line('M2.5 21v-9a1 1 0 0 1 1-1H8'), line('M8 21V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v17'), line('M10.5 6.5h3'),
+  line('M10.5 10h3'), line('M10.5 13.5h3'), line('M10.5 17h3'), line('M16 13h4.5a1 1 0 0 1 1 1v7')];
+const STAGE8: IconNode = [GROUND, line('M2.5 21V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v16'), line('M5.5 7.5v.01'), line('M5.5 11v.01'), line('M5.5 14.5v.01'),
+  line('M8.5 21v-8h3'), line('M11.5 21V8a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v13'), line('M14.5 10.5v.01'), line('M14.5 14v.01'), line('M17.5 21v-6h3a1 1 0 0 1 1 1v5')];
+const STAGE9: IconNode = [GROUND, line('M2.5 21V9a1 1 0 0 1 1-1H7'), line('M7 21V7l2.5-2.5V2'), line('M9.5 4.5 12 7v14'), line('M12 21V9.5h3'),
+  line('M15 21V6a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v15'), line('M9.5 10v.01'), line('M9.5 13.5v.01'), line('M9.5 17v.01'), line('M18 8.5v.01'), line('M18 12v.01'), line('M18 15.5v.01')];
+const STAGE10: IconNode = [GROUND, line('M2 21v-7a1 1 0 0 1 1-1h2'), line('M5 21V7a1 1 0 0 1 1-1h3.5'), line('M9.5 21V5.5L12 3V1.5'), line('M12 3l2.5 2.5V21'),
+  line('M14.5 8.5H18a1 1 0 0 1 1 1V21'), line('M19 15h2a1 1 0 0 1 1 1v5'), line('M7.5 9v.01'), line('M7.5 12.5v.01'), line('M7.5 16v.01'),
+  line('M12 8v.01'), line('M12 11.5v.01'), line('M12 15v.01'), line('M16.75 11.5v.01'), line('M16.75 15v.01')];
 
 const ICONS = {
   // Dock, top bar and panels
@@ -41,10 +64,14 @@ const ICONS = {
   help: CircleHelp, maximize: Maximize2, minimize: Minimize2, panelClose: PanelLeftClose, panelOpen: PanelLeftOpen, moon: Moon, moonStar: MoonStar, sun: Sun, more: Ellipsis, car: Car, plane: Plane, ship: Ship, briefcase: Briefcase, trendDown: TrendingDown, save: Save, folder: FolderOpen, download: Download, upload: Upload, camera: Camera, sheet: FileSpreadsheet, pencil: Pencil, theme: SunMoon, dice: Dices, filePlus: FilePlus, pause: PAUSE, play: PLAY, play2: PLAY2, play3: PLAY3, flameKindling: FlameKindling, lightning: CloudLightning, sparkles: Sparkles, quake: Activity, volcano: MountainSnow, bot: Bot, bug: Bug, ufo: Orbit, hammer: Hammer, apps: LayoutDashboard,
   plus: Plus, minus: Minus, fit: Scan, close: X, check: Check, lock: Lock, chevronDown: ChevronDown, chevronRight: ChevronRight,
   back: ArrowLeft, target: Target,
+  stage1: STAGE1, stage2: STAGE2, stage3: STAGE3, stage4: STAGE4, stage5: STAGE5, stage6: STAGE6, stage7: STAGE7, stage8: STAGE8, stage9: STAGE9, stage10: STAGE10,
   wind: Wind, alert: TriangleAlert, megaphone: Megaphone, walk: Footprints,
 } satisfies Record<string, IconNode>;
 
 export type IconName = keyof typeof ICONS;
+
+/** The icon of the city's stage `step` (counted from 1, panels.ts stageOf): the city as far as it has grown. */
+export const stageIcon = (step: number): IconName => `stage${Math.max(1, Math.min(10, Math.round(step)))}` as IconName;
 
 const esc = (v: string | number) => String(v).replace(/"/g, '&quot;');
 

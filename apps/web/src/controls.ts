@@ -56,7 +56,7 @@ export function showHelp(): void {
   // under them — in the middle wide, across a phone's top.)
   const build = '아래 막대';
   const menuAt = wide ? '위 가운데의 <b>메뉴</b>(⋯)' : '화면 위 오른쪽의 <b>메뉴</b>(⋯)';
-  const cityAt = wide ? '왼쪽 맨 위의 <b>도시 버튼</b>(트로피와 도시 이름·단계·인구)' : '화면 위 왼쪽의 <b>도시 버튼</b>(트로피와 도시 이름·단계)';
+  const cityAt = wide ? '왼쪽 맨 위의 <b>도시 버튼</b>(단계마다 커지는 도시 그림과 도시 이름·단계·인구)' : '화면 위 왼쪽의 <b>도시 버튼</b>(단계마다 커지는 도시 그림과 도시 이름·단계)';
   // (The areas' buttons: down the map's left wide, a row of chips under a phone's top buttons.)
   const areasAt = wide ? '왼쪽 줄의 분야 버튼' : '화면 위 둘째 줄의 분야 칩';
   const map = touch

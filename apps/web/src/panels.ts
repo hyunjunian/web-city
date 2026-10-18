@@ -1,7 +1,7 @@
 // The side panel refresh: demand, budget, departments, loans and advisor notices.
 
 import { DEV_TYPES, type DevType, GROWTH_CODES, STRUCTURES, ZONES, type PollTopic, type StructureKind } from '@web-city/engine';
-import { icon } from './icons';
+import { icon, stageIcon } from './icons';
 import { chooseSpeed, fitMapbar, markDate, markPaneClock, markStage, refreshTaxes, refreshViewSummary } from './controls';
 import { goalOfAdvice, type GoalId, GOALS } from './goals';
 import { adviceFor, capped as atCap, cityMetrics, deptEmpty, deptFunded, freshLandfill, newReadings, readStats, stormHolds } from './readings';
@@ -137,7 +137,8 @@ function checkMilestone(population: number): void {
   if (reached > milestone) {
     const text = `인구 ${fmt(reached)}명을 넘어 ${city.state.name}${josa(city.state.name, '이', '가')} '${STAGES.find(([m]) => m === reached)![1]}'${josa(STAGES.find(([m]) => m === reached)![1], '이', '가')} 되었습니다!`;
     pushNotice({ text, until: city.state.day + 90 });
-    toast(text, 'gold'); // (in the stage's gold, with its trophy: the reward the pane's headline counts toward)
+    // (In the stage's gold, with the city as the new stage draws it: the city button's icon from now on.)
+    toast(text, 'gold', undefined, undefined, false, undefined, undefined, true, stageIcon(STAGES.findIndex(([m]) => m === reached) + 1));
   }
   milestone = Math.max(milestone, reached);
 }
@@ -230,7 +231,7 @@ function stalled(): string {
 function scoreboard(population: number, trend: string): string {
   const { name, step, next, share } = stageOf(population);
   return `<div class="summary score" title="도시 단계는 주거 인구로 매깁니다: ${STAGES.map(([n, t]) => `${t} ${fmt(n)}`).join(' · ')}">
-    <p class="score-stage">${icon('trophy')}<b>${name}</b><span>${step}단계</span></p>
+    <p class="score-stage">${icon(stageIcon(step))}<b>${name}</b><span>${step}단계</span></p>
     <p class="score-main"><span class="sum-value">${fmt(population)}</span><span class="score-unit">명</span>${trend}</p>
     <span class="score-bar"><i style="width:${(share * 100).toFixed(1)}%"></i></span>
     <p class="score-next">${next ? `<span>다음 단계 <b>${next[1]}</b>까지 ${fmt(next[0] - population)}명${stalled()}</span><span class="score-pct">${Math.floor(share * 100)}%</span>` : '<span>가장 높은 단계에 올랐습니다</span>'}</p></div>`;
@@ -425,6 +426,12 @@ export function updatePanels(): void {
     $('#city-pop').textContent = fmt(st.population);
     $('#city-next').innerHTML = stage.next ? `<span>${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명</span><b>${pct}%</b>` : '<span>가장 높은 단계</span>';
     const btn = $('#btn-city');
+    // Its icon: the city as its stage draws it (a house by a tree at first, a spire among towers at the last).
+    const glyph = btn.querySelector(':scope > svg.i');
+    if (glyph && btn.dataset.stage !== `${stage.step}`) {
+      btn.dataset.stage = `${stage.step}`;
+      glyph.outerHTML = icon(stageIcon(stage.step));
+    }
     btn.style.setProperty('--share', `${(stage.share * 100).toFixed(1)}%`);
     btn.title = `${city.state.name}: ${stage.name}(${stage.step}단계) · 인구 ${fmt(st.population)}명${stage.next ? ` · 다음 단계 ${stage.next[1]}까지 ${fmt(stage.next[0] - st.population)}명 (${pct}%)` : ' · 가장 높은 단계'} · 금색 선은 다음 단계까지 온 만큼 · 눌러서 인구 화면 열기·닫기 (소득별 인구·일자리·나이·보상, 지도에는 개발 막힘 · 다른 화면에서는 이 화면으로)`;
     btn.setAttribute('aria-label', `${city.state.name}, ${stage.name} ${stage.step}단계, 인구 ${fmt(st.population)}명${stage.next ? `, 다음 단계까지 ${pct}%` : ''} · 인구 화면`);

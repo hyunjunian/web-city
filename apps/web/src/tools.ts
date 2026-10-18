@@ -2,10 +2,11 @@
 // (facility pickers and extras included) and keyboard shortcuts.
 
 import { DEFAULT_CONFIG, DEV_TYPES, DISASTER_KINDS, type DisasterKind, type NetworkKind, type StructureKind, STRUCTURES, ZONING_COST_HIGH_COMMERCIAL, type ZoneKind } from '@web-city/engine';
-import { icon, type IconName } from './icons';
+import { icon, type IconName, stageIcon } from './icons';
 import { hoverUnderMouse, setPreview, updatePreview } from './input';
 import { baseView, goalTools, markToolSite, nextStep, openCity, openGoal, suggestedKinds } from './manage';
 import { firstStepTool } from './onboarding';
+import { stageOf } from './panels';
 import { DISASTER_NAME, plainCodes, STRUCTURE_NAME } from './names';
 import { holdForBuilding, isHeld, showHelp, showOverlay, viewProblem } from './controls';
 import { structureMark } from './render';
@@ -1202,7 +1203,7 @@ const SCREEN_WORDS: Record<GoalId, string> = {
  * off the web screen for now.)
  */
 function screens(): Found[] {
-  const out: Found[] = [{ key: 'screen:city', name: '인구', where: '도시 화면 (G)', glyph: icon('trophy'), sub: '', locked: '',
+  const out: Found[] = [{ key: 'screen:city', name: '인구', where: '도시 화면 (G)', glyph: icon(stageIcon(stageOf(city.stats().population).step)), sub: '', locked: '',
     words: '인구 주민 일자리 실업 일하는 소득별 나이 보상 건물 버려진 빈구역 개발막힘 도시 단계', pick: () => openCity() }];
   out.push(...GOAL_ORDER.map((id) => ({
     key: `screen:${id}`, name: GOALS[id].name, where: '관리 화면', glyph: icon(GOALS[id].icon), sub: '', locked: '',

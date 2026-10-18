@@ -2143,7 +2143,7 @@ p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { 
 .act.wanted:not(.best) { box-shadow: none; }
 .act.wanted:not(.best) .act-sub { color: var(--good-ink); font-weight: 600; }
 .overlay-sum.good { color: var(--good-ink); font-weight: 500; } /* all well, said calmly; a gap is the bold red line */
-.score-bar i { background: var(--gold); } /* progress to the next stage, in the trophy's gold (blue is for what to press) */
+.score-bar i { background: var(--gold); } /* progress to the next stage, in the stage icon's gold (blue is for what to press) */
 /* Searching: the card shows what was found across categories, so no category stays lit on the bar. */
 #view:has(#tray:not([hidden]) #tray-results:not([hidden])) .dock-btn.open { background: transparent; color: var(--muted); }
 #tray:has(#tray-results:not([hidden])) .tray-cat.open { background: transparent; color: var(--muted); } /* (a phone's tabs in the card, the same) */
@@ -2737,7 +2737,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #app.pane-open #rail :is(#btn-city, #goal-strip button, #city-rows button) > .i { justify-self: center; }
   #app.pane-open #rail :is(#goal-strip > button, .amenity-card > button, #city-rows > button).warn > .i { color: var(--warn); } /* (the one lit keeps its accent) */
   #app.pane-open #rail :is(#goal-strip > button, .amenity-card > button, #city-rows > button).bad > .i { color: var(--danger); }
-  /* (The city's bar stands up under its trophy there, filling from below.) */
+  /* (The city's bar stands up under its stage icon there, filling from below.) */
   #app.pane-open #rail #btn-city::before {
     content: ''; position: absolute; top: 46px; bottom: 14px; left: 50%; width: 6px; margin-left: -3px; border-radius: 999px;
     background: linear-gradient(to top, var(--gold) var(--share, 0%), color-mix(in srgb, var(--gold) 20%, transparent) var(--share, 0%));
