@@ -11,7 +11,8 @@ describe('Korean line breaks held together', () => {
   });
   it('keeps the halves of a 가·나 pair together, not a spaced list', () => {
     expect(shown(glue('병원·보건소가 있습니다'))).toBe('병원+·+보건소가 있습니다');
-    expect(glue('§130 · 월 §15')).toBe('§130 · 월 §15');
+    // (A spaced list still breaks after its dot, never before it: the dot stays with the item it follows.)
+    expect(glue('§130 · 월 §15')).toBe('§130\u00a0· 월 §15');
   });
   it('leaves code-like text alone and is safe to apply twice', () => {
     expect(glue('rgb(1,2,3)')).toBe('rgb(1,2,3)');

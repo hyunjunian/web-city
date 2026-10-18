@@ -222,7 +222,7 @@ export const firstSentence = (t: string) => /^.*?[.!?](?=\s|$)/.exec(t)?.[0] ?? 
  * the particle after it ("상한(21,560명)에" put "에 닿았습니다" at the start of a line), an opening one with the
  * word before it, and the halves of a 가·나 pair ("병원·" ended a line, "보건소가" began the next).
  */
-export const glue = (t: string) => t.replace(/\)(?=[가-힣])/g, ')\u2060').replace(/([가-힣\d%])(?=\()/g, '$1\u2060').replace(/([가-힣])·(?=[가-힣])/g, '$1\u2060·\u2060');
+export const glue = (t: string) => t.replace(/\)(?=[가-힣])/g, ')\u2060').replace(/([가-힣\d%])(?=\()/g, '$1\u2060').replace(/([가-힣])·(?=[가-힣])/g, '$1\u2060·\u2060').replace(/ · /g, '\u00a0· '); // (a spaced · stays with the words before it: a line never starts with it)
 
 /** Said when the clock was stopped for something (a toast's tail): a phone's speeds are in its date's button. */
 export const stoppedNote = () => ` · 멈춤 (${!touchFirst() ? 'Space로 계속' : matchMedia('(max-width: 860px)').matches ? '시간 버튼에서 계속' : '▶로 계속'})`;

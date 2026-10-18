@@ -17,7 +17,7 @@ import { cam, centerOn, city, drag, fitCamera, glideTo, hover, mapBand, overlay,
 import { drive, SPECIAL } from './udi';
 import { closeTopLayer, dismissPane, toggleSheet } from './tabs';
 import { chosen, closeTray, openFind, previousTool, stepAlt, refreshToolChip, selectTool, STATION_HINT, tool, TOOL_KEYS, toolName, toolUsed, refreshEdgeHint } from './tools';
-import { $, ask, askText, escapeHtml, keyForControl, onHintRestore, flash, flashing, fmt, josa, touchFirst, flashYields, endFlash } from './util';
+import { $, ask, askText, escapeHtml, keyForControl, onHintRestore, flash, flashing, fmt, glue, josa, touchFirst, flashYields, endFlash } from './util';
 
 /** What each cheat did, for the toast. */
 const CHEAT_DONE: Record<string, string> = {
@@ -242,7 +242,7 @@ export function updatePreview(): void {
   const hint = { set textContent(v: string) {
     if (besidePointer) chipText = v;
     else if (!flashing() || drag) {
-      bar.textContent = v;
+      bar.textContent = glue(v);
       delete bar.dataset.tone;
     }
   } };

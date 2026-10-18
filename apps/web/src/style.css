@@ -1040,7 +1040,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
   background: var(--float); border: 1px solid var(--line); border-radius: 19px; box-shadow: var(--shadow-sm); /* a pill on one line, not a stretched capsule on three */
   -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
   font-size: 13.5px; line-height: 1.45; text-align: center; word-break: keep-all; font-variant-numeric: tabular-nums; pointer-events: none;
-  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow: clip; overflow-clip-margin: content-box; max-height: calc(4.35em + 18px); /* no sliver of a 4th line in the padding */
+  display: block; text-wrap: balance; overflow: hidden; overflow: clip; overflow-clip-margin: content-box; max-height: calc(4.35em + 18px); /* three whole lines at most, no sliver of a 4th in the padding; balanced (a clamped -webkit-box can't be: two lines left a word or two alone on the second) */
 }
 #hint:empty { display: none; }
 /* Wide, with a building's card open: what stands over the bar keeps to the map between the pane and the card (in line
@@ -1580,14 +1580,14 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
     transition: transform 0.26s var(--ease), visibility 0s 0.26s;
   }
   #app.pane-open #pane { transform: none; visibility: visible; transition: transform 0.26s var(--ease); }
-  .pane-grip { display: block; position: absolute; top: 9px; left: 50%; width: 40px; height: 5px; margin-left: -20px; border-radius: 3px; background: var(--surface-3); }
+  .pane-grip { display: block; position: absolute; top: 9px; left: 50%; z-index: 5; width: 40px; height: 5px; margin-left: -20px; border-radius: 3px; background: var(--surface-3); } /* (over a screen's sticky head too: it covered the grip there, so a goal's sheet showed none) */
   /* The clock in the grip's row, while the top buttons are away under the pane: time went on unseen behind an
      area's screen (a month in four seconds at 빠르게). */
-  /* (Stuck at the sheet's top as the × is, 4px from its edge: placed in the padding it scrolled away with the rows.
+  /* (Stuck at the sheet's top as the × is, 9px from its edge: placed in the padding it scrolled away with the rows.
      First in the column, taking no room from it: its margins and the column's 14px gap cancel its height.) */
   .pane-clock {
-    display: inline-flex; flex: none; align-items: center; gap: 4px; position: sticky; top: -22px; order: -4; align-self: flex-start; z-index: 4;
-    height: 20px; min-height: 0; margin: -22px 0 -12px; padding: 0 9px 0 7px; border-radius: 999px; /* (on the pane's edge, as its rows) */
+    display: inline-flex; flex: none; align-items: center; gap: 4px; position: sticky; top: -18px; order: -4; align-self: flex-start; z-index: 4;
+    height: 20px; min-height: 0; margin: -18px 0 -16px; padding: 0 9px 0 7px; border-radius: 999px; /* (on the pane's edge, as its rows; 9px from its top, clear of the 22px corner: at 5px it seemed to touch the border) */
     background: var(--surface-2); color: var(--muted); box-shadow: var(--shadow-sm);
     font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap;
   }
@@ -1689,7 +1689,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #app.pane-open #hint { left: calc(max(8px, env(safe-area-inset-left)) + min(380px, 50%) + 10px); right: 10px; width: auto; max-width: none; transform: none; }
   #app.pane-open #toasts { left: calc(max(8px, env(safe-area-inset-left)) + min(380px, 50%) + 10px); width: auto; right: 84px; }
   .mg-head { top: -18px; margin-top: -44px; padding-top: 36px; } /* this sheet's padding is 18px (and the clock's row) */
-  .pane-clock { top: -14px; margin-top: -14px; margin-bottom: -16px; } /* (4px from the edge here too; this column's gap is 10px) */
+  .pane-clock { top: -10px; margin-top: -10px; margin-bottom: -20px; } /* (8px from the edge here too; this column's gap is 10px) */
   .pane-close { top: 7px; margin-top: -8px; margin-bottom: -24px; } /* (and so the ×'s insets: its middle on the head's row) */
   #pane.managing .pane-close { top: 10px; }
   #view.info-open #toasts, #view.sheet-open #toasts, #view:has(#tray:not([hidden])) #toasts { width: calc(100% - min(420px, 58%) - 92px); } /* (the tools card and 지역 sheet there too: a notice ran under them, its › and time hidden) */
@@ -1741,7 +1741,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   /* The pane head's 지역 › 도시 이름 and the info card's foot: a finger's height, as the buttons round them. */
   .place-link { height: 40px; }
   .info-own .info-goal, .info-own .info-bulldoze { min-height: 40px; }
-  #hint { -webkit-line-clamp: 4; max-height: calc(5.8em + 18px); }
+  #hint { max-height: calc(5.8em + 18px); } /* (four lines) */
 }
 
 /* A drag that starts on the tray must not select its text. */
@@ -2303,7 +2303,7 @@ input[type='range']:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px 
 input[type='range']:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent-hi); }
 details > summary:focus-visible { border-radius: var(--r-sm); }
 /* No lone word on a last line ("… 3,816 / 더"): short texts wrap evenly. */
-p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #hint, #confirm-text { text-wrap: pretty; }
+p, .rw-left, .lead-risk, .lead-do, .advice, .toast-text, #confirm-text { text-wrap: pretty; } /* (#hint balances: see its rule) */
 /* All well: the card is calm (neutral, its check green), not a green block asking to be read. */
 .lead.calm { background: var(--surface-2); }
 .lead.calm .lead-title { color: var(--text); }
@@ -3008,6 +3008,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 
   /* 전체 보기 under the rows' right end; the view's card and the notices under their left. */
   #map-controls { top: calc(var(--bar-h) + 8px); right: max(8px, env(safe-area-inset-right)); }
+  #map-zoom { border-radius: 14px; } #map-zoom #zoom-fit { width: 42px; } /* (the menu button's width and corners, right under it: 6px wider, it stood out of line) */
   #map-layer { top: calc(var(--bar-h) + 8px); left: max(8px, env(safe-area-inset-left)); right: 62px; width: auto; max-width: none; }
   /* (Under whatever hangs from the top rows: toast.ts measures it, as the view's card is as tall as its count.) */
   #toasts { top: var(--toasts-top, calc(var(--bar-h) + 8px)); bottom: auto; align-content: start; left: 8px; right: 64px; width: auto; animation: none; } /* (clear of 전체 by a gap, not 1px) */
@@ -3040,7 +3041,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #tool-chip #tool-alts:empty { display: none; }
   #tool-chip #tool-alts { flex: 1 1 0; padding-left: 4px; border-left: 0; }
   #tool-chip #tool-chip-close { width: 34px; height: 34px; }
-  #view:has(#tool-chip:not([hidden])) #hint { bottom: calc(var(--bb) + 60px); }
+  #hint { max-width: min(600px, calc(100% - 16px)); } /* (the tool bar's and the build bar's edges: 8px in, not 16px) */
+  #view:has(#tool-chip:not([hidden])) #hint { bottom: calc(var(--bb) + 66px); } /* (10px over the tool bar: at 4px their shadows ran together) */
   #view:has(#tray:not([hidden])) #hint { display: none; } /* (it peeked out under the card) */
 
   /* A sheet up — the city pane or an area's screen, the tools, a building's card, 지역 — the top rows go off the screen
@@ -3092,6 +3094,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   /* (The chips after the three buttons, as Tab goes: they take what the buttons leave.) */
   #goal-strip:not([hidden]) { flex: 1 1 0; margin: -4px -8px -10px 0; padding: 4px 8px 10px 2px; }
   #btn-time .time-glyph { width: 28px; height: 28px; }
+  /* (The clock left of the middle here: its card hangs from its left edge, not its right — from the right, 멈춤 was off the screen.) */
+  #clock .mb-time.open .gear { right: auto; left: -1px; }
+  #btn-city.unread { padding-right: 20px; } /* (the button as wide as its words here: the dot sat on the stage's tag) */
   #dock-col { bottom: calc(env(safe-area-inset-bottom) + 6px); }
   #dock { height: 50px; border-radius: 15px; }
   .dock-btn { width: auto; flex-direction: row; gap: 6px; padding: 0 10px; border-radius: 11px; }
