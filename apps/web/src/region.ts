@@ -243,13 +243,13 @@ export function renderNeighbours(): void {
     sel.onchange = async () => {
       const edge = Number(sel.dataset.edge) as 0 | 1 | 2 | 3;
       // Only a developed neighbour trades: other kinds end the edge's deals (say so first).
-      const deals = city.state.neighbourDeals.filter((d) => d.edge === edge).length;
-      if (sel.value !== 'developed' && deals && !(await ask(`${EDGE_NAME[edge]} 이웃과의 거래 ${deals}건이 취소됩니다. 바꿀까요?`, '거래 취소하고 바꾸기'))) {
+      const ending = city.state.neighbourDeals.filter((d) => d.edge === edge).length;
+      if (sel.value !== 'developed' && ending && !(await ask(`${EDGE_NAME[edge]} 이웃과의 거래 ${ending}건이 취소됩니다. 바꿀까요?`, '거래 취소하고 바꾸기'))) {
         sel.value = city.state.neighbours[edge]!.kind;
         return;
       }
       choice('이웃', () => city.setNeighbour(edge, sel.value as 'simnation' | 'established' | 'developed'));
-      if (deals && sel.value !== 'developed') flash(`${EDGE_NAME[edge]} 이웃과의 거래 ${deals}건을 취소했습니다`);
+      if (ending && sel.value !== 'developed') flash(`${EDGE_NAME[edge]} 이웃과의 거래 ${ending}건을 취소했습니다`);
       city.refreshIfDirty();
       neighbourSignature = '';
       neighbourKey = '';
