@@ -1380,7 +1380,7 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .graph canvas { display: block; width: 100%; background: var(--surface-2); border-radius: var(--r-sm); cursor: crosshair; }
 .graph-key { margin-left: 6px; color: var(--muted); font-size: 11.5px; white-space: nowrap; }
 .graph-key i { display: inline-block; width: 10px; height: 2px; margin: 0 3px 0 4px; vertical-align: middle; }
-.graph-key i.dash { height: 0; border-top: 2px dashed; background: none; }
+.graph-key i.dash { width: 14px; background: repeating-linear-gradient(90deg, currentColor 0 4px, transparent 4px 7px); } /* (the plot's own dashes, 4 on and 3 off: a 10px dashed border drew one solid dash) */
 
 /* Polls, ages, reward progress, wealth tables */
 .poll-row { display: grid; grid-template-columns: 68px minmax(0, 1fr) 42px; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }

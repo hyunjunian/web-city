@@ -106,6 +106,8 @@ const spanText = (from: number, to: number) => {
 
 export class Graphs {
   private hover: { key: string; index: number } | null = null;
+  /** Where each graph's plot starts, right of its axis' labels (a pointer's month is read from there). */
+  private plotLeft = new Map<string, number>();
   private lastLength = -1;
   private history: readonly HistoryPoint[] = [];
 
@@ -127,7 +129,7 @@ export class Graphs {
       ${RANGES.map(([m, label]) => `<button type="button" data-range="${m}" class="${m === this.range ? 'active' : ''}">${label}</button>`).join('')}
     </div><small class="sec-note graph-span"></small>` + GRAPHS.map((g) => `${g.group ? `<h3 class="sub" data-goal="${g.goal}" data-stem="${g.key.split('-')[0]}">${g.group}</h3>` : ''}
       <figure class="graph" data-key="${g.key}" data-goal="${g.goal}">
-        <figcaption><span>${g.title}${g.names ? ` <span class="graph-key"><i style="background:var(${(g.colors ?? ['--accent', '--muted'])[0]})"></i>${g.names[0]} <i class="dash" style="border-color:var(${(g.colors ?? ['--accent', '--muted'])[1]})"></i>${g.names[1]}</span>` : ''}</span><span class="graph-value"></span></figcaption>
+        <figcaption><span>${g.title}${g.names ? ` <span class="graph-key"><i style="background:var(${(g.colors ?? ['--accent', '--muted'])[0]})"></i>${g.names[0]} <i class="dash" style="color:var(${(g.colors ?? ['--accent', '--muted'])[1]})"></i>${g.names[1]}</span>` : ''}</span><span class="graph-value"></span></figcaption>
         <canvas width="${W}" height="${H}" aria-label="${g.title} 추이"></canvas>
       </figure>`).join('');
     this.rangeEl = el.querySelector<HTMLElement>('.graph-range')!;
@@ -164,7 +166,8 @@ export class Graphs {
       const key = (c.parentElement as HTMLElement).dataset.key!;
       const scrub = (e: PointerEvent) => {
         const r = c.getBoundingClientRect();
-        this.hover = { key, index: (e.clientX - r.left) / r.width };
+        const left = this.plotLeft.get(key) ?? PAD;
+        this.hover = { key, index: (e.clientX - r.left - left) / Math.max(1, r.width - left - PAD) };
         this.lastLength = -1;
         this.update(this.history);
       };
@@ -282,21 +285,22 @@ export class Graphs {
       let lo = fit ? min - pad : Math.min(min, 0);
       let hi = fit ? max + pad : Math.max(max, 0);
       if (hi === lo) hi = lo + 1;
-      const x = (k: number) => PAD + (k / (vals.length - 1)) * (w - 2 * PAD);
+      // The axis' ends, labelled on a chip of the card's colour at its left, and the plot starting right of them (laid
+      // over its start, the 98 hid where the rating began and the 0 where the population did).
+      const ends: [string, string] = [g.format(hi), g.format(lo)];
+      ctx.font = '10px system-ui, sans-serif';
+      const left = PAD + Math.max(...ends.map((t) => ctx.measureText(t).width)) + 6 + 4;
+      this.plotLeft.set(g.key, left);
+      const x = (k: number) => left + (k / (vals.length - 1)) * (w - left - PAD);
       const y = (v: number) => H - PAD - ((v - lo) / (hi - lo)) * (H - 2 * PAD);
       ctx.strokeStyle = grid;
       ctx.lineWidth = 1;
-      // The axis' ends, labelled over the lines on a chip of the card's colour (drawn last).
-      let ends: [string, string] = ['', ''];
-      if (fit) {
-        ends = [g.format(hi), g.format(lo)];
-      } else {
+      if (!fit) {
         // Zero baseline (recessive), and the top labelled as on a fitted axis.
         ctx.beginPath();
         ctx.moveTo(PAD, Math.round(y(0)) + 0.5);
         ctx.lineTo(w - PAD, Math.round(y(0)) + 0.5);
         ctx.stroke();
-        ends = [g.format(hi), g.format(lo)];
       }
       const [c1, c2] = g.colors ? g.colors.map((c) => css(c) || line) : [line, ink];
       // (Two lines a few percent apart from zero up overlapped: §10,189 against §9,717 read as one. The gap between them,
