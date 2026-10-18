@@ -613,12 +613,13 @@ export function buildOrdinances(): void {
     const avail = on || city.ordinanceAvailable(id);
     const cost = city.ordinanceCost(id);
     const price = cost < 0 ? `+§${fmt(-cost)}` : `§${fmt(cost)}`;
-    // (The areas it helps at the end of its effects, to the right: under the name they wrapped to a line of their own.)
+    // (The areas it helps at the right of its name's line, the effects under it: after the effects they sat now beside
+    // them, now on a line of their own, and the rows went one, two and three lines tall.)
     const goals = goalsOfOrdinance(id).map((g) => `<button type="button" class="goal-tag" data-goal-open="${g}" title="${GOALS[g].name} 화면에서 보기 (이 조례가 돕는 분야)">${icon(GOALS[g].icon)}${GOALS[g].name}</button>`).join('');
     return `<label class="ordinance ${avail ? '' : 'muted'}">
       <input type="checkbox" data-ord="${id}" ${on ? 'checked' : ''} ${avail ? '' : 'disabled'}>
-      <span><b>${ORDINANCE_NAME[id]}</b> <span class="muted">월 ${price}</span>${!on && put.has(id) ? ' <em class="ord-rec" title="살펴볼 분야의 화면이 권하는 조례">추천</em>' : ''}
-        <span class="ord-fx"><small>${ORDINANCES[id].description}</small>${goals ? `<span class="ord-goals">${goals}</span>` : ''}</span>${avail ? '' : `<small class="needs">필요: ${ORDINANCE_NEEDS[(ORDINANCES[id] as { requires?: string }).requires ?? ''] ?? '조건 미충족'}</small>`}</span>
+      <span><span class="ord-head"><b>${ORDINANCE_NAME[id]}</b> <span class="muted">월 ${price}</span>${!on && put.has(id) ? ' <em class="ord-rec" title="살펴볼 분야의 화면이 권하는 조례">추천</em>' : ''}${goals ? `<span class="ord-goals">${goals}</span>` : ''}</span>
+        <small class="ord-desc">${ORDINANCES[id].description}</small>${avail ? '' : `<small class="needs">필요: ${ORDINANCE_NEEDS[(ORDINANCES[id] as { requires?: string }).requires ?? ''] ?? '조건 미충족'}</small>`}</span>
     </label>`;
   }).join('');
   el.querySelectorAll<HTMLInputElement>('input[data-ord]').forEach((box) => {

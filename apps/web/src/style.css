@@ -1078,7 +1078,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
   transition: transform 0.08s linear;
 }
 #cursor-tag b { font-size: 13px; font-weight: 700; white-space: nowrap; }
-#cursor-tag span { color: var(--muted); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+#cursor-tag span { color: var(--muted); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; text-wrap: pretty; } /* (no 해제 alone on its last line) */
 #cursor-tag.plain span { color: var(--text); }
 #cursor-tag[hidden] { display: none; }
 #cursor-tag[data-tone='warn'] { border-color: var(--warn); }
@@ -1361,9 +1361,10 @@ ul.growth li.good::before { content: '✓'; color: var(--good); }
 .ordinance { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 12px; margin-bottom: 12px; font-size: 13px; cursor: pointer; }
 .ordinance small { color: var(--muted); font-size: 11.5px; }
 .ordinance small.needs { display: block; color: var(--warn-ink); }
-/* Its effects, and the areas it helps after them on the right (on a line of their own when the effects fill it). */
-.ord-fx { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin-top: 1px; }
-.ord-fx > small { flex: 0 1 auto; min-width: 0; }
+/* Its name and cost with the areas it helps at the right of that line, its effects under it. */
+.ord-head { display: flex; flex-wrap: wrap; align-items: center; column-gap: 6px; row-gap: 2px; }
+.ord-head > b { font-weight: 650; }
+.ord-desc { display: block; margin-top: 2px; }
 .ord-goals { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: auto; }
 .ord-goals .goal-tag { margin-left: 0; }
 .ord-rec { margin-left: 4px; padding: 1px 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-hi); font-size: 11px; font-weight: 650; font-style: normal; vertical-align: 1px; }
@@ -2813,6 +2814,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail .r-num { font-weight: 650; }
   #rail .r-num b { font-weight: inherit; }
   #rail .r-num small { color: var(--muted); font-size: 11.5px; font-weight: 600; }
+  #rail .r-num:not(:has(b)) { color: var(--faint); font-weight: 500; } /* (nothing to read yet: its — as quiet as 쾌적도's, not in bold ink) */
   /* The graph: its line over a faint fill (one colour for all: the value beside it says the state), what to read it against
      dashed, a line at nothing when it goes below; dotted with nothing read yet. */
   #rail .r-spark { grid-area: spark; display: block; width: 100%; height: 24px; overflow: visible; --spark: var(--accent); }
@@ -2878,7 +2880,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail .am-next b { color: var(--text); font-weight: 700; }
   /* The areas needing a hand that the scroll hides, counted at the cut edge (pressed, the first of them). */
   #rail .rail-hidden {
-    position: absolute; left: 50%; z-index: 2; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 4px;
+    position: absolute; right: 14px; z-index: 2; display: inline-flex; align-items: center; gap: 4px; /* (over the cut row's graph, not its figure: centred, it hid 교육's 22.3) */
     min-height: 0; height: 26px; padding: 0 11px; border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); border-radius: 999px;
     background: linear-gradient(var(--warn-soft), var(--warn-soft)), var(--float-solid); box-shadow: var(--shadow-sm);
     color: var(--warn-ink); font-size: 12px; font-weight: 700; white-space: nowrap;
