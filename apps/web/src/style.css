@@ -1225,7 +1225,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 /* The card shows what was found: its own name is the heading, so only the close button floats over it. */
 #info-card .card-head { position: absolute; top: 10px; right: 10px; z-index: 2; padding: 0; }
 /* It floats over the facts as they scroll: a solid button, not a stray glyph on the text. */
-#info-card .card-head .icon-btn { background: var(--float-solid); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18); border-radius: 50%; }
+#info-card .card-head .icon-btn { background: var(--surface-2); color: var(--text); box-shadow: var(--shadow-sm); } /* (the pane's own ×: a white circle here, a grey square there) */
 #info-card .card-head h2 { display: none; }
 #info { flex: 1; min-height: 0; padding: 18px 18px 18px; overflow-y: auto; }
 #info > :first-child { padding-right: 40px; }
