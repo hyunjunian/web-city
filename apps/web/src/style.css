@@ -379,7 +379,7 @@ kbd {
 /* Wide, beside the rail's column of icons (the rail at its full width while the pane is away). */
 @media (min-width: 861px) {
   #pane { left: calc(22px + var(--rail-c)); }
-  #pane:not(.managing) { bottom: auto; max-height: calc(100% - 28px); } /* (the city's own: as tall as what it holds) */
+  #pane { bottom: auto; max-height: calc(100% - 28px); } /* (as tall as what it holds: 땅값's was a tall empty card under two buttons) */
   #app:not(.pane-open) { --free-l: calc(var(--rail-w) + 28px); }
 }
 /* Fades out at the foot instead of cutting a line in half (while there is more below: tabs.ts) — a veil kept at the
@@ -390,19 +390,33 @@ kbd {
   background: linear-gradient(to bottom, transparent, var(--surface)); pointer-events: none;
 }
 .pane-grip, .pane-clock { display: none; }
+/* While rows scroll under the pane's head (the clock, the ×), a strip of its surface fading out under them: they showed
+   between the clock and the ×, cut at the edge. Taking no room: its height and the column's gap given back. (A goal's
+   head is a strip of its own, ruled off below while rows run under it.) */
+#pane { --pane-pt: 18px; --pane-gap: 14px; --pane-strip: 62px; }
+#pane::before {
+  content: ''; position: sticky; top: calc(-1 * var(--pane-pt)); order: -5; z-index: 2; flex: none; height: var(--pane-strip);
+  margin: calc(-1 * var(--pane-pt)) -16px calc(var(--pane-pt) - var(--pane-strip) - var(--pane-gap));
+  background: linear-gradient(var(--surface) 72%, transparent); opacity: 0; transition: opacity 0.15s; pointer-events: none;
+}
+#pane.scrolled:not(.managing)::before { opacity: 1; }
+#pane.scrolled .mg-head { box-shadow: 0 1px 0 var(--line); }
 /* Wide, its × kept to the top right as it scrolls (first in the column, stuck, taking no room from the row beside it).
    (A phone's sheet has its own, below.) */
 @media (min-width: 861px) {
   .pane-close {
-    display: inline-flex; position: sticky; top: -10px; order: -3; align-self: flex-end; flex: none; z-index: 6;
+    display: inline-flex; position: sticky; top: -2px; order: -3; align-self: flex-end; flex: none; z-index: 6;
     width: 34px; height: 34px; min-height: 0; margin: -8px -6px -42px 0; background: var(--surface-2); color: var(--text);
     box-shadow: var(--shadow-sm);
   }
-  #pane.managing .pane-close { top: 4px; margin-bottom: -34px; }
+  /* (In one place on every screen, its middle on the head's row — the region › name, a goal's title: it sat 6px under
+     a goal's title, and moved 12px going from 인구 to a goal.) */
+  #pane.managing .pane-close { margin-bottom: -34px; }
   #pane .mg-head { padding-right: 52px; } /* (its state's chip clear of the ×) */
 }
 /* The overview's head: the region (pressed, 지역) › the city's name (pressed, to change it) — small, above the stage. */
 .pane-place { display: flex; align-items: center; gap: 2px; min-width: 0; margin: -6px 40px -4px 0; }
+@media (min-width: 861px) { .pane-place { margin-top: 2px; } } /* (its middle level with the ×'s, as a goal's title is) */
 .place-link {
   flex: 0 1 auto; min-width: 0; min-height: 30px; height: 30px; gap: 5px; padding: 0 7px; border-radius: 9px;
   background: transparent; color: var(--muted); font-size: 12.5px; font-weight: 600;
@@ -628,9 +642,9 @@ kbd {
 .mg-log span { display: inline-block; min-width: 92px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .mg-aim { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.5; }
 .mg-metrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.mg-m:last-child:nth-child(odd) { grid-column: 1 / -1; grid-template-columns: auto 1fr; align-items: baseline; column-gap: 10px; } /* no lone half-tile */
-.mg-m:last-child:nth-child(odd) b { justify-self: end; }
-.mg-m:last-child:nth-child(odd) .delta { grid-column: 1 / -1; justify-self: end; }
+/* No lone half-tile: the last of an odd count across the row, laid out as the others (its figure pushed to the far end
+   it read as a heading, a row of another kind). */
+.mg-m:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .mg-m { display: grid; gap: 2px; padding: 8px 10px; background: var(--surface); border-radius: var(--r-md); min-width: 0; }
 .mg-m span { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mg-m b { font-size: 14.5px; font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -724,7 +738,7 @@ kbd {
   /* The sheet's padding is taller here: the sticky head starts at its edge, and keeps clear of the close button. */
   /* (Up to the sheet's edge from where the column puts it, under the clock's row: its title row as low at the top of
      the screen as when it sticks there, level with the ×.) */
-  .mg-head { top: -26px; margin-top: -36px; padding-top: 32px; padding-right: 52px; }
+  .mg-head { top: -26px; margin-top: -36px; padding-top: 32px; padding-right: 60px; }
 }
 
 .card { padding: 14px 14px; /* one inset with the KPIs and gauges */ background: var(--surface); border-radius: var(--r-lg); }
@@ -1085,10 +1099,11 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 @media (min-width: 861px) { #tray { left: var(--tray-x, var(--mid)); width: var(--tray-w, min(960px, calc(100% - var(--free-l) - var(--free-r) - 28px))); } } /* (as controls.ts's TRAY_MAX) */
 #tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(370px, 100%), 1fr)); column-gap: 22px; align-items: start; padding: 0 18px 2px; overflow-y: auto; } /* row by row, so groups keep their places (columns rebalanced them as their text changed) */
 #tools.more-below { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent); }
-/* (And a word for it: at 1280×720 the fade alone took the 공원 heading, and the card looked finished.) */
+/* (And a word for it: at 1280×720 the fade alone took the 공원 heading, and the card looked finished. On a line of its
+   own under the tools — floated over them it covered a tile.) */
 #tray:has(#tools.more-below)::after {
-  content: '아래에 더 있음'; position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
-  padding: 2px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--float-solid); box-shadow: var(--shadow-sm);
+  content: '아래에 더 있음 ↓'; flex: none; align-self: center; margin: 2px 0 10px;
+  padding: 2px 10px; border-radius: 999px; background: var(--surface-2);
   color: var(--muted); font-size: 11.5px; font-weight: 600; white-space: nowrap; pointer-events: none;
 }
 /* Finding a tool by name, and the ones used lately. */
@@ -1501,6 +1516,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #pane {
     position: fixed; top: auto; left: 8px; right: 8px; bottom: calc(env(safe-area-inset-bottom) + 8px); z-index: 20; width: auto;
     max-height: min(60dvh, calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px)); padding-top: 26px; padding-bottom: 24px;
+    --pane-pt: 26px; --pane-strip: 74px; /* (the strip under its clock and ×, below) */
     border: 1px solid var(--line); border-radius: var(--r-xl); box-shadow: var(--shadow);
     transform: translateY(calc(100% + env(safe-area-inset-bottom) + 8px)); visibility: hidden;
     transition: transform 0.26s var(--ease), visibility 0s 0.26s;
@@ -1526,11 +1542,12 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
      a goal's title row. Its margins give back the room it takes in the column, all but the clock's row above the
      first one.) */
   .pane-close {
-    display: inline-flex; position: sticky; top: -16px; order: -3; align-self: flex-end; flex: none; z-index: 3;
+    display: inline-flex; position: sticky; top: -1px; order: -3; align-self: flex-end; flex: none; z-index: 3;
     margin: -16px -6px -28px 0; background: var(--surface-2); color: var(--text);
     box-shadow: var(--shadow-sm); /* (floating over what scrolls under it: a row's › went under a flat × unseen) */
   }
-  #pane.managing .pane-close { top: 6px; }
+  /* (Its middle on the head's row, the region › name or a goal's title: it sat 15px over the one, 8px under the other.) */
+  #pane.managing .pane-close { top: -2px; }
   /* A watch row's note is what to do: two lines rather than cut off. */
   .w-note { white-space: normal; align-items: flex-start; }
   .w-txt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
@@ -1602,7 +1619,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   }
   #pane {
     left: max(8px, env(safe-area-inset-left)); right: auto; top: calc(env(safe-area-inset-top) + 6px); bottom: calc(env(safe-area-inset-bottom) + 6px); width: min(380px, 50%); max-height: none;
-    padding-top: 18px;
+    padding-top: 18px; --pane-pt: 18px; --pane-gap: 10px; --pane-strip: 74px;
     transform: translateX(calc(-100% - 16px));
   }
   .pane-grip { display: none; }
@@ -1613,8 +1630,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   #app.pane-open #toasts { left: calc(max(8px, env(safe-area-inset-left)) + min(380px, 50%) + 10px); width: auto; right: 84px; }
   .mg-head { top: -18px; margin-top: -44px; padding-top: 36px; } /* this sheet's padding is 18px (and the clock's row) */
   .pane-clock { top: -14px; margin-top: -14px; margin-bottom: -16px; } /* (4px from the edge here too; this column's gap is 10px) */
-  .pane-close { top: -8px; margin-top: -8px; margin-bottom: -24px; } /* (and so the ×'s insets) */
-  #pane.managing .pane-close { top: 18px; }
+  .pane-close { top: 7px; margin-top: -8px; margin-bottom: -24px; } /* (and so the ×'s insets: its middle on the head's row) */
+  #pane.managing .pane-close { top: 14px; }
   #view.info-open #toasts { width: calc(100% - min(420px, 58%) - 92px); }
 }
 
@@ -1748,6 +1765,9 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 #goal-stats > :not(h3):not([hidden]) ~ .gs:not([hidden]) { padding-top: 10px; border-top: 1px solid var(--line); }
 #goal-stats .gs, #policy > * { scroll-margin-top: 76px; } /* (brought into sight from the summary — 다음 보상, 시장 평점 — its heading clears the sticky head) */
 #goal-stats .graph.off, #goal-stats h3.sub.off { display: none; }
+/* (Nothing to draw — 땅값 where no land has a value — no 추이 heading, span and range over nothing.) */
+#goal-stats:not(:has(.gs:not([hidden]), .graph:not(.off):not([hidden]))) { display: none; }
+#goal-stats:not(:has(.graph:not(.off):not([hidden]))) > h3 :is(.graph-span, .graph-range) { display: none; }
 #goal-stats #ages h3.sub:first-child { margin-top: 4px; }
 
 /* ------------------------------------------------------------------ 주민 · 지역 sheets */

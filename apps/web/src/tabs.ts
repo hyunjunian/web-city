@@ -207,7 +207,11 @@ export function setupTabs(): void {
   // The pane's foot fades only while there is more below it (always faded, the last line of a short or
   // scrolled-to-the-end pane read as cut off).
   const pane = $('#pane');
-  const below = () => pane.classList.toggle('more-below', pane.scrollHeight - pane.scrollTop - pane.clientHeight > 2);
+  // (And its head ruled off while rows run under it: they showed between the clock and the ×, half cut at the edge.)
+  const below = () => {
+    pane.classList.toggle('more-below', pane.scrollHeight - pane.scrollTop - pane.clientHeight > 2);
+    pane.classList.toggle('scrolled', pane.scrollTop > 2);
+  };
   pane.addEventListener('scroll', below, { passive: true });
   if (typeof ResizeObserver === 'function') {
     const watch = new ResizeObserver(below);
