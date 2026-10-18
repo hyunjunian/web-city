@@ -1513,6 +1513,12 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .help-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 28px; margin: 0; font-size: 13.5px; } /* (what is done beside its gesture: 2fr left a 230px gap after 끌기) */
 .help-grid dt { color: var(--muted); }
 .help-grid dd { margin: 0; }
+/* A phone: each gesture over what it does (beside it, 끄는 중에 두 번째 손가락 left the doing a 130px column of four lines). */
+@media (max-width: 560px) {
+  .help-grid { grid-template-columns: minmax(0, 1fr); row-gap: 0; }
+  .help-grid dt { margin-top: 10px; font-size: 12.5px; }
+  .help-grid dt:first-child { margin-top: 0; }
+}
 /* Touch screens: no keyboard to list. */
 @media (pointer: coarse) and (hover: none) { .help-keys { display: none; } }
 .seed-row { display: flex; gap: 8px; }
