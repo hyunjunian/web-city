@@ -1028,7 +1028,7 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 
 #hint {
   position: absolute; left: var(--bar-x, var(--mid)); bottom: var(--bb); z-index: 4; transform: translateX(-50%);
-  width: max-content; max-width: calc(2 * min(var(--bar-x, var(--mid)) - var(--free-l), 100% - var(--bar-x, var(--mid)) - 16px)); padding: 8px 18px;
+  width: max-content; max-width: min(600px, calc(2 * min(var(--bar-x, var(--mid)) - var(--free-l), 100% - var(--bar-x, var(--mid)) - 16px))); padding: 8px 18px;
   background: var(--float); border: 1px solid var(--line); border-radius: 19px; box-shadow: var(--shadow-sm); /* a pill on one line, not a stretched capsule on three */
   -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
   font-size: 13.5px; line-height: 1.45; text-align: center; word-break: keep-all; font-variant-numeric: tabular-nums; pointer-events: none;
@@ -1039,8 +1039,8 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
    with the bar, a long reading ran on under the card). */
 @media (min-width: 861px) {
   #view.info-open :is(#hint, #tool-chip, #confirm-bar) { left: var(--mid); }
-  #view.info-open #hint { max-width: calc(100% - var(--free-l) - var(--free-r) - 32px); }
-  #view.info-open #tool-chip { max-width: min(860px, calc(100% - var(--free-l) - var(--free-r) - 28px)); }
+  #view.info-open #hint { max-width: min(600px, calc(100% - var(--free-l) - var(--free-r) - 32px)); }
+  #view.info-open #tool-chip { max-width: min(600px, calc(100% - var(--free-l) - var(--free-r) - 28px)); }
   #view.info-open #confirm-bar { width: min(440px, calc(100% - var(--free-l) - var(--free-r) - 24px)); }
 }
 /* Touch: a facility waiting for 짓기. */
@@ -1658,6 +1658,8 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
     left: auto; right: max(8px, env(safe-area-inset-right)); top: calc(env(safe-area-inset-top) + 6px); bottom: calc(env(safe-area-inset-bottom) + 6px); width: min(420px, 58%); max-height: none;
     animation: slide-left 0.22s var(--ease);
   }
+  /* (A building's card as tall as what it says: a road's 223px card stood the height of the screen.) */
+  #info-card { bottom: auto; max-height: calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 12px); }
   #pane {
     left: max(8px, env(safe-area-inset-left)); right: auto; top: calc(env(safe-area-inset-top) + 6px); bottom: calc(env(safe-area-inset-bottom) + 6px); width: min(380px, 50%); max-height: none;
     padding-top: 18px; --pane-pt: 18px; --pane-strip: 74px;
@@ -2006,7 +2008,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* ------------------------------------------------------------------ the tool in hand: one bar */
 
 /* The tool's name and price, its siblings after a hairline, and the way out — one bar, not two. */
-#tool-chip { gap: 8px; max-width: min(860px, calc(2 * min(var(--bar-x, var(--mid)) - var(--free-l), 100% - var(--bar-x, var(--mid)) - 14px))); } /* (as wide as it may be in line with the bar: wider, it ran under the city pane) */
+#tool-chip { gap: 8px; max-width: min(600px, calc(2 * min(var(--bar-x, var(--mid)) - var(--free-l), 100% - var(--bar-x, var(--mid)) - 14px))); } /* (as wide as it may be in line with the bar: wider, it ran under the city pane; and no wider than 600px, its other kinds scrolling: from 286px for 철거 to 800px for 공원 over a 470px bar, the stack stood top-heavy) */
 #tool-chip #tool-alts { flex: 0 1 auto; min-width: 0; padding: 0 0 0 8px; border-left: 1px solid var(--line); }
 #tool-chip #tool-alts button.active { display: none; } /* the bar's name already says it */
 #tool-chip #tool-alts button { min-height: 28px; padding: 0 9px; }
@@ -2028,6 +2030,10 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .tile kbd { position: absolute; top: 5px; right: 5px; }
 /* Transport's stations and airports: the whole width under the roads and tracks (a column of twelve cards beside an empty one). */
 @media (min-width: 861px) { #tray[data-cat='transport'] .tray-section:has(.picker) { grid-column: 1 / -1; } }
+/* 도로's five beside 선로's three, the columns as wide as what they hold (even halves left 더 보기 alone on a second row
+   under 도로, and 선로's half empty). */
+#tray { container-type: inline-size; }
+@container (min-width: 740px) { #tray[data-cat='transport'] #tools { grid-template-columns: minmax(0, 5fr) minmax(0, 3fr); } }
 /* A drag laying something down: the bars, the minimap and the zoom step back. */
 #view :is(#dock-col, #minimap, #map-zoom, #toasts) { transition: opacity 0.2s var(--ease); }
 #view.drawing :is(#dock-col, #minimap, #map-zoom, #toasts) { opacity: 0.25; } /* (the top buttons too, below) */
