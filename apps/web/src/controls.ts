@@ -931,8 +931,9 @@ export function refreshViewSummary(): void {
   box.hidden = !text;
   box.className = `overlay-sum${tone ? ` ${tone}` : ''}`;
   // Where some go without: a way to each of them in turn.
-  // (Its counts in its tone, the words plain: the whole line in bold red shouted over the legend.)
-  const counted = text.replace(/\d[\d,.]*(?:칸|채|곳|건|명|대|개|%)?/g, '<b>$&</b>');
+  // (Its counts in its tone, the words plain: the whole line in bold red shouted over the legend. Clause by clause, so
+  // a line cut short drops whole ones, not "수요 상한 89…".)
+  const counted = text.split(' · ').map((part, k) => `<span class="sum-part">${k ? ' · ' : ''}${part.replace(/\d[\d,.]*(?:칸|채|곳|건|명|대|개|%)?/g, '<b>$&</b>')}</span>`).join('');
   box.innerHTML = `<span>${counted}</span>${spots.length ? '<button type="button" class="sum-go" title="하나씩 차례로 지도에서 보기">찾아가기</button>' : ''}`;
   box.querySelector<HTMLButtonElement>('.sum-go')?.addEventListener('click', (e) => {
     if (!sumSpots.length) return;

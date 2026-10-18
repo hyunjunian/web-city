@@ -3074,6 +3074,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #app.pane-open #map-layer .overlay-sum { flex-wrap: nowrap; }
   #app.pane-open #map-layer .overlay-sum > span { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   #app.pane-open #map-layer .overlay-sum .sum-go { flex: none; }
+  #app.pane-open #map-layer .overlay-sum .sum-part ~ .sum-part { display: none; } /* (its first clause whole, not the next cut mid-number) */
 }
 
 /* ---- touch: a finger's size for what the map's chrome took down to a mouse's (later rules had won over the touch
