@@ -131,7 +131,8 @@ export function toast(text: string, tone: 'good' | 'bad' | 'info' | 'gold' = 'go
   body.className = 'toast-text';
   // (The stopped clock is said by the 계속 button, not in words at the end.)
   const words = sticky ? text.replace(/ · 멈춤 \(.*\)$/, '') : text;
-  const head = /^([^:]{1,16}): (.+)$/s.exec(words);
+  // (A subject up to 20 letters: "새로 지을 수 있는 시설 10종" at 17 ran on as one grey block of names.)
+  const head = /^([^:]{1,20}): (.+)$/s.exec(words);
   if (head) {
     const b = document.createElement('b');
     b.textContent = glue(head[1]!);
