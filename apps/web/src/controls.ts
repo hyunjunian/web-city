@@ -5,7 +5,7 @@ import { DEFAULT_CONFIG, DEV_TYPES, type DevType, GROWTH_CODES, NETWORK_KINDS, S
 import { icon, type IconName } from './icons';
 import { openGoal, taxesCutting } from './manage';
 import { fillRange } from './widgets';
-import { TYPE_NAME, TYPE_SHORT } from './names';
+import { TYPE_NAME, TYPE_SHORT, WEALTH_NAME } from './names';
 import { updatePanels } from './panels';
 import { BROKEN_RAIL, FIRE_RISK, FOUL_HARM, FOUL_RGB, HEINOUS, INDEX_FULL, indexColor, NO_TRIP, RIOT_DOT, RISK_IN, RISK_OUT, type Overlay, UNHAPPY_DOT, type VolumeNetwork, WORN_COLOR } from './render';
 import { ABANDONED_COLOR, buildingRisk, GROWTH_COLOR, GROWTH_LABEL, growthNow, RISK_COLOR, volumeAt } from './views';
@@ -387,7 +387,7 @@ export function setupClock(): void {
 
 /** The data views by theme: [value, chip name, full name in the picker's label]. */
 const VIEW_GROUPS: [string, IconName, [string, string, string?][]][] = [
-  ['개발', 'zones', [['desirability', '쾌적도', '쾌적도 (개발 유형별 · 불만인 집과 함께)'], ['landValue', '땅값'], ['zones', '구역', '구역 (건물 숨김)'], ['growth', '개발 막힘', '개발 막힘 (빈 구역·버려진 건물)'], ['mayor', '시장 평점']]],
+  ['개발', 'zones', [['desirability', '쾌적도', '쾌적도 (종류·소득별 · 불만인 집과 함께)'], ['landValue', '땅값'], ['zones', '구역', '구역 (건물 숨김)'], ['growth', '개발 막힘', '개발 막힘 (빈 구역·버려진 건물)'], ['mayor', '시장 평점']]],
   ['공공시설', 'zap', [['power', '전력망', '전력망 (낡은 송전선과 함께)'], ['waterService', '수도', '수도 (지하 · 낡은 수도관·수질 오염과 함께)'], ['garbage', '쓰레기']]],
   ['안전', 'shield', [['police', '치안', '치안 (경찰 범위와 범죄)'], ['fire', '소방', '소방 (소방 범위와 화재 위험)']]],
   ['보건·교육·주민', 'health', [['health', '보건', '보건 (병원 범위와 집의 건강 지수)'], ['school', '교육', '교육 (학교 범위와 집의 교육 지수)'], ['age', '평균 나이', '주민 평균 나이'], ['commute', '통근 시간', '통근·화물 시간']]],
@@ -396,6 +396,42 @@ const VIEW_GROUPS: [string, IconName, [string, string, string?][]][] = [
     ['volume:monorail', '모노레일 통행량', '통행량: 모노레일'], ['volume:highway', '고속도로 통행량', '통행량: 고가 고속도로'], ['volume:ferry', '페리 통행량', '통행량: 페리'], ['subway', '지하철 노선', '지하철 (지하)']]],
 ];
 for (const [, , views] of VIEW_GROUPS) for (const v of views) v[2] ??= v[1];
+
+/** 쾌적도's map by kind of development and, within it, by the wealth of those it is for (industry by its trade; farms
+ *  one kind) — as the 수요 screen lists them: two rows of buttons on its card. */
+const DEV_PICK: [kind: string, name: string, types: (DevType | null)[]][] = [
+  ['R', '주거', ['R$', 'R$$', 'R$$$']], ['Cs', '상점', ['Cs$', 'Cs$$', 'Cs$$$']], ['Co', '오피스', [null, 'Co$$', 'Co$$$']],
+  ['I', '산업', ['ID', 'IM', 'IHT']], ['IA', '농업', ['IA']],
+];
+const TRADE_NAME = ['공해', '제조', '첨단'];
+/** The wealth (an industry's trade) last picked: kept across the kinds (오피스 has no 저소득층, a farm none to pick). */
+let devTier = 0;
+const devKind = () => DEV_PICK.find(([, , types]) => types.includes(overlayType))!;
+
+/** The picker's buttons as the view's type stands. */
+function markDevPick(): void {
+  const pick = document.querySelector<HTMLElement>('#overlay-type');
+  if (!pick) return;
+  const [kind, name, types] = devKind();
+  const at = types.indexOf(overlayType);
+  const press = (b: HTMLButtonElement, on: boolean) => {
+    b.classList.toggle('active', on);
+    b.setAttribute('aria-pressed', String(on));
+  };
+  pick.querySelectorAll<HTMLButtonElement>('[data-kind]').forEach((b) => press(b, b.dataset.kind === kind));
+  const row = pick.querySelector<HTMLElement>('[data-row="tier"]')!;
+  row.hidden = types.length < 2;
+  const trade = kind === 'I';
+  row.setAttribute('aria-label', trade ? '업종' : '소득');
+  row.querySelectorAll<HTMLButtonElement>('[data-tier]').forEach((b) => {
+    const i = Number(b.dataset.tier);
+    const t = types[i];
+    b.textContent = (trade ? TRADE_NAME : WEALTH_NAME)[i]!;
+    b.disabled = !t;
+    b.title = t ? `${TYPE_NAME[t]}의 쾌적도` : `${WEALTH_NAME[i]} ${name}는 없습니다`;
+    press(b, i === at);
+  });
+}
 
 /** A data view's full name, as its legend card heads it ('' for none). */
 export const viewName = (v: string): string => VIEW_GROUPS.flatMap(([, , views]) => views).find(([x]) => x === v)?.[2] ?? '';
@@ -411,12 +447,15 @@ export function buildOverlay(): void {
       <option value="none">없음</option>
       ${VIEW_GROUPS.map(([label, , views]) => `<optgroup label="${label}">${views.map(([v, , full]) => `<option value="${v}">${full ?? ''}</option>`).join('')}</optgroup>`).join('')}
     </select>
-    <select id="overlay-type" aria-label="개발 유형">${(['R', 'C', 'I'] as const).map((k) => `<optgroup label="${({ R: '주거', C: '상업', I: '산업·농업' })[k]}">${DEV_TYPES.filter((t) => t[0] === k).map((t) => `<option value="${t}">${TYPE_NAME[t]}</option>`).join('')}</optgroup>`).join('')}</select>
+    <div class="dev-pick" id="overlay-type" role="group" aria-label="쾌적도를 볼 개발 유형">
+      <div class="segmented" data-row="kind" role="group" aria-label="종류">${DEV_PICK.map(([k, name]) => `<button type="button" data-kind="${k}" title="${name}의 쾌적도">${name}</button>`).join('')}</div>
+      <div class="segmented" data-row="tier" role="group">${[0, 1, 2].map((i) => `<button type="button" data-tier="${i}"></button>`).join('')}</div>
+    </div>
     <div class="overlay-scale" id="overlay-scale" hidden><div class="scale-bar"></div><div class="ends"><span></span><span></span></div></div>
     <div class="legend" id="overlay-legend"></div>
     <p class="overlay-sum" id="overlay-sum" hidden></p>`;
   const kind = $<HTMLSelectElement>('#overlay-kind');
-  const type = $<HTMLSelectElement>('#overlay-type');
+  const type = $('#overlay-type');
   const title = $<HTMLButtonElement>('#layer-title');
   $('#overlay-legend').addEventListener('click', legendGo);
   $('#overlay-legend').addEventListener('keydown', legendGo);
@@ -429,13 +468,13 @@ export function buildOverlay(): void {
     title.setAttribute('aria-expanded', String(shown));
   };
   const apply = () => {
-    setOverlayType(type.value as DevType);
     setOverlay(kind.value === 'desirability'
       ? { kind: 'desirability', type: overlayType }
       : kind.value.startsWith('volume:')
         ? { kind: 'volume', network: kind.value.slice(7) as VolumeNetwork }
         : ({ kind: kind.value } as Overlay));
     type.style.display = kind.value === 'desirability' ? '' : 'none';
+    markDevPick();
     const off = kind.value === 'none';
     // The view's short name heads the card; what it leaves out (보건 → 병원이 닿는 범위; 개발 막힘 → 빈 구역·버려진 건물)
     // as a quiet line over the legend, not the name said again.
@@ -561,10 +600,23 @@ export function buildOverlay(): void {
     fitMapbar(); // (a longer name may want the room)
   };
   kind.onchange = apply;
-  type.onchange = () => {
+  // A kind keeps the wealth (or trade) picked last where it has it — else its nearest; a wealth, the kind.
+  type.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLButtonElement>('button');
+    if (!b || b.disabled) return;
+    let next: DevType | null | undefined;
+    if (b.dataset.kind) {
+      const types = DEV_PICK.find(([k]) => k === b.dataset.kind)![2];
+      next = types[Math.min(devTier, types.length - 1)] ?? types.find(Boolean);
+    } else {
+      devTier = Number(b.dataset.tier);
+      next = devKind()[2][devTier];
+    }
+    if (e.detail) b.blur(); // (clicked: the keys stay the map's)
+    if (!next || next === overlayType) return;
+    setOverlayType(next);
     apply();
-    type.blur();
-  };
+  });
   apply();
   // The bars fit themselves again when the map's size changes (the window) and when the top buttons' or the chips' do
   // (a longer name, a stage reached, an area turned red): a frame later, so their own change is not a loop.
