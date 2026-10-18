@@ -1,5 +1,5 @@
-// What floats over the map besides tools: the city pane along its left (the city's state, 재정·정책, each goal's
-// screen with its statistics — there when called for: the city button at the top brings it and puts it away), the
+// What floats over the map besides tools: the city pane along its left (the city's own screen — its residents — and
+// each goal's screen with its statistics — there when called for: the city button at the top brings it and puts it away), the
 // sheet (지역, from the pane's head), the info card along its right (what the query tool found) and, on small screens,
 // the pane as a bottom sheet. Esc closes the topmost.
 // (주민 — My Sim, 직접 운전 — is not on the web screen for now: its sheet type stays for its unwired modules.)
@@ -7,12 +7,12 @@
 import { active, closeGoal, openFinance, paneClosed } from './manage';
 import { fitMapbar } from './controls';
 import { redraw, renderer, setSelected } from './state';
-import { closeTray } from './tools';
+import { closeTray, restView } from './tools';
 import { cancelMySimAction } from './mysims';
 import { giveBackView } from './info';
 import { $, flash } from './util';
 
-/** 'budget': the pane's 재정·정책 (taxes, budgets, loans, ordinances and the books). */
+/** 'budget': the pane's 재정 (the books, taxes, budgets, loans, ordinances). */
 export type Tab = 'city' | 'info' | 'budget' | SheetTab;
 /** The sheets: 지역 (the city's name, neighbours, deals; the city pane's head, J) — and 주민 (My Sim, U-Drive-It), off the screen for now. */
 export type SheetTab = 'sims' | 'region';
@@ -35,7 +35,7 @@ export function sheetShown(tab: SheetTab): boolean {
   return sheetTab === tab;
 }
 
-/** Shows a panel: the info card, the city pane, its 재정·정책, or one of the sheets (주민, 지역). */
+/** Shows a panel: the info card, the city pane, its 재정, or one of the sheets (주민, 지역). */
 export function showTab(tab: Tab): void {
   if (tab === 'info') openInfo();
   else if (tab === 'city') openPane();
@@ -126,6 +126,7 @@ export function openPane(): void {
   $('#app').classList.add('pane-open');
   document.getElementById('btn-city')?.classList.remove('unread'); // (news unread: read now)
   markOpen();
+  if (!active && !was) restView(); // (the city's own screen: 개발 막힘 on the map)
   if (!was) {
     fitMapbar(); // (wide, the bars' middle clears it)
     document.dispatchEvent(new CustomEvent('sheet-open'));
@@ -138,17 +139,14 @@ export function closePane(): boolean {
   markOpen();
   fitMapbar();
   paneClosed();
+  if (!active) restView(); // (the city's own screen gone: its 개발 막힘 with it)
   return true;
 }
 
-/** The city button: the city's screen comes (its overview: an area's screen open or put away ends), or, already
- *  showing (its overview or a tab of 재정·정책's), goes — as an area's button brings its screen or, already on it, puts
- *  the pane away. */
+/** The city button: the city's own screen comes (its residents: an area's screen open or put away ends), or, already
+ *  showing, goes — as an area's button brings its screen or, already on it, puts the pane away. */
 export function togglePane(): void {
-  if (paneShown() && (!active || active === 'finance') && dismissPane()) return;
-  // (The city's screen put aside for the map — a phone's 보기, a tool, 지역: back to it, as an area's chip brings its
-  // own. It had no chip, and the press ended it.)
-  if (!paneShown() && active === 'finance') return openPane();
+  if (paneShown() && !active && dismissPane()) return;
   closeGoal();
   openPane();
 }
@@ -174,8 +172,6 @@ export function closeTopLayer(pane = true): boolean {
 export function dismissPane(): boolean {
   const had = $('#pane').contains(document.activeElement);
   if (!closePane()) return false;
-  // (The city's own screen ends with it: its tabs are no area to keep on the map, lit in the rail with an ×.)
-  if (active === 'finance') closeGoal();
   if (had) document.getElementById('btn-city')?.focus({ preventScroll: true });
   return true;
 }
@@ -193,13 +189,9 @@ function markOpen(): void {
   });
 }
 
-/** The city button lit while the city's own screen shows (its overview or 재정·정책's tabs), not an area's — and, as an
- *  area's chip is, while its screen is put aside for the map (pressed, it comes back). */
+/** The city button lit while the city's own screen (its residents) shows, not an area's. */
 export function markCity(): void {
-  const b = document.getElementById('btn-city');
-  if (!b) return;
-  b.setAttribute('aria-expanded', String(paneShown() && (!active || active === 'finance')));
-  b.classList.toggle('parked', !paneShown() && active === 'finance');
+  document.getElementById('btn-city')?.setAttribute('aria-expanded', String(paneShown() && !active));
 }
 
 /** Opens a sheet, or closes it when it is the one open (지역: the pane's head; J). */

@@ -13,7 +13,7 @@ import { ko } from './messages';
 import { ADVICE_TEXT, ADVICE_TOOL, ADVISOR_NAME, EDGE_NAME, ORDINANCE_NAME, POLL_NAME, RESOURCE_NAME, RESOURCE_UNIT, STRUCTURE_NAME, TYPE_NAME, ZONE_NAME } from './names';
 import { whyNoDeals } from './region';
 import { journal } from './journal';
-import { abandonHint, capBest, capHint, capLeads, jobHint, pushNotice, rciMini, updatePanels } from './panels';
+import { abandonHint, capBest, capHint, capLeads, demandGrid, jobHint, pushNotice, rciMini, updatePanels } from './panels';
 import { checklist } from './onboarding';
 import { builtArea, cam, centerOn, changeKey, city, cityLineage, fitScale, flightCount, glideTo, graphs, mapBand, pingAt, redraw, renderer, setHover, speed, stopFlight, takeBandFraming } from './state';
 import { GRAPH_KEYS } from './graphs';
@@ -21,9 +21,9 @@ import { closeInfo, closePane, closeSheet, dismissPane, markCity, openPane, pane
 import { categoryOf, chosen, edgeFade, kindsFor, openTray, panTipAt, pickStructure, refreshRecent, restView, selectTool, structureStat, tool, toolPicks, TOOLS, toolGlyph, toolName } from './tools';
 import { dropGoalToasts, dropToasts, toast } from './toast';
 import { choice } from './choices';
-import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, short, stoppedNote, straightRuns, touchFirst } from './util';
-import { AREA_ORDER, type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type GoalTab, type TabPart, type Tone, UNDER_AMENITY } from './goals';
-import { type AirSource, airSources, fullNote, railFigure, edgeRoad, fillSpan, ratingNote, ratingRated, ratingTone, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
+import { $, escapeHtml, firstSentence, flash, flashing, fmt, glue, josa, stoppedNote, straightRuns, touchFirst } from './util';
+import { type Dept, type Goal, GOAL_ORDER, goalOfStructure, type GoalId, GOALS, type GoalTab, type TabPart, type Tone, UNDER_AMENITY, UNDER_CITY } from './goals';
+import { type AirSource, airSources, cityMetrics, fullNote, railFigure, edgeRoad, fillSpan, ratingNote, ratingRated, ratingTone, smokeClear, adviceFor, budgetMends, deptEmpty, cheapestOf, classroom, deptFunded, facilities, facilityLine, forecast, FUNDING_MAX, goalStatus, incidents, levelShort, loadOf, metrics, readStats, SPOT_WORD, relieverFor, forgetSites, freshLandfill, hasRoadNow, bestJamRun, jammedTiles, stormHolds, subwayGap, widenTo, landfillSite, powerToSpare, zoneSite, lineFromPlant, lineToDark, lineToStructure, pipeToDry, plantSite, roadToFacility, siteAwayFromHomes, siteByPlants, siteNear, siteNearHomes, siteOnPipes, smokyPlant, spotKind, stopPair, suggestSpot, sum, unpoweredZones, waterApart, type Lay, LAY_WORD, layCost } from './readings';
 
 // ------------------------------------------------------------------ the overview: problems and qualities
 
@@ -63,9 +63,8 @@ function drift(id: GoalId): string {
   return d ? `<small class="w-drift ${d.good ? 'up' : 'down'}" title="${d.said}">${d.up ? '▲' : '▼'}</small>` : '';
 }
 
-/** The screens M weighs: the areas as the list orders them, then the city's own (its money) — with nothing wrong, the
- *  first area (it opened 재정·정책 of a sound town, under "가장 급한 분야"). */
-const WATCHED: readonly GoalId[] = [...AREA_ORDER, 'finance'];
+/** The screens M weighs, as the rail orders them — with nothing wrong, the first (수요). */
+const WATCHED: readonly GoalId[] = GOAL_ORDER;
 
 /**
  * 해결할 문제: what is wrong, the most serious first with the one thing to do about it,
@@ -101,8 +100,7 @@ const sideTone = (id: GoalId, side: Side): Tone => (side === 'amenity' ? amenity
 export function problemsHtml(alerts: string, figs: PaneFigs): string {
   const step = nextStep();
   const inc = new Set(incidents().map((x) => x.goal as GoalId));
-  // (The areas: money is the city's own, on its scoreboard and its tabs.)
-  const all = AREA_ORDER.map((id) => ({ id, s: goalStatus(id) })).filter(({ id, s }) => s.tone === 'bad' || s.tone === 'warn' || inc.has(id));
+  const all = GOAL_ORDER.map((id) => ({ id, s: goalStatus(id) })).filter(({ id, s }) => s.tone === 'bad' || s.tone === 'warn' || inc.has(id));
   const bad = all.filter(({ s }) => s.tone === 'bad').length;
   const warn = all.length - bad;
   // (Said by colour too: the counts are the red and the amber rows below.)
@@ -111,24 +109,6 @@ export function problemsHtml(alerts: string, figs: PaneFigs): string {
   // No separate "what to do": 도시 상태 shows what needs a hand, and each area's screen says what to do.
   // Only what cannot wait (a fire, a riot, a blackout, impeachment) stands above it.
   return qualityGrid(counts, `${alerts}${step.urgent ? step.html : ''}`, figs);
-}
-
-/**
- * The city's money under its scoreboard (the city's own, not an area's): its figure, coloured when it wants a look;
- * pressed, its tab of the city's screen. (The mayor's rating heads 쾌적도.)
- */
-export function cityStats(): string {
-  const fin = goalStatus('finance');
-  const fig = monthNet();
-  return `<div class="city-stats"><button type="button" class="cs ${fin.tone || 'ok'}" data-city-row="finance" title="${escapeHtml(`재정: ${fin.value} · ${glue(fin.note)} · 눌러서 재정 탭`)}"><span class="cs-ic">${icon('wallet')}</span><span class="cs-name">재정</span><b class="cs-val">${escapeHtml(fin.value)}</b>${fig ? `<small class="cs-sub">${escapeHtml(fig)}</small>` : ''}</button></div>`;
-}
-
-/** The month's balance in a word ('' before the first books close). */
-function monthNet(): string {
-  const b = city.state.lastBudget;
-  if (!b) return '';
-  const net = Math.round(b.income - b.expenses);
-  return `${net < 0 ? '−' : '+'}§${short(Math.abs(net))}/월`;
 }
 
 /** Wide, the pane's overview without the areas' list (they stand down the map's left with their graphs): only what
@@ -147,7 +127,7 @@ function qualityGrid(counts: string, top: string, figs: PaneFigs): string {
   // One column, worst first: a troubled area is a row with its icon on a red or amber badge, its
   // figure and why in a line; the sound ones follow as plain rows, in their usual order.
   const rank = (t: Tone) => (t === 'bad' ? 0 : t === 'warn' ? 1 : 2);
-  const rows = AREA_ORDER.map((id) => ({ id, s: goalStatus(id) }))
+  const rows = GOAL_ORDER.map((id) => ({ id, s: goalStatus(id) }))
     .sort((a, b) => rank(a.s.tone) - rank(b.s.tone) || (a.s.tone ? WEIGHT[b.id] - WEIGHT[a.id] : 0));
   const row = ({ id, s }: (typeof rows)[number]) => {
     const g = GOALS[id];
@@ -199,7 +179,7 @@ export function refreshStrip(): void {
   // (One stop for Tab in the row, the chip last in hand; the arrows go along it: a toolbar.)
   const tab = (k: string) => `tabindex="${k === stripAt ? 0 : -1}" data-tk="${k}"`;
   type Chip = { key: GoalId; tone: Tone; weight: number; html: (on: boolean) => string };
-  const chips: Chip[] = AREA_ORDER.map((id) => {
+  const chips: Chip[] = GOAL_ORDER.map((id) => {
     const g = GOALS[id];
     const s = goalStatus(id);
     const fire = inc.has(id);
@@ -222,7 +202,7 @@ export function refreshStrip(): void {
       key: id, tone, weight: WEIGHT[id],
       html: (on: boolean) => wide && id === 'amenity' ? amenityHead(tone, on, tab(id), d?.said)
         : wide
-        ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${words} · ${on ? '눌러서 도시 현황 닫기·열기 (×는 화면 닫기)' : `눌러서 ${g.name} 화면`}`)}" aria-label="${escapeHtml(`${g.name}${said}: ${head}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span><span class="r-num">${graph!.val}</span>${graph!.svg}</button>`
+        ? `<button type="button" class="${tone || 'ok'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${escapeHtml(`${g.name}: ${words} · ${on ? '눌러서 패널 닫기·열기 (×는 화면 닫기)' : `눌러서 ${g.name} 화면`}`)}" aria-label="${escapeHtml(`${g.name}${said}: ${head}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${glyph}<span class="r-name">${g.name}</span><span class="r-num">${graph!.val}</span>${graph!.svg}</button>`
         : `<button type="button" class="${tone || 'ok'}${tone === 'bad' || on ? '' : ' bare'}"${on ? '' : ` data-k="${id}"`} ${tab(id)} data-strip-goal="${id}" title="${g.name}: ${escapeHtml(s.value)}${tone ? ` · ${escapeHtml(note)}` : ''} · 눌러서 ${g.name} 화면" aria-label="${g.name}${said}: ${escapeHtml(s.value)}"${on ? ' aria-pressed="true"' : ''}>${glyph}${tone === 'bad' || on ? g.name : ''}</button>`,
     };
   });
@@ -230,32 +210,37 @@ export function refreshStrip(): void {
   // the pointer, and the eye looked for each in a new place). A phone's chips, the troubled first.
   const sorted = wide ? chips : chips.map((c, k) => ({ c, k }))
     .sort((a, b) => rank(a.c.tone) - rank(b.c.tone) || (a.c.tone ? b.c.weight - a.c.weight : a.k - b.k)).map(({ c }) => c);
-  refreshCityRows(wide);
-  refreshCityTabs();
+  markCity();
   // 시작하기 and how far along, while its checklist shows (the city pane holds it).
   const start = !checklist ? ''
-    : wide ? `<button type="button" class="strip-start" data-k="start" ${tab('start')} data-strip-start title="시작하기: ${checklist.done}/${checklist.of} 완료 · 눌러서 도시 현황의 시작하기 목록" aria-label="시작하기: ${checklist.done}/${checklist.of} 완료 · 도시 현황">${icon('sparkles')}<span class="r-name">시작하기</span><span class="r-val">${checklist.done}/${checklist.of}</span></button>`
-    : `<button type="button" class="strip-start" data-k="start" ${tab('start')} data-strip-start title="시작하기: ${checklist.done}/${checklist.of} 완료 · 눌러서 도시 현황의 시작하기 목록" aria-label="시작하기: ${checklist.done}/${checklist.of} 완료 · 도시 현황">${icon('sparkles')}<span>시작하기 <small>${checklist.done}/${checklist.of}</small></span></button>`;
+    : wide ? `<button type="button" class="strip-start" data-k="start" ${tab('start')} data-strip-start title="시작하기: ${checklist.done}/${checklist.of} 완료 · 눌러서 인구 화면의 시작하기 목록" aria-label="시작하기: ${checklist.done}/${checklist.of} 완료 · 인구 화면">${icon('sparkles')}<span class="r-name">시작하기</span><span class="r-val">${checklist.done}/${checklist.of}</span></button>`
+    : `<button type="button" class="strip-start" data-k="start" ${tab('start')} data-strip-start title="시작하기: ${checklist.done}/${checklist.of} 완료 · 눌러서 인구 화면의 시작하기 목록" aria-label="시작하기: ${checklist.done}/${checklist.of} 완료 · 인구 화면">${icon('sparkles')}<span>시작하기 <small>${checklist.done}/${checklist.of}</small></span></button>`;
   // The open screen's lit, with its × — a phone's first after 시작하기; wide, in its place (a button that jumped to
   // the top as it was pressed left another under the pointer).
   const on = active ? sorted.find((c) => c.key === active) : undefined;
   const lit = on && active ? `<span class="strip-on" data-k="on" role="group" aria-label="열린 화면: ${GOALS[active].name}">${on.html(true)}<button type="button" ${tab('end')} data-strip-end title="${GOALS[active].name} 화면 닫기 (지도 보기도 꺼짐)" aria-label="${GOALS[active].name} 화면 닫기">${icon('close')}</button></span>` : '';
   const show = (c: Chip) => (c === on ? lit : c.html(false));
-  // (Wide, 쾌적도's card: its button, then the areas under it as its rows.)
+  // Wide, two cards: the city's takes 수요 and 재정 under its button (the residents), 쾌적도's the areas under its own
+  // (the rating).
   const card = new Set<GoalId>(['amenity', ...UNDER_AMENITY]);
-  const html = start + (wide
-    ? `${sorted.filter((c) => !card.has(c.key)).map(show).join('')}<div class="amenity-card" data-k="amenity-card" data-rows role="group" aria-label="쾌적도와 그 아래 분야">${sorted.filter((c) => card.has(c.key)).map(show).join('')}</div>`
-    : lit + sorted.filter((c) => c !== on).map((c) => c.html(false)).join(''));
+  drawRow($('#city-rows'), wide ? sorted.filter((c) => UNDER_CITY.includes(c.key)).map(show).join('') : '');
   el.hidden = false;
-  if (html !== stripSeen) {
-    stripSeen = html;
-    const had = el.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.tk : undefined;
-    patchRow(el, html);
-    keepStop(el);
-    // (Moved, a chip lets go of the focus: back on it — or on the row's stop, its chip gone.)
-    if (had !== undefined && !el.contains(document.activeElement)) (el.querySelector<HTMLElement>(`[data-tk="${had}"]`) ?? el.querySelector<HTMLElement>('[tabindex="0"]'))?.focus({ preventScroll: true });
-  }
+  drawRow(el, start + (wide
+    ? `<div class="amenity-card" data-k="amenity-card" data-rows role="group" aria-label="쾌적도와 그 아래 분야">${sorted.filter((c) => card.has(c.key)).map(show).join('')}</div>`
+    : lit + sorted.filter((c) => c !== on).map((c) => c.html(false)).join('')));
   fadeStrip(el);
+}
+/** What each row of chips last drew (it is brought up to date only when that would change). */
+const rowSeen = new WeakMap<HTMLElement, string>();
+/** A row of chips brought to `html` in place, its one Tab stop kept, and the keyboard's place on it. */
+function drawRow(el: HTMLElement, html: string): void {
+  if (rowSeen.get(el) === html) return;
+  rowSeen.set(el, html);
+  const had = el.contains(document.activeElement) ? (document.activeElement as HTMLElement).dataset.tk : undefined;
+  patchRow(el, html);
+  keepStop(el);
+  // (Moved, a chip lets go of the focus: back on it — or on the row's stop, its chip gone.)
+  if (had !== undefined && !el.contains(document.activeElement)) (el.querySelector<HTMLElement>(`[data-tk="${had}"]`) ?? el.querySelector<HTMLElement>('[tabindex="0"]'))?.focus({ preventScroll: true });
 }
 /**
  * 쾌적도's button on the rail, heading its card as the city's heads its own — read by the mayor's rating: the rating big,
@@ -276,46 +261,8 @@ function amenityHead(tone: Tone, on: boolean, tab: string, drift?: string): stri
   const moved = move === null ? '' : move ? `3개월 ${move > 0 ? '▲' : '▼'}${Math.abs(move)}` : '3개월 그대로';
   const note = ratingNote(r);
   const reading = rated ? `시장 평점 ${num(r)} (−100~100)` : '시장 평점 아직 없음 (주민이 든 달이 지나면 매겨집니다)';
-  return `<button type="button" class="amenity-head ${tone || 'ok'}"${on ? '' : ' data-k="amenity"'} ${tab} data-strip-goal="amenity" style="--lo:${lo}%;--hi:${hi}%" title="${escapeHtml(`쾌적도: ${reading}${note ? ` · ${note}` : ''}${drift ? ` · ${drift}` : ''} · 아래의 전력부터 땅값까지가 모두 평점을 움직입니다 · ${on ? '눌러서 도시 현황 닫기·열기 (×는 화면 닫기)' : '눌러서 쾌적도 화면 (시장 평점과 공원·보상)'}`)}" aria-label="${escapeHtml(`쾌적도${said}: ${rated ? `시장 평점 ${num(r)}` : '시장 평점 아직 없음'}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${icon('trees')}<span class="r-name">쾌적도</span><span class="am-what">시장 평점</span><span class="am-score"><b>${rated ? num(r) : '—'}</b>${rated ? '<small>점</small>' : ''}</span><span class="am-bar" aria-hidden="true"><i></i></span><span class="am-next"><span>${mood}</span>${moved ? `<b>${moved}</b>` : ''}</span></button>`;
+  return `<button type="button" class="amenity-head ${tone || 'ok'}"${on ? '' : ' data-k="amenity"'} ${tab} data-strip-goal="amenity" style="--lo:${lo}%;--hi:${hi}%" title="${escapeHtml(`쾌적도: ${reading}${note ? ` · ${note}` : ''}${drift ? ` · ${drift}` : ''} · 아래의 전력부터 땅값까지가 모두 평점을 움직입니다 · ${on ? '눌러서 패널 닫기·열기 (×는 화면 닫기)' : '눌러서 쾌적도 화면 (시장 평점과 공원·보상)'}`)}" aria-label="${escapeHtml(`쾌적도${said}: ${rated ? `시장 평점 ${num(r)}` : '시장 평점 아직 없음'}${note ? `, ${note}` : ''}`)}"${on ? ' aria-pressed="true"' : ''}>${icon('trees')}<span class="r-name">쾌적도</span><span class="am-what">시장 평점</span><span class="am-score"><b>${rated ? num(r) : '—'}</b>${rated ? '<small>점</small>' : ''}</span><span class="am-bar" aria-hidden="true"><i></i></span><span class="am-next"><span>${mood}</span>${moved ? `<b>${moved}</b>` : ''}</span></button>`;
 }
-/** The city's card's rows as last drawn. */
-let cityRowsSeen = '';
-/**
- * The city's own figure beside its name and size: 재정 (the money, the month's balance) — wide, a row of its card under
- * the city button, drawn as the areas' are (pressed, the city's screen on its money, lit while that shows; pressed
- * again, put away); on a phone, a mark on the city button while it wants a look.
- */
-function refreshCityRows(wide: boolean): void {
-  const fin = goalStatus('finance');
-  const said = fin.tone === 'bad' ? '조치 필요' : fin.tone === 'warn' ? '주의' : '';
-  markCity();
-  const btn = $('#btn-city');
-  const flag = $('#city-flag');
-  if (!wide) {
-    if (flag.dataset.key !== fin.tone) {
-      flag.dataset.key = fin.tone;
-      flag.innerHTML = fin.tone ? `<span class="cf ${fin.tone}">${icon('wallet')}</span>` : '';
-    }
-    flag.hidden = !fin.tone;
-    if (fin.tone) btn.setAttribute('aria-description', `재정 ${said}`);
-    else btn.removeAttribute('aria-description');
-    return;
-  }
-  flag.hidden = true;
-  btn.removeAttribute('aria-description');
-  // (Lit while the money's tabs show.)
-  const on = active === 'finance' && paneShown();
-  const d = driftOf('finance');
-  const graph = railSpark('finance');
-  // (The month's balance once: its own, or the line that says it with how long the money lasts.)
-  const net = monthNet();
-  const words = `${fin.value}${fin.tone ? ` · ${glue(fin.note)}` : net ? ` · ${net}` : ''}`;
-  const html = `<button type="button" class="strip-city ${fin.tone || 'ok'}${on ? ' on' : ''}" data-k="finance" data-city-row="finance" aria-pressed="${on}" title="${escapeHtml(`재정: ${words}${d ? ` · ${d.said}` : ''}${graph.said ? ` · 그래프: ${graph.said}` : ''} · ${on ? '눌러서 닫기' : '눌러서 도시 화면의 재정 탭'}`)}" aria-label="${escapeHtml(`재정${said ? `, ${said}` : ''}: ${words}`)}">${icon('wallet')}<span class="r-name">재정</span><span class="r-num">${graph.val}</span>${graph.svg}</button>`;
-  if (html === cityRowsSeen) return;
-  cityRowsSeen = html;
-  patchRow($('#city-rows'), html);
-}
-
 /** The row's cut edges faded where it scrolls: sideways on a phone, up and down in the rail. */
 function fadeStrip(el: HTMLElement): void {
   if (phone()) {
@@ -492,8 +439,6 @@ function railSpark(key: Exclude<GoalId, 'amenity'>): { svg: string; val: string;
   const from = Math.min(first, ...(vb.length ? [vb.findIndex((v) => v !== null)] : []));
   return { svg: `${open}${zero}${fill}${second}<path class="s1" d="${line(va)}"/></svg>`, val, said: `지난 ${n - from}개월 ${a[0]}${second ? `(실선)·${def.b![0]}(점선)` : ''}` };
 }
-/** The chips' markup as last drawn (what the row shows, unless it changed). */
-let stripSeen = '';
 /** The chip the row's Tab stop is on (its data-tk): the one last focused or arrowed to. */
 let stripAt = 'start';
 
@@ -798,7 +743,7 @@ function ratingGuide(): { head: string; act: string } {
     : `<div class="g-act"><p class="g-act-head">${glyph}<b>${POLL_NAME[topic]} 불만부터</b><small>불만 없는 주민 ${Math.round(approve * 100)}%</small></p>
       <p class="g-act-why">시장 평점은 주민의 불만에서 나옵니다: 아래 여론 조사에서 불만이 가장 큰 것을 고치면 오릅니다</p>
       <div class="g-act-btns">${goal === 'finance'
-        ? `<button type="button" class="primary" data-goal-open="finance" data-goal-view="mayor">${glyph}도시의 세율 탭으로</button>`
+        ? `<button type="button" class="primary" data-goal-open="finance" data-goal-part="#taxes">${glyph}재정 화면의 세율로</button>`
         : `<button type="button" class="primary" data-goal-open="${goal}"${view ? ` data-goal-view="${view}"` : ''}>${glyph}${GOALS[goal].name} 화면으로</button>`}</div></div>`;
   return {
     // (Its note left to the row: what it costs is said under it.)
@@ -1405,6 +1350,9 @@ const ALSO_FIGURE: Partial<Record<GoalId, string>> = { traffic: '대중교통 �
 const STEADY: Partial<Record<GoalId, number>> = { traffic: 1 };
 /** Days after an action its result is told (a quarter: demand, crime and schooling take that long to move). */
 const FOLLOW_DAYS = 90;
+/** A figure an action is judged by: its goal's, or the city's own (수요's zones by the residents they bring). */
+const figureOf = (id: GoalId, label: string) => metrics(id).find((x) => x[0] === label) ?? cityMetrics().find((x) => x[0] === label);
+
 /** Remembers an action to report on; another on the same goal before the result joins it (measured from the first). */
 function followUp(id: GoalId, text: string, merge?: string): void {
   const pending = journal().pending;
@@ -1419,7 +1367,7 @@ function followUp(id: GoalId, text: string, merge?: string): void {
     was.day = city.state.day;
     return;
   }
-  const m = metrics(id).find((x) => x[0] === KEY_FIGURE[id]);
+  const m = figureOf(id, KEY_FIGURE[id]);
   if (!m || m[3] === undefined) return;
   const also = ALSO_FIGURE[id] ? metrics(id).find((x) => x[0] === ALSO_FIGURE[id]) : undefined;
   pending[id] = { text, key: merge, count: 1, day: city.state.day, label: m[0], value: m[1], n: m[3], better: m[4] ?? 0, ...(also ? { also: { label: also[0], value: also[1] } } : {}) };
@@ -1520,7 +1468,7 @@ export function watchGoals(): void {
     // (쾌적도's, on its own tab — its parks' — not its rating's.)
     const view = id === 'amenity' ? 'desirability' : undefined;
     // (The figure it was told against, whichever tab is open now.)
-    const m = metrics(id).find((x) => x[0] === p.label);
+    const m = figureOf(id, p.label);
     if (!m || m[3] === undefined) continue;
     // (By what is shown: a figure that reads the same hasn't moved; nor one within its steady range.)
     const d0 = m[1] === p.value ? 0 : Math.round(m[3]) - Math.round(p.n);
@@ -1573,7 +1521,7 @@ function showGoalView(view: string): void {
 
 /** The view the map rests on: the open goal's tab's, else the city as it is (a tool in hand may put its own over it). */
 export function baseView(): string {
-  return active ? tabView(active, tabNow(active)) : 'none';
+  return active ? tabView(active, tabNow(active)) : paneShown() ? CITY_VIEW : 'none';
 }
 
 // ------------------------------------------------------------------ a goal's tabs
@@ -1665,7 +1613,6 @@ function selectTab(k: number, focus = false): void {
   showGoalView(tabView(active, tabs[k]!));
   showGoalStats(active);
   renderGoal(true);
-  refreshCityTabs();
   refreshRecent(); // (the tool card's row of the screen's tools: 쾌적도's own tab has them, its rating's not)
   // (Back in sight if the screen was scrolled down: its new part starts under the tabs, which stay at the top.)
   $('#pane').scrollTop = 0;
@@ -1706,14 +1653,6 @@ function pressOnTab(sel: string): void {
 }
 
 export function stepTab(by: number): void {
-  // The city's screen: its overview and 재정·정책's tabs, round.
-  if (active === 'finance' || (!active && paneShown())) {
-    const n = goalTabs('finance').length + 1;
-    const to = ((active === 'finance' ? Math.min(tabAt, n - 2) + 1 : 0) + by + n) % n;
-    cityTab(to - 1, !!document.activeElement?.closest('#city-tabs'));
-    flash(`도시 › ${to ? goalTabs('finance')[to - 1]!.label : '도시'}`, 'info');
-    return;
-  }
   if (!active) {
     flash('분야를 열면 [ ]로 그 탭을 넘깁니다 · 탭마다 알맞은 지도 보기가 켜집니다', 'info');
     return;
@@ -1739,18 +1678,30 @@ export function openGoalView(id: GoalId, view: string): void {
 
 /**
  * A view asked for by a 보기 (a legend's, the getting-started list's): the open goal's tab with it, else the first
- * goal's that has one.
+ * goal's that has one — 개발 막힘, the city's own screen's (its residents').
  */
 export function openViewTab(view: string): void {
+  if (view === CITY_VIEW) {
+    openCity();
+    return;
+  }
   const holds = (g: GoalId) => GOALS[g].tabs.some((t) => t.view === view || t.views?.some(([v]) => v === view));
   const id = active && holds(active) ? active : GOAL_ORDER.find(holds);
   if (id) openGoalView(id, view);
 }
 
-/** G: 수요 on its 개발 막힘 tab, or put away from there. */
-export function toggleGrowthTab(): void {
-  if (active === 'growth' && tabNow('growth').view === 'growth' && $('#app').classList.contains('pane-open')) closeScreen();
-  else openGoalView('growth', 'growth');
+/** The view the city's own screen (its residents: the city button's) puts on the map: where zones are kept from growing. */
+export const CITY_VIEW = 'growth';
+/** The city's own screen: its residents, with 개발 막힘 on the map (an area's screen open or put away ends). */
+export function openCity(): void {
+  closeGoal();
+  openPane();
+  refreshStrip();
+}
+/** G: the city's own screen, 개발 막힘 on the map — or put away from it. */
+export function toggleCity(): void {
+  if (!active && paneShown()) dismissPane();
+  else openCity();
 }
 
 /** A screen put away whole (a key that opened it, pressed again): the pane goes, and the screen ends with its view. */
@@ -1759,57 +1710,9 @@ function closeScreen(): void {
   closeGoal();
 }
 
-// ------------------------------------------------------------------ the city's screen
-
-/** The city's tabs as last drawn. */
-let cityTabsSeen = '';
-/**
- * The city's screen's tabs, over the pane under its region › name: 도시 (its size, the next reward) and 재정·정책's
- * (the money, taxes, ordinances) — each putting its map view on, as an area's tabs do.
- */
-export function refreshCityTabs(): void {
-  const el = $('#city-tabs');
-  const on = active === 'finance' ? Math.min(tabAt, goalTabs('finance').length - 1) : -1;
-  const tab = (k: number, label: string, tone: '' | 'warn' | 'bad', title: string) => `<button type="button" role="tab" class="mg-tab${k === on ? ' on' : ''}" data-city-tab="${k}" aria-selected="${k === on}" tabindex="${k === on ? 0 : -1}" title="${escapeHtml(title)}">${escapeHtml(label)}${tabDot(tone)}</button>`;
-  const html = tab(-1, '도시', '', '도시의 크기와 다음 보상 · 지도 보기 없음') + goalTabs('finance').map((t, k) => {
-    const tone = tabTone('finance', t);
-    return tab(k, t.label, tone, `${t.view === 'none' ? '지도 보기 없음 (도시 그대로)' : `지도: ${viewName(t.view) || t.label}`}${tabSaid(tone)}`);
-  }).join('');
-  if (html === cityTabsSeen) return;
-  cityTabsSeen = html;
-  const had = el.contains(document.activeElement);
-  el.innerHTML = html;
-  if (had) el.querySelector<HTMLElement>('[aria-selected="true"]')?.focus({ preventScroll: true });
-}
-
-/** A tab of the city's screen (−1: its overview), the pane with it. */
-function cityTab(k: number, focus = false): void {
-  if (k < 0) {
-    closeGoal();
-    openPane();
-  } else {
-    if (active !== 'finance') openGoal('finance');
-    if (k !== tabAt) selectTab(k);
-    openPane(); // (a phone's too: from a row of the city's, not the map)
-  }
-  refreshCityTabs();
-  if (focus) $('#city-tabs').querySelector<HTMLElement>('[aria-selected="true"]')?.focus({ preventScroll: true });
-}
-
-/** 재정 pressed (a row of the city's card, its scoreboard's): that tab of the city's screen — or, showing, the pane put
- *  away. */
-function toggleCityRow(): void {
-  // (Lit as its row is, on any of the money's tabs: 재정's lit on 세율 went to 재정 when pressed again.)
-  if (active === 'finance' && paneShown()) {
-    dismissPane();
-    return;
-  }
-  cityTab(goalTabs('finance').findIndex((t) => t.label === '재정'));
-}
-
 /** Where the keyboard goes into an open screen: its tab showing, else the pane's ×. */
 function screenStart(): HTMLElement {
-  return $('#pane').querySelector<HTMLElement>(active === 'finance' ? '#city-tabs [aria-selected="true"]' : '#manage .mg-tab.on') ?? $('#pane-close');
+  return $('#manage').querySelector<HTMLElement>('.mg-tab.on') ?? $('#pane-close');
 }
 
 /** Opens a goal's screen: its view on the map, its panel in the pane. */
@@ -1835,7 +1738,6 @@ export function openGoal(id: GoalId, at?: [number, number], fromMap = false): vo
     showGoalView(tabView(id, tabNow(id)));
   }
   $('#pane').classList.add('managing');
-  $('#pane').classList.toggle('city-screen', id === 'finance');
   showGoalStats(id);
   // The pane comes with it: wide, beside the map (from an alert about a place too, which the map then shows); on a
   // phone it rises over the map — not from an alert about a place: there the place shows, the goal's chip in the row
@@ -1896,7 +1798,7 @@ function clearOfCards(): void {
 }
 
 /**
- * 재정·정책: opens it, or on it already brings its policy into sight (an advisor's "재정 열기", the policy links, B).
+ * 재정: opens it, or on it already brings its levers into sight (an advisor's "재정 열기", the policy links, B).
  */
 export function openFinance(): void {
   if (active !== 'finance') openGoal('finance');
@@ -1907,30 +1809,39 @@ export function openFinance(): void {
   }
 }
 
-/** B: 재정·정책 (the city's screen, on its tab about the money), or put away from it. */
+/** B: 재정 (the books, taxes, budgets, loans, ordinances), or put away from it. */
 export function toggleFinance(): void {
   if (active === 'finance' && $('#app').classList.contains('pane-open')) closeScreen();
   else openFinance();
 }
 
-/** Under a goal's screen, its statistics: graphs of its figures and the reports that go with it (filled by the panels while shown). */
+/**
+ * Under a goal's screen, its statistics: graphs of its figures and the reports that go with it (filled by the panels
+ * while shown) — with none open, the city's own (its residents: their graphs, by wealth and by age, the buildings, the
+ * rewards), under its screen's scoreboard.
+ */
 function showGoalStats(id: GoalId | null): void {
   const t = id ? tabNow(id) : null;
-  // 재정's levers, each on its own tab (taxes; departments and loans; ordinances).
+  // 재정's levers, by the parts of its screen (taxes; departments and loans; ordinances).
   const policy = $('#policy');
   policy.hidden = id !== 'finance';
   const [taxes, depts, ords] = policy.querySelectorAll<HTMLElement>(':scope > .mg-sec');
   if (id === 'finance' && t) for (const [sec, part] of [[taxes, 'taxes'], [depts, 'depts'], [ords, 'ords']] as const) if (sec) sec.hidden = !partOn(id, t, part);
   const el = $('#goal-stats');
+  // (One box, moved: in a goal's screen before what can be done, else in the city's own.)
+  if (id) {
+    if (el.parentElement?.id !== 'manage') $('#mg-acts').before(el);
+  } else if (el.parentElement?.id !== 'city-people') $('#city-people').append(el);
   let any = false;
   el.querySelectorAll<HTMLElement>('.gs[data-goals]').forEach((s) => {
     // (A report the tab names, or the goal's own that no tab names, on its home tab.)
     const rid = s.querySelector('[id]')?.id ?? '';
-    const own = !!id && s.dataset.goals!.split(' ').includes(id);
-    s.hidden = !id || !t || !(t.reports?.includes(rid) || (own && onTab(id, t, rid, (x) => x.reports)));
+    const goals = s.dataset.goals!.split(' ');
+    const own = !!id && goals.includes(id);
+    s.hidden = !id ? !goals.includes('city') : !t || !(t.reports?.includes(rid) || (own && onTab(id, t, rid, (x) => x.reports)));
     any ||= !s.hidden;
   });
-  graphs.setGoal(id, id && t ? tabGraphs(id, t) : null);
+  graphs.setGoal(id ?? 'city', id && t ? tabGraphs(id, t) : null);
   el.hidden = !any && $('#graphs').hidden;
 }
 
@@ -1940,7 +1851,7 @@ function tabGraphs(id: GoalId, t: GoalTab): string[] {
   return GRAPH_KEYS.filter(({ key, goal }) => named(t, key) || (goal === id && t === homeOf(id) && !GOALS[id].tabs.some((x) => named(x, key)))).map((g) => g.key);
 }
 
-/** Opens a goal's screen and brings one of its reports into sight (the summary's 다음 보상), on a view of its own. */
+/** Opens a goal's screen and brings a part of it into sight (a report, or 재정's 세율 from 시장 평점's guide), on a view of its own. */
 function openGoalAt(id: GoalId, part: string, view?: string): void {
   if (view) openGoalView(id, view);
   else {
@@ -1950,7 +1861,7 @@ function openGoalAt(id: GoalId, part: string, view?: string): void {
     const k = goalTabs(id).findIndex((t) => t.reports?.includes(rid) || onTab(id, t, rid, (x) => x.reports));
     if (k >= 0 && k !== tabAt) selectTab(k);
   }
-  requestAnimationFrame(() => $(part).closest<HTMLElement>('.gs')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+  requestAnimationFrame(() => $(part).closest<HTMLElement>('.gs, .mg-sec')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
 }
 
 /** Phones: the built-up city glided into the map left above the pane. */
@@ -2007,7 +1918,7 @@ export function closeGoal(): boolean {
   const was = active;
   const inPanel = $('#manage').contains(document.activeElement);
   active = null;
-  $('#pane').classList.remove('managing', 'city-screen');
+  $('#pane').classList.remove('managing');
   for (const sel of ['#mg-body', '#mg-acts', '#mg-more']) $(sel).innerHTML = '';
   showGoalStats(null);
   drawn.top = drawn.acts = drawn.more = '';
@@ -2022,10 +1933,9 @@ export function closeGoal(): boolean {
   restView();
   refreshRecent();
   updatePanels();
-  // Back where the overview was, focus on the goal's row if the keyboard was in the panel (the city's own screen: on its
-  // overview's tab — it is no row of a list, and the keyboard was left on nothing).
+  // Back where the overview was, focus on the goal's row if the keyboard was in the panel.
   $('#pane').scrollTop = overviewScroll;
-  if (inPanel) (was === 'finance' ? $('#city-tabs').querySelector<HTMLElement>('[data-city-tab="-1"]') : $('#status').querySelector<HTMLElement>(`[data-goal="${was}"]`))?.focus({ preventScroll: true });
+  if (inPanel) $('#status').querySelector<HTMLElement>(`[data-goal="${was}"]`)?.focus({ preventScroll: true });
   redraw();
   return true;
 }
@@ -3009,14 +2919,13 @@ function goalParts(id: GoalId): { top: string; acts: string; more: string } {
   const ords = [...new Set([...g.ordinances.filter((o) => onTab(id, t, o, (y) => y.ordinances)), ...(t.ordinances ?? [])])];
   const figs = metrics(id).filter(([label]) => figOn(id, t, label));
   const ops = operations(id);
-  // (No way back: each area's screen is one of the city's, the city's own its button's; the pane's × puts it away.
-  // 재정·정책's head is the city's — region › name and its tabs over the pane.)
-  const top = `${id === 'finance' ? '' : `<header class="mg-head">
+  // (No way back: each area's screen is one of the city's, the city's own its button's; the pane's × puts it away.)
+  const top = `<header class="mg-head">
       <h2 title="${g.aim}">${icon(g.icon)}<span>${g.name}</span></h2>${!s.tone && !readStats().population && !city.state.buildings.size
       ? '<span class="chip" title="아직 사는 사람이 없습니다: 판단은 도시가 생긴 뒤에">시작 전</span>' // (an empty map isn't "good")
       : `<span class="chip ${s.tone || 'good'}">${s.tone === 'bad' ? '조치 필요' : s.tone === 'warn' ? '주의' : '양호'}</span>`}
       ${tabsHtml(id)}
-    </header>`}
+    </header>
     ${incidentBanner(id)}
     ${guide.head}
     ${figs.length ? `<div class="mg-metrics">${figs.map(([label, value, tone, n, better, title]) => {
@@ -3029,7 +2938,7 @@ function goalParts(id: GoalId): { top: string; acts: string; more: string } {
     }).join('')}</div>` : ''}
     ${has('usage') ? usageBar(id) : ''}
     ${has('air') ? airCauses(id) : ''}
-    ${has('rci') && id === 'growth' && $('#demand').innerHTML.trim() ? `<section class="mg-sec mg-rci"><h3>${icon('zones')}구역별 수요 <span class="sec-note">막대가 위로 길수록 수요가 큼</span></h3>${$('#demand').innerHTML.replace('id="demand-detail"', 'class="demand-detail-mg"')}</section>` : ''}
+    ${has('rci') && id === 'growth' ? demandGrid() : ''}
     ${has('outlook') ? ops.outlook : ''}`;
   const facs = has('facilities') && list.length ? `<section class="mg-sec"><h3>${icon('landmark')}시설 ${list.length}곳${allDept ? '<small class="sec-note">부서 예산으로 운영</small>' : ''}</h3><div class="mg-facs">${shown.map((f) => {
       const [line, tone] = facilityLine(f);
@@ -3132,8 +3041,8 @@ export function toggleUrgentGoal(): void {
     else openPane();
     return;
   }
-  // (The first row of 도시 상태, as the list orders them: by GOAL_ORDER alone, M opened 재정·정책 under a list that
-  // began with 수도.)
+  // (The first row of 도시 상태, as the list orders them: by GOAL_ORDER alone, M opened 재정 under a list that began
+  // with 수도.)
   const rank = { bad: 0, warn: 1, '': 2, good: 2 } as const;
   const id = [...WATCHED].sort((a, b) => {
     const [ta, tb] = [goalStatus(a).tone, goalStatus(b).tone];
@@ -3142,13 +3051,77 @@ export function toggleUrgentGoal(): void {
   openGoal(id);
 }
 
+/** A row of chips made to answer: pressed, a key along it, its Tab stop kept as its size changes. */
+function wireRow(row: HTMLElement): void {
+  // (Its size changed — the rail narrowed beside the pane or widened again, the window — its fades and its Tab stop
+  // again: the cut edge of a list put back at its full width with the clock stopped was left unfaded.)
+  if (typeof ResizeObserver === 'function') {
+    new ResizeObserver(() => {
+      if (row.id === 'goal-strip') fadeStrip(row);
+      keepStop(row);
+    }).observe(row);
+  }
+  row.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    // (From the keyboard, on into what opened: the chips go away with the bars, and the focus fell to the page.)
+    const keyboard = (e as MouseEvent).detail === 0;
+    const intoScreen = () => keyboard && screenStart().focus({ preventScroll: true });
+    if (t.closest('[data-strip-start]')) {
+      closeGoal();
+      openPane();
+      $('#pane').scrollTop = 0; // (the checklist heads the overview)
+      if (keyboard) $('#onboarding').querySelector<HTMLElement>('button, a[href]')?.focus({ preventScroll: true });
+      return;
+    }
+    if (t.closest('[data-strip-end]')) {
+      // (From the keyboard, on to the area just closed — wide, still in its place — not the top of the row.)
+      const was = active;
+      if (was) stripAt = was;
+      closeGoal();
+      if (keyboard) (row.querySelector<HTMLElement>(`[data-tk="${was}"]`) ?? row.querySelector<HTMLElement>('button') ?? $('#btn-city')).focus({ preventScroll: true });
+      return;
+    }
+    const b = t.closest<HTMLElement>('[data-strip-goal]');
+    if (!b) return;
+    const id = b.dataset.stripGoal as GoalId;
+    // (Wide, the open area's button again puts the pane away, the screen kept on the map, as the city button's does.)
+    if (!phone() && id === active && $('#app').classList.contains('pane-open')) {
+      dismissPane();
+      return;
+    }
+    openGoal(id, incidents().find((x) => x.goal === id)?.at);
+    intoScreen();
+  });
+  // A toolbar: one Tab stop, the chip last in hand; the arrows (Home, End) go along the row. (Not the map's arrows
+  // too: they panned it, or moved a building tool's cursor, under the chip being stepped through.)
+  row.addEventListener('keydown', (e) => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
+    const all = [...row.querySelectorAll<HTMLElement>('button')].filter((b) => b.getClientRects().length > 0); // (not the open area's ×, hidden in the rail's narrow column)
+    const at = all.indexOf(document.activeElement as HTMLElement);
+    if (at < 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const to = all[e.key === 'Home' ? 0 : e.key === 'End' ? all.length - 1 : Math.max(0, Math.min(all.length - 1, at + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1)))]!;
+    to.focus();
+    to.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  });
+  row.addEventListener('focusin', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-tk]');
+    if (!b) return;
+    stripAt = b.dataset.tk!;
+    for (const x of row.querySelectorAll<HTMLElement>('[data-tk]')) x.tabIndex = x === b ? 0 : -1;
+  });
+}
+
 /** Wires the pane's goal rows and the goal panel (once). */
 export function setupGoals(): void {
+  // (The statistics start in the city's own screen: no other is open yet.)
+  showGoalStats(null);
   // A problem's row, a quality's tile (or an advisor's 해결) opens its goal.
   $('#pane').addEventListener('click', (e) => {
-    // 다음 보상: the full list of rewards and how far along each is (on 쾌적도's own tab, with the landmarks).
+    // 다음 보상: the full list of rewards and how far along each is, under it on the same screen (the city's own).
     if ((e.target as HTMLElement).closest('.sum-next')) {
-      openGoalAt('amenity', '#rewards');
+      $('#rewards').closest<HTMLElement>('.gs')?.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
       return;
     }
     // A goal screen's 추천 조치: the action it names, taken up (as if pressed below).
@@ -3230,68 +3203,12 @@ export function setupGoals(): void {
     if (row?.dataset.goalView) openGoalView(row.dataset.goal as GoalId, row.dataset.goalView);
     else if (row) openGoal(row.dataset.goal as GoalId);
   });
-  // The row of chips under the top buttons: 시작하기 opens the city pane on its overview (an open screen put away ends),
-  // an area its screen (the open one's back up — 쾌적도's on its rating), its × ends it. (Scrolled, its cut edges fade.)
+  // The rows of chips — under the top buttons, or wide the rail's (the city's card's 수요 and 재정, and the rest): 시작하기
+  // opens the city's own screen (an open screen put away ends), an item its screen (the open one's back up — 쾌적도's on
+  // its rating), its × ends it. (The rail's scrolling one, its cut edges faded.)
   const strip = $('#goal-strip');
   strip.addEventListener('scroll', () => fadeStrip(strip), { passive: true });
-  // (Its size changed — the rail narrowed beside the pane or widened again, the window — its fades and its Tab stop
-  // again: the cut edge of a list put back at its full width with the clock stopped was left unfaded.)
-  if (typeof ResizeObserver === 'function') {
-    new ResizeObserver(() => {
-      fadeStrip(strip);
-      keepStop(strip);
-    }).observe(strip);
-  }
-  strip.addEventListener('click', (e) => {
-    const t = e.target as HTMLElement;
-    // (From the keyboard, on into what opened: the chips go away with the bars, and the focus fell to the page.)
-    const keyboard = (e as MouseEvent).detail === 0;
-    const intoScreen = () => keyboard && screenStart().focus({ preventScroll: true });
-    if (t.closest('[data-strip-start]')) {
-      closeGoal();
-      openPane();
-      $('#pane').scrollTop = 0; // (the checklist heads the overview)
-      if (keyboard) $('#onboarding').querySelector<HTMLElement>('button, a[href]')?.focus({ preventScroll: true });
-      return;
-    }
-    if (t.closest('[data-strip-end]')) {
-      // (From the keyboard, on to the area just closed — wide, still in its place — not the top of the row.)
-      const was = active;
-      if (was) stripAt = was;
-      closeGoal();
-      if (keyboard) (strip.querySelector<HTMLElement>(`[data-tk="${was}"]`) ?? strip.querySelector<HTMLElement>('button') ?? $('#btn-city')).focus({ preventScroll: true });
-      return;
-    }
-    const b = t.closest<HTMLElement>('[data-strip-goal]');
-    if (!b) return;
-    const id = b.dataset.stripGoal as GoalId;
-    // (Wide, the open area's button again puts the pane away, the screen kept on the map, as the city button's does.)
-    if (!phone() && id === active && $('#app').classList.contains('pane-open')) {
-      dismissPane();
-      return;
-    }
-    openGoal(id, incidents().find((x) => x.goal === id)?.at);
-    intoScreen();
-  });
-  // A toolbar: one Tab stop, the chip last in hand; the arrows (Home, End) go along the row. (Not the map's arrows
-  // too: they panned it, or moved a building tool's cursor, under the chip being stepped through.)
-  strip.addEventListener('keydown', (e) => {
-    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(e.key)) return;
-    const all = [...strip.querySelectorAll<HTMLElement>('button')].filter((b) => b.getClientRects().length > 0); // (not the open area's ×, hidden in the rail's narrow column)
-    const at = all.indexOf(document.activeElement as HTMLElement);
-    if (at < 0) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const to = all[e.key === 'Home' ? 0 : e.key === 'End' ? all.length - 1 : Math.max(0, Math.min(all.length - 1, at + (e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : -1)))]!;
-    to.focus();
-    to.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  });
-  strip.addEventListener('focusin', (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-tk]');
-    if (!b) return;
-    stripAt = b.dataset.tk!;
-    for (const x of strip.querySelectorAll<HTMLElement>('[data-tk]')) x.tabIndex = x === b ? 0 : -1;
-  });
+  for (const row of [strip, $('#city-rows')]) wireRow(row);
   // Across a phone's width the row changes its place: fitted again at once, not at the next month.
   matchMedia('(max-width: 860px)').addEventListener('change', () => refreshStrip());
   // A goal named beside a lever elsewhere (an ordinance in the budget sheet): its screen.
@@ -3300,33 +3217,10 @@ export function setupGoals(): void {
     if (!b) return;
     e.preventDefault(); // (inside a label: not its checkbox)
     closeSheet();
-    // (On the tab its view names, where it has one: the poll's dirty water, 수도's 수질.)
+    // (On the tab its view names, where it has one: the poll's dirty water, 수도's 수질; or at the part it names: 재정's 세율.)
     if (b.dataset.goalView) openGoalView(b.dataset.goalOpen as GoalId, b.dataset.goalView);
+    else if (b.dataset.goalPart) openGoalAt(b.dataset.goalOpen as GoalId, b.dataset.goalPart);
     else openGoal(b.dataset.goalOpen as GoalId);
-  });
-  // The city's screen's tabs: its overview, then 재정·정책's (← → along them, Home and End to the ends, as an area's).
-  const cityTabs = $('#city-tabs');
-  cityTabs.addEventListener('click', (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-city-tab]');
-    if (b) cityTab(Number(b.dataset.cityTab), (e as MouseEvent).detail === 0);
-  });
-  cityTabs.addEventListener('keydown', (e) => {
-    const b = (e.target as HTMLElement).closest?.<HTMLElement>('[data-city-tab]');
-    if (!b) return;
-    const n = goalTabs('finance').length + 1;
-    const k = Number(b.dataset.cityTab) + 1;
-    const to = e.key === 'ArrowRight' ? (k + 1) % n : e.key === 'ArrowLeft' ? (k - 1 + n) % n : e.key === 'Home' ? 0 : e.key === 'End' ? n - 1 : -1;
-    if (to < 0) return;
-    e.preventDefault();
-    e.stopPropagation(); // (not the map's arrows)
-    cityTab(to - 1, true);
-  });
-  // 재정: the row of the city's card down the map's left, and its scoreboard's.
-  document.addEventListener('click', (e) => {
-    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-city-row]');
-    if (!b) return;
-    toggleCityRow();
-    if ((e as MouseEvent).detail === 0 && paneShown()) screenStart().focus({ preventScroll: true });
   });
   // The info card's link to the goal a facility or lot belongs to.
   document.addEventListener('click', (e) => {

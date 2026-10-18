@@ -4,7 +4,7 @@
 import { DEFAULT_CONFIG, DEV_TYPES, DISASTER_KINDS, type DisasterKind, type NetworkKind, type StructureKind, STRUCTURES, ZONING_COST_HIGH_COMMERCIAL, type ZoneKind } from '@web-city/engine';
 import { icon, type IconName } from './icons';
 import { hoverUnderMouse, setPreview, updatePreview } from './input';
-import { baseView, goalTools, markToolSite, nextStep, openGoal, suggestedKinds } from './manage';
+import { baseView, goalTools, markToolSite, nextStep, openCity, openGoal, suggestedKinds } from './manage';
 import { firstStepTool } from './onboarding';
 import { DISASTER_NAME, plainCodes, STRUCTURE_NAME } from './names';
 import { holdForBuilding, isHeld, showHelp, showOverlay, viewProblem } from './controls';
@@ -1157,10 +1157,10 @@ let autoView: string | null = null;
 /** The view the tool in hand turns on, if any. */
 const toolView = (): string | null => UNDERGROUND_VIEW[tool.kind] ?? PLACING_VIEW[tool.id] ?? null;
 
-/** The map's view with no screen to hold one (a goal's closed): the tool in hand's own, else the city as it is. */
+/** The map's view with no tool's to hold: the tool in hand's own, else the one the map rests on (baseView). */
 export function restView(): void {
   const view = toolView();
-  showOverlay(view ?? 'none');
+  showOverlay(view ?? baseView());
   autoView = view;
 }
 
@@ -1186,10 +1186,10 @@ function wordsFor(t: Tool, d?: (typeof STRUCTURES)[StructureKind]): string {
 
 /**
  * The words that find each screen: what is done or read there. Typed 세율 or 대출, the box offered no tool and
- * said nothing; now 재정·정책 comes up.
+ * said nothing; now 재정 comes up.
  */
 const SCREEN_WORDS: Record<GoalId, string> = {
-  finance: '세율 세금 예산 부서 대출 빚 조례 수입 지출 자금 돈 결산', growth: '수요 인구 일자리 실업 재개발 빈구역 개발막힘',
+  finance: '세율 세금 예산 부서 대출 빚 조례 수입 지출 자금 돈 결산 재정 정책', growth: '수요 재개발 상한 소득별 종류별',
   amenity: '쾌적도 시장평점 평점 여론 불만 공원 부유층 고급 보상 랜드마크 관광',
   power: '전기 발전 정전 송전', water: '물 급수 단수 펌프 수도관 정수 수질', garbage: '쓰레기 매립 소각 재활용 수거 청결',
   police: '범죄 경찰 교도소 감방 폭동 체포', fire: '화재 불 소방차 출동', health: '건강 병원 수명 HQ 보건소',
@@ -1198,13 +1198,16 @@ const SCREEN_WORDS: Record<GoalId, string> = {
 };
 
 /**
- * The screens the box finds besides tools: each goal's, 지역, and the help. (Not 주민: off the web screen for now.)
+ * The screens the box finds besides tools: the city's own (its residents), each goal's, 지역, and the help. (Not 주민:
+ * off the web screen for now.)
  */
 function screens(): Found[] {
-  const out: Found[] = GOAL_ORDER.map((id) => ({
+  const out: Found[] = [{ key: 'screen:city', name: '인구', where: '도시 화면 (G)', glyph: icon('trophy'), sub: '', locked: '',
+    words: '인구 주민 일자리 실업 일하는 소득별 나이 보상 건물 버려진 빈구역 개발막힘 도시 단계', pick: () => openCity() }];
+  out.push(...GOAL_ORDER.map((id) => ({
     key: `screen:${id}`, name: GOALS[id].name, where: '관리 화면', glyph: icon(GOALS[id].icon), sub: '', locked: '',
     words: SCREEN_WORDS[id], pick: () => openGoal(id),
-  }));
+  })));
   out.push(
     { key: 'screen:region', name: '지역', where: '화면 (J)', glyph: icon('globe'), sub: '', locked: '', words: '이웃 도시 거래 사고팔기 심네이션', pick: () => showTab('region') },
     { key: 'screen:help', name: '조작법', where: '도움말 (?)', glyph: icon('help'), sub: '', locked: '', words: '도움말 단축키 키보드 사용법', pick: () => showHelp() },

@@ -1,14 +1,15 @@
 // The goals the city pane is organised around: what each one watches, the map views,
 // tools, budgets and ordinances that bear on it, and which goal an advisor's word or a
-// facility belongs to. The city's own is its money; demand stands alone; 쾌적도 heads the
-// rest — read by the mayor's rating, with its parks, landmarks and the wealthy they draw —
-// and under it the utilities and what makes a place pleasant to live in.
+// facility belongs to. Two heads: the city's residents (its own screen, the city button's),
+// with demand and money under them; and 쾌적도 — read by the mayor's rating, with its parks,
+// landmarks and the wealthy they draw — with the utilities and what makes a place pleasant to
+// live in under it.
 
 import { STRUCTURES, type OrdinanceId, type StructureKind } from '@web-city/engine';
 import { type IconName } from './icons';
 import { city } from './state';
 
-export type GoalId = 'finance' | 'growth' | 'amenity' | 'power' | 'water' | 'garbage' | 'police' | 'fire' | 'health' | 'education' | 'traffic' | 'environment' | 'land';
+export type GoalId = 'growth' | 'finance' | 'amenity' | 'power' | 'water' | 'garbage' | 'police' | 'fire' | 'health' | 'education' | 'traffic' | 'environment' | 'land';
 
 export type Dept = keyof typeof city.state.departments;
 export type Tone = '' | 'warn' | 'bad' | 'good';
@@ -70,27 +71,25 @@ export interface Goal {
 const isKind = (pred: (d: (typeof STRUCTURES)[StructureKind]) => unknown) => (k: StructureKind) => !!pred(STRUCTURES[k]);
 
 export const GOALS: Record<GoalId, Goal> = {
-  // (Not an area of its own but the city's: its tabs stand beside the city's overview, opened by the city button.)
-  finance: {
-    name: '재정·정책', icon: 'wallet', aim: '수입과 지출을 맞추고 자금을 지킵니다: 세율, 부서 예산, 대출, 조례.',
-    tabs: [
-      { label: '재정', view: 'none', figs: ['자금', '지난달 수지', '수입', '지출', '바닥까지', '다음 달 예상', '대출'], graphs: ['funds', 'budget'], reports: ['budget'], parts: ['fix', 'depts', 'outlook'], codes: ['broke', 'deficit', 'surplus'] },
-      { label: '세율', view: 'mayor', figs: ['poll'], parts: ['taxes'], codes: ['taxHigh', 'taxEasing'] },
-      { label: '조례', view: 'mayor', parts: ['ords'] },
-    ],
-    home: '재정',
-    tools: [], ordinances: ['legalizeGambling'],
-    depts: [],
-  },
+  // (What each kind of zone wants, by wealth: why the zones laid stay empty is the residents' screen's — the city's.)
   growth: {
-    name: '수요', icon: 'zones', aim: '수요가 있는 곳에 구역을 내고, 빈 구역이 왜 비었는지 찾아 풉니다. 더 높은 밀도로 다시 칠하면 재개발됩니다.',
+    name: '수요', icon: 'zones', aim: '소득별·종류별로 무엇이 얼마나 모자라는지 보고 그 구역을 냅니다. 더 높은 밀도로 다시 칠하면 재개발됩니다.',
     tabs: [
-      { label: '개발 막힘', view: 'growth', figs: ['인구', '일자리', '실업', '버려진 건물'], graphs: ['population', 'jobs', 'abandoned'], reports: ['buildings'], tools: ['road', 'bulldoze'], codes: ['noGrowth', 'abandoned', 'atRisk', 'rubble', 'unemployment', 'understaffed'] },
-      { label: '수요', view: 'zones', figs: ['주거 수요', '상업 수요', '산업 수요', '농업 수요'], parts: ['rci'], tools: ['R-low', 'R-medium', 'R-high', 'C-low', 'C-medium', 'C-high', 'I-medium', 'I-high', 'A', 'park'], ordinances: ['tourismPromotion'], codes: ['capRes', 'capOffice', 'capIndustry', 'zoneR', 'zoneC', 'zoneI', 'zoneA'] },
+      { label: '수요', view: 'zones', parts: ['rci'] },
     ],
     // (Bulldozing too — begun on an empty zone, it unzones: reshaping the city is part of growing it.)
     tools: ['R-low', 'R-medium', 'R-high', 'C-low', 'C-medium', 'C-high', 'I-medium', 'I-high', 'A', 'road', 'park', 'bulldoze'],
     ordinances: ['tourismPromotion'], depts: [],
+  },
+  // (The city's money, under its residents beside 수요: its levers on the one screen — the books, taxes, departments
+  // and loans, ordinances.)
+  finance: {
+    name: '재정', icon: 'wallet', aim: '수입과 지출을 맞추고 자금을 지킵니다: 세율, 부서 예산, 대출, 조례.',
+    tabs: [
+      { label: '재정', view: 'none', parts: ['fix', 'outlook', 'taxes', 'depts', 'ords'] },
+    ],
+    tools: [], ordinances: ['legalizeGambling'],
+    depts: [],
   },
   // How the residents find the place: read by the mayor's rating, which all the areas under it move, with what is built
   // only to make it pleasant (parks, landmarks, rewards) and the wealthy that draws. Its button heads the areas.
@@ -196,11 +195,12 @@ export const GOALS: Record<GoalId, Goal> = {
   },
 };
 
+/** Every screen but the city's own, in the rail's order (each a button of its own). */
 export const GOAL_ORDER = Object.keys(GOALS) as GoalId[];
-/** The city's areas, each a button of its own (재정·정책 is the city's: its tabs are the city button's screen). */
-export const AREA_ORDER = GOAL_ORDER.filter((g) => g !== 'finance');
+/** Those under the city's residents (수요, 재정): its card's rows, under the city button, wide. */
+export const UNDER_CITY: readonly GoalId[] = ['growth', 'finance'];
 /** The areas 쾌적도 heads (전력 to 땅값): its card's rows, under its button, wide. */
-export const UNDER_AMENITY = AREA_ORDER.filter((g) => g !== 'growth' && g !== 'amenity');
+export const UNDER_AMENITY = GOAL_ORDER.filter((g) => !UNDER_CITY.includes(g) && g !== 'amenity');
 
 /** Which goal each advisor's word belongs to (else the advisor's own). */
 const ADVICE_GOAL: Record<string, GoalId> = {

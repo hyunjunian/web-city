@@ -254,6 +254,12 @@ export function railFigure(id: GoalId): string {
   const pct = (v: number) => `${Math.round(v * 100)}%`;
   switch (id) {
     case 'growth': return `${demandWords()} · 일자리 ${fmt(st.jobs)}`;
+    case 'finance': {
+      // (The month's balance, beside the money: its row's graph is what came in and went out.)
+      const b = s.lastBudget;
+      const net = b ? Math.round(b.income - b.expenses) : 0;
+      return b ? `지난달 ${net < 0 ? '−' : '+'}§${fmt(Math.abs(net))}` : '';
+    }
     case 'power': case 'water': {
       const { demand, supply } = id === 'power' ? st.power : st.water;
       return supply > 0 ? `사용 ${pct(demand / supply)}` : '';
@@ -442,22 +448,8 @@ function goalMetrics(id: GoalId): Metric[] {
         // (For its 쾌적도 tab: those a pleasant place draws, and what they want built — the wealthy come where it is high.)
         ...amenityMetrics(),
       ];
-    case 'growth': {
-      const dem = city.demand.demand;
-      const cls = (k: string, n: string): Metric => {
-        // (Its strongest demand, else its weakest, as the bars below read it: "상업 −3" above sat over a bar at −141.)
-        const vals = DEV_TYPES.filter((t) => (k === 'A' ? t === 'IA' : t[0] === k && t !== 'IA')).map((t) => dem[t]);
-        const v = Math.max(...vals) > 0 ? Math.max(...vals) : Math.min(...vals);
-        // (Held at its cap, "0" hid why: the cap says what to do about it.)
-        // (A trickle beside the cap is the cap too: "+1" read as wanted.)
-        const atCap = v < 10 && DEV_TYPES.some((t) => (k === 'A' ? t === 'IA' : t[0] === k && t !== 'IA') && capped(t));
-        if (atCap) return [`${n} 수요`, '상한', 'warn', undefined, undefined, '인구가 수요 상한에 닿았습니다: 공원·광장과 보상 건물이 상한을 올립니다'];
-        return [`${n} 수요`, v >= 1 ? `+${fmt(v)}` : v <= -1 ? `−${fmt(-v)}` : '0', v >= 100 ? 'good' : v < 0 ? 'warn' : ''];
-      };
-      const jobless = sum(st.unemployed);
-      return [['인구', fmt(st.population), '', st.population, 1], ['일자리', fmt(st.jobs), '', st.jobs, 1], cls('R', '주거'), cls('C', '상업'), cls('I', '산업'), cls('A', '농업'),
-        ['실업', fmt(jobless), jobless > st.population * 0.1 ? 'warn' : '', jobless, -1], ['버려진 건물', fmt(st.abandoned), st.abandoned ? 'warn' : '', st.abandoned, -1]];
-    }
+    // (Its figure is its table, each kind of zone by wealth — demandGrid; its people, the city's own.)
+    case 'growth': return [];
     case 'power': {
       const p = st.power;
       const spare = p.supply - p.demand;
@@ -548,6 +540,20 @@ function goalMetrics(id: GoalId): Metric[] {
         ['공기 나쁜 주거지', `${fmt(homes)}칸`, homes > 0 && (h?.air ?? 0) > 40 ? 'warn' : '', homes, -1, '대기 오염이 40을 넘는 주거 구역 칸 · 공장·발전소·차가 많은 길 가까이에서 생깁니다']];
     }
   }
+}
+
+/**
+ * The city's own figures, on its residents' screen (the city button's): those who live and work here, those without
+ * work, and the buildings left empty — what 수요's 개발 막힘 tab read before it was the city's.
+ */
+export function cityMetrics(): Metric[] {
+  const st = readStats();
+  const jobless = sum(st.unemployed);
+  const workers = sum(city.census.workers);
+  return [['인구', fmt(st.population), '', st.population, 1], ['일자리', fmt(st.jobs), '', st.jobs, 1],
+    ['일하는 사람', fmt(workers), '', workers, 1, '일할 나이의 주민 (소득별로는 아래 표)'],
+    ['실업', fmt(jobless), jobless > st.population * 0.1 ? 'warn' : '', jobless, -1, workers ? `일하는 사람 가운데 ${Math.round((jobless / workers) * 100)}%가 일자리를 못 구했습니다` : undefined],
+    ['버려진 건물', fmt(st.abandoned), st.abandoned ? 'warn' : '', st.abandoned, -1]];
 }
 
 /** 쾌적도's own figures (its 쾌적도 tab): its parks, those a pleasant place draws, and what they want built. */

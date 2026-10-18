@@ -395,7 +395,7 @@ kbd {
     width: 34px; height: 34px; min-height: 0; margin: -8px -6px -42px 0; background: var(--surface-2); color: var(--text);
     box-shadow: var(--shadow-sm);
   }
-  #pane.managing:not(.city-screen) .pane-close { top: 4px; margin-bottom: -34px; }
+  #pane.managing .pane-close { top: 4px; margin-bottom: -34px; }
   #pane .mg-head { padding-right: 52px; } /* (its state's chip clear of the ×) */
 }
 /* The overview's head: the region (pressed, 지역) › the city's name (pressed, to change it) — small, above the stage. */
@@ -579,12 +579,9 @@ kbd {
 #pane.managing #manage { animation: goal-in 0.18s var(--ease); }
 #pane:not(.managing) > #status { animation: goal-in 0.18s var(--ease); }
 @keyframes goal-in { from { opacity: 0; } }
-#pane.managing > :not(#manage):not(.pane-grip):not(.pane-close):not(.pane-clock):not(.city-head) { display: none; }
-/* The city's screen (its overview, and 재정·정책's tabs): region › name over it, then its tabs; an area's has its own head. */
-#pane.managing:not(.city-screen) > .city-head { display: none; }
-#city-tabs { flex: none; gap: 0; margin: -2px -4px 0; }
-/* (Six of them — 도시 · 쾌적도 · 재정 · 세율 · 조례 · 시장 평점 — closer together, so the last isn't cut off.) */
-#city-tabs .mg-tab { padding: 0 8px; }
+#pane.managing > :not(#manage):not(.pane-grip):not(.pane-close):not(.pane-clock) { display: none; }
+/* The city's own screen (its residents): region › name over it; another's has its own head. */
+#pane.managing > .city-head { display: none; }
 .mg-head { display: flex; align-items: center; gap: 8px; position: sticky; top: -18px; z-index: 1; margin: -18px -16px 0; padding: 14px 16px 10px; background: var(--pane); }
 .mg-head h2 { display: inline-flex; align-items: center; gap: 8px; min-width: 0; margin: 0; font-size: 17px; font-weight: 700; }
 .mg-head h2 > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } /* (재정·/정책 broke over two lines in a 288px pane) */
@@ -739,25 +736,27 @@ kbd {
 .chip.warn { background: var(--warn-soft); color: var(--warn-ink); }
 .chip.gold { background: var(--gold-soft); color: var(--gold-ink); }
 
-/* RCI demand: one bar per class, centred at zero. */
-.rci { display: grid; grid-template-columns: repeat(3, 1fr); align-items: start; gap: 10px; margin-bottom: 6px; }
-.rci-col { display: grid; justify-items: center; gap: 3px; padding: 6px 0; border-radius: var(--r-md); cursor: pointer; transition: background 0.15s; }
-@media (hover: hover) { .rci-col:hover { background: var(--surface-2); } }
-.rci-bar { position: relative; width: 34px; height: 72px; overflow: hidden; border-radius: 9px; background: var(--surface-3); }
-.rci-bar::after { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--line-strong); }
-.rci-fill { position: absolute; left: 0; right: 0; border-radius: 0; }
-.rci-fill[style*="bottom"] { border-radius: 6px 6px 0 0; }
-.rci-fill[style*="top"] { border-radius: 0 0 6px 6px; opacity: 0.55; }
-.rci-label { font-size: 13px; font-weight: 650; color: var(--text); }
-.rci-value { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.rci-note { color: var(--muted); font-size: 11px; font-weight: 600; }
-.rci-cap { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 999px; background: var(--warn-soft); color: var(--warn-ink); font-size: 11px; font-weight: 600; }
-.rci-cap .i { width: 11px; height: 11px; }
-#demand details summary { margin: 4px 0; color: var(--muted); font-size: 12.5px; cursor: pointer; }
-.demand-row { cursor: pointer; }
-.demand-row { display: grid; grid-template-columns: 84px minmax(0, 1fr) 48px; align-items: center; gap: 8px; height: 22px; } /* (room for 오피스 고소득) */
-.demand-row .label { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.demand-row .value { text-align: right; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+/* 수요's table: a row a kind of zone, a column a wealth — each its figure over a bar out from the middle (wanted to the
+   right, too many to the left), a held one locked. */
+.dg { display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 4px; align-items: stretch; }
+.dg-h { padding-bottom: 2px; color: var(--muted); font-size: 11.5px; font-weight: 600; text-align: center; }
+.dg-k { align-self: center; padding-right: 6px; font-size: 12.5px; font-weight: 650; white-space: nowrap; }
+.dg-none { display: grid; place-items: center; color: var(--line-strong); }
+.dg-c {
+  display: grid; gap: 4px; align-content: center; min-width: 0; min-height: 0; padding: 6px 6px 7px; border: 1px solid transparent;
+  border-radius: var(--r-sm); background: var(--surface-2); color: var(--text); font: inherit; text-align: center; cursor: pointer;
+}
+.dg-c small { color: var(--muted); font-size: 10.5px; font-weight: 600; line-height: 1; }
+.dg-c b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.dg-c b .i { width: 12px; height: 12px; margin-right: 2px; vertical-align: -1px; }
+.dg-c.up b { color: var(--good-ink); }
+.dg-c.down b { color: var(--muted); }
+.dg-c.cap b { color: var(--warn-ink); }
+.dg-c[aria-expanded='true'] { border-color: var(--accent); }
+@media (hover: hover) { .dg-c:hover { filter: brightness(0.97); } }
+.dg-bar { position: relative; display: block; height: 5px; overflow: hidden; border-radius: 999px; background: color-mix(in srgb, var(--line-strong) 45%, transparent); }
+.dg-bar::after { content: ''; position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--line-strong); }
+.dg-bar > i { position: absolute; top: 0; bottom: 0; }
 .bar { position: relative; height: 6px; border-radius: 3px; background: var(--surface-3); }
 .bar::after { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--line-strong); }
 .bar .fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; }
@@ -1463,7 +1462,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 @media (max-width: 1360px) {
   :root { --pane-w: 310px; --info-w: 360px; }
   .hero-value { font-size: 52px; }
-  #city-tabs .mg-tab { padding: 0 5px; font-size: 13px; } /* (the city's six in a 288–310px pane) */
 }
 
 @media (max-width: 1180px) {
@@ -1510,7 +1508,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
     margin: -16px -6px -28px 0; background: var(--surface-2); color: var(--text);
     box-shadow: var(--shadow-sm); /* (floating over what scrolls under it: a row's › went under a flat × unseen) */
   }
-  #pane.managing:not(.city-screen) .pane-close { top: 6px; }
+  #pane.managing .pane-close { top: 6px; }
   /* A watch row's note is what to do: two lines rather than cut off. */
   .w-note { white-space: normal; align-items: flex-start; }
   .w-txt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
@@ -1595,7 +1593,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .mg-head { top: -18px; margin-top: -44px; padding-top: 36px; } /* this sheet's padding is 18px (and the clock's row) */
   .pane-clock { top: -14px; margin-top: -14px; margin-bottom: -16px; } /* (4px from the edge here too; this column's gap is 10px) */
   .pane-close { top: -8px; margin-top: -8px; margin-bottom: -24px; } /* (and so the ×'s insets) */
-  #pane.managing:not(.city-screen) .pane-close { top: 18px; }
+  #pane.managing .pane-close { top: 18px; }
   #view.info-open #toasts { width: calc(100% - min(420px, 58%) - 92px); }
 }
 
@@ -1641,7 +1639,6 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
   .mg-links .link { min-height: 40px; }
   .mg-links .link::after { display: none; }
   /* Demand rows open their type's breakdown: rows a finger can pick one of (22px stacked, the neighbour took the tap). */
-  .demand-row { height: 30px; }
   #hint { -webkit-line-clamp: 4; max-height: calc(5.8em + 18px); }
 }
 
@@ -2597,12 +2594,6 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 #goal-strip.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
 .city-score, .city-bar, .city-next { display: none; } /* (the rail's city button's score, bar and next stage: a phone's has its ring) */
 #city-card { display: none; }
-/* A phone's city button: a mark for 재정 or 시장 평점 while either wants a look (their tabs in the city's screen). */
-.city-flag:not([hidden]) { display: inline-flex; flex: none; gap: 1px; margin-left: -2px; }
-.city-flag .cf { display: inline-grid; place-items: center; }
-.city-flag .cf .i { width: 15px; height: 15px; }
-.city-flag .cf.warn { color: var(--warn); }
-.city-flag .cf.bad { color: var(--danger); }
 
 /* ---- wide: down the map's left, 도시 정보 및 관리 — the city's card (its button: its name and stage, its residents
    big, as a score, and how near the next stage on a bar under them; then in the same card its money, a line), then
@@ -2620,27 +2611,15 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
     display: flex; flex-direction: column; gap: 8px; transition: opacity 0.2s var(--ease);
   }
   #app.pane-open #rail { width: var(--rail-c); }
-  /* One card: the city button, then 재정 as a row of it (pressed, that tab of the city's screen). */
+  /* One card: the city button (its residents), then 수요 and 재정 as rows of it (pressed, their screens). */
   #rail #city-card {
     flex: none; display: flex; flex-direction: column; overflow: hidden;
     border: 1px solid var(--line); border-radius: 16px; background: var(--float-solid); box-shadow: var(--shadow-sm);
   }
   #rail #city-card > #btn-city { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-  #rail #city-card > #btn-city:is([aria-expanded='true'], .parked) { background: var(--accent-soft); box-shadow: none; }
+  #rail #city-card > #btn-city[aria-expanded='true'] { background: var(--accent-soft); box-shadow: none; }
   #rail #city-rows { display: flex; flex-direction: column; }
-  /* Every item on the rail one line of one height: its icon, its name, its value, and its graph over the last two years. */
-  #rail .strip-city {
-    display: grid; grid-template-columns: 20px var(--rail-name) var(--rail-num) minmax(0, 1fr); grid-template-areas: 'ic name num spark';
-    align-items: center; column-gap: 8px; width: 100%; height: var(--rail-row); padding: 0 13px 0 12px; /* (the card's border their own: lined up with the areas') */
-    border: 0; border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); border-radius: 0;
-    background: transparent; box-shadow: none; text-align: left; color: var(--text); font: inherit;
-  }
-  #rail .strip-city > .i { grid-area: ic; width: 19px; height: 19px; }
-  #rail .strip-city > .i { color: var(--muted); }
-  #rail .strip-city.on { background: var(--accent-soft); color: var(--active-ink); }
-  #rail .strip-city.on > .i { color: var(--accent-hi); }
-  @media (hover: hover) { #rail .strip-city:not(.on):hover { filter: brightness(0.97); } }
-  #rail .strip-city:focus-visible { outline-offset: -3px; }
+  #rail #city-rows:empty { display: none; }
   #rail #btn-city {
     flex: none; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: 'ic name stage' 'pop pop pop' 'bar bar bar' 'next next next';
     align-items: center; justify-items: start; column-gap: 9px; row-gap: 3px; width: 100%; max-width: none; height: auto; min-height: 0;
@@ -2649,7 +2628,6 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail #btn-city > .i { grid-area: ic; width: 22px; height: 22px; }
   #rail .city-title { grid-area: name; max-width: 100%; white-space: nowrap; font-size: 15px; } /* (a long name cut short, not three lines) */
   #rail .city-stage { grid-area: stage; white-space: nowrap; } /* (작은 읍 on two lines in the narrow column, and every button under it moved) */
-  #rail .city-flag { display: none; }
   #rail .stage-ring { display: none; } /* (the bar is its progress here) */
   /* The residents as a score; under them the bar toward the next stage, and how far it still is. */
   #rail .city-score { grid-area: pop; display: flex; align-items: baseline; gap: 3px; margin-top: 3px; }
@@ -2663,18 +2641,19 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
     flex: 0 1 auto; flex-direction: column; gap: 6px; min-height: 0; overflow-x: hidden; overflow-y: auto; pointer-events: auto;
     margin: -4px -10px -10px; padding: 4px 10px 10px; /* (room for the buttons' shadows inside the scroll) */
   }
-  #rail #goal-strip button {
+  /* Every item on the rail one line of one height: its icon, its name, its value, and its graph over the last two years. */
+  #rail :is(#goal-strip, #city-rows) button {
     display: grid; grid-template-columns: 20px var(--rail-name) var(--rail-num) minmax(0, 1fr); grid-template-areas: 'ic name num spark';
     align-items: center; justify-content: stretch; column-gap: 8px; width: 100%; height: var(--rail-row); min-height: 0;
     padding: 0 13px 0 12px; border-radius: 13px; text-align: left; color: var(--text);
   }
-  #rail #goal-strip button > .i { grid-area: ic; width: 19px; height: 19px; color: var(--muted); }
+  #rail :is(#goal-strip, #city-rows) button > .i { grid-area: ic; width: 19px; height: 19px; color: var(--muted); }
   /* An item that wants a hand is no other button (a whole row tinted amber or red outshouted the map): its value says it,
      in its colour and heavier. (Beside the pane, its icon alone: in its colour there.) */
-  #rail #goal-strip :is(#goal-strip, .amenity-card) > button.bad { color: var(--text); font-weight: 650; } /* (the one lit keeps its own) */
+  #rail :is(#goal-strip, #city-rows, .amenity-card) > button.bad { color: var(--text); font-weight: 650; } /* (the one lit keeps its own) */
   /* (The whole value, its dashed half kept quiet: a value not read yet, "—", had no colour of its own to say it.) */
-  #rail :is(#goal-strip button, .strip-city).warn .r-num { color: var(--warn-ink); font-weight: 800; }
-  #rail :is(#goal-strip button, .strip-city).bad .r-num { color: var(--danger-ink); font-weight: 800; }
+  #rail :is(#goal-strip, #city-rows) button.warn .r-num { color: var(--warn-ink); font-weight: 800; }
+  #rail :is(#goal-strip, #city-rows) button.bad .r-num { color: var(--danger-ink); font-weight: 800; }
   #rail #goal-strip .strip-start > .i { color: var(--gold); } /* (the checklist's, as in the overview) */
   #rail .r-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 650; }
   #rail .r-val { grid-area: num; justify-self: start; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -2695,12 +2674,13 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail .r-spark .sn { stroke: var(--line-strong); stroke-width: 2px; stroke-dasharray: 0 6px; }
   #rail #goal-strip .strip-start { margin: 0; }
   #rail #goal-strip .strip-start .r-val { color: var(--muted); }
-  #rail #goal-strip .strip-on { display: flex; align-items: stretch; width: 100%; height: auto; border-radius: 12px; }
-  #rail #goal-strip .strip-on > button:first-child { flex: 1 1 auto; min-width: 0; width: auto; padding-right: 4px; }
-  #rail #goal-strip .strip-on [data-strip-end] { display: grid; place-items: center; flex: none; width: 32px; min-height: 0; margin: 0; padding: 0; color: var(--muted); }
+  #rail :is(#goal-strip, #city-rows) .strip-on { display: flex; align-items: stretch; width: 100%; height: auto; border-radius: 12px; }
+  #rail :is(#goal-strip, #city-rows) .strip-on > button:first-child { flex: 1 1 auto; min-width: 0; width: auto; padding-right: 4px; }
+  #rail :is(#goal-strip, #city-rows) .strip-on [data-strip-end] { display: grid; place-items: center; flex: none; width: 32px; min-height: 0; margin: 0; padding: 0; color: var(--muted); }
+  #rail #city-rows .strip-on [data-strip-end] .i { width: 14px; height: 14px; }
   /* (Lit in the bars' way, whatever its state: the rail's own colours for its buttons had won over it.) */
-  #rail #goal-strip .strip-on > [data-strip-goal] { border: 1px solid transparent; color: var(--active-ink); } /* (as tall as it was unlit: the rows under it kept their places) */
-  #rail #goal-strip .strip-on > [data-strip-goal] > .i { color: var(--accent-hi); }
+  #rail :is(#goal-strip, #city-rows) .strip-on > [data-strip-goal] { border: 1px solid transparent; color: var(--active-ink); } /* (as tall as it was unlit: the rows under it kept their places) */
+  #rail :is(#goal-strip, #city-rows) .strip-on > [data-strip-goal] > .i { color: var(--accent-hi); }
   /* 쾌적도's card, as the city's: its button heading it — the mayor's rating big, where it stands between −100 and 100
      on a bar out from nothing (its middle marked), the residents' mood and its move over three months — then the
      areas under it, a line each, flat in the card. */
@@ -2708,10 +2688,13 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
     flex: none; display: flex; flex-direction: column; overflow: hidden;
     border: 1px solid var(--line); border-radius: 16px; background: var(--float-solid); box-shadow: var(--shadow-sm);
   }
-  #rail #goal-strip .amenity-card button { border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-  #rail #goal-strip .amenity-card > :not(:first-child) { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
-  #rail #goal-strip .amenity-card .strip-on { border-radius: 0; background: var(--accent-soft); box-shadow: none; }
-  #rail #goal-strip .amenity-card .strip-on > [data-strip-goal] { border: 0; }
+  /* (The city's card's rows as flat as these: the card is their frame.) */
+  #rail :is(#city-rows, #goal-strip .amenity-card) button { position: relative; border: 0; border-radius: 0; background: transparent; box-shadow: none; font: inherit; }
+  #rail :is(#city-rows > *, #goal-strip .amenity-card > :not(:first-child)) { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
+  #rail :is(#city-rows, #goal-strip .amenity-card) .strip-on { border-radius: 0; background: var(--accent-soft); box-shadow: none; }
+  #rail :is(#city-rows, #goal-strip .amenity-card) .strip-on > [data-strip-goal] { border: 0; }
+  @media (hover: hover) { #rail #city-rows button:hover { filter: brightness(0.97); } }
+  #rail #city-rows button:focus-visible { outline-offset: -3px; }
   #rail #goal-strip .amenity-head {
     --am: var(--accent);
     grid-template-columns: 22px minmax(0, 1fr) auto; grid-template-areas: 'ic name what' 'score score score' 'bar bar bar' 'next next next';
@@ -2748,10 +2731,10 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail #goal-strip.more-up.more-down { -webkit-mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to bottom, transparent, #000 28px, #000 calc(100% - 28px), transparent); }
   /* The pane open beside them: their icons alone — each button as tall as with its words, so that the one pressed
      is still under the pointer's line (pressed again, it puts the pane away: shorter, the next one down was there). */
-  #app.pane-open #rail :is(#btn-city, #goal-strip button, .strip-city) { grid-template-columns: minmax(0, 1fr) 0 0 0; column-gap: 0; padding-inline: 0; }
-  #app.pane-open #rail :is(#btn-city, #goal-strip button, .strip-city) > .i { justify-self: center; }
-  #app.pane-open #rail :is(#goal-strip > button, .amenity-card > button, .strip-city:not(.on)).warn > .i { color: var(--warn); } /* (the one lit keeps its accent) */
-  #app.pane-open #rail :is(#goal-strip > button, .amenity-card > button, .strip-city:not(.on)).bad > .i { color: var(--danger); }
+  #app.pane-open #rail :is(#btn-city, #goal-strip button, #city-rows button) { grid-template-columns: minmax(0, 1fr) 0 0 0; column-gap: 0; padding-inline: 0; }
+  #app.pane-open #rail :is(#btn-city, #goal-strip button, #city-rows button) > .i { justify-self: center; }
+  #app.pane-open #rail :is(#goal-strip > button, .amenity-card > button, #city-rows > button).warn > .i { color: var(--warn); } /* (the one lit keeps its accent) */
+  #app.pane-open #rail :is(#goal-strip > button, .amenity-card > button, #city-rows > button).bad > .i { color: var(--danger); }
   /* (The city's bar stands up under its trophy there, filling from below.) */
   #app.pane-open #rail #btn-city::before {
     content: ''; position: absolute; top: 46px; bottom: 14px; left: 50%; width: 6px; margin-left: -3px; border-radius: 999px;
@@ -2762,9 +2745,9 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
     content: ''; position: absolute; top: 46px; bottom: 14px; left: 50%; width: 6px; margin-left: -3px; border-radius: 999px;
     background: linear-gradient(to top, color-mix(in srgb, var(--am) 20%, transparent) var(--lo, 50%), var(--am) var(--lo, 50%) var(--hi, 50%), color-mix(in srgb, var(--am) 20%, transparent) var(--hi, 50%));
   }
-  #app.pane-open #rail :is(#btn-city, #goal-strip button, .strip-city) > :not(.i):not(.edge-ring) { visibility: hidden; }
-  #app.pane-open #rail :is(#goal-strip button, .strip-city) { overflow: hidden; }
-  #app.pane-open #rail #goal-strip .strip-on [data-strip-end] { display: none; }
+  #app.pane-open #rail :is(#btn-city, #goal-strip button, #city-rows button) > :not(.i):not(.edge-ring) { visibility: hidden; }
+  #app.pane-open #rail :is(#goal-strip button, #city-rows button) { overflow: hidden; }
+  #app.pane-open #rail :is(#goal-strip, #city-rows) .strip-on [data-strip-end] { display: none; }
 }
 
 /* ---- over the building bar: the tool in hand and the hint over it (both waiting while the tools' card is up) */

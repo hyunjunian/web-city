@@ -1,6 +1,6 @@
 // Map input: pointer and keyboard handling, tool previews and applying tools.
 
-import { active as activeGoal, closeGoal, handedPlaced, noteAction, stepTab, toggleFinance, toggleGrowthTab, toggleUrgentGoal } from './manage';
+import { active as activeGoal, closeGoal, handedPlaced, noteAction, stepTab, toggleFinance, toggleCity, toggleUrgentGoal } from './manage';
 import { DEV_TYPES, GROWTH_CODES, isLocalNet, Net, linePath, type Rect, LIVE_KINDS, NETWORK_KINDS, STRUCTURES, Terrain, ZONES, type StructureKind } from '@web-city/engine';
 import { chooseSpeed, closeClock, isHeld, resumeAfterBuilding, runningSpeed, showHelp, speedChosen, toggleNight } from './controls';
 import { aloneReached, cancelGlide, keepInView, showInfo, showRoutes } from './info';
@@ -1496,9 +1496,9 @@ export function setupInput(): void {
     // (A Latin letter as typed, so AZERTY's Z is Z; by the key's place only when it types something else.)
     const letter = /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : /^Key[A-Z]$/.test(e.code) ? e.code.slice(3).toLowerCase() : e.key.toLowerCase();
     if (letter === 'n' && !e.ctrlKey && !e.metaKey) toggleNight();
-    // G: 수요 on its 개발 막힘 tab (what keeps zones empty), or back. (No key of its own for the map's view: a goal's
-    // tab puts it on.)
-    if (letter === 'g' && !e.ctrlKey && !e.metaKey) toggleGrowthTab();
+    // G: the city's own screen, its residents', with 개발 막힘 (what keeps zones empty) on the map — or back. (No key of
+    // its own for the map's view: a screen puts it on.)
+    if (letter === 'g' && !e.ctrlKey && !e.metaKey) toggleCity();
     // M: the goal most in need of action (its screen), or back to the overview.
     // (By the key's place, so it works with the Korean keyboard on too; not held down, nor while driving.)
     if (e.code === 'KeyM' && plain0(e) && !e.repeat && !drive) toggleUrgentGoal();
@@ -1544,7 +1544,7 @@ export function setupInput(): void {
     if (plain && (e.key === ',' || e.key === '.') && !drag) stepAlt(e.key === '.' ? 1 : -1);
     // `: back to the tool before (a road, then the bulldozer, then the road again).
     if (plain && e.key === '`' && !drag) selectTool(previousTool);
-    // B: the pane's 재정·정책 (or back from it); J: the 지역 sheet (the pane's head, the menu), open or closed.
+    // B: the pane's 재정 (or back from it); J: the 지역 sheet (the pane's head, the menu), open or closed.
     if (plain && letter === 'b') toggleFinance();
     if (plain && letter === 'j') toggleSheet('region');
     // S: the cursor onto the recommended spot (the blue target), to build there from the keyboard (driving, S steers).

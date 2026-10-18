@@ -8,7 +8,7 @@ import type { HistoryPoint, VolumeKind } from '@web-city/engine';
 interface GraphDef {
   key: string;
   title: string;
-  /** The goal whose screen shows it. */
+  /** The goal whose screen shows it ('city': the city's own, its residents'). */
   goal: string;
   value: (h: HistoryPoint) => number;
   format: (v: number) => string;
@@ -46,13 +46,13 @@ const TRAFFIC: [VolumeKind, string][] = [
 ];
 
 const GRAPHS: GraphDef[] = [
-  { key: 'population', goal: 'growth', title: '인구', value: (h) => h.population, format: fmt, better: 1 },
-  { key: 'jobs', goal: 'growth', title: '일자리', value: (h) => h.jobs, format: fmt, better: 1 },
+  { key: 'population', goal: 'city', title: '인구', value: (h) => h.population, format: fmt, better: 1 },
+  { key: 'jobs', goal: 'city', title: '일자리', value: (h) => h.jobs, format: fmt, better: 1 },
   { key: 'funds', goal: 'finance', title: '자금', value: (h) => h.funds, format: money, better: 1 },
   { key: 'mayorRating', goal: 'amenity', title: '시장 평점', value: (h) => h.mayorRating, format: fmt, better: 1 },
   { key: 'crimes', goal: 'police', title: '범죄와 체포', better: -1, value: (h) => h.crimes, compare: (h) => h.arrests ?? 0, names: ['범죄', '체포'], colors: ['--danger', '--accent'], format: fmt },
   { key: 'budget', goal: 'finance', title: '수입과 지출 (월)', value: (h) => h.income ?? 0, compare: (h) => h.expenses ?? 0, names: ['수입', '지출'], colors: ['--good', '--danger'], format: (v) => `§${fmt(v)}`, optional: true, gap: true },
-  { key: 'abandoned', goal: 'growth', title: '버려진 건물', value: (h) => h.abandoned ?? 0, format: (v) => `${fmt(v)}채`, optional: true, better: -1 },
+  { key: 'abandoned', goal: 'city', title: '버려진 건물', value: (h) => h.abandoned ?? 0, format: (v) => `${fmt(v)}채`, optional: true, better: -1 },
   { key: 'commute', goal: 'traffic', title: '평균 통근 시간', value: (h) => h.commute ?? 0, format: minutes, optional: true, better: -1 },
   { key: 'power', goal: 'power', title: '전력 (수요 대 공급)', value: (h) => h.powerDemand ?? 0, compare: (h) => h.powerSupply ?? 0, names: ['수요', '공급'], format: (v) => `${fmt(v)} MWh`, optional: true },
   { key: 'water', goal: 'water', title: '수도 (수요 대 공급)', value: (h) => h.waterDemand ?? 0, compare: (h) => h.waterSupply ?? 0, names: ['수요', '공급'], format: (v) => `${fmt(v)} m³`, optional: true },
