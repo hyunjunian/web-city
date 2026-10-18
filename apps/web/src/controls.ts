@@ -535,7 +535,7 @@ export function buildOverlay(): void {
     const scale = ({
       desirability: [heat, '0 낮음', '150+ 높음'], mayor: [heat, '−60 불만', '+60 만족'], health: [index, '건강 지수 0', `${INDEX_FULL}+`], school: [index, '교육 지수 0', `${INDEX_FULL}+`],
       commute: [`linear-gradient(90deg, ${[...stops].reverse().join(', ')})`, '빠름', '2.5시간'],
-      traffic: ['linear-gradient(90deg, rgb(50,205,55), rgb(225,205,55), rgb(225,55,55))', '원활·빠름', '막힘·2.5시간'],
+      traffic: [`linear-gradient(90deg, ${[...stops].reverse().join(', ')})`, '원활·빠름', '막힘·2.5시간'],
       landValue: ['linear-gradient(90deg, rgba(120,40,160,0.05), rgba(120,40,160,0.7))', '0 낮음', '50 높음'],
       air: ['linear-gradient(90deg, rgba(90,70,40,0.05), rgba(90,70,40,0.75))', '깨끗', '오염'],
       waterPollution: ['linear-gradient(90deg, rgba(120,85,45,0.05), rgba(120,85,45,0.75))', '깨끗', '오염'],

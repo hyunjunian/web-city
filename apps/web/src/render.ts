@@ -434,22 +434,22 @@ function bandLayers(city: City): BandLayer[] {
  * The congestion colour (t: 0 free-flowing → 1 at twice the capacity): green, yellow at the capacity, red — the ramp the
  * homes and works between take for their trips (straight from green to red, the middle was a muddy olive).
  */
-const jamColor = (t: number, alpha = 1) => {
-  const r = t < 0.5 ? Math.round(50 + t * 2 * 175) : 225;
-  const g = t < 0.5 ? 205 : Math.round(205 - (t - 0.5) * 2 * 150);
-  return `rgba(${r},${g},55,${alpha.toFixed(3)})`;
-};
-
-/** The red–yellow–green of the views that grade from bad to good (쾌적도, the rating, the commute), as {@link heat} lays
- *  it and the legends draw it: muted a little, so a town at its best is a field of green and not a neon one. */
+/** The red–yellow–green of the views that grade from bad to good (쾌적도, the rating, the commute, a road's jam), as
+ *  {@link heat} lays it and the legends draw it: muted a little, so a town at its best is a field of green and not a
+ *  neon one. */
 export const HEAT_STOPS = [[214, 78, 66], [228, 192, 68], [72, 174, 98]] as const;
-function heat(v: number): string {
-  // 0 → red, 0.5 → yellow, 1 → green.
+/** A colour between the stops: 0 the first (red), 1 the last (green). */
+const heatRgb = (v: number): [number, number, number] => {
   const t = Math.max(0, Math.min(1, v));
   const [a, b] = t < 0.5 ? [HEAT_STOPS[0], HEAT_STOPS[1]] : [HEAT_STOPS[1], HEAT_STOPS[2]];
   const k = t < 0.5 ? t * 2 : (t - 0.5) * 2;
-  const c = (j: number) => Math.round(a[j]! + (b[j]! - a[j]!) * k);
-  return `rgba(${c(0)},${c(1)},${c(2)},0.55)`;
+  return [0, 1, 2].map((j) => Math.round(a[j]! + (b[j]! - a[j]!) * k)) as [number, number, number];
+};
+/** A road's load: green free-flowing, yellow at capacity, red at twice it (t 0–1). */
+const jamColor = (t: number, alpha = 1) => `rgba(${heatRgb(1 - t).join(',')},${alpha.toFixed(3)})`;
+function heat(v: number): string {
+  // 0 → red, 0.5 → yellow, 1 → green.
+  return `rgba(${heatRgb(v).join(',')},0.55)`;
 }
 
 function ramp(v: number): string {
