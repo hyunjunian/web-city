@@ -60,7 +60,9 @@ export function setupMenu(): void {
   const pauseBtn = $('#btn-autopause');
   const showPause = () => {
     pauseBtn.setAttribute('aria-pressed', String(autoPause));
-    pauseBtn.querySelector('.menu-label')!.textContent = `문제가 생기면 멈춤: ${autoPause ? '켬' : '끔'}`;
+    const value = pauseBtn.querySelector('.menu-value')!;
+    value.textContent = autoPause ? '켬' : '끔';
+    value.classList.toggle('on', autoPause);
   };
   showPause();
   pauseBtn.onclick = () => {

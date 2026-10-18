@@ -32,7 +32,7 @@ export function toggleNight(): void {
   renderer.night = !renderer.night;
   const btn = $('#btn-night');
   // (A state, as the menu's other switches say theirs: 밤 풍경 ↔ 낮 풍경 named the action and read as the state.)
-  btn.innerHTML = `${icon('moonStar')}<span class="menu-label">밤 풍경: ${renderer.night ? '켬' : '끔'}</span>`;
+  btn.innerHTML = `${icon('moonStar')}<span class="menu-label">밤 풍경</span> <span class="menu-value${renderer.night ? ' on' : ''}">${renderer.night ? '켬' : '끔'}</span>`;
   btn.setAttribute('aria-pressed', String(renderer.night));
   btn.title = '밤 풍경 켜기·끄기 (N)';
   $('#view').classList.toggle('night', renderer.night); // the minimap dims along

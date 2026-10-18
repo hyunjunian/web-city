@@ -24,7 +24,7 @@ function apply(): void {
   const light = m === 'light' || (m === 'system' && media.matches);
   document.documentElement.dataset.theme = light ? 'light' : 'dark';
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', light ? '#ffffff' : '#0a0a0b');
-  $('#btn-theme .menu-label').textContent = `테마: ${LABEL[m]}`;
+  $('#btn-theme .menu-value').textContent = LABEL[m];
   renderer.background = getComputedStyle($('#view')).getPropertyValue('--view-bg').trim() || '#1b1d22'; // night's own (see style.css)
   graphs.redraw();
   redraw();

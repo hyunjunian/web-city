@@ -347,6 +347,9 @@ kbd {
 .seed-row button .i { width: 18px; height: 18px; }
 .dropdown-menu hr { border: none; border-top: 1px solid var(--line); margin: 4px 6px; }
 .menu-note { margin: 6px 12px 4px; font-size: 12px; color: var(--muted); max-width: 230px; }
+/* A setting's state at the row's end, the label left alone ("테마: 시스템" read as one phrase): on in the accent. */
+.dropdown-menu .menu-value { margin-left: auto; padding-left: 16px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.dropdown-menu .menu-value.on { color: var(--accent-hi); }
 
 /* ------------------------------------------------------------------ instrument pane */
 
