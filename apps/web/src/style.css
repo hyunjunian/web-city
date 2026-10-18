@@ -2102,7 +2102,7 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 /* A chip or glance item that opens its goal's screen. */
 #info [data-row-goal]:not(tr) { cursor: pointer; }
 #info button.chip { border: 0; font: inherit; }
-@media (hover: hover) { #info .info-glance [data-row-goal]:hover { text-decoration: underline; text-underline-offset: 3px; } #info button.chip:hover { filter: brightness(0.97); } }
+@media (hover: hover) { #info .info-glance [data-row-goal]:hover { text-decoration: underline; text-underline-offset: 3px; } #info button.chip:hover { filter: brightness(0.94); } }
 /* With a tool in hand the view's card folds, but its count stays: where the service is missing is where to place. */
 #view.holding #map-layer #overlay > #overlay-sum:not([hidden]) { display: flex !important; margin: 4px 8px 2px; }
 #view.holding #map-layer:has(#overlay-sum:not([hidden])) { width: 220px; }
@@ -2674,7 +2674,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   font-size: 12.5px; font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 #goal-strip button .i { width: 16px; height: 16px; }
-@media (hover: hover) { #goal-strip button:hover { filter: brightness(0.97); } }
+@media (hover: hover) { #goal-strip button:hover { background: color-mix(in srgb, var(--text) 6%, var(--float-solid)); } } /* (a tint, not brightness(.97): on the dark card that changed nothing) */
 /* (Sound, or amber: its icon alone — its name in its title; red ones say their names. One wanting a hand is no other
    chip — a row of tinted chips outshouted the map — but its icon is in its colour, and a red one's name too.) */
 #goal-strip button.bare { width: var(--strip-h); padding: 0; }
@@ -2807,7 +2807,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   #rail :is(#city-rows > *, #goal-strip .amenity-card > :not(:first-child)) { border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent); }
   #rail :is(#city-rows, #goal-strip .amenity-card) .strip-on { border-radius: 0; background: var(--accent-soft); box-shadow: none; }
   #rail :is(#city-rows, #goal-strip .amenity-card) .strip-on > [data-strip-goal] { border: 0; }
-  @media (hover: hover) { #rail #city-rows button:hover { filter: brightness(0.97); } }
+  @media (hover: hover) { #rail :is(#city-rows, #goal-strip .amenity-card) button:hover { background: color-mix(in srgb, var(--text) 5%, transparent); } } /* (over a lit row's accent too) */
   #rail #city-rows button:focus-visible { outline-offset: -3px; }
   #rail #goal-strip .amenity-head {
     --am: var(--accent);
