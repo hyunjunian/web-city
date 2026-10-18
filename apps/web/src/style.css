@@ -960,7 +960,8 @@ button.link.advice-view { margin: 0; vertical-align: baseline; font-size: inheri
 #tool-chip {
   bottom: var(--bb); left: var(--bar-x, var(--mid)); transform: translateX(-50%); z-index: 4;
   display: flex; align-items: center; gap: 10px; max-width: calc(2 * min(var(--bar-x, var(--mid)) - var(--free-l), 100% - var(--bar-x, var(--mid)) - 14px));
-  padding: 5px 5px 5px 14px; border-radius: 999px; animation: pop-in 0.18s var(--ease);
+  padding: 5px 5px 5px 14px; border-radius: 16px; animation: pop-in 0.18s var(--ease);
+  background: var(--float-solid); -webkit-backdrop-filter: none; backdrop-filter: none; /* (solid and rounded as the build bar under it: see-through, it read greener than the bar, a pill over a card) */
 }
 #tool-chip-icon { display: grid; place-items: center; color: var(--accent-hi); }
 #tool-chip-icon .i { width: 20px; height: 20px; }
