@@ -2465,7 +2465,7 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
 .stage-ring path { stroke: var(--gold); }
 #btn-city[aria-expanded='true'] > .i { color: var(--accent-hi); }
 /* News unread in the pane (a notice, a step of 시작하기): a red dot on the button that opens it. */
-#btn-city.unread::after { content: ''; position: absolute; top: 3px; right: 3px; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--float-solid); }
+#btn-city.unread::after { content: ''; position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--float-solid); } /* (inside the rounded corner: on it, it sat over the edge and a phone's gold ring) */
 
 /* The clock: the four speeds — pause, then slow to fast, the one on lit as in a gear — and round its edge, from the top
    middle clockwise, how far the month has gone (its path drawn for its size, its length set every frame: controls.ts,
