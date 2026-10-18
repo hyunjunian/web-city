@@ -243,7 +243,10 @@ export function showInfo(x: number, y: number): void {
   const swatch = b?.type ? TYPE_COLOR[b.type] : b ? '#5b5550' : q.structure ? structureColor(q.structure.kind) : q.network ? '#55565a' : q.terrain === 'water' ? '#5d8fc7'
     : q.zone !== 'none' ? zoneTint(q.zone) : '#cfd8b8';
   // What has no building colour of its own says what it is with a glyph (a bare grey square looked like a placeholder).
-  const glyph = b ? null : q.structure ? null : q.network ? 'road' as const : q.terrain === 'water' ? 'waves' as const : q.zone !== 'none' ? 'zones' as const : 'terrain' as const;
+  // (A building's kind on its swatch — a home, a shop, an office, a factory, a farm: its colour alone read as a missing
+  // picture beside the facilities' signs.)
+  const kindGlyph = (t: string) => t[0] === 'R' ? 'home' as const : t.startsWith('Cs') ? 'store' as const : t.startsWith('Co') ? 'office' as const : t === 'IA' ? 'tractor' as const : 'factory' as const;
+  const glyph = b ? (b.type ? kindGlyph(b.type) : null) : q.structure ? null : q.network ? 'road' as const : q.terrain === 'water' ? 'waves' as const : q.zone !== 'none' ? 'zones' as const : 'terrain' as const;
   // A facility shows its tool's icon (a plain grey block vanished on the dark card).
   const facilityTool = q.structure ? TOOLS.find((t) => t.kind === 'structure' && t.category === def?.category
     && (!('only' in t) || !t.only || !!STRUCTURES[q.structure!.kind][t.only])) : undefined;
