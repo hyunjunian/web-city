@@ -1472,7 +1472,9 @@ dialog menu button { min-height: 42px; padding: 8px 18px; }
 .help-tips p { margin: 0; padding: 0 12px 12px; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .help-tips p b { color: var(--text); }
 #help-body > h3.sub:first-child { margin-top: 0; }
-.help-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: 8px 16px; margin: 0; font-size: 13.5px; }
+/* (The dialog's parts over their groups: 키보드 and 시간·저장 under it were one style.) */
+#help-body h3.sub { margin-top: 22px; color: var(--text); font-size: 13.5px; font-weight: 700; letter-spacing: 0; }
+.help-grid { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 28px; margin: 0; font-size: 13.5px; } /* (what is done beside its gesture: 2fr left a 230px gap after 끌기) */
 .help-grid dt { color: var(--muted); }
 .help-grid dd { margin: 0; }
 /* Touch screens: no keyboard to list. */
