@@ -177,13 +177,17 @@ export function renderNeighbours(): void {
       <dt>미개발</dt><dd>주민이 오가며 통근합니다</dd>
       <dt>개발됨</dt><dd>송전선·수도관·도로로 이으면 전력·물·쓰레기를 사고팔고, 성장 수요(인구의 10%)를 보내옵니다</dd>
     </dl>
-    <h3 class="sub">거래</h3>
-    ${dealRows || '<p class="muted">진행 중인 거래 없음</p>'}
+`;
+  // The deals a card of their own under the neighbours (a grey 12px heading inside theirs, its empty line larger than
+  // it): the ones running, the ones to make, or one line saying there are none and why.
+  const deals = $('#deals');
+  deals.innerHTML = `
+    ${dealRows}
     ${open.length ? open.map((o, k) => `<div class="loan-row"><span>${EDGE_NAME[o.edge]} · ${RESOURCE_NAME[o.resource]} ${o.direction === 'buy' ? '구매' : '판매'} · 단가 §${o.price.toFixed(3)}${ownCost(o)}</span>
       ${dealAmounts(o.maxAmount).length > 1 ? `<select data-amount="${k}" aria-label="거래량">${dealAmounts(o.maxAmount).map((a) => `<option value="${a}">${fmt(a)} ${RESOURCE_UNIT[o.resource]} · 월 §${fmt(city.dealMonthly({ ...o, amount: a, price: city.dealPriceFor(o.edge, o.resource, o.direction, a) ?? o.price }))}</option>`).join('')}</select>`
         : `<span class="muted">${fmt(o.maxAmount)} ${RESOURCE_UNIT[o.resource]} · 월 §${fmt(city.dealMonthly({ ...o, amount: o.maxAmount }))}</span>`}
       <button data-offer="${k}">${o.direction === 'buy' ? '사기' : '팔기'}</button></div>`).join('')
-      : `<p class="legend">지금 맺을 수 있는 거래가 없습니다.${whyNoDeals(offers)}</p>`}`;
+      : `<p class="legend">${dealRows ? '새로 맺을 수 있는 거래는 없습니다.' : '진행 중인 거래도, 지금 맺을 수 있는 거래도 없습니다.'}${whyNoDeals(offers)}</p>`}`;
   el.querySelector<HTMLButtonElement>('#region-new')?.addEventListener('click', async () => {
     // One region is kept in the browser: say so before replacing it.
     let stored = false;
@@ -252,10 +256,10 @@ export function renderNeighbours(): void {
       updatePanels();
     };
   });
-  el.querySelectorAll<HTMLButtonElement>('button[data-offer]').forEach((btn) => {
+  deals.querySelectorAll<HTMLButtonElement>('button[data-offer]').forEach((btn) => {
     btn.onclick = () => {
       const o = open[Number(btn.dataset.offer)]!;
-      const amount = Number(el.querySelector<HTMLSelectElement>(`select[data-amount="${btn.dataset.offer}"]`)?.value ?? o.maxAmount);
+      const amount = Number(deals.querySelector<HTMLSelectElement>(`select[data-amount="${btn.dataset.offer}"]`)?.value ?? o.maxAmount);
       const res = choice('거래', () => city.makeDeal(o.edge, o.resource, o.direction, amount));
       if (!res.ok && res.message) flash(ko(res.message), 'bad');
       else if (res.ok) flash(`${EDGE_NAME[o.edge]} 이웃과 ${RESOURCE_NAME[o.resource]} ${fmt(amount)} ${RESOURCE_UNIT[o.resource]} ${o.direction === 'buy' ? '구매' : '판매'} 거래를 맺었습니다 · 월 ${o.direction === 'buy' ? '−' : '+'}§${fmt(city.dealMonthly(city.state.neighbourDeals.at(-1) ?? { ...o, amount }))}`, 'info');
@@ -265,7 +269,7 @@ export function renderNeighbours(): void {
       updatePanels();
     };
   });
-  el.querySelectorAll<HTMLButtonElement>('button[data-cancel]').forEach((btn) => {
+  deals.querySelectorAll<HTMLButtonElement>('button[data-cancel]').forEach((btn) => {
     btn.onclick = () => {
       choice('거래', () => city.cancelDeal(Number(btn.dataset.cancel)));
       city.refreshIfDirty();
