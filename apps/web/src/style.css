@@ -2670,14 +2670,17 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
   /* An item that wants a hand is no other button (a whole row tinted amber or red outshouted the map): its value says it,
      in its colour and heavier. (Beside the pane, its icon alone: in its colour there.) */
   #rail #goal-strip > button.bad { color: var(--text); font-weight: 650; } /* (the one lit keeps its own) */
-  #rail :is(#goal-strip button, .strip-city).warn .r-num b { color: var(--warn-ink); font-weight: 800; }
-  #rail :is(#goal-strip button, .strip-city).bad .r-num b { color: var(--danger-ink); font-weight: 800; }
+  /* (The whole value, its dashed half kept quiet: a value not read yet, "—", had no colour of its own to say it.) */
+  #rail :is(#goal-strip button, .strip-city).warn .r-num { color: var(--warn-ink); font-weight: 800; }
+  #rail :is(#goal-strip button, .strip-city).bad .r-num { color: var(--danger-ink); font-weight: 800; }
+  #rail #goal-strip .strip-start > .i { color: var(--gold); } /* (the checklist's, as in the overview) */
   #rail .r-name { grid-area: name; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13.5px; font-weight: 650; }
   #rail .r-val { grid-area: num; justify-self: start; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
   /* The graph's last values after the name: its line's, then the dashed one's, smaller ("9.9k / 14k"). */
   /* (Its column's width: shrunk to its text, a long one ran over the graph instead of ending in "…".) */
   #rail .r-num { grid-area: num; justify-self: stretch; text-align: left; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 12.5px; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-  #rail .r-num b { font-weight: 650; }
+  #rail .r-num { font-weight: 650; }
+  #rail .r-num b { font-weight: inherit; }
   #rail .r-num small { color: var(--muted); font-size: 11.5px; font-weight: 600; }
   /* The graph: its line over a faint fill (one colour for all: the value beside it says the state), what to read it against
      dashed, a line at nothing when it goes below; dotted with nothing read yet. */
@@ -2714,8 +2717,8 @@ span.mg-cause { min-height: 26px; padding: 2px 4px; color: var(--muted); }
      is still under the pointer's line (pressed again, it puts the pane away: shorter, the next one down was there). */
   #app.pane-open #rail :is(#btn-city, #goal-strip button, .strip-city) { grid-template-columns: minmax(0, 1fr) 0 0 0; column-gap: 0; padding-inline: 0; }
   #app.pane-open #rail :is(#btn-city, #goal-strip button, .strip-city) > .i { justify-self: center; }
-  #app.pane-open #rail :is(#goal-strip button, .strip-city).warn > .i { color: var(--warn); }
-  #app.pane-open #rail :is(#goal-strip button, .strip-city).bad > .i { color: var(--danger); }
+  #app.pane-open #rail :is(#goal-strip > button, .strip-city:not(.on)).warn > .i { color: var(--warn); } /* (the one lit keeps its accent) */
+  #app.pane-open #rail :is(#goal-strip > button, .strip-city:not(.on)).bad > .i { color: var(--danger); }
   /* (The city's bar stands up under its trophy there, filling from below.) */
   #app.pane-open #rail #btn-city::before {
     content: ''; position: absolute; top: 46px; bottom: 14px; left: 50%; width: 6px; margin-left: -3px; border-radius: 999px;

@@ -2,7 +2,7 @@
 // hover hint, the growth view's colours and labels, abandonment risk, and how
 // far a facility reaches (coverage circles).
 
-import { DEFAULT_CONFIG, GROWTH_CODES, isRail, Net, NETWORK_KINDS, serviceRadius, STRUCTURES, Terrain, type City } from '@web-city/engine';
+import { DEFAULT_CONFIG, GROWTH_CODES, INTERCHANGE, isRail, Net, NETWORK_KINDS, overNet, serviceRadius, STRUCTURES, Terrain, type City } from '@web-city/engine';
 import { ABANDON_NAME, TYPE_NAME } from './names';
 import { fmt, hours } from './util';
 import type { Overlay, VolumeNetwork } from './render';
@@ -80,17 +80,19 @@ export function overlayReading(city: City, overlay: Overlay, x: number, y: numbe
     case 'traffic': {
       const code = s.net[i]!;
       const speed = DEFAULT_CONFIG.transport.speed;
-      // Each way here as its band draws it: how many go over it a day (its width) and how near its capacity (its colour).
+      // Each way here as its band draws it, bottom up: how many go over it a day (its width) and how near its capacity
+      // (its colour) — a level crossing's road and rail, a bridge's ferry under it, a deck or an elevated line over it.
       const way = (name: string, v: number, cap: number) => `${name}통행 ${fmt(r(v))} · 혼잡 ${r((v / cap) * 100)}%`;
+      const ferry = s.terrain[i] === Terrain.Water && f.ferryTraffic[i]! > 0 ? way('페리 ', f.ferryTraffic[i]!, speed.ferry.capacity) : '';
+      const road = code !== Net.None && code !== Net.Rail ? way(isRail(code) ? '도로 ' : '', f.traffic[i]!, speed[NETWORK_KINDS[code]!].capacity) : '';
+      const rail = isRail(code) ? (s.railDamage[i] ? '망가진 철로 (대중교통 예산 100% 넘으면 고쳐짐)' : way(code === Net.Rail ? '' : '철도 ', f.railTraffic[i]!, speed.rail.capacity)) : '';
+      const lifted = s.interchange[i] === INTERCHANGE.overpass ? way('위 고속도로 ', f.highTraffic[i]!, speed.highway.capacity)
+        : overNet(s, i) ? way('고속도로 위 도로 ', f.highTraffic[i]!, speed[NETWORK_KINDS[overNet(s, i)]!]!.capacity) : '';
       const up = s.elevated[i]!;
       const over = up ? way(`${['', '고가 철도', '모노레일', '고가 고속도로'][up]} `, (up === 1 ? f.subwayTraffic : up === 2 ? f.monorailTraffic : f.highTraffic)[i]!,
         up === 1 ? speed.elrail.capacity : up === 2 ? speed.monorail.capacity : speed.highway.capacity) : '';
-      const ferry = s.terrain[i] === Terrain.Water && f.ferryTraffic[i]! > 0 ? way('페리 ', f.ferryTraffic[i]!, speed.ferry.capacity) : '';
-      // (Off the networks, a home's commute or a works' freight, as the view colours them.)
-      if (code === Net.None) return [ferry, over].filter(Boolean).join(' · ') || overlayReading(city, { ...overlay, kind: 'commute' } as Overlay, x, y);
-      if (s.railDamage[i]) return '망가진 철로 (대중교통 예산 100% 넘으면 고쳐짐)';
-      const ground = code === Net.Rail ? way('', f.railTraffic[i]!, speed.rail.capacity) : way('', f.traffic[i]!, speed[NETWORK_KINDS[code]!].capacity);
-      return [ground, over].filter(Boolean).join(' · ');
+      // (Off the ways, a home's commute or a works' freight, as the view colours them.)
+      return [ferry, road, rail, lifted, over].filter(Boolean).join(' · ') || (code === Net.None ? overlayReading(city, { ...overlay, kind: 'commute' } as Overlay, x, y) : '');
     }
     case 'volume': {
       const v = volumeAt(s, f, overlay.network, i);
