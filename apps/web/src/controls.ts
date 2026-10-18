@@ -7,7 +7,7 @@ import { openGoal, taxesCutting } from './manage';
 import { fillRange } from './widgets';
 import { TYPE_NAME, TYPE_SHORT, WEALTH_NAME } from './names';
 import { updatePanels } from './panels';
-import { BROKEN_RAIL, FIRE_RISK, FOUL_HARM, FOUL_RGB, HEINOUS, INDEX_FULL, indexColor, NO_TRIP, RIOT_DOT, RISK_IN, RISK_OUT, type Overlay, UNHAPPY_DOT, type VolumeNetwork, WORN_COLOR } from './render';
+import { BROKEN_RAIL, FIRE_RISK, FOUL_HARM, FOUL_RGB, HEAT_STOPS, HEINOUS, INDEX_FULL, indexColor, NO_TRIP, RIOT_DOT, RISK_IN, RISK_OUT, type Overlay, UNHAPPY_DOT, type VolumeNetwork, WORN_COLOR } from './render';
 import { ABANDONED_COLOR, buildingRisk, GROWTH_COLOR, GROWTH_LABEL, growthNow, RISK_COLOR, volumeAt } from './views';
 import { centerOn, pingAt, changeKey, city, cityGeneration, mapBand, overlay, overlayType, redraw, renderer, setOverlay, setOverlayType, setSpeedValue, speed } from './state';
 import { selectTool, SPEEDS, TOOL_KEYS, toolName, TOOLS } from './tools';
@@ -525,7 +525,8 @@ export function buildOverlay(): void {
     const flat = kind.value === 'landValue' && !city.fields.landValue.some((v) => v >= 1);
     if (flat) $('#overlay-legend').textContent = '땅값은 물가와 주변보다 높은 땅에서 오릅니다. 이 지도에는 그런 땅이 없어 어디나 0입니다.';
     // A colour scale for the graded views (the same ramps the map paints).
-    const heat = 'linear-gradient(90deg, rgb(220,60,60), rgb(220,220,60), rgb(50,220,60))';
+    const stops = HEAT_STOPS.map((c) => `rgb(${c.join(',')})`);
+    const heat = `linear-gradient(90deg, ${stops.join(', ')})`;
     // The coverage views' blue (render.ts coverage).
     const cover = 'linear-gradient(90deg, rgba(40,110,230,0.12), rgba(40,110,230,0.65))';
     // (A home's index under hospitals and schools, render.ts indexColor.)
@@ -533,7 +534,7 @@ export function buildOverlay(): void {
     // (Its ends in words too where a bare number said nothing of which way is good: −60 · +60 for the mayor's rating.)
     const scale = ({
       desirability: [heat, '0 낮음', '150+ 높음'], mayor: [heat, '−60 불만', '+60 만족'], health: [index, '건강 지수 0', `${INDEX_FULL}+`], school: [index, '교육 지수 0', `${INDEX_FULL}+`],
-      commute: ['linear-gradient(90deg, rgb(50,220,60), rgb(220,220,60), rgb(220,60,60))', '빠름', '2.5시간'],
+      commute: [`linear-gradient(90deg, ${[...stops].reverse().join(', ')})`, '빠름', '2.5시간'],
       traffic: ['linear-gradient(90deg, rgb(50,205,55), rgb(225,205,55), rgb(225,55,55))', '원활·빠름', '막힘·2.5시간'],
       landValue: ['linear-gradient(90deg, rgba(120,40,160,0.05), rgba(120,40,160,0.7))', '0 낮음', '50 높음'],
       air: ['linear-gradient(90deg, rgba(90,70,40,0.05), rgba(90,70,40,0.75))', '깨끗', '오염'],

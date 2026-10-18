@@ -440,12 +440,16 @@ const jamColor = (t: number, alpha = 1) => {
   return `rgba(${r},${g},55,${alpha.toFixed(3)})`;
 };
 
+/** The red–yellow–green of the views that grade from bad to good (쾌적도, the rating, the commute), as {@link heat} lays
+ *  it and the legends draw it: muted a little, so a town at its best is a field of green and not a neon one. */
+export const HEAT_STOPS = [[214, 78, 66], [228, 192, 68], [72, 174, 98]] as const;
 function heat(v: number): string {
   // 0 → red, 0.5 → yellow, 1 → green.
   const t = Math.max(0, Math.min(1, v));
-  const r = t < 0.5 ? 220 : Math.round(220 - (t - 0.5) * 2 * 170);
-  const g = t < 0.5 ? Math.round(60 + t * 2 * 160) : 220;
-  return `rgba(${r},${g},60,0.55)`;
+  const [a, b] = t < 0.5 ? [HEAT_STOPS[0], HEAT_STOPS[1]] : [HEAT_STOPS[1], HEAT_STOPS[2]];
+  const k = t < 0.5 ? t * 2 : (t - 0.5) * 2;
+  const c = (j: number) => Math.round(a[j]! + (b[j]! - a[j]!) * k);
+  return `rgba(${c(0)},${c(1)},${c(2)},0.55)`;
 }
 
 function ramp(v: number): string {
