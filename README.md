@@ -47,6 +47,10 @@ npm run benchmark -- 256 9         # 같은 밀도 도시의 조회·시설 조�
 npm run docs         # City 메서드 목록 packages/engine/docs/API.md 다시 만들기
 ```
 
+벤치마크의 `searchBuffers`는 재사용하는 경로 탐색 배열의 실제 할당 수와 바이트를 셉니다.
+가중치가 없는 탐색은 비용과 이동 시간이 같은 배열을 공유하고, 교통수단 선호 가중치가 있는
+탐색만 시간을 별도 저장합니다. 같은 저장 공간은 한 번만 집계합니다.
+
 Worker 예제:
 
 ```bash

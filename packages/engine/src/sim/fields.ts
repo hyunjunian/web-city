@@ -61,9 +61,9 @@ export interface Fields {
    * share left over), from the month's traffic; empty until it runs.
    */
   jobless: Map<number, number>;
-  /** Reused search arrays, two generations (the last result stays valid while the next is computed). */
-  /** Search buffers are allocated lazily and cleared before reuse. */
-  searchPool: { dist: Float32Array; time: Float32Array; next: Int32Array }[][];
+  /** Lazily allocated search arrays. Unbiased cost and time share storage;
+   * scratch slots retain a separate time array if a biased search needs one. */
+  searchPool: { dist: Float32Array; time: Float32Array; next: Int32Array; biasedTime?: Float32Array }[][];
   searchGen: number;
   /** The landfills' NIMBY field and the landfill tiles it was made for (it changes only with zoning). */
   landfillNimby: { tiles: string; field: Float32Array } | null;

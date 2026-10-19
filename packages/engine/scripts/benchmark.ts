@@ -74,9 +74,18 @@ for (let trial = 0; trial < trials; trial++) {
   monthSamples.push(performance.now() - start);
 }
 monthSamples.sort((a, b) => a - b);
+// Count each underlying allocation once: unbiased time and cost alias.
+const searchArrays = new Set<ArrayBufferLike>();
+let searchSlots = 0;
+for (const generation of city.fields.searchPool) for (const slot of generation) {
+  if (!slot) continue;
+  searchSlots++;
+  for (const value of Object.values(slot)) if (ArrayBuffer.isView(value)) searchArrays.add(value.buffer);
+}
 console.log(JSON.stringify({ size, trials, seed: 3, population: city.stats().population,
   buildings: city.state.buildings.size, structures: city.state.structures.size,
   ...reports, refreshWithoutTravel, clinicFundingAndRadius,
   month: { medianMs: monthSamples[Math.floor(trials / 2)], p90Ms: monthSamples[Math.ceil(trials * 0.9) - 1] },
+  searchBuffers: { slots: searchSlots, arrays: searchArrays.size, bytes: [...searchArrays].reduce((sum, array) => sum + array.byteLength, 0) },
   rssMiB: process.memoryUsage().rss / 1048576,
 }, null, 2));

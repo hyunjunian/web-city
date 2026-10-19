@@ -590,9 +590,10 @@ function* nearestOpenJobs(
   const N = n * n;
   const moves = yield* moveMasksSteps(s, cross);
   yield;
-  const { dist, time, next } = buf;
+  const { dist, time, next } = prepareSearchBuffers(MODES * N, o, buf);
+  const separateTime = time !== dist;
   dist.fill(INF);
-  time.fill(INF);
+  if (separateTime) time.fill(INF);
   yield;
   next.fill(-1);
   label.fill(-1);
@@ -624,7 +625,7 @@ function* nearestOpenJobs(
   const heap = new Heap();
   const relabel = (v: number, d: number, tv: number, nx: number, k: number) => {
     dist[v] = d;
-    time[v] = tv;
+    if (separateTime) time[v] = tv;
     next[v] = nx;
     label[v] = k;
     held[k]!.push(v);
@@ -697,7 +698,7 @@ function* nearestOpenJobs(
     for (const v of area) {
       if ((++done & 0x3fff) === 0) yield;
       dist[v] = INF;
-      time[v] = INF;
+      if (separateTime) time[v] = INF;
       next[v] = -1;
       label[v] = -1;
       via.delete(v);
@@ -893,6 +894,23 @@ interface SearchOptions {
 
 type SearchBuffers = Fields['searchPool'][number][number];
 
+/** Cost equals real time at every label when every allowed mode has unit bias.
+ * Retain a distinct time array for scratch slots that also run biased searches. */
+function prepareSearchBuffers(size: number, o: SearchOptions, buf?: SearchBuffers): SearchBuffers {
+  if (!buf) {
+    const dist = new Float32Array(size);
+    buf = { dist, time: dist, next: new Int32Array(size) };
+  }
+  const unbiased = o.modes.every(mode => o.bias[mode] === 1);
+  if (unbiased) {
+    if (buf.time !== buf.dist) buf.biasedTime = buf.time;
+    buf.time = buf.dist;
+  } else if (buf.time === buf.dist) {
+    buf.time = buf.biasedTime ??= new Float32Array(size);
+  }
+  return buf;
+}
+
 /**
  * Per tile, which neighbours (bit k: DX[k], DY[k]) a car may come from
  * (bits 0–3) and an upper-deck car may (bits 4–7): one-way roads, links,
@@ -944,17 +962,11 @@ function* searchSteps(s: CityState, cross: Float32Array[], sources: readonly [nu
   const moves = yield* moveMasksSteps(s, cross);
   const N = n * n;
   const size = MODES * N;
-  let dist: Float32Array, time: Float32Array, next: Int32Array;
-  if (buf) {
-    ({ dist, time, next } = buf);
-    dist.fill(INF);
-    time.fill(INF);
-    next.fill(-1);
-  } else {
-    dist = new Float32Array(size).fill(INF);
-    time = new Float32Array(size).fill(INF);
-    next = new Int32Array(size).fill(-1);
-  }
+  const { dist, time, next } = prepareSearchBuffers(size, o, buf);
+  const separateTime = time !== dist;
+  dist.fill(INF);
+  if (separateTime) time.fill(INF);
+  next.fill(-1);
   // Stations boarded: few states, so kept aside rather than in a per-state array.
   const via = new Map<number, [station: number, to: number]>();
   const allowed = new Uint8Array(MODES);
@@ -964,7 +976,7 @@ function* searchSteps(s: CityState, cross: Float32Array[], sources: readonly [nu
   for (const [st, c] of sources) {
     if (!allowed[Math.floor(st / N)] || dist[st]! <= c) continue;
     dist[st] = c;
-    time[st] = c;
+    if (separateTime) time[st] = c;
     heap.push(Math.fround(c), st);
   }
   const joins = new Set(s.transitions);
@@ -998,7 +1010,7 @@ function* searchSteps(s: CityState, cross: Float32Array[], sources: readonly [nu
         const nd = Math.fround(d + bc);
         if (nd < dist[su]!) {
           dist[su] = nd;
-          time[su] = tv + c;
+          if (separateTime) time[su] = tv + c;
           next[su] = v;
           heap.push(nd, su);
         }
@@ -1012,7 +1024,7 @@ function* searchSteps(s: CityState, cross: Float32Array[], sources: readonly [nu
         const nd = Math.fround(d + cost);
         if (nd < dist[su]!) {
           dist[su] = nd;
-          time[su] = tv + cost;
+          if (separateTime) time[su] = tv + cost;
           next[su] = v;
           if (station >= 0) via.set(su, [station, v]);
           heap.push(nd, su);
@@ -1192,7 +1204,8 @@ function bufferPool(f: Fields, N: number): (k: number) => SearchBuffers {
   const size = MODES * N;
   return (k) => {
     if (pool[k]?.dist.length !== size) {
-      pool[k] = { dist: new Float32Array(size), time: new Float32Array(size), next: new Int32Array(size) };
+      const dist = new Float32Array(size);
+      pool[k] = { dist, time: dist, next: new Int32Array(size) };
     }
     return pool[k]!;
   };
