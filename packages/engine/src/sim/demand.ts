@@ -66,6 +66,10 @@ export function* takeCensusSteps(s: CityState, cfg: SimConfig): Generator<void, 
   const stageCounts = perType<number[]>(() => []);
   let abandoned = 0;
   const abandonedFor = perType(() => 0);
+  const eqSum: PerWealth = [0, 0, 0];
+  const hqSum: PerWealth = [0, 0, 0];
+  const workers: PerWealth = [0, 0, 0];
+  const byEq: [PerEq, PerEq, PerEq] = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
   yield;
   let piece1 = 0;
   for (const b of s.buildings.values()) {
@@ -77,35 +81,27 @@ export function* takeCensusSteps(s: CityState, cfg: SimConfig): Generator<void, 
       if (!b.historical) for (const t of cfg.development.downgrade[b.origType] ?? []) abandonedFor[t]++;
       continue;
     }
-    population[b.type] += b.capacity * b.occupancy;
+    const r = b.capacity * b.occupancy;
+    population[b.type] += r;
     filled[b.type] += b.filled;
     const counts = stageCounts[b.type];
     counts[b.stage - 1] = (counts[b.stage - 1] ?? 0) + 1;
-  }
-  const residents: PerWealth = [population['R$'], population['R$$'], population['R$$$']];
-
-  // EQ/HQ: occupancy-weighted household averages.
-  const eqSum: PerWealth = [0, 0, 0];
-  const hqSum: PerWealth = [0, 0, 0];
-  const byEq: [PerEq, PerEq, PerEq] = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
-  yield;
-  let piece2 = 0;
-  for (const b of s.buildings.values()) {
-    if ((++piece2 & 0x1ff) === 0) yield;
-    if (!b.type || b.type[0] !== 'R') continue;
+    if (b.type[0] !== 'R') continue;
     const w = cfg.demand.wealthOf[b.type];
-    const r = b.capacity * b.occupancy;
     eqSum[w] += b.eq * r;
     hqSum[w] += b.hq * r;
-    byEq[w][eqLevelOf(cfg, b.eq)] += r;
+    const working = r * interp(cfg.services.workforceByHq, b.hq);
+    workers[w] += working;
+    byEq[w][eqLevelOf(cfg, b.eq)] += working;
   }
+  const residents: PerWealth = [population['R$'], population['R$$'], population['R$$$']];
   const avgEq = WEALTHS.map((w) => (residents[w] > 0 ? eqSum[w] / residents[w] : cfg.services.baseQuotient[w])) as PerWealth;
   const avgHq = WEALTHS.map((w) => (residents[w] > 0 ? hqSum[w] / residents[w] : cfg.services.baseQuotient[w])) as PerWealth;
   const total = residents[0] + residents[1] + residents[2];
-  const meanHq = total > 0 ? (hqSum[0] + hqSum[1] + hqSum[2]) / total : cfg.services.baseQuotient[0];
-  const wf = interp(cfg.services.workforceByHq, meanHq);
-  const workers = residents.map((r) => r * wf) as PerWealth;
-  const workersByEq = byEq.map((row) => row.map((r) => r * wf)) as [PerEq, PerEq, PerEq];
+  // Match the household-level health participation used by actual commuters.
+  const wf = total > 0 ? (workers[0] + workers[1] + workers[2]) / total
+    : interp(cfg.services.workforceByHq, cfg.services.baseQuotient[0]);
+  const workersByEq = byEq;
 
   const jobsByWealth: PerWealth = [0, 0, 0];
   yield;
@@ -236,7 +232,8 @@ export function computeDemand(
   s: CityState, cfg: SimConfig, census: Census, connectionsPerEdge: ConnectionCounts, regional?: RegionalDemand,
 ): DemandReport {
   const dc = cfg.demand;
-  const wf = census.workforceFraction;
+  const workforce = WEALTHS.map(w => census.residents[w] > 0 ? census.workers[w] / census.residents[w]
+    : interp(cfg.services.workforceByHq, census.avgHq[w])) as PerWealth;
   const pop = census.population;
   const raw = perType(() => 0);
 
@@ -254,14 +251,14 @@ export function computeDemand(
       // Their workers by education like this city's of the same wealth (all EQ1 if it has none).
       const row = census.workersByEq[w];
       const total = row.reduce((a, b) => a + b, 0);
-      for (let lvl = 0; lvl < 4; lvl++) workersByEq[w][lvl]! += extra * wf * (total > 0 ? row[lvl]! / total : lvl === 0 ? 1 : 0);
+      for (let lvl = 0; lvl < 4; lvl++) workersByEq[w][lvl]! += extra * workforce[w] * (total > 0 ? row[lvl]! / total : lvl === 0 ? 1 : 0);
     }
     for (const t of BUSINESS_TYPES) for (const w of WEALTHS) jobsByWealth[w] += pooled[t] * dc.workforceProfile[t][w]!;
   }
 
   // Residential: jobs (local + SimNation) want ~2 residents each.
   for (const w of WEALTHS) {
-    raw[RES_TYPES[w]] = (jobsByWealth[w] + dc.baseJobs[w]) / wf - residents[w];
+    raw[RES_TYPES[w]] = workforce[w] > 0 ? (jobsByWealth[w] + dc.baseJobs[w]) / workforce[w] - residents[w] : -residents[w];
   }
 
   // Business: workers demand jobs by wealth and education level. Agriculture

@@ -393,7 +393,11 @@ describe('abandonment advice', () => {
   });
 
   it('appears once buildings are left empty, pointing at one', () => {
-    const city = new City({ size: 48, seed: 5, difficulty: 'easy', water: false, config: { safety: { fires: false } } });
+    // Isolate the power countdown from unrelated demand and commute departures.
+    const city = new City({ size: 48, seed: 5, difficulty: 'easy', water: false, config: {
+      safety: { fires: false }, demand: { exodusRate: 0 }, transport: { noJobMonths: 1_200 },
+      development: { distressMonths: 1_200 },
+    } });
     city.state.funds = 5_000_000;
     city.buildNetwork(0, 20, 47, 20, 'road');
     city.zone(1, 12, 46, 19, 'R-low');

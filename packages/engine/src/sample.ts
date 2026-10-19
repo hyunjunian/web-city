@@ -46,8 +46,8 @@ export function sampleCity(opts: { seed?: number; days?: number; name?: string }
     city.zone(c - 35, c - 35, c - 1, c - 9, 'R-low');
     city.zone(c + 1, c - 35, c + 35, c - 9, 'R-medium');
     // Shops face the avenue; the rows behind them are homes (more shops than the town can keep stand empty).
-    city.zone(c - 35, c - 4, c + 35, c - 1, 'C-medium');
-    city.zone(c - 35, c - 7, c + 35, c - 5, 'R-medium');
+    city.zone(c - 35, c - 2, c + 35, c - 1, 'C-medium');
+    city.zone(c - 35, c - 7, c + 35, c - 3, 'R-medium');
     city.zone(c - 35, c + 1, c - 1, c + 7, 'R-medium');
     city.zone(c + 1, c + 1, c + 15, c + 7, 'C-high');
     city.zone(c + 17, c + 1, c + 35, c + 7, 'C-medium');
