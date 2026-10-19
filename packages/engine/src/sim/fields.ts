@@ -219,19 +219,29 @@ export function buildingAccess(s: CityState, f: Fields, b: Building): { road: nu
   return { road: best, dist: best < 0 ? INF : bestD };
 }
 
-function computeAccess(s: CityState, f: Fields): void {
+const NETWORK_WORK = new WeakMap<Fields, Int32Array>();
+function networkWork(f: Fields, length: number): Int32Array {
+  let work = NETWORK_WORK.get(f);
+  if (work?.length !== length) { work = new Int32Array(length); NETWORK_WORK.set(f, work); }
+  return work;
+}
+
+function* computeAccessSteps(s: CityState, f: Fields): Generator<void, void> {
   const n = s.size;
   f.access.fill(-1);
   f.accessDist.fill(255);
-  const queue: number[] = [];
+  const queue = networkWork(f, n * n);
+  let tail = 0;
   for (let i = 0; i < n * n; i++) {
+    if ((i & 0x1fff) === 0x1fff) yield;
     if (isLocalNet(s.net[i]!) && atGrade(s, i)) {
       f.access[i] = i;
       f.accessDist[i] = 0;
-      queue.push(i);
+      queue[tail++] = i;
     }
   }
-  for (let h = 0; h < queue.length; h++) {
+  for (let h = 0; h < tail; h++) {
+    if ((h & 0x1fff) === 0x1fff) yield;
     const i = queue[h]!;
     const d = f.accessDist[i]!;
     if (d >= 3) continue;
@@ -245,22 +255,25 @@ function computeAccess(s: CityState, f: Fields): void {
       if (f.access[j]! >= 0 || s.terrain[j] === Terrain.Water) continue;
       f.access[j] = f.access[i]!;
       f.accessDist[j] = d + 1;
-      queue.push(j);
+      queue[tail++] = j;
     }
   }
 }
 
-function computeComponents(s: CityState, f: Fields, cfg: SimConfig): void {
+function* computeComponentsSteps(s: CityState, f: Fields): Generator<void, void> {
   const n = s.size;
   f.component.fill(-1);
   let count = 0;
-  const stack: number[] = [];
+  const stack = networkWork(f, n * n);
+  let length = 0, visited = 0;
   for (let i = 0; i < n * n; i++) {
+    if ((i & 0x1fff) === 0x1fff) yield;
     if (!isAsphalt(s.net[i]!) || f.component[i]! >= 0) continue;
     f.component[i] = count;
-    stack.push(i);
-    while (stack.length) {
-      const c = stack.pop()!;
+    stack[length++] = i;
+    while (length) {
+      if ((++visited & 0xfff) === 0) yield;
+      const c = stack[--length]!;
       const x = c % n;
       const y = (c - x) / n;
       for (let k = 0; k < 4; k++) {
@@ -270,7 +283,7 @@ function computeComponents(s: CityState, f: Fields, cfg: SimConfig): void {
         const j = ny * n + nx;
         if (f.component[j]! < 0 && tilesLinked(s, c, j)) {
           f.component[j] = count;
-          stack.push(j);
+          stack[length++] = j;
         }
       }
     }
@@ -364,18 +377,21 @@ function computeConnections(s: CityState, f: Fields): void {
   f.connections = connectionTiles(s);
 }
 
-function computeLandValue(s: CityState, f: Fields, cfg: SimConfig): void {
+function* computeLandValueSteps(s: CityState, f: Fields, cfg: SimConfig): Generator<void, void> {
   const n = s.size;
   const { max, range } = cfg.desirability.waterLandValue;
   const dist = new Int32Array(n * n).fill(INF);
-  const queue: number[] = [];
+  const queue = networkWork(f, n * n);
+  let tail = 0;
   for (let i = 0; i < n * n; i++) {
+    if ((i & 0x1fff) === 0x1fff) yield;
     if (s.terrain[i] === Terrain.Water) {
       dist[i] = 0;
-      queue.push(i);
+      queue[tail++] = i;
     }
   }
-  for (let h = 0; h < queue.length; h++) {
+  for (let h = 0; h < tail; h++) {
+    if ((h & 0xfff) === 0xfff) yield;
     const i = queue[h]!;
     const d = dist[i]!;
     if (d >= range) continue;
@@ -389,7 +405,7 @@ function computeLandValue(s: CityState, f: Fields, cfg: SimConfig): void {
         const j = ny * n + nx;
         if (dist[j]! > d + 1) {
           dist[j] = d + 1;
-          queue.push(j);
+          queue[tail++] = j;
         }
       }
     }
@@ -399,6 +415,7 @@ function computeLandValue(s: CityState, f: Fields, cfg: SimConfig): void {
   let sum = 0;
   let count = 0;
   for (let i = 0; i < n * n; i++) {
+    if ((i & 0x1fff) === 0x1fff) yield;
     if (s.zone[i] && s.terrain[i] !== Terrain.Water) {
       sum += s.height[i]!;
       count++;
@@ -413,6 +430,7 @@ function computeLandValue(s: CityState, f: Fields, cfg: SimConfig): void {
   const avg = count ? sum / count : 0;
   const ev = cfg.terrain.landValue;
   for (let i = 0; i < n * n; i++) {
+    if ((i & 0x1fff) === 0x1fff) yield;
     const d = dist[i]!;
     const water = s.terrain[i] === Terrain.Water || d > range ? 0 : max * (1 - (d - 1) / range);
     const above = s.height[i]! - avg;
@@ -424,7 +442,8 @@ function computeLandValue(s: CityState, f: Fields, cfg: SimConfig): void {
       const x = i % n;
       const y = (i - x) / n;
       const h = s.height[i]!;
-      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as const) {
+      for (let k = 0; k < 4; k++) {
+        const nx = x + DX[k]!, ny = y + DY[k]!;
         if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
         const j = ny * n + nx;
         if (s.terrain[j] !== Terrain.Water) slope = Math.max(slope, Math.abs(h - s.height[j]!));
@@ -558,9 +577,9 @@ export function computeNetworkFields(s: CityState, f: Fields, cfg: SimConfig): v
 /** `computeNetworkFields` in steps (see ./steps). */
 export function* computeNetworkFieldsSteps(s: CityState, f: Fields, cfg: SimConfig): Generator<void, void> {
   computeConnections(s, f);
-  computeAccess(s, f);
-  computeComponents(s, f, cfg);
-  computeLandValue(s, f, cfg);
+  yield* computeAccessSteps(s, f);
+  yield* computeComponentsSteps(s, f);
+  yield* computeLandValueSteps(s, f, cfg);
 
   // Industrial reach: I/A zone tiles within N steps (through I/A zone) of a road,
   // which also gives them that road as their access.
