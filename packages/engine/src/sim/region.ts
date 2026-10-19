@@ -459,7 +459,8 @@ export function settleDeals(
     const monthly = dealMonthly(s, d);
     const nb = s.neighbours[d.edge];
     const ok = (connected ? connected(d.edge, d.resource) : hasDealConnection(s, d.edge, d.resource)) && nb?.kind === 'developed' && nb.connected?.[d.resource] !== false
-      && (d.direction === 'buy' ? s.funds >= monthly : deliveredByDeal?.get(d.id) ?? delivered[d.resource]);
+      // Reserve cash in contract order, so purchases cannot all spend the same treasury.
+      && (d.direction === 'buy' ? s.funds - expense >= monthly : deliveredByDeal?.get(d.id) ?? delivered[d.resource]);
     if (!ok) {
       if (d.status === 'probation') {
         ended.push(d);

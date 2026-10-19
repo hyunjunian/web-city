@@ -4,6 +4,30 @@ import { City, saveCity } from '../src';
 const calm = { safety: { fires: false }, disasters: { simulated: false }, mayor: { riots: false } };
 
 describe('cash flow projections', () => {
+  it('reserves the treasury once when several utility purchases settle in the same month', () => {
+    const city = new City({ size: 16, water: false, config: calm });
+    city.state.funds = 1_000_000;
+    city.buildPowerLine(0, 5, 15, 5);
+    for (const edge of [0, 1] as const) {
+      city.setNeighbour(edge, 'developed', 10);
+      expect(city.makeDeal(edge, 'power', 'buy', 1_000).ok).toBe(true);
+    }
+    for (const deal of city.state.neighbourDeals) deal.price = 0.6;
+    city.state.funds = 1_000; // Either purchase fits, both together do not.
+    const before = saveCity(city);
+    expect(city.previewBudget().neighbourExpense).toBe(600);
+    expect(city.budgetForecast(1).points[0]).toMatchObject({ neighbourExpense: 600, troubledDeals: 1 });
+    expect(saveCity(city)).toEqual(before);
+    city.step(30);
+    expect(city.state.lastBudget!.neighbourExpense).toBe(600);
+    expect(city.state.neighbourDeals.map((deal) => deal.status)).toEqual(['active', 'grace']);
+    expect(city.state.neighbourDeals[1]!.monthsLeft).toBe(city.cfg.region.deals.graceMonths);
+    city.state.funds = 100_000;
+    city.step(30);
+    expect(city.state.lastBudget!.neighbourExpense).toBe(1_200);
+    expect(city.state.neighbourDeals.map((deal) => deal.status)).toEqual(['active', 'probation']);
+  });
+
   it('matches actual loan maturity in a static city, without changing the treasury, loans or random generator', () => {
     const city = new City({ size: 16, water: false, config: { ...calm, economy: { loans: { rate: 0 } } } });
     city.state.funds = 1_000;
