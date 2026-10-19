@@ -385,7 +385,7 @@ Moves every moving disaster `steps` steps; those that end file their damage repo
 
 ### `disaster(kind: DisasterKind, x: number, y: number, intensity = 0.5): DamageReport`
 
-Strikes a God Mode disaster at (x, y) at once (intensity 0–1) and returns its damage report; see unleash() to play moving ones out over time.
+Strikes a God Mode disaster at (x, y) at once (intensity 0–1) and returns its damage report; see unleash() to play moving ones out over time. Throws for unknown kinds or coordinates outside the map.
 
 ### `setNeighbour(edge: 0 | 1 | 2 | 3, kind: NeighbourKind, scale = 1, name?: string): void`
 

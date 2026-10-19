@@ -34,7 +34,7 @@ import {
 } from './sim/region';
 import type { NeighbourKind } from './data/region';
 import {
-  damageRail, derailments, disasterEvent, Landform, LIVE_KINDS, pileups, runDisaster, startLive, stepLive, wearUtilities,
+  damageRail, derailments, disasterEvent, DISASTER_KINDS, Landform, LIVE_KINDS, pileups, runDisaster, startLive, stepLive, wearUtilities,
   type DamageReport, type DisasterContext, type DisasterKind, type LiveDisaster, type LiveKind,
 } from './sim/disasters';
 import type { ConnectionKind } from './data/demand';
@@ -3177,10 +3177,11 @@ export class City {
     return s.liveDisasters;
   }
 
-  /** Strikes a God Mode disaster at (x, y) at once (intensity 0–1) and returns its damage report; see unleash() to play moving ones out over time. */
+  /** Strikes a God Mode disaster at (x, y) at once (intensity 0–1) and returns its damage report; see unleash() to play moving ones out over time. Throws for unknown kinds or coordinates outside the map. */
   disaster(kind: DisasterKind, x: number, y: number, intensity = 0.5): DamageReport {
     this.settle();
     if (!inBounds(this.state, x, y)) throw new Error('disaster out of bounds');
+    if (!DISASTER_KINDS.includes(kind)) throw new Error('unknown disaster');
     const ctx = this.damageContext(kind, x, y);
     runDisaster(ctx, kind, x, y, Number.isFinite(intensity) ? Math.max(0, Math.min(1, intensity)) : 0.5);
     this.finishDamage(ctx);

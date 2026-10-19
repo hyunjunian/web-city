@@ -23,6 +23,19 @@ const buildingsNear = (c: City, x: number, y: number, r: number) =>
   [...c.state.buildings.values()].filter((b) => Math.abs(b.x - x) <= r && Math.abs(b.y - y) <= r).length;
 
 describe('God Mode disasters', () => {
+  it('refuses unknown disasters without creating panic events or damage reports', () => {
+    const city = new City({ size: 16, water: false });
+    const before = saveCity(city);
+    for (const kind of [undefined, null, '', 'meteorite', 'constructor']) {
+      expect(() => city.disaster(kind as Parameters<City['disaster']>[0], 5, 5)).toThrow('unknown disaster');
+      expect(saveCity(city)).toEqual(before);
+      expect(city.takeReports()).toEqual([]);
+    }
+    city.plantTrees(5, 5, 5, 5);
+    expect(city.disaster('lightning', 5, 5).kind).toBe('lightning');
+    expect(city.state.treeFires).toHaveLength(1);
+  });
+
   it('a meteor leaves a crater of rubble, above and below ground', () => {
     const city = town();
     expect(buildingsNear(city, 24, 16, 3)).toBeGreaterThan(0);
