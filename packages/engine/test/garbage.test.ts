@@ -591,6 +591,26 @@ describe('garbage', () => {
     expect(city.query(40, 31)!.zone).toBe('landfill');
   });
 
+  it.each(['zoning', 'road', 'rail', 'facility'] as const)('preserves buried waste when %s would replace a filled landfill', (tool) => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    city.zone(2, 2, 12, 12, 'landfill');
+    for (let y = 2; y <= 12; y++) for (let x = 2; x <= 12; x++) city.state.landfill[y * 32 + x] = 10;
+    const before = saveCity(city);
+    const preview = () => tool === 'zoning' ? city.previewZone(2, 2, 12, 12, 'R-low')
+      : tool === 'facility' ? city.canPlaceStructure('smallParkGreen', 6, 6)
+      : city.previewNetwork(0, 6, 15, 6, tool);
+    const apply = () => tool === 'zoning' ? city.zone(2, 2, 12, 12, 'R-low')
+      : tool === 'facility' ? city.placeStructure('smallParkGreen', 6, 6)
+      : city.buildNetwork(0, 6, 15, 6, tool);
+    expect(preview().ok).toBe(false);
+    expect(apply()).toMatchObject({ ok: false, cost: 0 });
+    expect(saveCity(city)).toEqual(before);
+    city.state.landfill.fill(0); // a decommissioned site's contents have finished decomposing
+    expect(preview().ok).toBe(true);
+    expect(apply().ok).toBe(true);
+  });
+
   it('landfills are a strong NIMBY for homes', () => {
     const city = town();
     const before = city.query(30, 15)!.desirability['R$$'].factors.resNimby ?? 0;

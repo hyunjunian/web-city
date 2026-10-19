@@ -3,6 +3,7 @@
 import { City, DISASTER_KINDS, ORDINANCES, STRUCTURES, loadCity, saveCity, type StructureKind, type ZoneKind } from '../src';
 import { Rng } from '../src/rng';
 import { DAYS_PER_MONTH } from '../src/sim/state';
+import { LANDFILL_ZONE } from '../src/sim/garbage';
 
 const years = Number(process.argv[2] ?? 20);
 const n = Number(process.argv[3] ?? 64);
@@ -85,7 +86,10 @@ function check(): void {
       seen[y * n + x] = 1;
     }
   }
-  for (let i = 0; i < n * n; i++) if (s.occupant[i] !== 0 && !seen[i]) fail(`stray occupant ${s.occupant[i]} at ${i}`);
+  for (let i = 0; i < n * n; i++) {
+    if (s.occupant[i] !== 0 && !seen[i]) fail(`stray occupant ${s.occupant[i]} at ${i}`);
+    if (s.landfill[i]! > 0 && s.zone[i] !== LANDFILL_ZONE) fail(`buried waste outside a landfill at ${i}`);
+  }
   for (const f of s.fires) if (!(f.target > 0 ? s.buildings.has(f.target) : s.structures.has(-f.target))) fail('fire on nothing');
   for (const m of s.mySims) if (!s.buildings.has(m.home)) {
     // A displaced Sim may search for a replacement home for two months.

@@ -533,7 +533,7 @@ export class City {
       if (code !== 0 && (s.landform[i] === Landform.Cone || (s.landform[i] === Landform.Slope && zoneInfo(code).density !== 'low'))) continue;
       if (s.zone[i] === code) continue;
       // A landfill tile can only be rezoned once its garbage has decomposed.
-      if (s.zone[i] === LANDFILL_ZONE && s.landfill[i]! > 0) continue;
+      if (this.landfillWasteAt(i)) continue;
       tiles.push(i);
     }
     const density = zoneInfo(code).density;
@@ -542,6 +542,11 @@ export class City {
     const cost = tiles.length * unit + streets.size * this.cfg.economy.networkCost.street.build;
     if (cost > s.funds) return { code, tiles, streets, cost, message: 'not enough funds' };
     return { code, tiles, streets, cost };
+  }
+
+  /** Buried waste must decompose before its landfill tile can be used for something else. */
+  private landfillWasteAt(i: number): boolean {
+    return this.state.zone[i] === LANDFILL_ZONE && this.state.landfill[i]! > 0;
   }
 
   /** Whether zone `code` is a denser zone of the same class as the developed tile `i`'s. */
@@ -603,7 +608,7 @@ export class City {
       }
     }
     // (Not on a volcano's cone, as the street tool refuses.)
-    const buildable = (i: number) => s.terrain[i] !== Terrain.Water && s.occupant[i] === 0 && s.landform[i] !== Landform.Cone;
+    const buildable = (i: number) => s.terrain[i] !== Terrain.Water && s.occupant[i] === 0 && s.landform[i] !== Landform.Cone && !this.landfillWasteAt(i);
     const rowCovered = (c: number) => {
       for (let a = 0; a < alongLen; a++) {
         const i = tile(a, c);
@@ -743,6 +748,7 @@ export class City {
       if (!inBounds(s, x, y)) continue;
       const i = idx(s, x, y);
       if (s.occupant[i] !== 0) return { message: 'path is blocked by a building' };
+      if (this.landfillWasteAt(i)) return { message: 'path crosses a filled landfill' };
       if (code === Net.OneWay) {
         // Traffic flows the way the road was dragged.
         const [nx, ny] = path[k + 1] ?? [x, y];
@@ -1200,6 +1206,7 @@ export class City {
     if (tiles.some((i) => s.occupant[i] !== 0)) return 'site has a building on it';
     if (tiles.some((i) => s.net[i] !== Net.None || s.elevated[i])) return 'site has a road or track on it';
     if (tiles.some((i) => s.rubble[i])) return 'site has rubble on it';
+    if (tiles.some((i) => this.landfillWasteAt(i))) return 'site contains landfill waste';
     if (tiles.some((i) => s.landform[i] === Landform.Cone)) return 'site is on a volcano';
     if (def.cost > 0 && def.cost > s.funds) return 'not enough funds';
     return null;
