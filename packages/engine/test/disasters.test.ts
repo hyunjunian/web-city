@@ -46,7 +46,8 @@ describe('God Mode disasters', () => {
   it.each(['instant', 'moving'] as const)('includes overhead rebuilding in a %s tornado report while preserving the road and buried utilities', (mode) => {
     const city = new City({ size: 32, water: false });
     city.state.funds = 1_000_000;
-    city.buildNetwork(10, 10, 10, 10, 'road');
+    city.buildNetwork(8, 10, 12, 10, 'road');
+    expect(city.placeToll(10, 10).ok).toBe(true);
     const line = city.buildPowerLine(10, 10, 10, 10), elevated = city.buildElevated(10, 10, 10, 10, 'elrail');
     city.buildPipe(10, 10, 10, 10);
     city.buildSubway(10, 10, 10, 10);
@@ -69,6 +70,7 @@ describe('God Mode disasters', () => {
     expect(report.rebuildCost).toBe(line.cost + elevated.cost);
     expect(city.state.lineWear[i]).toBe(0);
     expect(city.state.net[i]).not.toBe(0);
+    expect(city.state.tolls[i]).toBe(1);
     expect(city.state.potholes[i]).toBe(1);
     expect(city.state.pipe[i]).toBe(1);
     expect(city.state.pipeWear[i]).toBe(200);
@@ -108,6 +110,61 @@ describe('God Mode disasters', () => {
     const report = city.disaster('meteor', 10, 10, 0);
     expect(report.networkTiles).toBe(5);
     expect(report.rebuildCost).toBe(built.cost);
+  });
+
+  it.each(['ground', 'elevated'] as const)('includes a destroyed toll booth on the %s network in the rebuilding estimate', (level) => {
+    const city = new City({ size: 32, water: false, config: { disasters: { godMode: { meteor: { crater: [2, 2], debris: [0, 0] } } } } });
+    city.state.funds = 1_000_000;
+    const road = level === 'ground' ? city.buildNetwork(8, 10, 12, 10, 'road') : city.buildElevated(8, 10, 12, 10, 'highway');
+    const toll = city.placeToll(10, 10);
+    expect(road.ok && toll.ok).toBe(true);
+    const report = city.disaster('meteor', 10, 10, 0);
+    expect(report.networkTiles).toBe(5);
+    expect(report.rebuildCost).toBe(road.cost + toll.cost);
+    expect(city.state.tolls[10 * city.size + 10]).toBe(0);
+  });
+
+  it('includes the toll booth when a tornado destroys its elevated highway', () => {
+    const city = new City({ size: 32, water: false });
+    city.buildElevated(8, 10, 12, 10, 'highway');
+    const toll = city.placeToll(10, 10);
+    expect(toll.ok).toBe(true);
+    const report = city.disaster('tornado', 10, 10, 0);
+    expect(report.networkTiles).toBeGreaterThan(0);
+    expect(report.rebuildCost).toBe(report.networkTiles * city.cfg.economy.networkCost.elevatedHighway.build + toll.cost);
+  });
+
+  it('charges an elevated toll once when the highway and the road below are both destroyed', () => {
+    const city = new City({ size: 32, water: false, config: { disasters: { godMode: { meteor: { crater: [2, 2], debris: [0, 0] } } } } });
+    city.state.funds = 1_000_000;
+    const elevated = city.buildElevated(8, 10, 12, 10, 'highway'), toll = city.placeToll(10, 10);
+    const road = city.buildNetwork(8, 10, 12, 10, 'road');
+    expect(elevated.ok && toll.ok && road.ok).toBe(true);
+    expect(city.state.tolls[10 * city.size + 10]).toBe(2);
+    const report = city.disaster('meteor', 10, 10, 0);
+    expect(report.networkTiles).toBe(10);
+    expect(report.rebuildCost).toBe(elevated.cost + toll.cost + road.cost);
+  });
+
+  it('includes the cloverleaf construction cost when an interchange is destroyed', () => {
+    const city = new City({ size: 32, water: false, config: { disasters: { godMode: { meteor: { crater: [2, 2], debris: [0, 0] } } } } });
+    city.state.funds = 1_000_000;
+    const horizontal = city.buildNetwork(8, 10, 12, 10, 'highway'), vertical = city.buildNetwork(10, 8, 10, 12, 'highway');
+    const junction = city.placeCloverleaf(10, 10);
+    expect(horizontal.ok && vertical.ok && junction.ok).toBe(true);
+    const report = city.disaster('meteor', 10, 10, 0);
+    expect(report.networkTiles).toBe(9);
+    expect(report.rebuildCost).toBe(horizontal.cost + vertical.cost + junction.cost);
+  });
+
+  it('accounts for the road deck and its highway as separate destroyed network layers', () => {
+    const city = new City({ size: 32, water: false, config: { disasters: { godMode: { meteor: { crater: [2, 2], debris: [0, 0] } } } } });
+    city.state.funds = 1_000_000;
+    const highway = city.buildNetwork(8, 10, 12, 10, 'highway'), road = city.buildNetwork(10, 8, 10, 12, 'road');
+    expect(highway.ok && road.ok).toBe(true);
+    const report = city.disaster('meteor', 10, 10, 0);
+    expect(report.networkTiles).toBe(10);
+    expect(report.rebuildCost).toBe(highway.cost + road.cost);
   });
 
   it('refuses unknown disasters without creating panic events or damage reports', () => {

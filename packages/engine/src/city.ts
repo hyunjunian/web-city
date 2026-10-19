@@ -3691,6 +3691,13 @@ export class City {
           report.networkTiles++;
           report.rebuildCost += ec.networkCost[kindName].build * multiplier;
           if (s.net[i] === Net.RailCrossing) report.rebuildCost += ec.networkCost.rail.build;
+          if (s.tolls[i]) report.rebuildCost += this.cfg.transport.toll.cost;
+          if (s.interchange[i] === INTERCHANGE.cloverleaf) report.rebuildCost += this.cfg.transport.cloverleaf.cost;
+          const deck = overNet(s, i);
+          if (deck) {
+            report.networkTiles++;
+            report.rebuildCost += ec.networkCost[NETWORK_KINDS[deck]!].build + this.cfg.transport.roadOverpass.cost;
+          }
           s.net[i] = Net.None;
           s.oneway[i] = 0;
           s.tolls[i] = 0;
