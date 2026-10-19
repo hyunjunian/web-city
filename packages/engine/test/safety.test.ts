@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { City, loadCity, saveCity, type CityOptions } from '../src';
-import { criminality, ignite } from '../src/sim/safety';
+import { criminality, ignite, runCrime, runCrimeSteps } from '../src/sim/safety';
 import { sampleCity } from '../src/sample';
+import { Rng } from '../src/rng';
 
 describe('public crime statistics', () => {
   it('does not expose mutable crime counts or incident coordinates from the city state', () => {
@@ -32,6 +33,33 @@ function town(config?: CityOptions['config'], seed = 5): City {
 const structures = (c: City, kind: string) => [...c.state.structures.values()].filter((s) => s.kind === kind);
 
 describe('crime', () => {
+  it('pauses within a busy crime month without changing incident locations, carry-over or random state', () => {
+    class CountedRng extends Rng {
+      calls = 0;
+      override next(): number { this.calls++; return super.next(); }
+    }
+    const source = town({ safety: { fires: false }, disasters: { simulated: false } });
+    source.step(90);
+    source.state.carryCrimes = 4_096;
+    const initial = saveCity(source), a = loadCity(initial), b = loadCity(initial);
+    const ra = new Rng(71), rb = new CountedRng(71);
+    const arson = runCrime(a.state, a.fields, a.cfg, a.census, ra);
+    const steps = runCrimeSteps(b.state, b.fields, b.cfg, b.census, rb);
+    let maxCalls = 0;
+    for (;;) {
+      const before = rb.calls, next = steps.next();
+      maxCalls = Math.max(maxCalls, rb.calls - before);
+      if (next.done) {
+        expect(next.value.map(lot => lot.id)).toEqual(arson.map(lot => lot.id));
+        break;
+      }
+    }
+    // A large incident backlog must spread its random draws across slices.
+    expect(maxCalls).toBeLessThan(rb.calls / 4);
+    expect(rb.state).toBe(ra.state);
+    expect(saveCity(b)).toEqual(saveCity(a));
+  });
+
   it('criminality follows the EQ chart (EQ 100 R$$ = 11%) plus unemployment', () => {
     const city = town();
     const census = { ...city.census, avgEq: [0, 100, 200] as [number, number, number], workers: [100, 100, 100] as [number, number, number], unemployed: [5, 5, 5] as [number, number, number] };

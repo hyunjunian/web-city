@@ -173,7 +173,10 @@ export function* runCrimeSteps(s: CityState, f: Fields, cfg: SimConfig, census: 
 
   // Each crime is one of 13 kinds, on a lot where that kind can
   // happen (weighted by footprint); kinds with no such lot in town don't occur.
-  const kinds = sf.crimeTypes.map((ct) => {
+  const kinds: { ct: (typeof sf.crimeTypes)[number]; lots: { r: Rect; building?: Building }[]; weights: number[]; odds: number }[] = [];
+  let selectionWork = 0;
+  for (const ct of sf.crimeTypes) {
+    yield;
     const lots: { r: Rect; building?: Building }[] = [];
     const weights: number[] = [];
     const add = (r: Rect, building?: Building) => {
@@ -181,6 +184,7 @@ export function* runCrimeSteps(s: CityState, f: Fields, cfg: SimConfig, census: 
       weights.push(r.w * r.h);
     };
     for (const b of s.buildings.values()) {
+      if ((++selectionWork & 0x1fff) === 0) yield;
       if (ct.abandoned ? b.type !== null : b.type === null) continue;
       const t = b.type ?? b.origType;
       if (!ct.lots.includes(crimeLot(t))) continue;
@@ -189,13 +193,14 @@ export function* runCrimeSteps(s: CityState, f: Fields, cfg: SimConfig, census: 
     }
     if (!ct.abandoned) {
       for (const st of s.structures.values()) {
+        if ((++selectionWork & 0x1fff) === 0) yield;
         const def = cfg.structures[st.kind];
         if (def.category === 'park') continue;
         if (ct.lots.includes(sf.tourismLots.includes(st.kind) ? 'tourism' : 'other')) add(st);
       }
     }
-    return { ct, lots, weights, odds: lots.length ? ct.odds : 0 };
-  });
+    kinds.push({ ct, lots, weights, odds: lots.length ? ct.odds : 0 });
+  }
   const odds = kinds.map((k) => k.odds);
   const stats = { crimes: 0, arrests: 0, prevented: 0, paroled: 0, byType: {} as Record<string, number>, spots: [] as [number, string][] };
   const arson: Building[] = [];
@@ -208,7 +213,9 @@ export function* runCrimeSteps(s: CityState, f: Fields, cfg: SimConfig, census: 
 
   yield;
   for (let k = 0; k < count; k++) {
-    if ((k & 0x7fff) === 0x7fff) yield;
+    // Each draw scans a kind's eligible lots. Even hundreds of crimes can
+    // occupy a frame in a large city, well below the old 32,768-draw pause.
+    if ((k & 0x1f) === 0x1f) yield;
     const kind = kinds[rng.weighted(odds)];
     if (!kind) break; // nowhere for any crime to happen
     const { r, building: b } = kind.lots[rng.weighted(kind.weights)]!;
