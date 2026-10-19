@@ -108,6 +108,45 @@ describe('connected-network sale delivery', () => {
 });
 
 describe('neighbour connections', () => {
+  it('reports contiguous border connections, including elevated networks, consistently with demand relief', () => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    city.batch(() => {
+      city.buildNetwork(0, 5, 0, 8, 'road');
+      city.buildElevated(0, 16, 10, 16, 'highway');
+      city.buildElevated(0, 22, 10, 22, 'elrail');
+      city.buildElevated(0, 28, 10, 28, 'monorail');
+    });
+    expect(city.connectionsPerEdge()).toEqual({
+      road: [1, 0, 0, 0], highway: [1, 0, 0, 0], rail: [1, 0, 0, 0], subway: [1, 0, 0, 0],
+    });
+    const counts = city.connectionsPerEdge();
+    counts.road[0] = 999;
+    expect(city.connectionsPerEdge().road[0]).toBe(1);
+    city.buildNetwork(0, 11, 5, 11, 'road');
+    expect(city.connectionsPerEdge().road[0]).toBe(2);
+    city.bulldoze(0, 11, 0, 11);
+    expect(city.connectionsPerEdge().road[0]).toBe(1);
+  });
+
+  it('uses current border connections in demand after a demolition and tax edit', () => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    city.buildNetwork(0, 10, 10, 10, 'road');
+    city.buildNetwork(22, 20, 31, 20, 'road');
+    city.refresh();
+    city.setNeighbour(0, 'developed');
+    city.setNeighbour(1, 'developed');
+    city.refresh();
+    const cap = city.demand.cap['Co$$'];
+    city.bulldoze(0, 10, 0, 10);
+    city.setTaxRate('Co$$', 10);
+    expect(city.demand.cap['Co$$']).toBeLessThan(cap);
+    const immediate = city.demand.cap['Co$$'];
+    city.refreshIfDirty();
+    expect(city.demand.cap['Co$$']).toBe(immediate);
+  });
+
   it('feeds imported power and water through the shared border section rather than an earlier disconnected stub', () => {
     const peer = new City({ size: 32, water: false, config: { ...CALM, disasters: { simulated: false } } });
     peer.state.funds = 1_000_000;

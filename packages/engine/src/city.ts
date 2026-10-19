@@ -16,7 +16,7 @@ import {
 import { developOnce, exodus, GROWTH_CODES, growthBlockers, INFO_ONLY, trackDemand, understaffed, updateBuildingsSteps, warmTractsSteps, type DevContext, type GrowthBlocker } from './sim/development';
 import { computeEffectFieldsSteps, computeJobComponentsSteps, computeNetworkFieldsSteps, createFields, footprint, frontage, INF, type Fields } from './sim/fields';
 import {
-  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isLocalNet, isRail, Net, NETWORK_KINDS, ONEWAY_DIRS, isJail, Terrain, zoneCode, zoneInfo, ZONES,
+  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isLocalNet, Net, NETWORK_KINDS, ONEWAY_DIRS, isJail, Terrain, zoneCode, zoneInfo, ZONES,
   type BudgetReport, type Building, type CityState, type DealResource, type GarbageStats, type HistoryPoint, type Rect, type MySim, type NeighbourDeal, type NetworkKind,
   type Structure, type ZoneKind,
   type Neighbour,
@@ -59,7 +59,7 @@ import { MISSIONS, type MissionId } from './data/missions';
 import { VEHICLES, type VehicleId } from './data/udi';
 import { generateForest, generateHeights, generateTerrain, terrainFromHeightmap, type Heightmap } from './sim/terrain';
 import { DEZONING_COST, ZONING_COST_HIGH_COMMERCIAL } from './data/economy';
-import { DEV_TYPES, perType, type DevType, type PerType } from './types';
+import { DEV_TYPES, perType, type BusinessType, type DevType, type PerType } from './types';
 import { infrastructureReport, type InfrastructureReport } from './sim/resilience';
 import { budgetForecast, type BudgetForecast, type BudgetForecastOptions } from './sim/finance';
 
@@ -298,7 +298,10 @@ export class City {
     return this.networkDirtyFlag;
   }
   private set networkDirty(v: boolean) {
-    if (v) this.revision++;
+    if (v) {
+      this.revision++;
+      this.edgeRuns = null;
+    }
     this.networkDirtyFlag = v;
   }
   private fares = 0;
@@ -2454,7 +2457,7 @@ export class City {
     const consider = (key: number, x: number, y: number) => found.push({ key, d: Math.abs(x - hx) + Math.abs(y - hy) });
     for (const b of s.buildings.values()) {
       // (Hiring: fewer filled than the jobs it offers now.)
-      if (b.type && b.type[0] !== 'R' && b.occupancy > 0 && this.cfg.demand.wealthOf[b.type] === sim.wealth && b.filled < b.capacity * b.occupancy - 0.5) consider(b.id, b.x, b.y);
+      if (b.type && b.type[0] !== 'R' && b.occupancy > 0 && this.hasJobsFor(b, sim.wealth) && b.filled < b.capacity * b.occupancy - 0.5) consider(b.id, b.x, b.y);
     }
     for (const st of s.structures.values()) if ((this.cfg.structures[st.kind].jobs[sim.wealth] ?? 0) > 0) consider(-st.id, st.x, st.y);
     if (!found.length) return false;
@@ -2497,12 +2500,18 @@ export class City {
     });
   }
 
+  /** A business hires the wealth groups in its workforce mix, independently of its owners' wealth. */
+  private hasJobsFor(b: Building, wealth: 0 | 1 | 2): boolean {
+    return !!b.type && b.type[0] !== 'R' && b.occupancy > 0
+      && this.cfg.demand.workforceProfile[b.type as BusinessType][wealth] > 0;
+  }
+
   /** The My Sim's workplace still stands, is occupied and hires their wealth. */
   private jobStillOpen(sim: MySim): boolean {
     const job = jobOf(this.state, sim);
     if (!job) return false;
     if ('kind' in job) return this.cfg.structures[job.kind].jobs[sim.wealth]! > 0;
-    return !!job.type && job.occupancy > 0 && this.cfg.demand.wealthOf[job.type] === sim.wealth;
+    return this.hasJobsFor(job, sim.wealth);
   }
 
   /** Moves a new My Sim into the home at (x, y); its wealth is the home's. */
@@ -2545,7 +2554,7 @@ export class City {
     const occ = s.occupant[idx(s, x, y)]!;
     const b = occ > 0 ? s.buildings.get(occ) : undefined;
     const st = occ < 0 ? s.structures.get(-occ) : undefined;
-    const fits = b?.type && b.type[0] !== 'R' && b.occupancy > 0 ? this.cfg.demand.wealthOf[b.type] === sim.wealth
+    const fits = b?.type && b.type[0] !== 'R' && b.occupancy > 0 ? this.hasJobsFor(b, sim.wealth)
       : st ? this.cfg.structures[st.kind].jobs[sim.wealth] > 0 : false;
     if (!fits) return { ok: false, cost: 0, message: 'no jobs here for this wealth level' };
     sim.job = b ? b.id : -st!.id;
@@ -2951,28 +2960,11 @@ export class City {
     );
   }
 
-  /** Neighbour connections on each map edge (W, E, N, S) by kind. */
+  /** Neighbour connections on each map edge (W, E, N, S) by kind, counting contiguous border runs once as demand relief does. */
   connectionsPerEdge(): Record<ConnectionKind, [number, number, number, number]> {
-    const s = this.state;
-    const n = s.size;
-    const out: Record<ConnectionKind, [number, number, number, number]> = {
-      road: [0, 0, 0, 0], highway: [0, 0, 0, 0], rail: [0, 0, 0, 0], subway: [0, 0, 0, 0],
-    };
-    const edge = (i: number) => {
-      const x = i % n;
-      const y = (i - x) / n;
-      return x === 0 ? 0 : x === n - 1 ? 1 : y === 0 ? 2 : 3;
-    };
-    for (const i of this.fields.connections) {
-      const code = s.net[i]!;
-      out[code === Net.Highway ? 'highway' : isRail(code) ? 'rail' : 'road'][edge(i)]++;
-    }
-    for (let i = 0; i < n * n; i++) {
-      const x = i % n;
-      const y = (i - x) / n;
-      if (s.subway[i] && (x === 0 || y === 0 || x === n - 1 || y === n - 1)) out.subway[edge(i)]++;
-    }
-    return out;
+    this.settle();
+    const runs = this.edgeRuns ??= edgeConnections(this.state);
+    return { road: [...runs.road], highway: [...runs.highway], rail: [...runs.rail], subway: [...runs.subway] };
   }
 
   /** Trip time from a tile through its access road (centi-hours), or null. */

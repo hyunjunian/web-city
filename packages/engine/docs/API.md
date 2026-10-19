@@ -353,7 +353,7 @@ Recomputes fields, desirability, census and demand. `travel: false` keeps the la
 
 ### `connectionsPerEdge(): Record<ConnectionKind, [number, number, number, number]>`
 
-Neighbour connections on each map edge (W, E, N, S) by kind.
+Neighbour connections on each map edge (W, E, N, S) by kind, counting contiguous border runs once as demand relief does.
 
 ### `stats(): CityStats`
 

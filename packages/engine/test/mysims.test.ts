@@ -47,7 +47,7 @@ describe('My Sims', () => {
     const sim = city.addMySim('Cy', home.x, home.y).sim!;
     const factory = [...city.state.buildings.values()].find((b) => b.type === 'ID' && b.occupancy > 0)!;
     const office = [...city.state.buildings.values()].find((b) => b.type === 'IM' && b.occupancy > 0);
-    if (office) expect(city.setMySimJob(sim.id, office.x, office.y).ok).toBe(false); // IM jobs are $$
+    if (office) expect(city.setMySimJob(sim.id, office.x, office.y).ok).toBe(true); // manufacturing also hires R$ workers
     expect(city.setMySimJob(sim.id, factory.x, factory.y).ok).toBe(true);
     const trip = city.mySimCommute(sim.id)!;
     expect(trip.time).toBeGreaterThan(0);
@@ -61,6 +61,37 @@ describe('My Sims', () => {
     expect(kinds).toContain('jobGone');
     expect(kinds).toContain('newJob');
   }, 30_000);
+
+  it.each([
+    [0, 'IM', true], [0, 'IHT', true], [1, 'IHT', true], [2, 'IM', true], [2, 'Co$$', true], [1, 'ID', false], [2, 'Cs$', false],
+  ] as const)('matches wealth %i to the workforce mix of %s (%s)', (wealth, type, allowed) => {
+    const city = town();
+    const home = homes(city)[0]!;
+    home.type = (['R$', 'R$$', 'R$$$'] as const)[wealth];
+    const sim = city.addMySim('Workforce', home.x, home.y).sim!;
+    const factory = [...city.state.buildings.values()].find((b) => b.type === 'ID')!;
+    factory.type = type;
+    factory.occupancy = 1;
+    expect(city.setMySimJob(sim.id, factory.x, factory.y).ok).toBe(allowed);
+    if (allowed) {
+      expect(sim.job).toBe(factory.id);
+      (city as unknown as { checkMySims(): void }).checkMySims();
+      expect(city.state.mySims.find((m) => m.id === sim.id)?.job).toBe(factory.id);
+    }
+  });
+
+  it('automatically finds manufacturing work for a low-wealth newcomer', () => {
+    const city = town();
+    const home = homes(city)[0]!;
+    const factory = [...city.state.buildings.values()].find((b) => b.type === 'ID')!;
+    for (const b of city.state.buildings.values()) {
+      if (b.id === factory.id) Object.assign(b, { type: 'IM', filled: 0, occupancy: 1 });
+      else if (b.type?.[0] !== 'R') Object.assign(b, { type: null, filled: 0, occupancy: 0 });
+    }
+    for (const st of city.state.structures.values()) city.cfg.structures[st.kind].jobs = [0, 0, 0];
+    const sim = city.addMySim('Manufacturing', home.x, home.y).sim!;
+    expect(sim.job).toBe(factory.id);
+  });
 
   it('finds a job on moving in; with none of their wealth for two months, moves out', () => {
     const city = town();
