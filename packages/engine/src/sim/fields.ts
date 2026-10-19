@@ -639,6 +639,14 @@ export function* computeEffectFieldsSteps(s: CityState, f: Fields, cfg: SimConfi
   const N = n * n;
   const dcfg = cfg.desirability;
 
+  // Uniform terrain cannot screen one pollution source from another. Avoid rescanning
+  // every source's footprint and reach for ridges when the whole map is level.
+  let airHeights: Uint8Array | undefined;
+  for (let i = 1; i < N; i++) {
+    if ((i & 0x1fff) === 0x1fff) yield;
+    if (s.height[i] !== s.height[0]) { airHeights = s.height; break; }
+  }
+
   f.air.fill(0);
   yield;
   let piece1 = 0;
@@ -647,7 +655,7 @@ export function* computeEffectFieldsSteps(s: CityState, f: Fields, cfg: SimConfi
     if (!b.type) continue;
     const p = cfg.development.airPollution[b.type];
     if (!p) continue;
-    lotSplat(n, f.air, b, p.perStage * b.stage * Math.sqrt(b.occupancy), p.radius, s.height);
+    lotSplat(n, f.air, b, p.perStage * b.stage * Math.sqrt(b.occupancy), p.radius, airHeights);
   }
   // Cars and trucks pollute the tiles along their road; trains a quarter as
   // much per trip (an assumption); buses and subways not at all. Same
@@ -747,7 +755,7 @@ export function* computeEffectFieldsSteps(s: CityState, f: Fields, cfg: SimConfi
     const funded = (v: number) => (v > 0 ? v * share : v);
     if (def.pollution) {
       // Parks that clean the air do less of it when underfunded.
-      lotSplat(n, f.air, st, def.pollution[0] < 0 ? def.pollution[0] * share : def.pollution[0], def.pollution[1], def.pollution[0] > 0 ? s.height : undefined);
+      lotSplat(n, f.air, st, def.pollution[0] < 0 ? def.pollution[0] * share : def.pollution[0], def.pollution[1], def.pollution[0] > 0 ? airHeights : undefined);
       lotSplat(n, f.waterPollution, st, def.pollution[2], def.pollution[3]);
     }
     if (def.mayor) plateau(n, f.mayorEffect, st, funded(def.mayor[0]), def.mayor[1]);
@@ -756,7 +764,7 @@ export function* computeEffectFieldsSteps(s: CityState, f: Fields, cfg: SimConfi
       // Source strength follows generation (thermal equipment has standby
       // emissions). Incinerators emit only in proportion to actual waste burned.
       const emission = utilityEmissionShare(cfg, st);
-      lotSplat(n, f.air, st, polluter.air[0] * emission, polluter.air[1], s.height);
+      lotSplat(n, f.air, st, polluter.air[0] * emission, polluter.air[1], airHeights);
       lotSplat(n, f.waterPollution, st, polluter.water[0] * emission, polluter.water[1]);
     }
     splat(n, f.nimbyCom, cx, cy, funded(def.com[0]), def.com[1]);

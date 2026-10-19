@@ -2,6 +2,27 @@ import { describe, expect, it } from 'vitest';
 import { City, loadCity, saveCity } from '../src';
 
 describe('elevation', () => {
+  it('keeps flat-ground air pollution independent of altitude and restores ridge screening after terrain changes', () => {
+    const city = new City({ size: 32, water: false, config: { structures: { coalPlant: { powerUse: 1_000 } } } });
+    city.state.funds = 1_000_000;
+    city.placeStructure('coalPlant', 3, 3);
+    city.state.height.fill(20);
+    city.refresh();
+    const flat = city.fields.air.slice();
+    const target = 5 * city.size + 15;
+    expect(flat[target]).toBeGreaterThan(0);
+    city.state.height.fill(80);
+    city.refresh();
+    expect(city.fields.air).toEqual(flat);
+    city.state.height.fill(20);
+    for (let y = 0; y < city.size; y++) city.state.height[y * city.size + 10] = 100;
+    city.refresh();
+    expect(city.fields.air[target]).toBe(0);
+    city.state.height.fill(20);
+    city.refresh();
+    expect(city.fields.air).toEqual(flat);
+  });
+
   it('shaping the land is free until the city is founded, then costs', () => {
     const city = new City({ size: 32, water: false });
     city.state.funds = 1_000;
