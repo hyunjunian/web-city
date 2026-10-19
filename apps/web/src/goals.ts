@@ -40,13 +40,13 @@ export interface GoalTab {
   /** Advisors' words about it: the screen opens on it when one of them is the trouble, and its tab is marked. */
   codes?: string[];
   /** Its own sections: the facilities' list, the usage bar, the air's sources, the demand bars, the deals, the spot
-   *  to build or look at, the outlook (a forecast as things stand), the plants' dispatch, and 재정's levers (the
+   *  to build or look at, the outlook (a forecast as things stand), 재정's levers (the
    *  deficit's fix, taxes, departments and loans, ordinances). */
   parts?: TabPart[];
   /** Shown only while its view has something to show (radiation). */
   optional?: true;
 }
-export type TabPart = 'facilities' | 'usage' | 'air' | 'rci' | 'deals' | 'spot' | 'fix' | 'taxes' | 'depts' | 'ords' | 'outlook' | 'dispatch';
+export type TabPart = 'facilities' | 'usage' | 'air' | 'rci' | 'deals' | 'spot' | 'fix' | 'taxes' | 'depts' | 'ords' | 'outlook';
 
 export interface Goal {
   name: string;
@@ -106,7 +106,7 @@ export const GOALS: Record<GoalId, Goal> = {
   power: {
     name: '전력', icon: 'zap', aim: '수요보다 넉넉한 발전, 도시 전체에 닿는 전력망, 늙은 발전소와 낡은 송전선 교체.',
     tabs: [
-      { label: '전력망', view: 'power', figs: ['수요', '공급', '여유', '정전', '발전소', '낡은 송전선'], graphs: ['power'], tools: ['power', 'powerline'], depts: ['power'], ordinances: ['powerConservation', 'nuclearFreeZone', 'landfillGas'], parts: ['usage', 'outlook', 'deals', 'dispatch', 'facilities', 'spot'], codes: ['noPower', 'powerShort', 'powerCutOff', 'powerSurplus', 'plantOld', 'idlePlant', 'linesWorn'] },
+      { label: '전력망', view: 'power', figs: ['수요', '공급', '여유', '정전', '발전소', '낡은 송전선'], graphs: ['power'], tools: ['power', 'powerline'], depts: ['power'], ordinances: ['powerConservation', 'nuclearFreeZone', 'landfillGas'], parts: ['usage', 'outlook', 'deals', 'facilities', 'spot'], codes: ['noPower', 'powerShort', 'powerCutOff', 'powerSurplus', 'plantOld', 'idlePlant', 'linesWorn'] },
     ],
     tools: ['power', 'powerline'], ordinances: ['powerConservation', 'nuclearFreeZone', 'landfillGas'],
     depts: [['power', '송전선 유지']], facility: isKind((d) => d.plant),

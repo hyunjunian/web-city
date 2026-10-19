@@ -1,6 +1,6 @@
 // Fuzz run: random tool use, disasters and deals over many years, checking
 // invariants every month. Usage: npx tsx scripts/fuzz.ts [years] [size] [seed]
-import { City, DISASTER_KINDS, ORDINANCES, POWER_DISPATCHES, REPAIR_DEPARTMENTS, STRUCTURES, loadCity, saveCity, type StructureKind, type ZoneKind } from '../src';
+import { City, DISASTER_KINDS, ORDINANCES, STRUCTURES, loadCity, saveCity, type StructureKind, type ZoneKind } from '../src';
 import { Rng } from '../src/rng';
 import { DAYS_PER_MONTH } from '../src/sim/state';
 
@@ -80,7 +80,6 @@ function check(): void {
     if (b.type && !(b.occupancy >= 0 && b.occupancy <= 1)) fail(`occupancy ${b.occupancy}`);
   }
   for (const t of s.structures.values()) {
-    if (t.offlineUntilDay !== undefined && (!Number.isSafeInteger(t.offlineUntilDay) || t.offlineUntilDay <= s.day)) fail(`invalid or expired overhaul deadline for ${t.id}`);
     for (let y = t.y; y < t.y + t.h; y++) for (let x = t.x; x < t.x + t.w; x++) {
       if (s.occupant[y * n + x] !== -t.id) fail(`structure ${t.id} tile ${x},${y}`);
       seen[y * n + x] = 1;
@@ -183,19 +182,6 @@ for (let month = 0; month < years * 12; month++) {
     }
     else if (r < 0.95) city.setTaxRate(pick(['R$', 'Cs$', 'ID', 'IHT', 'Co$$$'] as const), rng.int(21));
     else if (r < 0.96 && city.state.funds < 100_000) city.takeLoan(100_000);
-    else if (r < 0.98) {
-      const operation = rng.int(3);
-      if (operation === 0) {
-        const department = pick(REPAIR_DEPARTMENTS);
-        agree(`repair ${department}`, city.previewRepairNetworks(department, x, y, x2, y2), city.repairNetworks(department, x, y, x2, y2));
-      } else if (operation === 1) {
-        const facilities = [...city.state.structures.values()];
-        if (facilities.length) {
-          const id = pick(facilities).id;
-          agree('overhaul', city.refurbishStructure(id, true), city.refurbishStructure(id));
-        }
-      } else city.setPowerDispatch(pick(POWER_DISPATCHES));
-    }
     else if (r < 0.99) city.query(x, y);
     else agree('trees', city.previewTrees(x, y, x2, y2), city.plantTrees(x, y, x2, y2));
     city.refreshIfDirty();
@@ -205,12 +191,6 @@ for (let month = 0; month < years * 12; month++) {
   const before = city.state.funds;
   city.step(30);
   const readBefore = JSON.stringify(saveCity(city));
-  const energy = city.energyReport()!;
-  for (const plant of energy.plants) {
-    if (!(plant.generation >= 0 && plant.generation <= plant.capacity + 1e-7) || !Number.isFinite(plant.generationCost)) fail(`bad dispatched load or cost for ${plant.id}`);
-    const actual = city.state.structures.get(plant.id)!;
-    if (Math.abs(actual.load - plant.generation) > 1e-7 * Math.max(1, plant.generation)) fail(`energy report differs from dispatched load for ${plant.id}`);
-  }
   const infrastructure = city.infrastructureReport();
   for (const network of [...infrastructure.power, ...infrastructure.water]) {
     const sources = network.sources.reduce((sum, source) => sum + source.capacity, 0);
@@ -222,11 +202,6 @@ for (let month = 0; month < years * 12; month++) {
   if (month % 6 === 0) {
     const garbage = city.previewGarbage();
     for (const value of Object.values(garbage)) if (typeof value === 'number' && (!Number.isFinite(value) || value < -1e-6)) fail('invalid collection preview');
-    const asset = infrastructure.assets[0];
-    if (asset) {
-      const maintenance = city.maintenanceImpact(asset.id)!;
-      if (maintenance.interruptions.some((part) => part.supplyDuring < 0 || part.shortfall < 0 || part.capacityRemoved > part.supplyBefore + 1e-6)) fail('invalid maintenance interruption');
-    }
   }
   if (JSON.stringify(saveCity(city)) !== readBefore) fail('operating reports changed the saved city');
   // The month's only money is its budget: funds move by exactly income − expenses.

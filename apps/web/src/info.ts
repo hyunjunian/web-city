@@ -299,21 +299,6 @@ export function showInfo(x: number, y: number): void {
   const riot = riotNear(x, y);
   const arson = city.state.arsonists.find((a) => Math.max(Math.abs(a.x - x), Math.abs(a.y - y)) <= 1);
   const chips = [
-    ...(() => {
-      if (!q.structure) return [];
-      const asset = city.assetOutlook(q.structure.id);
-      if (!asset) return [];
-      if (asset.offlineUntilDay !== null) return [`<span class="chip warn">개보수 중 · ${fmt(Math.max(0, asset.offlineUntilDay - city.state.day))}일 뒤 재가동</span>`];
-      if (!asset.refurbishment.eligible) return [];
-      const quote = city.refurbishStructure(q.structure.id, true);
-      const why = quote.message ? ko(quote.message) : `${asset.refurbishment.downtimeDays}일간 공급·처리를 멈춘 뒤 재가동합니다 · 수명 사용률 ${Math.round(asset.life)}% → ${Math.round(asset.refurbishment.lifeAfter)}%`;
-      const impact = city.maintenanceImpact(q.structure.id);
-      const warnings = impact?.interruptions.filter((part) => part.shortfall > 0).map((part) => {
-        const resource = part.resource === 'power' ? '전력' : '수도';
-        return `<span class="chip warn" title="현재 수요와 연결을 유지할 때의 용량 부족입니다. 같은 망 주민 ${fmt(part.residents)}명${part.waterPumpsAtRisk ? ` · 펌프 ${part.waterPumpsAtRisk}곳의 급수 ${fmt(part.waterCapacityAtRisk)}m³도 위험` : ''}">정비 중 ${resource} ${fmt(part.shortfall)}${part.resource === 'power' ? 'MWh' : 'm³'} 부족</span>`;
-      }) ?? [];
-      return [`<button type="button" class="chip" data-overhaul="${q.structure.id}" title="${escapeHtml(why)}"${quote.ok ? '' : ' disabled'}>개보수 · ${asset.refurbishment.downtimeDays}일 중단 · §${fmt(quote.cost)}</button>`, ...warnings];
-    })(),
     b && !b.powered ? `<button type="button" class="chip bad"${go('power')} title="${city.cfg.services.noPowerMonths}개월이 되면 버려집니다 · 눌러서 전력 화면">${icon('zap')}전기 끊김 ${b.noPowerMonths}/${city.cfg.services.noPowerMonths}개월</button>` : '',
     b?.type && !b.watered && waterNeeded ? `<button type="button" class="chip bad"${go('water')} title="${city.cfg.services.noWaterMonths}개월이 되면 버려집니다 · 눌러서 수도 화면">${icon('droplet')}물 끊김 ${b.noWaterMonths}/${city.cfg.services.noWaterMonths}개월</button>` : '',
     b?.type && b.noRoadMonths ? `<span class="chip bad" title="도로가 다시 이어지지 않으면 버려집니다">${icon('road')}도로 끊김 ${b.noRoadMonths}/${city.cfg.development.noRoadMonths}개월</span>` : '',
@@ -854,13 +839,6 @@ export function structureRows(st: Structure, withLoad = true): string {
     rows += `<tr><td>화물 운행</td><td>${fmt(st.load)} · 상한 완화 ${fmt(Math.min(def.seaport.relief, def.seaport.perTrip * st.load))}</td></tr>`;
   } else if (def.income) {
     rows += `<tr><td>월 수입</td><td class="pos">§${fmt(def.income)}</td></tr>`;
-  }
-  const asset = city.assetOutlook(st.id);
-  if (asset) {
-    const remaining = asset.monthsLeft;
-    const text = asset.offlineUntilDay !== null ? '재가동 후 계산' : remaining === null ? '노후화 없음' : remaining === 0 ? '수명 소진' : remaining >= 24 ? `약 ${Math.floor(remaining / 12)}년` : `약 ${remaining}개월`;
-    rows += `<tr><td title="지금 가동률과 예산을 유지할 때의 전망">예상 잔여 수명</td><td>${text}</td></tr>`;
-    if (asset.offlineUntilDay !== null) rows += `<tr><td>개보수</td><td class="neg">${fmt(Math.max(0, asset.offlineUntilDay - city.state.day))}일 뒤 재가동</td></tr>`;
   }
   return rows;
 }

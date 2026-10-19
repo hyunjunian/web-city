@@ -8,9 +8,8 @@ import type { Rng } from '../rng';
 import { WEALTHS, type PerWealth } from '../types';
 import type { Fields } from './fields';
 import { ordinanceEffects } from './mayor';
-import { structureFunding, structureOnline, type Building, type CityState, type Structure } from './state';
+import { structureFunding, type Building, type CityState, type Structure } from './state';
 import { activeDeals, edgeTile } from './region';
-import { powerDispatchLoads } from './energy';
 import type { UtilityNetwork, UtilitySource } from './resilience';
 import { incineratorCapacity, incineratorPower } from './garbage';
 
@@ -175,7 +174,7 @@ export function* computePowerSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   for (const st of s.structures.values()) {
     if ((++piece1 & 0x1ff) === 0) yield;
     const def = cfg.structures[st.kind];
-    st.capacity = def.plant ? structureOnline(s, st) ? plantCapacity(cfg, def, st, ord.gasPlantOutput) : 0
+    st.capacity = def.plant ? plantCapacity(cfg, def, st, ord.gasPlantOutput)
       : def.incinerator ? incineratorCapacity(s, cfg, st) : st.capacity;
     const g = gridOf(st);
     if (g < 0) continue;
@@ -251,10 +250,11 @@ export function* computePowerSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
     const group = plants[g]!;
     if (!group.length) continue;
     const grid = grids[g]!;
-    const loads = powerDispatchLoads(s, cfg, group, grid.demand - imported[g]! - grid.wastePower, s.powerDispatch ?? 'balanced');
+    const available = group.reduce((total, st) => total + Math.max(0, st.capacity), 0);
+    const needed = Math.max(0, Math.min(available, grid.demand - imported[g]! - grid.wastePower));
     for (let k = 0; k < group.length; k++) {
       const st = group[k]!;
-      st.load = loads[k]!;
+      st.load = available > 0 ? needed * Math.max(0, st.capacity) / available : 0;
       st.effectiveness = st.capacity > 0 ? st.load / st.capacity : 0;
     }
   }
@@ -543,7 +543,7 @@ export function utilityWear(s: CityState, cfg: SimConfig, st: Structure, plantWe
   const life = utilityLifeYears(def);
   if (!life) return 0;
   // Recycling centers and treatment plants have no throughput; treat them as fully used.
-  const usage = !structureOnline(s, st) ? 0 : def.recycling || def.treatment ? 100 : Math.min(120, st.effectiveness * 100);
+  const usage = def.recycling || def.treatment ? 100 : Math.min(120, st.effectiveness * 100);
   const calendar = Math.max(0, Math.min(1, cfg.infrastructure.calendarWearShare));
   const wearByUsage = calendar + (1 - calendar) * interp(cfg.services.plantDecayByUsage, usage);
   return (100 / (life * 12)) * interp(cfg.services.plantDecayByFunding, structureFunding(s, def, st))
@@ -749,7 +749,7 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   let piece2 = 0;
   for (const st of pumps) {
     if ((++piece2 & 0x1ff) === 0) yield;
-    st.capacity = structureOnline(s, st) ? pumpCapacity(cfg, f, n, cfg.structures[st.kind], st, structureFunding(s, cfg.structures[st.kind], st)) : 0;
+    st.capacity = pumpCapacity(cfg, f, n, cfg.structures[st.kind], st, structureFunding(s, cfg.structures[st.kind], st));
     const g = net[st.y * n + st.x]!;
     pumpOn[g] ??= st;
     supply[g]! += st.capacity;

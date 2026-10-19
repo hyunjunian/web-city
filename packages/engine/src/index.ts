@@ -36,12 +36,8 @@ export type {
 } from './sim/state';
 export type { DemandReport, Census } from './sim/demand';
 export { serviceRadius } from './sim/services';
-export type { AssetOutlook, RepairDepartment, RepairPreview } from './sim/infrastructure';
-export { REPAIR_DEPARTMENTS } from './sim/infrastructure';
-export type { EnergyReport, EnergyPlant, PowerDispatch } from './sim/energy';
-export { POWER_DISPATCHES } from './sim/energy';
 export { utilityEmissionShare } from './sim/energy';
-export type { InfrastructureReport, UtilityRisk, UtilityNetwork, UtilitySource, MaintenanceImpact, MaintenanceInterruption } from './sim/resilience';
+export type { InfrastructureReport, UtilityRisk, UtilityNetwork, UtilitySource } from './sim/resilience';
 export type { BudgetForecast, BudgetForecastPoint, BudgetForecastOptions } from './sim/finance';
 export { terrainFromHeightmap } from './sim/terrain';
 export type { Heightmap } from './sim/terrain';

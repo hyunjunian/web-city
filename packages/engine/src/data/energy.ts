@@ -8,6 +8,3 @@ export const GENERATION_COST_SHARE: Partial<Record<StructureKind, number>> = {
 
 /** Polluting thermal equipment kept ready emits a small share even while idle. */
 export const IDLE_EMISSION_SHARE = 0.15;
-
-/** Relative weight of water pollution when ranking generators for clean dispatch. */
-export const WATER_EMISSION_WEIGHT = 1;

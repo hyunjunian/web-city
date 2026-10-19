@@ -38,7 +38,6 @@ city.state.taxRates = { ...template.state.taxRates };
 city.refresh();
 const saved = saveCity(city);
 const clinic = [...city.state.structures.values()].find((st) => st.kind === 'medicalClinic')!;
-const utility = [...city.state.structures.values()].find((st) => st.kind === 'coalPlant')!;
 
 function measure(run: () => unknown, iterations: number) {
   for (let i = 0; i < 3; i++) run();
@@ -55,8 +54,6 @@ function measure(run: () => unknown, iterations: number) {
 const reports = {
   forecast120Months: measure(() => city.budgetForecast(120), 10),
   infrastructure: measure(() => city.infrastructureReport(), 10),
-  cleanDispatchComparison: measure(() => city.energyReport('clean'), 20),
-  maintenanceImpact: measure(() => city.maintenanceImpact(utility.id), 20),
 };
 assert.deepEqual(saveCity(city), saved, 'reports changed the city');
 const refreshWithoutTravel = measure(() => city.refresh({ travel: false }), 3);

@@ -60,9 +60,7 @@ import { VEHICLES, type VehicleId } from './data/udi';
 import { generateForest, generateHeights, generateTerrain, terrainFromHeightmap, type Heightmap } from './sim/terrain';
 import { DEZONING_COST, ZONING_COST_HIGH_COMMERCIAL } from './data/economy';
 import { DEV_TYPES, perType, type DevType, type PerType } from './types';
-import { assetOutlook, networkRepairCost, REPAIR_DEPARTMENTS, type AssetOutlook, type RepairDepartment, type RepairPreview } from './sim/infrastructure';
-import { energyReport, POWER_DISPATCHES, type EnergyReport, type PowerDispatch } from './sim/energy';
-import { infrastructureReport, maintenanceImpact, type InfrastructureReport, type MaintenanceImpact } from './sim/resilience';
+import { infrastructureReport, type InfrastructureReport } from './sim/resilience';
 import { budgetForecast, type BudgetForecast, type BudgetForecastOptions } from './sim/finance';
 
 export interface CityOptions {
@@ -304,7 +302,6 @@ export class City {
     this.networkDirtyFlag = v;
   }
   private fares = 0;
-  private nextOverhaulDay = Infinity;
   private reports: DamageReport[] = [];
   private endedDeals: NeighbourDeal[] = [];
   private repricedDeals: { deal: NeighbourDeal; was: number }[] = [];
@@ -377,7 +374,6 @@ export class City {
         interchange: new Uint8Array(size * size),
         tunnel: new Uint8Array(size * size),
         departments: { roads: 100, transit: 100, power: 100, water: 100, parks: 100, sanitation: 100, landmarks: 100, corrections: 100 },
-        powerDispatch: 'balanced',
         landform: new Uint8Array(size * size),
         lineWear: new Uint8Array(size * size),
         pipeWear: new Uint8Array(size * size),
@@ -1901,116 +1897,19 @@ export class City {
     return st ? structureUpkeep(this.state, this.cfg, st) : null;
   }
 
-  /** A utility facility's remaining life, ageing rate, output and overhaul price at current utilisation and funding; null for facilities without a finite service life. */
-  assetOutlook(id: number): AssetOutlook | null {
-    this.refreshIfDirty();
-    const st = this.state.structures.get(id);
-    return st ? assetOutlook(this.state, this.cfg, st) : null;
-  }
-
-  /** Capital maintenance needs and power/water resilience per connected network, including loss of its largest single supply source. Empty pipe stubs are omitted; current load and funding are held constant. */
+  /** Power/water resilience per connected network, including loss of its largest single supply source. Empty pipe stubs are omitted; current load and funding are held constant. */
   infrastructureReport(): InfrastructureReport {
     this.refreshIfDirty();
     return infrastructureReport(this.state, this.cfg, this.fields, this.power, this.water);
   }
 
-  /** Capacity lost while one utility is overhauled, with the affected network's current consumers and any working pumps exposed to a power shortfall. Holds demand, contracts and consumer assignments constant; does not predict blackout order, pollution feedback or alternative pipe coverage. Null for non-utility facilities. */
-  maintenanceImpact(id: number): MaintenanceImpact | null {
-    this.refreshIfDirty();
-    const st = this.state.structures.get(id);
-    return st ? maintenanceImpact(this.state, this.cfg, this.fields, this.power, this.water, st) : null;
-  }
-
-  /** Collection and disposal if the monthly tally ran under today's population, roads, funding, equipment and piles. Includes current contracts and overhaul availability; future growth and completion of work are not advanced. Does not change garbage, landfill contents, facility loads or random state. */
+  /** Collection and disposal if the monthly tally ran under today's population, roads, funding, equipment and piles. Includes current contracts; future growth is not advanced. Does not change garbage, landfill contents, facility loads or random state. */
   previewGarbage(): CityState['garbageStats'] {
     this.refreshIfDirty();
     const state = { ...this.state, garbage: this.state.garbage.slice(), landfill: this.state.landfill.slice(),
       structures: new Map([...this.state.structures].map(([id, st]) => [id, { ...st }])) };
     const residents = this.census.residents[0] + this.census.residents[1] + this.census.residents[2];
     return runGarbage(state, this.fields, this.cfg, new Rng(this.rng.state), residents);
-  }
-
-  /** Sets power dispatch within each grid: balanced shares the load, economical uses the lowest generation cost first, clean the lowest air/water emission burden. Imports and waste energy are used first. */
-  setPowerDispatch(strategy: PowerDispatch): ToolResult {
-    this.settle();
-    if (!POWER_DISPATCHES.includes(strategy)) return { ok: false, cost: 0, message: 'unknown power dispatch strategy' };
-    if (this.state.powerDispatch !== strategy) {
-      this.state.powerDispatch = strategy;
-      this.effectsDirty = true;
-      if (!this.batching) this.refreshIfDirty();
-    }
-    return { ok: true, cost: 0 };
-  }
-
-  /** Generation, plant operating costs and source emissions for today's grid demand. With a strategy, compares it without changing the city or advancing time; future growth, wear and pollution feedback are left out. */
-  energyReport(strategy: PowerDispatch = this.state.powerDispatch ?? 'balanced'): EnergyReport | null {
-    this.refreshIfDirty();
-    return POWER_DISPATCHES.includes(strategy) ? energyReport(this.state, this.cfg, this.fields, this.power, strategy) : null;
-  }
-
-  /** Overhauls an ageing utility on its existing site, retaining its id, name and connections. Restores machinery to 20% life used with seven days of suspended output by default; `preview` only prices it. */
-  refurbishStructure(id: number, preview = false): ToolResult & { lifeBefore?: number; lifeAfter?: number; offlineUntilDay?: number } {
-    this.refreshIfDirty();
-    const s = this.state;
-    const st = s.structures.get(id);
-    if (!st) return { ok: false, cost: 0, message: 'no such structure' };
-    const outlook = assetOutlook(s, this.cfg, st);
-    if (!outlook) return { ok: false, cost: 0, message: 'this structure has no ageing machinery' };
-    if (st.offlineUntilDay !== undefined) return { ok: false, cost: 0, message: 'this facility is already being overhauled' };
-    if (!outlook.refurbishment.eligible) return { ok: false, cost: 0, message: 'the machinery does not need an overhaul yet' };
-    if (s.fires.some((fire) => fire.target === -id)) return { ok: false, cost: 0, message: 'put out the fire before an overhaul' };
-    const { cost, lifeAfter, downtimeDays } = outlook.refurbishment;
-    if (cost > s.funds) return { ok: false, cost, message: 'not enough funds' };
-    const offlineUntilDay = s.day + downtimeDays;
-    if (!Number.isSafeInteger(offlineUntilDay)) return { ok: false, cost: 0, message: 'the city clock cannot schedule an overhaul' };
-    const result = { ok: true, cost, lifeBefore: st.life, lifeAfter, ...(downtimeDays > 0 ? { offlineUntilDay } : {}) };
-    if (!preview) {
-      s.funds -= cost;
-      st.life = lifeAfter;
-      if (downtimeDays > 0) {
-        st.offlineUntilDay = offlineUntilDay;
-        this.nextOverhaulDay = Math.min(this.nextOverhaulDay, offlineUntilDay);
-      }
-      this.effectsDirty = true;
-      if (!this.batching) this.refreshIfDirty();
-    }
-    return result;
-  }
-
-  /** Prices repair of only the damaged roads/rails or worn lines/pipes in a rectangle. Healthy tiles and other networks are left out. */
-  previewRepairNetworks(dept: RepairDepartment, x0: number, y0: number, x1: number, y1: number): RepairPreview {
-    const plan = this.planNetworkRepairs(dept, x0, y0, x1, y1);
-    return { ok: !plan.message && plan.tiles.length > 0, cost: plan.cost, tiles: plan.tiles.length, ...(plan.message ? { message: plan.message } : {}) };
-  }
-
-  /** Pays for the previewed network repairs immediately without demolishing anything or changing routes. Further deterioration still depends on department funding. */
-  repairNetworks(dept: RepairDepartment, x0: number, y0: number, x1: number, y1: number): RepairPreview {
-    const plan = this.planNetworkRepairs(dept, x0, y0, x1, y1);
-    if (plan.message || !plan.tiles.length) return { ok: false, cost: plan.cost, tiles: plan.tiles.length, ...(plan.message ? { message: plan.message } : {}) };
-    const s = this.state;
-    const damage = dept === 'power' ? s.lineWear : dept === 'water' ? s.pipeWear : dept === 'roads' ? s.potholes : s.railDamage;
-    for (const i of plan.tiles) damage[i] = 0;
-    s.funds -= plan.cost;
-    if (dept === 'roads') this.networkDirty = true; // potholes change travel time
-    else this.effectsDirty = true;
-    return { ok: true, cost: plan.cost, tiles: plan.tiles.length };
-  }
-
-  private planNetworkRepairs(dept: RepairDepartment, x0: number, y0: number, x1: number, y1: number): LinePlan {
-    this.settle();
-    if (!REPAIR_DEPARTMENTS.includes(dept)) return { tiles: [], cost: 0, message: 'unknown repair department' };
-    if (![x0, y0, x1, y1].every(Number.isFinite)) return { tiles: [], cost: 0, message: 'invalid rectangle' };
-    const tiles: number[] = [];
-    let cost = 0;
-    for (const [x, y] of this.rect(x0, y0, x1, y1)) {
-      const i = idx(this.state, x, y);
-      const price = networkRepairCost(this.state, this.cfg, dept, i);
-      if (price !== null) {
-        tiles.push(i);
-        cost += price;
-      }
-    }
-    return this.priced(tiles, Math.ceil(cost));
   }
 
   /** Recomputes fields if a tool changed the map since the last refresh. */
@@ -2227,7 +2126,6 @@ export class City {
     if (this.censusStale) yield* this.updateDemandSteps();
     for (const o of s.ordinances) s.ordinanceDays[o] = (s.ordinanceDays[o] ?? 0) + 1;
     s.day++;
-    const overhaulsFinished = s.day >= this.nextOverhaulDay && this.finishOverhauls();
     if (s.day % DAYS_PER_MONTH === 0) {
       yield;
       yield* this.monthSteps();
@@ -2236,8 +2134,6 @@ export class City {
       // Plants aged, buildings left and loads moved after the month's
       // refresh: catch the fields up, so the figures a save made now reports
       // (power and water capacity, loads) are those a city loaded from it has.
-      yield* this.refreshSteps({ travel: false });
-    } else if (overhaulsFinished) {
       yield* this.refreshSteps({ travel: false });
     }
     s.rngState = this.rng.state;
@@ -2992,7 +2888,6 @@ export class City {
   /** `refresh` in steps: a pause between fields (see `steps`). */
   private *refreshSteps(opts: { travel?: boolean } = {}): Generator<void, void> {
     const s = this.state;
-    this.finishOverhauls();
     // Access, road components, land value and slope depend only on networks,
     // zones and terrain: every edit to those marks the network dirty.
     if (this.networkDirty || !this.networkFieldsReady) {
@@ -3037,22 +2932,6 @@ export class City {
     this.coverageDirty = false;
     yield;
     yield* this.updateDemandSteps();
-  }
-
-  /** Only completion days scan for deadlines during stepping; regular refreshes pick up loaded or edited schedules. */
-  private finishOverhauls(): boolean {
-    let finished = false;
-    let next = Infinity;
-    for (const st of this.state.structures.values()) {
-      if (st.offlineUntilDay === undefined) continue;
-      if (st.offlineUntilDay <= this.state.day) {
-        delete st.offlineUntilDay;
-        finished = true;
-      } else next = Math.min(next, st.offlineUntilDay);
-    }
-    this.nextOverhaulDay = next;
-    if (finished) this.effectsDirty = true;
-    return finished;
   }
 
   private updateDemand(): void {

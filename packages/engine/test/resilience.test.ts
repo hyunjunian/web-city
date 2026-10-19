@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { City, saveCity } from '../src';
+import { City } from '../src';
 
 const calm = { safety: { fires: false }, disasters: { simulated: false }, mayor: { riots: false } };
 function utilityTown(): City {
@@ -72,30 +72,6 @@ describe('utility resilience', () => {
     expect(served.residents).toBeGreaterThanOrEqual(home.capacity * home.occupancy);
   });
 
-  it('returns independent snapshots, exact citywide repair quotes and capital needs at the current wear rate', () => {
-    const city = utilityTown();
-    const plant = [...city.state.structures.values()].find((st) => st.kind === 'coalPlant')!;
-    plant.life = 99.999;
-    city.state.lineWear[3 * 32] = 80;
-    city.state.pipeWear[8 * 32 + 9] = 100;
-    city.refresh();
-    const before = saveCity(city);
-    const report = city.infrastructureReport();
-    expect(report.dueAssets).toBe(1);
-    expect(report.capitalNeeded).toBe(city.refurbishStructure(plant.id, true).cost);
-    for (const dept of ['roads', 'water', 'power', 'transit'] as const) {
-      const quote = city.previewRepairNetworks(dept, 0, 0, 31, 31);
-      expect(report.repairs[dept]).toEqual({ cost: quote.cost, tiles: quote.tiles });
-    }
-    report.assets[0]!.life = 0;
-    report.assets[0]!.refurbishment.cost = 0;
-    report.power[0]!.sources[0]!.capacity = 0;
-    report.water[0]!.sources[0]!.capacity = 0;
-    report.power[0]!.largestSource!.capacity = 0;
-    expect(saveCity(city)).toEqual(before);
-    expect(city.infrastructureReport().power[0]!.sources[0]!.capacity).toBeGreaterThan(0);
-  });
-
   it('reports stopped pumps as shortages, rather than spare supply, and omits empty unsourced stubs', () => {
     const city = utilityTown();
     city.buildPipe(27, 25, 29, 25);
@@ -106,68 +82,5 @@ describe('utility resilience', () => {
     expect(water.sources).toHaveLength(0);
     expect(water.largestSource).toBeNull();
     expect(water.contingencyShortfall).toBe(water.demand);
-  });
-});
-
-describe('maintenance continuity planning', () => {
-  it('compares the chosen source with its own network and reports working pumps exposed to a shortfall', () => {
-    const city = utilityTown();
-    const coal = [...city.state.structures.values()].find((st) => st.kind === 'coalPlant')!;
-    const gas = [...city.state.structures.values()].find((st) => st.kind === 'gasPlant')!;
-    expect(city.maintenanceImpact(coal.id)!.interruptions[0]).toMatchObject({ supplyDuring: 3_000, shortfall: 0, waterPumpsAtRisk: 0 });
-    city.bulldoze(gas.x, gas.y, gas.x, gas.y);
-    city.placeStructure('windPlant', 27, 27);
-    coal.life = 80;
-    city.refresh();
-    const plan = city.maintenanceImpact(coal.id)!;
-    expect(plan.downtimeDays).toBe(7);
-    expect(plan.interruptions).toHaveLength(1);
-    expect(plan.interruptions[0]).toMatchObject({ resource: 'power', supplyDuring: 0, shortfall: 1_003,
-      waterPumpsAtRisk: 1, waterCapacityAtRisk: 20_000 });
-    expect(city.refurbishStructure(coal.id).ok).toBe(true);
-    const actual = city.infrastructureReport().power.find((network) => network.id === plan.interruptions[0]!.networkId)!;
-    expect(actual.supply).toBe(plan.interruptions[0]!.supplyDuring);
-    expect(city.maintenanceImpact(coal.id)!.interruptions).toEqual([]); // already offline: no further capacity removed
-  });
-
-  it('holds imports available and never mutates the city or report sources', () => {
-    const city = utilityTown();
-    const coal = [...city.state.structures.values()].find((st) => st.kind === 'coalPlant')!;
-    city.state.neighbourDeals.push({ id: 1, edge: 0, resource: 'power', direction: 'buy', amount: 10_000, price: 0.1,
-      startDay: 0, status: 'active', monthsLeft: 0 });
-    city.refresh();
-    const before = saveCity(city);
-    const plan = city.maintenanceImpact(coal.id)!;
-    expect(plan.interruptions[0]).toMatchObject({ supplyBefore: 19_000, capacityRemoved: 6_000, supplyDuring: 13_000, shortfall: 0 });
-    plan.interruptions[0]!.supplyBefore = 0;
-    expect(saveCity(city)).toEqual(before);
-    expect(city.maintenanceImpact(coal.id)!.interruptions[0]!.supplyBefore).toBe(19_000);
-  });
-
-  it('shows a pump overhaul against its assigned pipe demand and recognises spare pumps', () => {
-    const city = utilityTown();
-    const pump = [...city.state.structures.values()].find((st) => st.kind === 'waterPump')!;
-    const single = city.maintenanceImpact(pump.id)!.interruptions[0]!;
-    expect(single.resource).toBe('water');
-    expect(single.capacityRemoved).toBe(20_000);
-    expect(single.supplyDuring).toBe(0);
-    expect(single.shortfall).toBe(single.demand);
-    expect(single.demand).toBeGreaterThan(0);
-    city.placeStructure('waterPump', 12, 8);
-    expect(city.maintenanceImpact(pump.id)!.interruptions[0]).toMatchObject({ supplyDuring: 20_000, shortfall: 0 });
-  });
-
-  it('omits interruptions for instant work, non-producing utilities and missing or non-utility facilities', () => {
-    const city = utilityTown();
-    const coal = [...city.state.structures.values()].find((st) => st.kind === 'coalPlant')!;
-    city.cfg.infrastructure.refurbishment = { ...city.cfg.infrastructure.refurbishment, downtimeDays: 0 };
-    expect(city.maintenanceImpact(coal.id)).toEqual({ id: coal.id, downtimeDays: 0, interruptions: [] });
-    city.placeStructure('recyclingCenter', 20, 20);
-    const recycling = [...city.state.structures.values()].find((st) => st.kind === 'recyclingCenter')!;
-    expect(city.maintenanceImpact(recycling.id)!.interruptions).toEqual([]);
-    city.placeStructure('medicalClinic', 20, 26);
-    const clinic = [...city.state.structures.values()].find((st) => st.kind === 'medicalClinic')!;
-    expect(city.maintenanceImpact(clinic.id)).toBeNull();
-    expect(city.maintenanceImpact(-1)).toBeNull();
   });
 });

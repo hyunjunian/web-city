@@ -11,7 +11,6 @@ import { drain } from './sim/steps';
 import { STRUCTURES } from './data/structures';
 import { DEV_TYPES } from './types';
 import { VOLUME_KINDS } from './sim/transport';
-import { POWER_DISPATCHES } from './sim/energy';
 
 export interface SavedCity {
   format: 'web-city';
@@ -50,7 +49,6 @@ export interface SavedCity {
   /** Last month's trips by means of travel, at their original precision. */
   volume?: City['volume'];
   departments?: Partial<CityState['departments']>;
-  powerDispatch?: CityState['powerDispatch'];
   landform?: number[];
   lineWear?: number[];
   pipeWear?: number[];
@@ -302,7 +300,6 @@ export function* saveCitySteps(city: City): Generator<void, SavedCity> {
     localCommute: city.fields.localCommute,
     volume: { ...city.volume },
     departments: { ...s.departments },
-    powerDispatch: s.powerDispatch ?? 'balanced',
     landform: r.landform!,
     lineWear: r.lineWear!,
     pipeWear: r.pipeWear!,
@@ -385,7 +382,6 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
   if (!whole(saved.day) || !whole(saved.seed) || !whole(saved.rngState)) throw new Error('corrupt save: bad day or seed');
   if (typeof saved.funds !== 'number' || !Number.isFinite(saved.funds)) throw new Error('corrupt save: bad funds');
   if (!['easy', 'medium', 'hard'].includes(saved.difficulty)) throw new Error('corrupt save: bad difficulty');
-  if (saved.powerDispatch !== undefined && !POWER_DISPATCHES.includes(saved.powerDispatch)) throw new Error('corrupt save: bad power dispatch');
   const failedImports = saved.garbageStats?.failedImports;
   if (failedImports !== undefined && (!Array.isArray(failedImports) || failedImports.some((id) => !Number.isSafeInteger(id) || id <= 0))) {
     throw new Error('corrupt save: bad garbage import delivery record');
@@ -435,14 +431,14 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
   }
   for (const old of saved.structures) {
     // Version 1 parks were square with a `size`.
-    const { size, ...st } = old;
+    // Ignore the retired maintenance marker when loading older saves.
+    const { size, offlineUntilDay: _removedDeadline, ...st } = old as typeof old & { offlineUntilDay?: unknown };
     const full: Structure = {
       funding: 100, life: 0, load: 0, capacity: 0, effectiveness: 0, strike: 0, powered: false,
       ...st, w: st.w ?? size ?? 1, h: st.h ?? size ?? 1,
     };
     if (!fits(full, full.w, full.h)) throw new Error(`corrupt save: structure ${full.id} is off the map`);
     if (!whole(full.id) || !Object.hasOwn(STRUCTURES, full.kind)) throw new Error(`corrupt save: structure ${full.id} has no known kind`);
-    if (full.offlineUntilDay !== undefined && !whole(full.offlineUntilDay)) throw new Error('corrupt save: bad overhaul deadline');
     claim(full, -1);
     structures.set(full.id, full);
   }
@@ -462,7 +458,6 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     rngState: saved.rngState,
     difficulty: saved.difficulty,
     day: saved.day,
-    powerDispatch: saved.powerDispatch ?? 'balanced',
     funds: saved.funds,
     terrain,
     net: decodeCodes(saved.net, N, Net.OneWay),

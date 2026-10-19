@@ -70,7 +70,7 @@ describe('garbage', () => {
     const burner = [...city.state.structures.values()].find((st) => st.kind === 'wasteToEnergyPlant')!;
     burner.load = 100;
     city.refresh();
-    expect(city.energyReport()!.wasteGeneration).toBe(0);
+    expect(city.power.grids.reduce((sum, grid) => sum + grid.wastePower, 0)).toBe(0);
     const report = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
     expect(report.incinerated).toBe(0);
     expect(report.capacity).toBe(0);
@@ -89,6 +89,37 @@ describe('garbage', () => {
     const unfunded = runGarbage(city.state, city.fields, city.cfg, new Rng(1), 0);
     expect(unfunded.exported).toBe(0);
     expect(unfunded.uncollected).toBe(40);
+  });
+
+  it.each([25, 100])('uses spare export capacity (%i t) to remove reachable old piles after current waste', (amount) => {
+    const city = islands();
+    const reachable = 9 * 48 + 2;
+    const isolated = 31 * 48 + 28;
+    city.state.garbage[reachable] = 20;
+    city.state.garbage[isolated] = 20;
+    city.state.neighbourDeals.push({ id: 1, edge: 0, resource: 'garbage', direction: 'buy', amount, price: 1,
+      startDay: 0, status: 'active', monthsLeft: 0 });
+    const before = saveCity(city);
+    const preview = city.previewGarbage();
+    const backlog = Math.min(amount - 20, 20 * city.cfg.garbage.backlogPickup);
+    expect(preview.exported).toBeCloseTo(20 + backlog);
+    expect(saveCity(city)).toEqual(before);
+    const report = runGarbage(city.state, city.fields, city.cfg, new Rng(city.rngNow()), 0);
+    expect(report).toEqual(preview);
+    expect(city.state.garbage[reachable]).toBeCloseTo(20 - backlog);
+    expect(city.state.garbage[isolated]).toBeGreaterThanOrEqual(20);
+  });
+
+  it('exports a vacant lot’s existing pile even when the road has no current producer', () => {
+    const city = new City({ size: 32, water: false });
+    city.buildNetwork(0, 10, 31, 10, 'road');
+    city.state.garbage[11 * 32 + 1] = 20;
+    city.state.neighbourDeals.push({ id: 1, edge: 0, resource: 'garbage', direction: 'buy', amount: 100, price: 1,
+      startDay: 0, status: 'active', monthsLeft: 0 });
+    const report = city.previewGarbage();
+    expect(report.kept).toBe(0);
+    expect(report.exported).toBeCloseTo(10);
+    expect(report.piled).toBeCloseTo(10);
   });
 
   it('receives imported garbage at the contracted road instead of a disconnected disposal plant', () => {

@@ -24,15 +24,12 @@ import { STRUCTURES } from './data/structures';
 
 export const DEFAULT_CONFIG = {
   infrastructure: {
-    refurbishment: infrastructure.REFURBISHMENT,
-    networkRepair: infrastructure.NETWORK_REPAIR,
     planning: infrastructure.INFRASTRUCTURE_PLANNING,
     calendarWearShare: infrastructure.CALENDAR_WEAR_SHARE,
   },
   energy: {
     generationCostShare: energy.GENERATION_COST_SHARE,
     idleEmissionShare: energy.IDLE_EMISSION_SHARE,
-    waterEmissionWeight: energy.WATER_EMISSION_WEIGHT,
   },
   demand: {
     wealthOf: demand.WEALTH_OF,

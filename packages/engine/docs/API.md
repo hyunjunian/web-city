@@ -207,41 +207,13 @@ What a department's budget pays a month at `level` percent (its own level by def
 
 A facility's monthly cost as the budget charges it (running, vehicles, a jail's overcrowding), or null.
 
-### `assetOutlook(id: number): AssetOutlook | null`
-
-A utility facility's remaining life, ageing rate, output and overhaul price at current utilisation and funding; null for facilities without a finite service life.
-
 ### `infrastructureReport(): InfrastructureReport`
 
-Capital maintenance needs and power/water resilience per connected network, including loss of its largest single supply source. Empty pipe stubs are omitted; current load and funding are held constant.
-
-### `maintenanceImpact(id: number): MaintenanceImpact | null`
-
-Capacity lost while one utility is overhauled, with the affected network's current consumers and any working pumps exposed to a power shortfall. Holds demand, contracts and consumer assignments constant; does not predict blackout order, pollution feedback or alternative pipe coverage. Null for non-utility facilities.
+Power/water resilience per connected network, including loss of its largest single supply source. Empty pipe stubs are omitted; current load and funding are held constant.
 
 ### `previewGarbage(): CityState['garbageStats']`
 
-Collection and disposal if the monthly tally ran under today's population, roads, funding, equipment and piles. Includes current contracts and overhaul availability; future growth and completion of work are not advanced. Does not change garbage, landfill contents, facility loads or random state.
-
-### `setPowerDispatch(strategy: PowerDispatch): ToolResult`
-
-Sets power dispatch within each grid: balanced shares the load, economical uses the lowest generation cost first, clean the lowest air/water emission burden. Imports and waste energy are used first.
-
-### `energyReport(strategy: PowerDispatch = this.state.powerDispatch ?? 'balanced'): EnergyReport | null`
-
-Generation, plant operating costs and source emissions for today's grid demand. With a strategy, compares it without changing the city or advancing time; future growth, wear and pollution feedback are left out.
-
-### `refurbishStructure(id: number, preview = false): ToolResult & { lifeBefore?: number; lifeAfter?: number; offlineUntilDay?: number }`
-
-Overhauls an ageing utility on its existing site, retaining its id, name and connections. Restores machinery to 20% life used with seven days of suspended output by default; `preview` only prices it.
-
-### `previewRepairNetworks(dept: RepairDepartment, x0: number, y0: number, x1: number, y1: number): RepairPreview`
-
-Prices repair of only the damaged roads/rails or worn lines/pipes in a rectangle. Healthy tiles and other networks are left out.
-
-### `repairNetworks(dept: RepairDepartment, x0: number, y0: number, x1: number, y1: number): RepairPreview`
-
-Pays for the previewed network repairs immediately without demolishing anything or changing routes. Further deterioration still depends on department funding.
+Collection and disposal if the monthly tally ran under today's population, roads, funding, equipment and piles. Includes current contracts; future growth is not advanced. Does not change garbage, landfill contents, facility loads or random state.
 
 ### `refreshIfDirty(): void`
 

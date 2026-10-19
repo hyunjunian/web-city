@@ -388,13 +388,6 @@ export interface Structure extends Rect {
   /** Schools and hospitals: local bus/ambulance funding in percent (absent = 100). */
   vehicleFunding?: number;
   powered: boolean;
-  /** Planned overhaul: output is suspended before this simulation day. Absent when online. */
-  offlineUntilDay?: number;
-}
-
-/** Whether a facility can produce today (construction machinery is offline during an overhaul). */
-export function structureOnline(s: Pick<CityState, 'day'>, st: Structure): boolean {
-  return st.offlineUntilDay === undefined || st.offlineUntilDay <= s.day;
 }
 
 export interface BudgetReport {
@@ -463,8 +456,6 @@ export interface CityState {
   /** Department funding in percent: road maintenance, mass transit, power lines, water pipes, city beautification (parks). */
   /** landmarks: all Landmarks together (none funded on its own); corrections: all jails (likewise). */
   departments: { roads: number; transit: number; power: number; water: number; parks: number; sanitation: number; landmarks: number; corrections: number };
-  /** Dispatch within each power grid; absent in old state objects means balanced. */
-  powerDispatch?: import('./energy').PowerDispatch;
   /** Scars left by disasters: 1 crater, 2 volcano cone (unbuildable), 3 volcano slope, 4 fault line. */
   landform: Uint8Array;
   /** Wear of power lines and water pipes (0–255; distressed from 50). */

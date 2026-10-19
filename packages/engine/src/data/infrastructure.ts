@@ -1,28 +1,5 @@
-// Capital maintenance is an engine extension. Prices are shares of the
-// equivalent new asset, so mods that change construction prices stay balanced.
-
-/** A major overhaul retains the foundations and restores the machinery to this life percentage. */
-export const REFURBISHMENT = {
-  targetLife: 20,
-  /** No paid overhaul until at least this much useful life can be recovered. */
-  minRecovery: 10,
-  /** Mobilisation plus the share of a replacement represented by recovered life. */
-  fixedCostShare: 0.15,
-  recoveredLifeCostShare: 0.85,
-  /** Planned works briefly suspend output; reserve capacity lets the city carry on. */
-  downtimeDays: 7,
-} as const;
-
-/** Network repairs retain the route and foundations; severe wear costs more to mend. */
-export const NETWORK_REPAIR = {
-  fixedCostShare: 0.2,
-  wearCostShare: 0.6,
-  /** Resurfacing asphalt or renewing damaged rails, relative to new construction. */
-  damageCostShare: 0.5,
-} as const;
-
-/** A tenth of current load in reserve and a year to prepare major overhauls are planning targets, not enforced build limits. */
-export const INFRASTRUCTURE_PLANNING = { reserveRatio: 0.1, lookAheadMonths: 12 } as const;
+/** Reserve capacity planning target, not an enforced build limit. */
+export const INFRASTRUCTURE_PLANNING = { reserveRatio: 0.1 } as const;
 
 /** Half of equipment wear comes from elapsed time, half from throughput. Stored reserve equipment still weathers and needs replacement. */
 export const CALENDAR_WEAR_SHARE = 0.5;
