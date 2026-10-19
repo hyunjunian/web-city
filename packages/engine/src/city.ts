@@ -2166,10 +2166,13 @@ export class City {
     // was a tenth of a big city's time); spatial fields catch up at the next
     // periodic refresh.
     let pending = 0;
+    const reoccupyMisses = new Set<DevType>();
     yield* warmTractsSteps(this.devContext());
     for (let a = 0; a < attempts; a++) {
       if ((a & 3) === 3) yield;
-      if (developOnce(this.devContext()) && ++pending >= DEMAND_EVERY) {
+      const developed = developOnce(this.devContext(reoccupyMisses));
+      if (developed) reoccupyMisses.clear();
+      if (developed && ++pending >= DEMAND_EVERY) {
         yield* this.updateDemandSteps();
         pending = 0;
         yield;
@@ -3877,7 +3880,7 @@ export class City {
     return key;
   }
 
-  private devContext(): DevContext {
+  private devContext(reoccupyMisses?: Set<DevType>): DevContext {
     return {
       s: this.state,
       cfg: this.cfg,
@@ -3894,6 +3897,7 @@ export class City {
       },
       tractCache: this.tractCache,
       tractFull: this.tractFull,
+      reoccupyMisses,
     };
   }
 

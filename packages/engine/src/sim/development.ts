@@ -99,6 +99,9 @@ export interface DevContext {
   tractCache?: Map<DevType, { tx: number; ty: number; score: number }[]>;
   /** Tracts found full, per type and stage, until the next recompute. */
   tractFull?: Map<string, Set<number>>;
+  /** Failed vacant-building searches in the current development batch.
+   * Clear after any successful building change; never carry across days. */
+  reoccupyMisses?: Set<DevType>;
 }
 
 /**
@@ -291,6 +294,12 @@ function reoccupy(ctx: DevContext, t: DevType, b: Building, d: number): void {
  */
 function reoccupyAnywhere(ctx: DevContext, t: DevType): boolean {
   if (!(ctx.census.abandonedFor?.[t] ?? ctx.census.abandoned)) return false;
+  if (ctx.reoccupyMisses?.has(t)) return false;
+  // This hiring constraint is the same for every vacant building of t.
+  if (workersBlocked(ctx, t)) {
+    ctx.reoccupyMisses?.add(t);
+    return false;
+  }
   let best: Building | null = null;
   let bestD = -1;
   for (const b of ctx.s.buildings.values()) {
@@ -301,7 +310,10 @@ function reoccupyAnywhere(ctx: DevContext, t: DevType): boolean {
       bestD = d;
     }
   }
-  if (!best) return false;
+  if (!best) {
+    ctx.reoccupyMisses?.add(t);
+    return false;
+  }
   reoccupy(ctx, t, best, bestD);
   return true;
 }
