@@ -363,6 +363,7 @@ export class Region {
 
   static load(saved: SavedRegion): Region {
     if (saved.format !== 'web-city-region') throw new Error('not a region save');
+    if (saved.version !== 1 && saved.version !== 2) throw new Error('unsupported region save format');
     const cities: RegionCity[] = saved.cities ?? (saved.squares ?? []).flatMap((sq, k) =>
       sq ? [{ x: k % saved.width, y: Math.floor(k / saved.width), span: 1 as CitySpan, save: sq.save, snapshot: sq.snapshot }] : []);
     return new Region({ name: saved.name, width: saved.width, height: saved.height, citySize: saved.citySize }, cities);

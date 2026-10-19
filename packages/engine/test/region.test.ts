@@ -587,6 +587,13 @@ describe('regional demand pool', () => {
 });
 
 describe('region of cities', () => {
+  it('refuses unsupported region versions before interpreting their city records', () => {
+    const saved = new Region({ width: 2, height: 1, citySize: 16 }).save();
+    for (const version of [0, 3, undefined, '2']) {
+      expect(() => Region.load({ ...saved, version } as unknown as typeof saved)).toThrow(/unsupported/);
+    }
+  });
+
   it.each([[100, 100, 1], [100, 100, 3], [100, 300, 2], [0, 0, 1]])('preserves pending growth shared by populations %s and %s (amount %s)', (north, south, amount) => {
     let region = new Region({ width: 3, height: 2, citySize: 16 });
     for (const [x, y, span] of [[0, 0, 2], [2, 0, 1], [2, 1, 1]] as const) {
