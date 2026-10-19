@@ -2193,7 +2193,7 @@ function buildActions(g: Goal, tools: readonly string[] = g.tools): string {
       for (const k of few) {
         if (!city.isUnlocked(k) || city.placementsLeft(k) <= 0) continue;
         const d = STRUCTURES[k];
-        const shortOf = d.cost > city.state.funds;
+        const shortOf = d.cost > 0 && d.cost > city.state.funds;
         // A first stop carries no one: riders need one near home and one near work, on the same network (each kind its
         // own: a subway station had no word of the track between).
         const fx = forecast(k) || (d.station ? PAIR_NOTE[d.station.mode] ?? '' : '');

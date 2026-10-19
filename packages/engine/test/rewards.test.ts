@@ -178,6 +178,22 @@ describe('rewards', () => {
 });
 
 describe('business deals', () => {
+  it('lets an indebted city accept a free rescue offer and receive its monthly income', () => {
+    const city = new City({ size: 32, water: false, config: { ...CALM, disasters: { simulated: false } } });
+    city.placeStructure('smallParkGreen', 1, 1);
+    city.state.funds = -5_000;
+    city.step(30);
+    expect(city.state.lastBudget!.expenses).toBeGreaterThan(city.state.lastBudget!.income);
+    expect(city.state.unlocked).toContain('toxicWasteDump');
+    expect(city.canPlaceStructure('toxicWasteDump', 10, 10)).toEqual({ ok: true, cost: 0 });
+    const funds = city.state.funds;
+    expect(city.placeStructure('toxicWasteDump', 10, 10)).toEqual({ ok: true, cost: 0 });
+    expect(city.state.funds).toBe(funds);
+    expect(city.canPlaceStructure('smallParkGreen', 20, 20)).toMatchObject({ ok: false, message: 'not enough funds' });
+    city.step(30);
+    expect(city.state.lastBudget!.dealIncome).toBe(400);
+  });
+
   it('are offered when money is short and stay offered', () => {
     const city = new City({ size: 32, water: false, config: CALM });
     const dump = city.cfg.structures.toxicWasteDump.offer!;

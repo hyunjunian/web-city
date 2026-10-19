@@ -796,7 +796,8 @@ function refreshToolPrices(): void {
       price.textContent = gratis ? '무료' : toolPrice(t);
       b.classList.toggle('free', gratis);
     }
-    price.classList.toggle('short', !gratis && Number(b.dataset.cost ?? 0) > funds);
+    const cost = Number(b.dataset.cost ?? 0);
+    price.classList.toggle('short', !gratis && cost > 0 && cost > funds);
   });
 }
 
@@ -888,7 +889,7 @@ export function refreshStructureLists(): void {
     const id = picker.dataset.tool!;
     const kinds = kindsFor(TOOLS.find((t) => t.id === id) as StructureTool);
     // (Affordable or not too: a card the funds can't cover says so before the map does.)
-    const signature = kinds.map((k) => `${+city.isUnlocked(k)}${+(city.placementsLeft(k) > 0)}${+(STRUCTURES[k].cost <= city.state.funds)}`).join('');
+    const signature = kinds.map((k) => `${+city.isUnlocked(k)}${+(city.placementsLeft(k) > 0)}${+(STRUCTURES[k].cost <= 0 || STRUCTURES[k].cost <= city.state.funds)}`).join('');
     if (picker.dataset.signature !== signature) {
       picker.dataset.signature = signature;
       const rank = (k: StructureKind) => (!city.isUnlocked(k) ? 2 : city.placementsLeft(k) <= 0 ? 1 : 0);
@@ -899,7 +900,7 @@ export function refreshStructureLists(): void {
         const placed = open && city.placementsLeft(k) <= 0;
         const earned = city.state.unlocked.filter((u) => u === k).length;
         const why = plainCodes(def.unlock?.description ?? def.unlockTiers?.[earned]?.description ?? def.offer?.description ?? '');
-        const short = open && !placed && def.cost > city.state.funds;
+        const short = open && !placed && def.cost > 0 && def.cost > city.state.funds;
         const stat = structureStat(k);
         const folded = open && !!LEAD_KINDS[id] && !LEAD_KINDS[id]!.includes(k);
         const { month, gain } = kindMonthly(k);
@@ -993,7 +994,7 @@ export function refreshToolChip(): void {
   const price = kind ? `§${fmt(STRUCTURES[kind].cost)} · 월 §${fmt(STRUCTURES[kind].upkeep)}`
     : tool.kind === 'dispatch' ? `출동 가능 ${city.freeUnits(tool.unit)}대`
     : tool.kind === 'terraform' && !city.established() ? '무료 (처음 짓기 전)' : toolPrice(tool);
-  const short = !!kind && STRUCTURES[kind].cost > city.state.funds;
+  const short = !!kind && STRUCTURES[kind].cost > 0 && STRUCTURES[kind].cost > city.state.funds;
   const demand = tool.kind === 'zone' ? zoneDemandChip(tool.zone) : '';
   // 철거: how a drag works, in place of a price (a finger has no hover to say it first), and no card to open.
   const bulldoze = tool.kind === 'bulldoze';

@@ -327,7 +327,8 @@ export function updatePreview(): void {
     const text = check.ok
       ? besidePointer ? [...short, extra, reached].filter(Boolean).join('\n') : `${warnings ? `${warnings.replace(/^ · /, '')} · ` : ''}${extraNow}`
       : besidePointer ? ko(check.message ?? '') : `놓을 수 없음: ${ko(check.message ?? '')}`; // (the chip's bold line says it can't)
-    tag = check.ok ? { text: `${caught && !besidePointer ? '⚠ ' : ''}§${fmt(def.cost)}${def.cost > city.state.funds ? ' · 자금 부족' : ''}`, tone: def.cost > city.state.funds ? 'bad' : caught ? 'warn' : '' } : { text: '놓을 수 없음', tone: 'bad' };
+    const shortOfFunds = def.cost > 0 && def.cost > city.state.funds;
+    tag = check.ok ? { text: `${caught && !besidePointer ? '⚠ ' : ''}§${fmt(def.cost)}${shortOfFunds ? ' · 자금 부족' : ''}`, tone: shortOfFunds ? 'bad' : caught ? 'warn' : '' } : { text: '놓을 수 없음', tone: 'bad' };
     if (proposal && !hover) {
       // The waiting facility: its whole reading in the bar (the hint bar would cut it short).
       // Laid out to read at a glance: what and what it costs, then each catch on a line of its own.
@@ -608,7 +609,7 @@ let chipTone: '' | 'warn' | 'bad' = '';
 let pointerAt: { x: number; y: number; touch: boolean } | null = null;
 
 function costTag(what: string, cost: number, caught = false): void {
-  const short = cost > city.state.funds;
+  const short = cost > 0 && cost > city.state.funds;
   tag = { text: cost ? `${what ? `${what} · ` : ''}§${fmt(cost)}${short ? ' · 자금 부족' : ''}` : what, tone: short ? 'bad' : caught ? 'warn' : '' };
 }
 

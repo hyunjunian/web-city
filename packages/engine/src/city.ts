@@ -1193,7 +1193,7 @@ export class City {
     if (tiles.some((i) => s.net[i] !== Net.None || s.elevated[i])) return 'site has a road or track on it';
     if (tiles.some((i) => s.rubble[i])) return 'site has rubble on it';
     if (tiles.some((i) => s.landform[i] === Landform.Cone)) return 'site is on a volcano';
-    if (def.cost > s.funds) return 'not enough funds';
+    if (def.cost > 0 && def.cost > s.funds) return 'not enough funds';
     return null;
   }
 
