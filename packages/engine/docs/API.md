@@ -109,7 +109,7 @@ Road maintenance, mass transit, power line, water pipe or sanitation funding in 
 
 ### `setFunding(structureId: number, percent: number): boolean`
 
-Sets a civic building's funding level in percent (plants 0–120, services 0–150).
+Sets an individually funded civic building's level (plants 0–120%, health/education 0–150%); department-funded facilities return false.
 
 ### `setVehicleFunding(structureId: number, percent: number): boolean`
 

@@ -25,6 +25,24 @@ function town(): City {
 const isPlan = (p: ActiveMission | { ok: boolean }): p is ActiveMission => 'target' in p;
 
 describe('U-Drive-It', () => {
+  it('refuses unknown vehicle actions without firing the tank', () => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    city.state.unlocked.push('armyBase');
+    city.buildNetwork(0, 1, 31, 1, 'road');
+    expect(city.placeStructure('armyBase', 1, 2).ok).toBe(true);
+    expect(city.placeStructure('smallParkGreen', 20, 3).ok).toBe(true);
+    expect(isPlan(city.startMission('trainingTank'))).toBe(true);
+    city.refresh();
+    const before = saveCity(city);
+    for (const action of [undefined, null, '', 'move', 'constructor']) {
+      expect(city.vehicleAction('tank', action as Parameters<City['vehicleAction']>[1], 20, 3))
+        .toMatchObject({ ok: false, cost: 0, hits: 0 });
+      expect(saveCity(city)).toEqual(before);
+    }
+    expect(city.vehicleAction('tank', 'shoot', 20, 3)).toMatchObject({ ok: true, hits: 1 });
+  });
+
   it('a police station makes the police car and its missions available', () => {
     const city = town();
     expect(city.availableVehicles()).not.toContain('policeCar');

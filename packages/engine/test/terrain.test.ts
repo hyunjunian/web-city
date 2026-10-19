@@ -2,6 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { City, loadCity, saveCity } from '../src';
 
 describe('elevation', () => {
+  it('refuses unknown terrain modes without filling water or charging funds', () => {
+    const city = new City({ size: 16, water: false });
+    expect(city.terraform(2, 2, 4, 4, 'water').ok).toBe(true);
+    city.refresh();
+    const before = saveCity(city);
+    for (const mode of [undefined, null, '', 'dig', 'constructor']) {
+      const raw = mode as Parameters<City['terraform']>[4];
+      expect(city.previewTerraform(2, 2, 4, 4, raw)).toMatchObject({ ok: false, cost: 0, tiles: 0 });
+      expect(city.terraform(2, 2, 4, 4, raw)).toMatchObject({ ok: false, cost: 0 });
+      expect(saveCity(city)).toEqual(before);
+    }
+    expect(city.terraform(2, 2, 4, 4, 'land').ok).toBe(true);
+  });
+
   it('fills excavated land to the same surrounding height in either drag direction', () => {
     const forward = new City({ size: 8, water: false });
     const backward = new City({ size: 8, water: false });

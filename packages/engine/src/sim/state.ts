@@ -689,14 +689,14 @@ export function isJail(def: { category: string; police?: { radius: number } }): 
   return def.category === 'safety' && def.police?.radius === 0;
 }
 
-/** Funding that applies to a civic building: its own, or its department's (transit stations, parks, garbage, water, landmarks). */
+/** The department that funds a civic building together with the rest of its kind, if any. */
+export function fundingDepartment(def: { station?: unknown; category: string; police?: { radius: number } }): keyof CityState['departments'] | null {
+  return def.station ? 'transit' : def.category === 'park' ? 'parks' : def.category === 'garbage' ? 'sanitation' : def.category === 'water' ? 'water'
+    : def.category === 'landmark' ? 'landmarks' : isJail(def) ? 'corrections' : null;
+}
+
+/** Funding that applies to a civic building: its own, or the department that funds its kind together. */
 export function structureFunding(s: CityState, def: { station?: unknown; category: string; police?: { radius: number } }, st: Structure): number {
-  // Departments fund their buildings together; water too (no water building has funding of its
-  // own: the department's sets what towers and pumps can supply).
-  return def.station ? s.departments.transit : def.category === 'park' ? s.departments.parks
-    : def.category === 'garbage' ? s.departments.sanitation : def.category === 'water' ? s.departments.water
-    // Landmarks too (funded all together, never one by one).
-    : def.category === 'landmark' ? s.departments.landmarks
-    // Jails too: the Dept. of Corrections funds them all as one.
-    : isJail(def) ? s.departments.corrections : st.funding;
+  const department = fundingDepartment(def);
+  return department === null ? st.funding : s.departments[department];
 }

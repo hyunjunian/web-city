@@ -40,6 +40,24 @@ describe('monthly operating history', () => {
 });
 
 describe('service funding refreshes', () => {
+  it.each([
+    ['busStop', 'transit'], ['smallParkGreen', 'parks'], ['waterTower', 'water'],
+    ['wasteToEnergyPlant', 'sanitation'],
+  ] as const)('refuses individual funding for the department-funded %s', (kind, dept) => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    expect(city.placeStructure(kind, 3, 3).ok).toBe(true);
+    city.refresh();
+    const st = [...city.state.structures.values()][0]!;
+    const before = saveCity(city);
+    expect(city.setFunding(st.id, 50)).toBe(false);
+    expect(saveCity(city)).toEqual(before);
+    const upkeep = city.structureUpkeep(st.id)!.running;
+    expect(upkeep).toBeGreaterThan(0);
+    city.setDepartmentFunding(dept, 50);
+    expect(city.structureUpkeep(st.id)!.running).toBeCloseTo(upkeep / 2, 5);
+  });
+
   it.each(['power', 'water', 'parks', 'sanitation', 'landmarks', 'corrections'] as const)('%s funding retains the route plan while updating the full utility and effect model', (dept) => {
     const config = { safety: { fires: false }, disasters: { simulated: false } };
     const start = town({ config });

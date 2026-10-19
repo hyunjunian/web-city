@@ -3,14 +3,13 @@
 
 import type { SimConfig } from '../config';
 import type { OrdinanceId } from '../data/ordinances';
-import type { StructureDef } from '../data/structures';
 import { interp } from '../data/services';
 import { perType } from '../types';
 import { capacityOf } from './development';
 import { LANDFILL_ZONE } from './garbage';
 import { ordinanceCost as ordinanceCostOf } from './mayor';
 import { settleDeals } from './region';
-import { DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, INTERCHANGE, isJail, Net, overNet, structureFunding, NETWORK_KINDS, type Building, type BudgetReport, type CityState, type DealResource, type NeighbourDeal, type Structure } from './state';
+import { DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, INTERCHANGE, fundingDepartment, Net, overNet, structureFunding, NETWORK_KINDS, type Building, type BudgetReport, type CityState, type DealResource, type NeighbourDeal, type Structure } from './state';
 import { drain } from './steps';
 import { generationCost } from './energy';
 
@@ -78,12 +77,6 @@ export function structureUpkeep(s: CityState, cfg: SimConfig, st: Structure): { 
   const vehicles = v ? v * ((st.vehicleFunding ?? 100) / 100) : 0;
   const overcapacity = def.police?.overcapacityCost ? Math.max(0, st.load - st.capacity) * def.police.overcapacityCost : 0;
   return { running, vehicles, overcapacity, total: running + vehicles + overcapacity };
-}
-
-/** The department that funds a civic building with the rest of its kind, if one does (see structureFunding). */
-function fundingDepartment(def: StructureDef): keyof CityState['departments'] | null {
-  return def.station ? 'transit' : def.category === 'park' ? 'parks' : def.category === 'garbage' ? 'sanitation' : def.category === 'water' ? 'water'
-    : def.category === 'landmark' ? 'landmarks' : isJail(def) ? 'corrections' : null;
 }
 
 /**

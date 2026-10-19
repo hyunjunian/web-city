@@ -16,7 +16,7 @@ import {
 import { developOnce, exodus, GROWTH_CODES, growthBlockers, INFO_ONLY, trackDemand, understaffed, updateBuildingsSteps, warmTractsSteps, type DevContext, type GrowthBlocker } from './sim/development';
 import { computeEffectFieldsSteps, computeJobComponentsSteps, computeNetworkFieldsSteps, createFields, footprint, frontage, INF, type Fields } from './sim/fields';
 import {
-  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isAsphalt, isLocalNet, Net, NETWORK_KINDS, ONEWAY_DIRS, isJail, Terrain, zoneCode, zoneInfo, ZONES,
+  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isAsphalt, isLocalNet, Net, NETWORK_KINDS, ONEWAY_DIRS, fundingDepartment, Terrain, zoneCode, zoneInfo, ZONES,
   type BudgetReport, type Building, type CityState, type DealResource, type GarbageStats, type HistoryPoint, type Rect, type MySim, type NeighbourDeal, type NetworkKind,
   type Structure, type ZoneKind,
   type Neighbour,
@@ -1535,13 +1535,13 @@ export class City {
     else this.effectsDirty = true;
   }
 
-  /** Sets a civic building's funding level in percent (plants 0–120, services 0–150). */
+  /** Sets an individually funded civic building's level (plants 0–120%, health/education 0–150%); department-funded facilities return false. */
   setFunding(structureId: number, percent: number): boolean {
     this.settle();
     const st = this.state.structures.get(structureId);
     if (!st || !Number.isFinite(percent)) return false;
     const def = this.cfg.structures[st.kind];
-    if (def.category === 'landmark' || isJail(def)) return false; // funded together (setDepartmentFunding('landmarks' / 'corrections'))
+    if (fundingDepartment(def) !== null) return false;
     const max = def.plant || def.police || def.fire || def.incinerator || def.recycling || def.airport || def.seaport ? 120 : def.health || def.school ? 150 : 100;
     const level = Math.max(0, Math.min(max, Math.round(percent)));
     if (st.funding === level) return true;
@@ -2836,6 +2836,7 @@ export class City {
     // Only the vehicle of the mission under way: no free demolition or firefighting otherwise.
     if (!s.udi.active || s.udi.vehicle !== vehicle) return no('no mission with this vehicle');
     if (!vehicleAvailable(s, vehicle)) return no('vehicle not available');
+    if (action !== 'spray' && action !== 'shoot') return no('unknown vehicle action');
     const i = idx(s, x, y);
     if (action === 'spray') {
       if (vehicle !== 'fireEngine' && vehicle !== 'firePlane') return no('this vehicle has no water');
@@ -3405,6 +3406,7 @@ export class City {
    */
   terraform(x0: number, y0: number, x1: number, y1: number, to: 'water' | 'land' | 'raise' | 'lower'): ToolResult {
     this.settle();
+    if (to !== 'water' && to !== 'land' && to !== 'raise' && to !== 'lower') return { ok: false, cost: 0, message: 'unknown terrain mode' };
     const s = this.state;
     if (to === 'raise' || to === 'lower') return this.reshape(x0, y0, x1, y1, to === 'raise' ? 1 : -1);
     const want = to === 'water' ? Terrain.Water : Terrain.Land;
@@ -3435,6 +3437,8 @@ export class City {
 
   /** What a terraform drag would change and cost, without changing it (the tiles it can't touch left out). */
   previewTerraform(x0: number, y0: number, x1: number, y1: number, to: 'water' | 'land' | 'raise' | 'lower'): { ok: boolean; cost: number; tiles: number; message?: string } {
+    this.settle();
+    if (to !== 'water' && to !== 'land' && to !== 'raise' && to !== 'lower') return { ok: false, cost: 0, tiles: 0, message: 'unknown terrain mode' };
     const { tiles, cost } = this.planTerraform(x0, y0, x1, y1, to);
     return { ok: tiles.length > 0 && cost <= this.state.funds, cost, tiles: tiles.length, ...(cost > this.state.funds ? { message: 'not enough funds' } : {}) };
   }
