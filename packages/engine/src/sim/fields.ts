@@ -352,8 +352,7 @@ export function* computeJobComponentsSteps(s: CityState, f: Fields, cfg: SimConf
     const def = cfg.structures[st.kind];
     const profile = facilityJobs(def, st);
     const j = profile[0] + profile[1] + profile[2];
-    // Stations' few jobs aren't commute destinations (as in jobSites).
-    if (def.station || j <= 0) continue;
+    if (j <= 0) continue;
     const front = frontage(s, st);
     if (front.length && at(front[0]!) >= 0) jobs[at(front[0]!)]! += j;
   }

@@ -1105,7 +1105,7 @@ function jobSites(s: CityState, f: Fields, cfg: SimConfig): JobSite[] {
     const def = cfg.structures[st.kind];
     const profile = facilityJobs(def, st);
     const jobs = profile[0] + profile[1] + profile[2];
-    if (jobs > 0 && !def.station) out.push({ key: -st.id, fronts: frontage(s, st), jobs, byWealth: [profile[0], profile[1], profile[2]] });
+    if (jobs > 0) out.push({ key: -st.id, fronts: frontage(s, st), jobs, byWealth: [profile[0], profile[1], profile[2]] });
   }
   return out;
 }
