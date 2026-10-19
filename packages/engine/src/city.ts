@@ -465,6 +465,7 @@ export class City {
     const s = this.state;
     const plan = this.planZone(x0, y0, x1, y1, kind, opts);
     if (plan.message) return { ok: false, cost: 0, message: plan.message };
+    if (!plan.tiles.length && !plan.streets.size) return { ok: false, cost: 0 };
     for (const i of plan.tiles) {
       s.zone[i] = plan.code;
       // Zones carry power themselves, so lines under them disappear.
@@ -692,9 +693,9 @@ export class City {
         : to === Net.RailCrossing ? s.oneway[i]! : 0;
       if (s.terrain[i] === Terrain.Water) s.tunnel[i] = opts.lowBridge ? SPAN.lowBridge : SPAN.none;
     }
-    this.pruneTreeFires();
+    if (tiles.length) this.pruneTreeFires();
     for (const i of overpasses) s.interchange[i] = INTERCHANGE.overpass;
-    if (manualNet(code)) this.linkPath(path);
+    const linked = manualNet(code) && this.linkPath(path);
     for (const [i, v] of over) {
       s.interchange[i] = v;
       // A one-way deck keeps its direction (the highway below has none of its own).
@@ -702,7 +703,7 @@ export class City {
     }
     if (code === Net.Avenue || code === Net.Highway) cost += this.inlineRamps(path, new Set(tiles.map(([i]) => i)), s.funds - cost);
     s.funds -= cost;
-    this.networkDirty = true;
+    if (tiles.length || over.length || overpasses.length || linked) this.networkDirty = true;
     if (overpasses.length) return { ok: true, cost, message: 'highways pass over each other; place a Cloverleaf to join them' };
     return { ok: tiles.length + over.length > 0, cost };
   }
@@ -879,25 +880,29 @@ export class City {
    * drag direction (drawn up to a road, it meets it); a one-tile drag joins
    * everything around it.
    */
-  private linkPath(path: [number, number][]): void {
+  private linkPath(path: [number, number][]): boolean {
     const s = this.state;
     const n = s.size;
+    let changed = false;
     const at = ([x, y]: readonly [number, number]) => (inBounds(s, x, y) ? y * n + x : -1);
     const join = (i: number, j: number) => {
       if (i < 0 || j < 0) return;
-      s.links[i] = s.links[i]! | linkBit(i, j, n);
-      s.links[j] = s.links[j]! | linkBit(j, i, n);
+      const a = s.links[i]!, b = s.links[j]!;
+      s.links[i] = a | linkBit(i, j, n);
+      s.links[j] = b | linkBit(j, i, n);
+      if (s.links[i] !== a || s.links[j] !== b) changed = true;
     };
-    if (!path.length) return;
+    if (!path.length) return false;
     if (path.length === 1) {
       const [x, y] = path[0]!;
       for (const [dx, dy] of ONEWAY_DIRS) join(at([x, y]), at([x + dx, y + dy]));
-      return;
+      return changed;
     }
     for (let k = 0; k + 1 < path.length; k++) join(at(path[k]!), at(path[k + 1]!));
     const ext = (a: [number, number], b: [number, number]): [number, number] => [2 * a[0] - b[0], 2 * a[1] - b[1]];
     join(at(path[0]!), at(ext(path[0]!, path[1]!)));
     join(at(path.at(-1)!), at(ext(path.at(-1)!, path.at(-2)!)));
+    return changed;
   }
 
   private crossesHighway(path: [number, number][], k: number): boolean {
@@ -1082,6 +1087,7 @@ export class City {
     const s = this.state;
     const { removeB, removeS, roads, elevated, lines, rubble, trees, cost, message } = this.planBulldoze(x0, y0, x1, y1);
     if (message) return { ok: false, cost: 0, message };
+    if (!(removeB.size + removeS.size + roads.length + elevated.length + lines.length + rubble.length + trees.length)) return { ok: false, cost: 0 };
     for (const b of removeB) this.removeBuilding(b);
     // My Sims whose home is bulldozed look for another of their wealth nearby: at once, else for two
     // months before moving out (see checkMySims).
@@ -1254,6 +1260,7 @@ export class City {
     const s = this.state;
     const plan = this.planPowerLine(x0, y0, x1, y1);
     if (plan.message) return { ok: false, cost: 0, message: plan.message };
+    if (!plan.tiles.length) return { ok: false, cost: 0 };
     for (const i of plan.tiles) {
       s.power[i] = 1;
       s.lineWear[i] = 0;
@@ -1284,6 +1291,7 @@ export class City {
     const s = this.state;
     const plan = this.planPipe(x0, y0, x1, y1);
     if (plan.message) return { ok: false, cost: 0, message: plan.message };
+    if (!plan.tiles.length) return { ok: false, cost: 0 };
     for (const i of plan.tiles) {
       s.pipe[i] = 1;
       s.pipeWear[i] = 0;
@@ -1320,6 +1328,7 @@ export class City {
     for (const [x, y] of this.rect(x0, y0, x1, y1)) if (s.pipe[idx(s, x, y)]) tiles.push(idx(s, x, y));
     const cost = tiles.length * this.cfg.services.pipeCost.bulldoze;
     if (cost > s.funds) return { ok: false, cost: 0, message: 'not enough funds' };
+    if (!tiles.length) return { ok: false, cost: 0 };
     for (const i of tiles) {
       s.pipe[i] = 0;
       s.pipeWear[i] = 0;
@@ -1335,6 +1344,7 @@ export class City {
     const s = this.state;
     const plan = this.planSubway(x0, y0, x1, y1);
     if (plan.message) return { ok: false, cost: 0, message: plan.message };
+    if (!plan.tiles.length) return { ok: false, cost: 0 };
     for (const i of plan.tiles) s.subway[i] = 1;
     s.funds -= plan.cost;
     this.networkDirty = true;
@@ -1362,6 +1372,7 @@ export class City {
     const s = this.state;
     const plan = this.planElevated(x0, y0, x1, y1, kind);
     if (plan.message) return { ok: false, cost: 0, message: plan.message };
+    if (!plan.tiles.length) return { ok: false, cost: 0 };
     const code = kind === 'elrail' ? ELEVATED.rail : kind === 'monorail' ? ELEVATED.monorail : ELEVATED.highway;
     let cost = plan.cost;
     for (const i of plan.tiles) {
@@ -1507,6 +1518,7 @@ export class City {
     for (const [x, y] of this.rect(x0, y0, x1, y1)) if (s.subway[idx(s, x, y)]) tiles.push(idx(s, x, y));
     const cost = tiles.length * this.cfg.economy.networkCost.subway.bulldoze;
     if (cost > s.funds) return { ok: false, cost: 0, message: 'not enough funds' };
+    if (!tiles.length) return { ok: false, cost: 0 };
     for (const i of tiles) s.subway[i] = 0;
     const gone = new Set(tiles);
     s.transitions = s.transitions.filter((i) => !gone.has(i));
@@ -3396,10 +3408,11 @@ export class City {
   cancelDeal(id: number): boolean {
     this.settle();
     const s = this.state;
-    const before = s.neighbourDeals.length;
-    s.neighbourDeals = s.neighbourDeals.filter((d) => d.id !== id);
+    const remaining = s.neighbourDeals.filter((d) => d.id !== id);
+    if (remaining.length === s.neighbourDeals.length) return false;
+    s.neighbourDeals = remaining;
     this.networkDirty = true;
-    return s.neighbourDeals.length < before;
+    return true;
   }
 
   /** Deals that fell through since the last call (breached past their grace or probation). */
@@ -3445,6 +3458,7 @@ export class City {
     const want = to === 'water' ? Terrain.Water : Terrain.Land;
     const { tiles, cost } = this.planTerraform(x0, y0, x1, y1, to);
     if (cost > s.funds) return { ok: false, cost: 0, message: 'not enough funds' };
+    if (!tiles.length) return { ok: false, cost: 0 };
     // Filled-in land comes up level with its surroundings.
     let avg = 0;
     let k = 0;
@@ -3541,6 +3555,7 @@ export class City {
     const tiles = this.planTrees(x0, y0, x1, y1);
     const cost = tiles.length * fl.saplingCost;
     if (cost > s.funds) return { ok: false, cost: 0, message: 'not enough funds' };
+    if (!tiles.length) return { ok: false, cost: 0 };
     for (const i of tiles) s.trees[i] = 1;
     s.funds -= cost;
     if (tiles.length) {
@@ -3557,6 +3572,7 @@ export class City {
     const s = this.state;
     const { tiles, cost } = this.planTerraform(x0, y0, x1, y1, dir > 0 ? 'raise' : 'lower');
     if (cost > s.funds) return { ok: false, cost: 0, message: 'not enough funds' };
+    if (!tiles.length) return { ok: false, cost: 0 };
     for (const i of tiles) s.height[i] = this.reshaped(s.height[i]!, dir);
     s.funds -= cost;
     this.networkDirty = true;
@@ -3576,6 +3592,7 @@ export class City {
       if (s.landform[i] === Landform.Cone || s.landform[i] === Landform.Slope) cost += this.cfg.disasters.levelCost;
     }
     if (cost > s.funds) return { ok: false, cost: 0, message: 'not enough funds' };
+    if (!tiles.length) return { ok: false, cost: 0 };
     // Each volcano or crater brought down (or filled) to the land around it: the lowest unscarred tile on its
     // rim, else the lowest rim tile at all. Fault lines keep their heights, and
     // so does any tile with something built on it (as the terrain tools leave them).
