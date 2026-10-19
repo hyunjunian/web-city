@@ -1649,6 +1649,8 @@ function* commuteToJobs(
     const m = new Map<number, number>();
     for (let i = 0; i + 1 < mem.length; i += 2) {
       const key = mem[i]!;
+      const amount = mem[i + 1]!;
+      if (!(amount > 0)) continue;
       if (key >= JOB_EDGE) {
         if (!remote.some(([v]) => edgeAt(v) === key - JOB_EDGE)) continue;
         heldEdges.add(key - JOB_EDGE);
@@ -1657,7 +1659,7 @@ function* commuteToJobs(
         if (k === undefined) continue;
         heldSites.add(k);
       }
-      m.set(key, mem[i + 1]!);
+      m.set(key, amount);
     }
     if (m.size) memory.set(home, m);
   }
@@ -1857,7 +1859,13 @@ function* commuteToJobs(
       continue;
     }
     const keys = [...m.keys()].sort((a, c) => a - c);
-    b.jobs = keys.flatMap((key) => [key, Math.round(m.get(key)! * 1000) / 1000]);
+    const jobs: number[] = [];
+    for (const key of keys) {
+      const amount = Math.round(m.get(key)! * 1000) / 1000;
+      if (amount > 0) jobs.push(key, amount);
+    }
+    if (jobs.length) b.jobs = jobs;
+    else delete b.jobs;
   }
   yield;
   // A home is short of jobs only when the road networks it looked on (its own,

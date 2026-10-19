@@ -1157,6 +1157,10 @@ describe('job capacity', () => {
     expect(home.jobs).toEqual([-far.id, Math.round(workers * 1000) / 1000]);
     // A nearer workplace opens: they keep the job they have…
     city.placeStructure('smallPoliceStation', 12, 11);
+    const near = [...city.state.structures.values()].find(st => st.x === 12)!;
+    // Rounding in an older save could leave a zero-worker memory. It must
+    // not draw the held-job search away from the actual workplace.
+    home.jobs!.push(-near.id, 0);
     month(3);
     expect(at(25)).toBeCloseTo(workers, 1);
     // The Route Query shows the trip they make, not the nearest workplace's.
@@ -1176,6 +1180,13 @@ describe('job capacity', () => {
     expect(home.jobs![0]).not.toBe(-far.id);
     // Kept in saves.
     expect(loadCity(saveCity(city)).state.buildings.get(999)!.jobs).toEqual(home.jobs);
+    // Trips smaller than the saved precision still happen, but must not
+    // leave a zero-worker workplace in next month's memory.
+    home.capacity = 0.0004;
+    delete home.jobs;
+    expect(assignTraffic(city.state, city.fields, city.cfg).volume.car).toBeGreaterThan(0);
+    expect(home.jobs).toBeUndefined();
+    expect(loadCity(saveCity(city)).state.buildings.get(999)!.jobs).toBeUndefined();
   });
 
   it('Sims drive past jobs of another wealth to the closest of their own', () => {
