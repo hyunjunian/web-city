@@ -3358,6 +3358,9 @@ export class City {
     if (!isEdge(edge) || !DEAL_RESOURCES.includes(resource) || (direction !== 'buy' && direction !== 'sell')) {
       return { ok: false, cost: 0, message: 'no such deal' };
     }
+    if (!Number.isSafeInteger(s.nextDealId) || s.nextDealId < 1 || s.nextDealId >= Number.MAX_SAFE_INTEGER) {
+      return { ok: false, cost: 0, message: 'deal ids exhausted' };
+    }
     const offer = evaluateDeal(s, this.cfg, this.utility(resource), edge, resource, direction, amount === undefined ? undefined : Math.round(amount));
     if (!offer.ok) return { ok: false, cost: 0, message: offer.reason };
     const a = Math.round(amount ?? offer.maxAmount);

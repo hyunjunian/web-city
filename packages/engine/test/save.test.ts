@@ -281,6 +281,68 @@ describe('save/load', () => {
     expect(Number.isFinite(copy.state.funds)).toBe(true);
   });
 
+  it('validates utility contracts and reserves existing deal ids when restoring a stale counter', () => {
+    const city = new City({ size: 16, water: false });
+    city.state.funds = 1_000_000;
+    city.buildPowerLine(0, 5, 15, 5);
+    for (const edge of [0, 1] as const) city.setNeighbour(edge, 'developed', 10);
+    expect(city.makeDeal(0, 'power', 'buy', 1_000).ok).toBe(true);
+    const saved = saveCity(city), deal = saved.neighbourDeals![0]!;
+    const copy = loadCity({ ...saved, nextDealId: 1 });
+    expect(copy.state.nextDealId).toBe(deal.id + 1);
+    expect(copy.makeDeal(1, 'power', 'buy', 1_000).ok).toBe(true);
+    expect(new Set(copy.state.neighbourDeals.map((d) => d.id)).size).toBe(2);
+    expect(copy.cancelDeal(deal.id)).toBe(true);
+    expect(copy.state.neighbourDeals).toHaveLength(1);
+    for (const bad of [{ id: 0 }, { id: Infinity }, { id: 1.5 }, { edge: 4 }, { resource: 'gas' }, { direction: 'give' },
+      { amount: '1000' }, { amount: NaN }, { amount: 0 }, { price: -1 }, { price: Infinity }, { startDay: 'yesterday' },
+      { startDay: 0.5 }, { status: 'paid' }, { monthsLeft: Infinity }, { monthsLeft: -1 }]) {
+      expect(() => loadCity({ ...saved, neighbourDeals: [{ ...deal, ...bad }] } as unknown as typeof saved)).toThrow(/corrupt save/);
+    }
+    expect(() => loadCity({ ...saved, neighbourDeals: [deal, { ...deal, edge: 1 }] })).toThrow(/corrupt save/);
+    for (const nextDealId of [0, -1, 1.5, '2', NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+      expect(() => loadCity({ ...saved, nextDealId } as unknown as typeof saved)).toThrow(/corrupt save/);
+    }
+    // Mirroring a contract into a younger city's calendar legitimately gives it a negative start day.
+    const legacy = loadCity({ ...saved, nextDealId: undefined, neighbourDeals: [{ ...deal, startDay: -365 }] });
+    expect(legacy.state.nextDealId).toBe(deal.id + 1);
+    expect(legacy.state.neighbourDeals[0]!.startDay).toBe(-365);
+    const exhausted = loadCity({ ...saved, nextDealId: Number.MAX_SAFE_INTEGER });
+    const before = saveCity(exhausted);
+    expect(exhausted.makeDeal(1, 'power', 'buy', 1_000).ok).toBe(false);
+    expect(saveCity(exhausted)).toEqual(before);
+  });
+
+  it('rejects invalid neighbouring population and utility data before it affects demand or deal prices', () => {
+    const city = new City({ size: 16, water: false });
+    city.setNeighbour(0, 'developed', 10);
+    const saved = saveCity(city);
+    const badNeighbour = (change: (nb: NonNullable<typeof saved.neighbours>[number]) => void) => {
+      const copy = structuredClone(saved);
+      change(copy.neighbours![0]!);
+      return copy;
+    };
+    for (const key of ['population', 'growth', 'capacity', 'usage'] as const) {
+      const entry = key === 'population' || key === 'growth' ? 'R$' : 'power';
+      for (const value of [null, 'broken', NaN, Infinity]) {
+        const bad = badNeighbour((nb) => { (nb[key] as Record<string, unknown>)[entry] = value; });
+        expect(() => loadCity(bad)).toThrow(/corrupt save/);
+      }
+    }
+    for (const key of ['absorbed', 'demand'] as const) {
+      expect(() => loadCity(badNeighbour((nb) => { nb[key] = { ...nb.population, 'R$': NaN }; }))).toThrow(/corrupt save/);
+    }
+    expect(() => loadCity(badNeighbour((nb) => { nb.committed = { power: { bought: Infinity, sold: 0 }, water: { bought: 0, sold: 0 }, garbage: { bought: 0, sold: 0 } }; }))).toThrow(/corrupt save/);
+    expect(() => loadCity(badNeighbour((nb) => { nb.funds = Infinity; }))).toThrow(/corrupt save/);
+    expect(() => loadCity(badNeighbour((nb) => { nb.commute = NaN; }))).toThrow(/corrupt save/);
+    expect(() => loadCity(badNeighbour((nb) => { nb.edge = 1; }))).toThrow(/corrupt save/);
+    expect(() => loadCity(badNeighbour((nb) => { nb.shared = [[0, Infinity]]; }))).toThrow(/corrupt save/);
+    expect(() => loadCity(badNeighbour((nb) => { nb.shared = [[4, 3]]; }))).toThrow(/corrupt save/);
+    expect(() => loadCity({ ...saved, neighbours: saved.neighbours!.slice(0, 3) })).toThrow(/corrupt save/);
+    expect(loadCity({ ...saved, neighbours: undefined }).state.neighbours).toHaveLength(4);
+    expect(saveCity(loadCity(saved)).neighbours).toEqual(saved.neighbours);
+  });
+
   it('rejects malformed saves up front, and never reuses an id', () => {
     const city = new City({ size: 32, seed: 5, water: false });
     city.buildNetwork(0, 10, 31, 10, 'road');

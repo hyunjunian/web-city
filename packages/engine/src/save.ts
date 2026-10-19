@@ -369,6 +369,7 @@ const MAX_OBJECT_ID = 0x7fffffff;
 const BUILDING_NUMBERS = ['stage', 'capacity', 'occupancy', 'filled', 'distressMonths', 'noRoadMonths', 'builtDay'];
 const BUILDING_OPTIONAL_NUMBERS = ['noPowerMonths', 'noWaterMonths', 'age', 'eq', 'hq', 'commute', 'noJobMonths'];
 const STRUCTURE_NUMBERS = ['funding', 'life', 'load', 'capacity', 'effectiveness', 'strike', 'vehicleFunding'];
+const DEAL_RESOURCES = ['power', 'water', 'garbage'] as const;
 
 /** Optional fields from older formats may be absent, but supplied numbers must be finite. */
 function numericFields(record: object, keys: readonly string[], optional = false): boolean {
@@ -379,6 +380,10 @@ function numericFields(record: object, keys: readonly string[], optional = false
     if (typeof value !== 'number' || !Number.isFinite(value)) return false;
   }
   return true;
+}
+
+function numericMap(value: unknown, keys: readonly string[], optional = false): boolean {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && numericFields(value, keys, optional);
 }
 
 export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {}): City {
@@ -413,6 +418,42 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     if (level === undefined) continue;
     if (typeof level !== 'number' || !Number.isFinite(level)) throw new Error(`corrupt save: bad ${key} funding`);
     departments[key] = level;
+  }
+  if (saved.neighbourDeals !== undefined && !Array.isArray(saved.neighbourDeals)) throw new Error('corrupt save: bad deals');
+  let nextDealId = 1;
+  const dealIds = new Set<number>();
+  for (const deal of saved.neighbourDeals ?? []) {
+    if (!deal || !Number.isSafeInteger(deal.id) || deal.id <= 0 || deal.id >= Number.MAX_SAFE_INTEGER || dealIds.has(deal.id)
+      || !Number.isInteger(deal.edge) || deal.edge < 0 || deal.edge > 3 || !DEAL_RESOURCES.includes(deal.resource)
+      || (deal.direction !== 'buy' && deal.direction !== 'sell') || !['active', 'grace', 'probation'].includes(deal.status)
+      || !numericFields(deal, ['amount', 'price', 'startDay', 'monthsLeft']) || deal.amount <= 0 || deal.price < 0
+      || !Number.isSafeInteger(deal.startDay) || deal.monthsLeft < 0) throw new Error('corrupt save: bad deal');
+    dealIds.add(deal.id);
+    nextDealId = Math.max(nextDealId, deal.id + 1);
+  }
+  if (saved.nextDealId !== undefined && (!whole(saved.nextDealId) || saved.nextDealId < 1)) throw new Error('corrupt save: bad deal counter');
+  nextDealId = Math.max(nextDealId, saved.nextDealId ?? 1);
+  if (saved.neighbours !== undefined) {
+    if (!Array.isArray(saved.neighbours) || saved.neighbours.length !== 4) throw new Error('corrupt save: bad neighbours');
+    for (let edge = 0; edge < 4; edge++) {
+      const nb = saved.neighbours[edge];
+      if (!nb || nb.edge !== edge || typeof nb.name !== 'string' || !['simnation', 'established', 'developed'].includes(nb.kind)
+        || !numericFields(nb, ['funds']) || !numericFields(nb, ['commute'], true)
+        || !numericMap(nb.population, DEV_TYPES) || !numericMap(nb.growth, DEV_TYPES)
+        || !numericMap(nb.capacity, DEAL_RESOURCES) || !numericMap(nb.usage, DEAL_RESOURCES)) throw new Error('corrupt save: bad neighbour');
+      for (const map of [nb.absorbed, nb.demand]) {
+        if (map !== undefined && !numericMap(map, DEV_TYPES, true)) throw new Error('corrupt save: bad regional demand');
+      }
+      if (nb.committed !== undefined) {
+        if (!numericMap(nb.committed, [])) throw new Error('corrupt save: bad regional commitments');
+        for (const key of DEAL_RESOURCES) {
+          if (nb.committed[key] !== undefined && !numericMap(nb.committed[key], ['bought', 'sold'], true)) throw new Error('corrupt save: bad regional commitments');
+        }
+      }
+      if (nb.shared !== undefined && (!Array.isArray(nb.shared) || nb.shared.some((range) => !Array.isArray(range)
+        || range.length < 2 || range.length > 3 || !Number.isFinite(range[0]) || !Number.isFinite(range[1])
+        || range[0] < 0 || range[1] < range[0] || range[1] > saved.size))) throw new Error('corrupt save: bad shared border');
+    }
   }
   if (!Array.isArray(saved.structures)) throw new Error('corrupt save: no structures');
   if (saved.taxLog !== undefined && !Array.isArray(saved.taxLog)) throw new Error('corrupt save: bad tax log');
@@ -529,7 +570,7 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     ...(saved.journal !== undefined ? { journal: JSON.parse(JSON.stringify(saved.journal)) as unknown } : {}),
     transitions: [...(saved.transitions ?? [])],
     names: { ...(saved.names ?? {}) },
-    nextDealId: saved.nextDealId ?? 1,
+    nextDealId,
     wind: saved.wind ? { ...saved.wind } : { dir: 0, strength: 0.3 },
     region: saved.region ? { ...saved.region } : undefined,
     units: copyData(saved.units ?? []),
