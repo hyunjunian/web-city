@@ -34,7 +34,7 @@ import {
 } from './sim/region';
 import type { NeighbourKind } from './data/region';
 import {
-  damageRail, derailments, disasterEvent, DISASTER_KINDS, Landform, LIVE_KINDS, pileups, runDisaster, startLive, stepLive, wearUtilities,
+  breakOverhead, damageRail, derailments, disasterEvent, DISASTER_KINDS, Landform, LIVE_KINDS, pileups, runDisaster, startLive, stepLive, wearUtilities,
   type DamageReport, type DisasterContext, type DisasterKind, type LiveDisaster, type LiveKind,
 } from './sim/disasters';
 import type { ConnectionKind } from './data/demand';
@@ -3647,6 +3647,7 @@ export class City {
           const kindName = NETWORK_KINDS[s.net[i]!]!;
           report.networkTiles++;
           report.rebuildCost += ec.networkCost[kindName].build;
+          if (s.net[i] === Net.RailCrossing) report.rebuildCost += ec.networkCost.rail.build;
           s.net[i] = Net.None;
           s.oneway[i] = 0;
           s.tolls[i] = 0;
@@ -3657,16 +3658,12 @@ export class City {
           s.railDamage[i] = 0;
           if (s.terrain[i] !== Terrain.Water) s.rubble[i] = 1;
         }
-        if (networks && (s.power[i] || s.elevated[i])) {
-          report.networkTiles++;
-          s.power[i] = 0;
-          if (s.tolls[i] === 2) s.tolls[i] = 0;
-          s.elevated[i] = 0;
-        }
+        if (networks) breakOverhead(s, this.cfg, report, i);
       },
       breakUnderground: (i) => {
         if (s.pipe[i]) {
           s.pipe[i] = 0;
+          s.pipeWear[i] = 0;
           report.undergroundTiles++;
           report.rebuildCost += this.cfg.services.pipeCost.build;
         }

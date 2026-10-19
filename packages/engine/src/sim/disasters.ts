@@ -7,7 +7,7 @@ import type { SimConfig } from '../config';
 import { interp } from '../data/services';
 import type { Rng } from '../rng';
 import type { Fields } from './fields';
-import { isAsphalt, tilesLinked, isRail, NETWORK_KINDS, Terrain, type CityState, type CityEvent } from './state';
+import { ELEVATED, ELEVATED_KINDS, isAsphalt, tilesLinked, isRail, NETWORK_KINDS, Terrain, type CityState, type CityEvent } from './state';
 
 export type DisasterKind = 'fire' | 'lightning' | 'meteor' | 'tornado' | 'earthquake' | 'volcano' | 'robot' | 'autosaurus' | 'ufo';
 export const DISASTER_KINDS: readonly DisasterKind[] = [
@@ -43,6 +43,24 @@ export interface DisasterContext {
   breakUnderground: (i: number) => void;
   /** Sets fire to whatever stands on tile i, at a starting stage. */
   igniteTile: (i: number, stage: number) => void;
+}
+
+/** Removes power lines and elevated networks, accounting for each layer without disturbing the road below. */
+export function breakOverhead(s: CityState, cfg: SimConfig, report: DamageReport, i: number): void {
+  if (s.power[i]) {
+    s.power[i] = 0;
+    s.lineWear[i] = 0;
+    report.networkTiles++;
+    report.rebuildCost += cfg.services.powerLineCost.build;
+  }
+  const elevated = s.elevated[i]!;
+  if (elevated) {
+    report.networkTiles++;
+    report.rebuildCost += cfg.economy.networkCost[elevated === ELEVATED.highway ? 'elevatedHighway' : ELEVATED_KINDS[elevated]!].build;
+    s.elevated[i] = 0;
+    if (s.tolls[i] === 2) s.tolls[i] = 0;
+    if (!isAsphalt(s.net[i]!)) s.potholes[i] = 0;
+  }
 }
 
 const DIRS = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]] as const;
@@ -191,15 +209,7 @@ export function stepLive(ctx: DisasterContext, d: LiveDisaster): boolean {
       if (lotSize(s, i) >= t.bigBuilding) bounced = true;
       else {
         ctx.destroyTile(i, false);
-        if (s.power[i]) {
-          s.power[i] = 0;
-          ctx.report.networkTiles++;
-        }
-        if (s.elevated[i]) {
-          if (s.tolls[i] === 2) s.tolls[i] = 0;
-          s.elevated[i] = 0;
-          ctx.report.networkTiles++;
-        }
+        breakOverhead(s, cfg, ctx.report, i);
       }
     });
     if (d.steer) d.dir = heading(d.steer[0] - d.x, d.steer[1] - d.y);

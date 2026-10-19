@@ -23,6 +23,68 @@ const buildingsNear = (c: City, x: number, y: number, r: number) =>
   [...c.state.buildings.values()].filter((b) => Math.abs(b.x - x) <= r && Math.abs(b.y - y) <= r).length;
 
 describe('God Mode disasters', () => {
+  it.each(['elrail', 'monorail', 'highway'] as const)('accounts for a destroyed power line, %s and underground utilities separately', (kind) => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    const tools = [city.buildPowerLine(10, 10, 10, 10), city.buildElevated(10, 10, 10, 10, kind),
+      city.buildPipe(10, 10, 10, 10), city.buildSubway(10, 10, 10, 10)];
+    expect(tools.every((tool) => tool.ok)).toBe(true);
+    const i = 10 * city.size + 10;
+    city.state.lineWear[i] = 123;
+    city.state.pipeWear[i] = 234;
+    if (kind === 'highway') city.state.potholes[i] = 1;
+    const report = city.disaster('meteor', 10, 10, 0);
+    expect(report.networkTiles).toBe(2);
+    expect(report.undergroundTiles).toBe(2);
+    expect(report.rebuildCost).toBe(tools.reduce((sum, tool) => sum + tool.cost, 0));
+    expect(city.state.lineWear[i]).toBe(0);
+    expect(city.state.pipeWear[i]).toBe(0);
+    expect(city.state.potholes[i]).toBe(0);
+    expect(city.disaster('meteor', 10, 10, 0).rebuildCost).toBe(0);
+  });
+
+  it.each(['instant', 'moving'] as const)('includes overhead rebuilding in a %s tornado report while preserving the road and buried utilities', (mode) => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    city.buildNetwork(10, 10, 10, 10, 'road');
+    const line = city.buildPowerLine(10, 10, 10, 10), elevated = city.buildElevated(10, 10, 10, 10, 'elrail');
+    city.buildPipe(10, 10, 10, 10);
+    city.buildSubway(10, 10, 10, 10);
+    expect(line.ok && elevated.ok).toBe(true);
+    const i = 10 * city.size + 10;
+    city.state.lineWear[i] = 200;
+    city.state.pipeWear[i] = 200;
+    city.state.potholes[i] = 1;
+    let report;
+    if (mode === 'instant') report = city.disaster('tornado', 10, 10, 0);
+    else {
+      const disaster = city.unleash('tornado', 10, 10, 0);
+      expect('id' in disaster).toBe(true);
+      if (!('id' in disaster)) throw new Error('tornado not started');
+      city.steerDisaster(disaster.id, 10, 10);
+      city.advanceDisasters();
+      report = disaster.report;
+    }
+    expect(report.networkTiles).toBe(2);
+    expect(report.rebuildCost).toBe(line.cost + elevated.cost);
+    expect(city.state.lineWear[i]).toBe(0);
+    expect(city.state.net[i]).not.toBe(0);
+    expect(city.state.potholes[i]).toBe(1);
+    expect(city.state.pipe[i]).toBe(1);
+    expect(city.state.pipeWear[i]).toBe(200);
+    expect(city.state.subway[i]).toBe(1);
+  });
+
+  it('includes both road and rail construction costs when a level crossing is destroyed', () => {
+    const city = new City({ size: 32, water: false, config: { disasters: { godMode: { meteor: { crater: [2, 2], debris: [0, 0] } } } } });
+    city.state.funds = 1_000_000;
+    const road = city.buildNetwork(8, 10, 12, 10, 'road'), rail = city.buildNetwork(10, 8, 10, 12, 'rail');
+    expect(road.ok && rail.ok).toBe(true);
+    const report = city.disaster('meteor', 10, 10, 0);
+    expect(report.networkTiles).toBe(9);
+    expect(report.rebuildCost).toBe(road.cost + rail.cost);
+  });
+
   it('refuses unknown disasters without creating panic events or damage reports', () => {
     const city = new City({ size: 16, water: false });
     const before = saveCity(city);
