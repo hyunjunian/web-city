@@ -8,6 +8,7 @@
 import { drain } from './steps';
 import { MinHeap as Heap } from './heap';
 import { tileWork } from './work';
+import { allocateCapacitySteps } from './capacity';
 import type { SimConfig } from '../config';
 import { interp } from '../data/services';
 import { ordinanceEffects } from './mayor';
@@ -2095,42 +2096,74 @@ export function replayTrips(s: CityState, f: Fields, cfg: SimConfig): TripLog | 
 }
 
 /**
- * Airports: Commercial Office jobs within the trip limit by road set each
- * airport's load; its capacity scales with funding (up to 120%).
+ * Assign office demand to reachable airports without exceeding shared capacity.
+ * An office's demand is counted once; funding scales capacity up to 120%.
  */
 export function airportReach(s: CityState, f: Fields, cfg: SimConfig): void {
+  drain(airportReachSteps(s, f, cfg));
+}
+
+/** Airport catchments and capacity allocation, with pauses during route searches. */
+export function* airportReachSteps(s: CityState, f: Fields, cfg: SimConfig): Generator<void, void> {
   const tr = f.travel;
   if (!tr) return;
-  const N = s.size * s.size;
-  const limit = cfg.transport.tripLimit;
-  const offices = [...s.buildings.values()].filter((b) => b.type === 'Co$$' || b.type === 'Co$$$');
-  const roads = offices.map((b) => buildingAccess(s, f, b).road);
-  // Per office, the airports within reach: its jobs are shared among them
-  // (a second airport serves the same offices, not twice as many).
-  const reached = offices.map((): number[] => []);
-  const airports: Structure[] = [];
-  let transfers: Map<number, Transfer[]> | null = null;
+  const airports: { st: Structure; fronts: number[]; components: number[]; capacity: number }[] = [];
+  let work = 0;
   for (const st of s.structures.values()) {
+    if ((++work & 0x1ff) === 0) yield;
     const def = cfg.structures[st.kind].airport;
     if (!def) continue;
-    st.capacity = def.capacity * Math.min(1.2, st.funding / 100);
+    st.capacity = Math.max(0, def.capacity * Math.min(1.2, st.funding / 100));
     st.load = 0;
+    if (!st.capacity) continue;
     const fronts = frontage(s, st);
     if (!fronts.length) continue;
-    const k = airports.push(st) - 1;
-    transfers ??= ramps(s, tr.cross);
+    airports.push({ st, fronts, components: [], capacity: st.capacity });
+  }
+  // Ordinary cities have no airport: avoid scanning every building or allocating route buffers.
+  if (!airports.length) return;
+  const offices: { roads: number[]; demand: number; reached: number[] }[] = [];
+  for (const b of s.buildings.values()) {
+    if ((++work & 0x1ff) === 0) yield;
+    if ((b.type !== 'Co$$' && b.type !== 'Co$$$') || !(b.capacity * b.occupancy > 0)) continue;
+    const roads = frontage(s, b);
+    if (!roads.length) {
+      const road = buildingAccess(s, f, b).road;
+      if (road < 0) continue;
+      roads.push(road);
+    }
+    offices.push({ roads, demand: b.capacity * b.occupancy, reached: [] });
+  }
+  if (!offices.length) return;
+  const N = s.size * s.size, limit = cfg.transport.tripLimit;
+  const transfers = ramps(s, tr.cross);
+  for (let k = 0; k < airports.length; k++) {
+    const { fronts } = airports[k]!;
     // A scratch buffer from the pool (the month's commute is done with it).
-    const reach = search(s, tr.cross, fronts.map((a) => [Mode.Car * N + a, 0]), {
+    const reach = yield* searchSteps(s, tr.cross, fronts.map((a): [number, number] => [Mode.Car * N + a, 0]), {
       modes: [Mode.Car, Mode.HighCar], bias: ONE, transfers, limit,
     }, bufferPool(f, N)(4));
-    roads.forEach((road, j) => {
-      if (road >= 0 && reach.time[Mode.Car * N + road]! <= limit) reached[j]!.push(k);
-    });
+    for (const office of offices) {
+      if ((++work & 0x1ff) === 0) yield;
+      if (office.roads.some(road => reach.time[Mode.Car * N + road]! <= limit)) office.reached.push(k);
+    }
   }
-  offices.forEach((b, j) => {
-    const list = reached[j]!;
-    for (const k of list) airports[k]!.load += (b.capacity * b.occupancy) / list.length;
-  });
+  // Offices sharing a catchment form one flow node, keeping the allocation graph small.
+  const groups = new Map<string, number>(), demand = new Map<number, number>();
+  for (const office of offices) {
+    if ((++work & 0x1ff) === 0) yield;
+    if (!office.reached.length) continue;
+    const key = office.reached.join(',');
+    let group = groups.get(key);
+    if (group === undefined) {
+      group = groups.size;
+      groups.set(key, group);
+      for (const k of office.reached) airports[k]!.components.push(group);
+    }
+    demand.set(group, (demand.get(group) ?? 0) + office.demand);
+  }
+  const allocation = yield* allocateCapacitySteps(demand, airports);
+  airports.forEach(({ st }, k) => { st.load = allocation.used[k]!; });
 }
 
 /**

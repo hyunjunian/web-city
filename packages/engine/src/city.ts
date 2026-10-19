@@ -22,7 +22,7 @@ import {
   type Neighbour,
 } from './sim/state';
 import { interp } from './data/services';
-import { airportReach, assignTrafficSteps, computeTravelSteps, type VolumeKind } from './sim/transport';
+import { airportReachSteps, assignTrafficSteps, computeTravelSteps, type VolumeKind } from './sim/transport';
 import { drain } from './sim/steps';
 import { checkUnlocks, missileMisfires, unlockChecks, updateRadiation, type UnlockCheck, type UnlockContext } from './sim/rewards';
 import { updatePotholes } from './sim/roads';
@@ -2226,7 +2226,7 @@ export class City {
     allocateJobs(s, this.cfg, this.census);
     const traffic = yield* assignTrafficSteps(s, this.fields, this.cfg, { smoothing: this.cfg.transport.trafficSmoothing });
     yield;
-    airportReach(s, this.fields, this.cfg);
+    yield* airportReachSteps(s, this.fields, this.cfg);
     yield;
     updatePotholes(s, this.cfg, this.rng);
     s.freightTrips = traffic.freightTrips;
