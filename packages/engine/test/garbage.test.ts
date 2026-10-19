@@ -300,6 +300,32 @@ describe('garbage', () => {
     expect(city.state.neighbourDeals[0]!.status).toBe('probation');
   });
 
+  it('recognises an import-serving landfill when the gas plant has no collection road', () => {
+    const city = new City({ size: 64, water: false, config: { safety: { fires: false }, disasters: { simulated: false } } });
+    city.state.funds = 1_000_000;
+    city.batch(() => {
+      city.buildNetwork(0, 30, 63, 30, 'road');
+      city.buildNetwork(60, 30, 60, 63, 'road');
+      city.zone(1, 31, 20, 50, 'landfill');
+      city.placeStructure('gasPlant', 25, 31);
+      city.setNeighbour(3, 'developed', 100);
+    });
+    city.step(30);
+    expect(city.makeDeal(3, 'garbage', 'sell', 1_000).ok).toBe(true);
+    city.step(30);
+    expect(city.enactOrdinance('landfillGas').ok).toBe(true);
+    expect(city.bulldoze(25, 31, 25, 31).ok).toBe(true);
+    expect(city.placeStructure('gasPlant', 25, 10).ok).toBe(true);
+    expect(city.state.structures.size).toBe(1);
+    expect(city.previewGarbage().imported).toBe(1_000);
+    expect(city.ordinanceAvailable('landfillGas')).toBe(true);
+    city.step(30);
+    expect(city.state.ordinances).toContain('landfillGas');
+    expect(city.state.garbageStats.imported).toBe(1_000);
+    city.bulldoze(0, 30, 20, 30);
+    expect(city.ordinanceAvailable('landfillGas')).toBe(false);
+  });
+
   it('detaches import-failure records in statistics and saves, and rejects malformed records', () => {
     const city = islands();
     city.state.garbageStats.failedImports = [1];

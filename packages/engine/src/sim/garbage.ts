@@ -10,7 +10,7 @@ import { edgeReach, edgeTiles } from './region';
 import { atGrade, ELEVATED, isLocalNet, Net, type CityState, type GarbageStats, type Structure } from './state';
 import { drain } from './steps';
 import { allocateDisposalSteps, type DisposalOutlet } from './disposal';
-import { truckNetworksSteps } from './transport';
+import { truckNetworksSteps, type TruckNetworks } from './transport';
 
 export const LANDFILL_ZONE = 10;
 
@@ -35,6 +35,20 @@ export function incineratorCapacity(s: CityState, cfg: SimConfig, st: Structure)
 export function incineratorPower(s: CityState, cfg: SimConfig, st: Structure): number {
   const incinerator = cfg.structures[st.kind].incinerator;
   return incinerator ? Math.max(0, Math.min(st.load, incineratorCapacity(s, cfg, st))) * incinerator.powerPerTon : 0;
+}
+
+/** Collection components reached by an actual contracted border, including elevated ports. */
+function contractComponents(s: CityState, truck: TruckNetworks, edge: 0 | 1 | 2 | 3): number[] {
+  const n = s.size;
+  const eligible = new Set(edgeReach(s, 'garbage', edge));
+  const ports = [...edgeTiles(s, edge, (i) => eligible.has(edge < 2 ? Math.floor(i / n) : i % n), 'garbage')];
+  return [...new Set(ports.flatMap((i) => {
+    const networks: number[] = [];
+    const code = s.net[i]!;
+    if ((code === Net.Road || code === Net.Avenue || code === Net.Highway || code === Net.RailCrossing) && truck.ground[i]! >= 0) networks.push(truck.ground[i]!);
+    if (s.elevated[i] === ELEVATED.highway && truck.high[i] !== undefined && truck.high[i]! >= 0) networks.push(truck.high[i]!);
+    return networks;
+  }))];
 }
 
 interface Landfill {
@@ -121,6 +135,11 @@ export function* hasOperatingLandfillSteps(s: CityState, f: Fields, cfg: SimConf
   for (let i = 0; i < s.garbage.length; i++) {
     if ((i & 0x7fff) === 0x7fff) yield;
     if (s.garbage[i]! > 0 && s.occupant[i] === 0 && f.access[i]! >= 0) networks.add(truck.ground[f.access[i]!]!);
+  }
+  // A regional disposal city can receive waste without any local producer.
+  // Suspended incoming contracts also keep a connected landfill ready to resume.
+  for (const deal of s.neighbourDeals) if (deal.resource === 'garbage' && deal.direction === 'sell') {
+    for (const component of contractComponents(s, truck, deal.edge)) networks.add(component);
   }
   if (!networks.size) return false;
   const landfills = yield* landfillRegionsSteps(s, f, networks, truck.ground);
@@ -226,15 +245,7 @@ export function* runGarbageSteps(s: CityState, f: Fields, cfg: SimConfig, rng: R
   let importTons = 0;
   for (const d of s.neighbourDeals) {
     if (d.resource !== 'garbage' || d.direction === 'buy' && d.status === 'grace') continue;
-    const eligible = new Set(edgeReach(s, 'garbage', d.edge));
-    const ports = [...edgeTiles(s, d.edge, (i) => eligible.has(d.edge < 2 ? Math.floor(i / n) : i % n), 'garbage')];
-    const components = [...new Set(ports.flatMap((i) => {
-      const networks: number[] = [];
-      const code = s.net[i]!;
-      if ((code === Net.Road || code === Net.Avenue || code === Net.Highway || code === Net.RailCrossing) && truck.ground[i]! >= 0) networks.push(truck.ground[i]!);
-      if (s.elevated[i] === ELEVATED.highway && truck.high[i] !== undefined && truck.high[i]! >= 0) networks.push(truck.high[i]!);
-      return networks;
-    }))];
+    const components = contractComponents(s, truck, d.edge);
     if (d.direction === 'buy') exports.push({ components, capacity: d.amount });
     else {
       const made = s.neighbours[d.edge]?.usage.garbage ?? 0;
