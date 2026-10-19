@@ -759,7 +759,8 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
 
   const supply = new Float64Array(count);
   const demand = new Float64Array(count);
-  const sources: Structure[][] = Array.from({ length: count }, () => []);
+  const sources: (Structure[] | undefined)[] = new Array(count);
+  const noSources: Structure[] = [];
   const pumpOn: (Structure | undefined)[] = new Array(count); // a pump or tower on each network, working or not
   yield;
   let piece2 = 0;
@@ -769,7 +770,7 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
     const g = net[st.y * n + st.x]!;
     pumpOn[g] ??= st;
     supply[g]! += st.capacity;
-    if (st.capacity > 0) sources[g]!.push(st);
+    if (st.capacity > 0) (sources[g] ??= []).push(st);
   }
   // Neighbor Deals on the pipe network that reaches each edge.
   const imported = new Float64Array(count);
@@ -860,9 +861,10 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
 
   // Shortages: farthest consumers from a working source lose water first.
   let cut = 0;
-  const byNet: Consumer[][] = Array.from({ length: count }, () => []);
+  const byNet: (Consumer[] | undefined)[] = new Array(count);
+  const noConsumers: Consumer[] = [];
   yield;
-  for (const c of consumers) byNet[c.g]!.push(c);
+  for (const c of consumers) (byNet[c.g] ??= []).push(c);
   // Once the city has water somewhere, a piped network with no working source
   // (cut off by a burst, its pumps off) is short too.
   const anySupply = supply.some((v) => v > 0);
@@ -873,7 +875,7 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   yield;
   for (let g = 0; g < count; g++) {
     if ((g & 0x7fff) === 0x7fff) yield;
-    const list = byNet[g]!;
+    const list = byNet[g] ?? noConsumers;
     // Pumps that all stand idle are told apart even while the city has no water
     // anywhere (those buildings aren't counted as short then, as before).
     if (supply[g]! <= 0 && pumpOn[g] && list.length) {
@@ -887,7 +889,7 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
         sourcelessAt ??= { x: list[0]!.b!.x, y: list[0]!.b!.y };
       }
     }
-    const src = sources[g]!;
+    const src = sources[g] ?? noSources;
     const incoming = importSources.get(g);
     const sourceCount = src.length + (incoming?.length ?? 0);
     let excess = demand[g]! - supply[g]!;
@@ -961,8 +963,8 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   for (let g = 0; g < count; g++) {
     if ((g & 0x1fff) === 0x1fff) yield;
     if (!(supply[g]! > 0 || demand[g]! > 0)) continue;
-    const list = byNet[g]!;
-    const local = sources[g]!.map((st): UtilitySource => ({ kind: 'pump', id: st.id, capacity: st.capacity, x: st.x, y: st.y }));
+    const list = byNet[g] ?? noConsumers;
+    const local = (sources[g] ?? noSources).map((st): UtilitySource => ({ kind: 'pump', id: st.id, capacity: st.capacity, x: st.x, y: st.y }));
     const allSources = [...local, ...(importSources.get(g) ?? [])];
     const at = pumpOn[g] ?? list[0]?.b ?? allSources[0];
     networks.push({
