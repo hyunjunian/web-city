@@ -94,20 +94,21 @@ function* computeGrids(s: CityState, f: Fields, cfg: SimConfig): Generator<void,
   const reach = cfg.services.powerGap + 1;
   let count = 0;
   let visited = 0;
-  const stack: number[] = [];
+  const stack = tileWork(f, N);
+  let length = 0;
   yield;
   for (let start = 0; start < N; start++) {
     if (!conductor[start] || grid[start]! >= 0) continue;
     grid[start] = count;
     unassigned--;
-    stack.push(start);
-    while (stack.length) {
+    stack[length++] = start;
+    while (length) {
       // (A tile at a conductor's edge looks across the whole gap: count that work too.)
       if (++visited > 0x3fff) {
         visited = 0;
         yield;
       }
-      const i = stack.pop()!;
+      const i = stack[--length]!;
       const x = i % n;
       const y = (i - x) / n;
       // Interior tiles only need their 8 neighbours; edge tiles look across gaps.
@@ -121,7 +122,7 @@ function* computeGrids(s: CityState, f: Fields, cfg: SimConfig): Generator<void,
         else if (grid[j]! < 0) {
           grid[j] = count;
           unassigned--;
-          stack.push(j);
+          stack[length++] = j;
         }
       }
       if (!edge || unassigned === 0) continue;
@@ -132,7 +133,7 @@ function* computeGrids(s: CityState, f: Fields, cfg: SimConfig): Generator<void,
           if (conductor[j] && grid[j]! < 0) {
             grid[j] = count;
             unassigned--;
-            stack.push(j);
+            stack[length++] = j;
           }
         }
       }

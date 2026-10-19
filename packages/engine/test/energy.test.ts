@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { City, loadCity, saveCity, utilityEmissionShare } from '../src';
+import { createFields } from '../src/sim/fields';
+import { computePower, computeWater } from '../src/sim/services';
 
 const calm = { safety: { fires: false }, disasters: { simulated: false }, mayor: { riots: false } };
 const config = { ...calm, structures: { coalPlant: { powerUse: 1_000 } } };
@@ -15,6 +17,26 @@ function grid(): City {
 }
 
 describe('power generation', () => {
+  it('rebuilds changed grids after water-network work without retaining old traversal entries', () => {
+    const city = new City({ size: 64, water: false, config });
+    city.state.funds = 1_000_000;
+    city.placeStructure('coalPlant', 2, 2);
+    city.placeStructure('coalPlant', 48, 48);
+    const reused = createFields(64);
+    for (let turn = 0; turn < 4; turn++) {
+      for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
+        city.state.power[y * 64 + x] = turn === 0 || (turn === 1 ? x % 5 === 0 : turn === 2 && (x < 8 || x > 48)) ? 1 : 0;
+      }
+      city.state.pipe.fill(turn % 2);
+      computeWater(city.state, reused, city.cfg);
+      const actual = computePower(city.state, reused, city.cfg);
+      const fresh = createFields(64);
+      expect(actual).toEqual(computePower(city.state, fresh, city.cfg));
+      expect(reused.powerGrid).toEqual(fresh.powerGrid);
+      expect(reused.powered).toEqual(fresh.powered);
+    }
+  });
+
   it('shares a connected grid load in proportion to available capacity', () => {
     const city = grid();
     const plants = [...city.state.structures.values()];
