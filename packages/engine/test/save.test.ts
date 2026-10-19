@@ -268,6 +268,19 @@ describe('save/load', () => {
     expect(Number.isFinite(copy.state.funds)).toBe(true);
   });
 
+  it('rejects malformed department budgets and fills absent levels with defaults', () => {
+    const saved = saveCity(new City({ size: 16, water: false }));
+    for (const key of Object.keys(saved.departments!)) for (const value of [null, '100', NaN, Infinity]) {
+      expect(() => loadCity({ ...saved, departments: { ...saved.departments, [key]: value } } as unknown as typeof saved)).toThrow(/corrupt save/);
+    }
+    for (const departments of [null, [], '100']) expect(() => loadCity({ ...saved, departments } as unknown as typeof saved)).toThrow(/corrupt save/);
+    const copy = loadCity({ ...saved, departments: { roads: undefined, water: 60 } });
+    expect(copy.state.departments).toEqual({ ...saved.departments, roads: 100, water: 60 });
+    expect(loadCity({ ...saved, departments: undefined }).state.departments).toEqual(saved.departments);
+    copy.step(30);
+    expect(Number.isFinite(copy.state.funds)).toBe(true);
+  });
+
   it('rejects malformed saves up front, and never reuses an id', () => {
     const city = new City({ size: 32, seed: 5, water: false });
     city.buildNetwork(0, 10, 31, 10, 'road');

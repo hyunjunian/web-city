@@ -404,6 +404,16 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
   if (!saved.taxRates || !DEV_TYPES.every((t) => typeof saved.taxRates[t] === 'number' && Number.isFinite(saved.taxRates[t]))) {
     throw new Error('corrupt save: bad tax rates');
   }
+  const departments: CityState['departments'] = { roads: 100, transit: 100, power: 100, water: 100, parks: 100, sanitation: 100, landmarks: 100, corrections: 100 };
+  if (saved.departments !== undefined && (typeof saved.departments !== 'object' || saved.departments === null || Array.isArray(saved.departments))) {
+    throw new Error('corrupt save: bad departments');
+  }
+  for (const key of Object.keys(departments) as (keyof typeof departments)[]) {
+    const level = saved.departments?.[key];
+    if (level === undefined) continue;
+    if (typeof level !== 'number' || !Number.isFinite(level)) throw new Error(`corrupt save: bad ${key} funding`);
+    departments[key] = level;
+  }
   if (!Array.isArray(saved.structures)) throw new Error('corrupt save: no structures');
   if (saved.taxLog !== undefined && !Array.isArray(saved.taxLog)) throw new Error('corrupt save: bad tax log');
   if (saved.loans !== undefined && !Array.isArray(saved.loans)) throw new Error('corrupt save: bad loans');
@@ -503,7 +513,7 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     links: saved.links ? rleDecode(saved.links, N) : new Uint8Array(N),
     interchange: saved.interchange ? rleDecode(saved.interchange, N) : new Uint8Array(N),
     tunnel: saved.tunnel ? rleDecode(saved.tunnel, N) : new Uint8Array(N),
-    departments: { roads: 100, transit: 100, power: 100, water: 100, parks: 100, sanitation: 100, landmarks: 100, corrections: 100, ...saved.departments },
+    departments,
     landform: saved.landform ? rleDecode(saved.landform, N) : new Uint8Array(N),
     lineWear: saved.lineWear ? rleDecode(saved.lineWear, N) : new Uint8Array(N),
     pipeWear: saved.pipeWear ? rleDecode(saved.pipeWear, N) : new Uint8Array(N),
