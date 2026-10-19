@@ -3719,7 +3719,10 @@ export class City {
         }
         if (s.subway[i]) {
           s.subway[i] = 0;
-          s.transitions = s.transitions.filter((t) => t !== i);
+          if (s.transitions.includes(i)) {
+            s.transitions = s.transitions.filter((t) => t !== i);
+            report.rebuildCost += this.cfg.transport.subwayTransition.cost;
+          }
           report.undergroundTiles++;
           report.rebuildCost += ec.networkCost.subway.build;
         }

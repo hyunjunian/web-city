@@ -51,6 +51,7 @@ describe('God Mode disasters', () => {
     const line = city.buildPowerLine(10, 10, 10, 10), elevated = city.buildElevated(10, 10, 10, 10, 'elrail');
     city.buildPipe(10, 10, 10, 10);
     city.buildSubway(10, 10, 10, 10);
+    expect(city.placeSubwayTransition(10, 10).ok).toBe(true);
     expect(line.ok && elevated.ok).toBe(true);
     const i = 10 * city.size + 10;
     city.state.lineWear[i] = 200;
@@ -75,6 +76,7 @@ describe('God Mode disasters', () => {
     expect(city.state.pipe[i]).toBe(1);
     expect(city.state.pipeWear[i]).toBe(200);
     expect(city.state.subway[i]).toBe(1);
+    expect(city.state.transitions).toContain(i);
   });
 
   it.each(['street', 'road', 'avenue'] as const)('includes both %s and rail construction costs when a level crossing is destroyed', (kind) => {
@@ -165,6 +167,19 @@ describe('God Mode disasters', () => {
     const report = city.disaster('meteor', 10, 10, 0);
     expect(report.networkTiles).toBe(10);
     expect(report.rebuildCost).toBe(highway.cost + road.cost);
+  });
+
+  it('includes a subway transition in the rebuilding cost when its underground track is destroyed', () => {
+    const city = new City({ size: 32, water: false });
+    const tools = [city.buildPowerLine(10, 10, 10, 10), city.buildPipe(10, 10, 10, 10),
+      city.buildSubway(10, 10, 10, 10), city.buildElevated(10, 10, 10, 10, 'elrail'), city.placeSubwayTransition(10, 10)];
+    expect(tools.every(tool => tool.ok)).toBe(true);
+    const report = city.disaster('meteor', 10, 10, 0);
+    expect(report.networkTiles).toBe(2);
+    expect(report.undergroundTiles).toBe(2);
+    expect(report.rebuildCost).toBe(tools.reduce((sum, tool) => sum + tool.cost, 0));
+    expect(city.state.transitions).toEqual([]);
+    expect(city.disaster('meteor', 10, 10, 0).rebuildCost).toBe(0);
   });
 
   it('refuses unknown disasters without creating panic events or damage reports', () => {
