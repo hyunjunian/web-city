@@ -8,7 +8,7 @@
 import { City, MAX_SIZE, type CityOptions } from './city';
 import { copyData } from './copy';
 import { loadCity, saveCity, type SavedCity } from './save';
-import type { DealResource, Neighbour } from './sim/state';
+import { validEmployment, type DealResource, type Neighbour } from './sim/state';
 import { apportionGrowth, mergeSnapshots, type CitySnapshot } from './sim/region';
 import type { Heightmap } from './sim/terrain';
 import { DEV_TYPES, perType, type DevType, type PerType } from './types';
@@ -82,6 +82,7 @@ export class Region {
   }
 
   private claim(c: RegionCity): void {
+    if (c.snapshot.employment !== undefined && !validEmployment(c.snapshot.employment)) throw new Error('corrupt region: bad employment');
     if (!this.fits(c.x, c.y, c.span) || c.save.size !== this.citySize * c.span) throw new Error('corrupt region: bad city footprint or size');
     for (let y = c.y; y < c.y + c.span; y++) for (let x = c.x; x < c.x + c.span; x++) {
       if (this.owner[this.key(x, y)]! >= 0) throw new Error('corrupt region: overlapping cities');

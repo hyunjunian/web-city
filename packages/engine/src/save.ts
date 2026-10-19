@@ -5,7 +5,7 @@
 import { City, MAX_SIZE, type CityOptions } from './city';
 import { copyData } from './copy';
 import { computeMayor } from './sim/mayor';
-import { DAYS_PER_MONTH, ELEVATED, linkAll, Net, Terrain, ZONES, type Building, type CityState, type Structure } from './sim/state';
+import { DAYS_PER_MONTH, ELEVATED, linkAll, Net, Terrain, validEmployment, ZONES, type Building, type CityState, type Structure } from './sim/state';
 import { defaultNeighbours } from './sim/region';
 import { drain } from './sim/steps';
 import { STRUCTURES } from './data/structures';
@@ -449,6 +449,7 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
       for (const map of [nb.absorbed, nb.demand]) {
         if (map !== undefined && !numericMap(map, DEV_TYPES, true)) throw new Error('corrupt save: bad regional demand');
       }
+      if (nb.employment !== undefined && !validEmployment(nb.employment)) throw new Error('corrupt save: bad neighbour employment');
       if (nb.committed !== undefined) {
         if (!numericMap(nb.committed, [])) throw new Error('corrupt save: bad regional commitments');
         for (const key of DEAL_RESOURCES) {

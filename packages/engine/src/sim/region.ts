@@ -10,7 +10,7 @@ import type { ConnectionKind } from '../data/demand';
 import type { NeighbourKind } from '../data/region';
 import { interp } from '../data/services';
 import { DEV_TYPES, perType, type PerType } from '../types';
-import { isRail, Net, type CityState, type DealResource, type Neighbour, type NeighbourDeal } from './state';
+import { isRail, Net, validEmployment, type CityState, type DealResource, type EmploymentTotals, type Neighbour, type NeighbourDeal } from './state';
 import { ordinanceEffects } from './mayor';
 
 export const EDGE_NAMES = ['West', 'East', 'North', 'South'] as const;
@@ -47,6 +47,8 @@ export function makeNeighbour(cfg: SimConfig, edge: 0 | 1 | 2 | 3, kind: Neighbo
 export interface CitySnapshot {
   name: string;
   population: PerType;
+  /** Actual job supply, including public facilities, and resident workers. Older snapshots: estimated. */
+  employment?: EmploymentTotals;
   capacity: Record<DealResource, number>;
   usage: Record<DealResource, number>;
   /** What its standing Neighbor Deals buy and sell a month (older snapshots: none). */
@@ -93,6 +95,14 @@ export function mergeSnapshots(list: readonly CitySnapshot[]): CitySnapshot {
   };
   sum('demand');
   sum('pending');
+  if (list.length && list.every(c => c.employment !== undefined)) {
+    out.employment = { jobs: 0, workers: 0 };
+    for (const c of list) {
+      if (!validEmployment(c.employment)) throw new Error('invalid neighbour employment');
+      out.employment.jobs += c.employment.jobs;
+      out.employment.workers += c.employment.workers;
+    }
+  }
   // The commute into them: their residents' average, weighted by residents.
   const residents = (c: CitySnapshot) => c.population['R$'] + c.population['R$$'] + c.population['R$$$'];
   const timed = list.filter((c) => c.commute !== undefined && residents(c) > 0);
@@ -113,6 +123,10 @@ export function neighbourFromSnapshot(cfg: SimConfig, edge: 0 | 1 | 2 | 3, snap:
   nb.kind = 'developed';
   nb.name = snap.name;
   nb.population = { ...snap.population };
+  if (snap.employment !== undefined) {
+    if (!validEmployment(snap.employment)) throw new Error('invalid neighbour employment');
+    nb.employment = { ...snap.employment };
+  }
   nb.capacity = { ...snap.capacity };
   nb.usage = { ...snap.usage };
   if (snap.committed) {
@@ -250,6 +264,7 @@ export function neighbourOpenJobs(s: CityState, cfg: SimConfig): number[] {
   return [0, 1, 2, 3].map((e) => {
     const nb = s.neighbours[e];
     if (!nb || nb.kind !== 'developed') return Infinity;
+    if (nb.employment) return Math.max(0, nb.employment.jobs - nb.employment.workers);
     let jobs = 0;
     let residents = 0;
     for (const t of DEV_TYPES) {

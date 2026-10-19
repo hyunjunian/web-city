@@ -397,7 +397,7 @@ Uses a real city's snapshot as the neighbour beyond an edge (regional play).
 
 ### `snapshot(): CitySnapshot`
 
-How this city looks to its neighbours (population, utilities, treasury).
+How this city looks to its neighbours (population, employment, utilities, treasury).
 
 ### `receiveGrowth(growth: Partial<Record<DevType, number>>): void`
 

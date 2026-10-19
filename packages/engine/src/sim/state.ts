@@ -9,6 +9,15 @@ import type { NeighbourKind } from '../data/region';
 
 export type DealResource = 'power' | 'water' | 'garbage';
 
+/** Known labour-market totals when a played city was last saved. */
+export interface EmploymentTotals { jobs: number; workers: number }
+
+export function validEmployment(value: unknown): value is EmploymentTotals {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const totals = value as EmploymentTotals;
+  return Number.isFinite(totals.jobs) && totals.jobs >= 0 && Number.isFinite(totals.workers) && totals.workers >= 0;
+}
+
 /** A neighbouring city beyond one map edge (W, E, N, S). */
 export interface Neighbour {
   edge: 0 | 1 | 2 | 3;
@@ -16,6 +25,8 @@ export interface Neighbour {
   kind: NeighbourKind;
   /** Residents and jobs per type (developed neighbours). */
   population: PerType;
+  /** Includes civic jobs and actual household labour participation; absent in older snapshots. */
+  employment?: EmploymentTotals;
   /** Utility capacity and use per month (power MWh, water m³, garbage tons). */
   capacity: Record<DealResource, number>;
   usage: Record<DealResource, number>;

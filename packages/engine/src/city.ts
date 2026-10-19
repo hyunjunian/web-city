@@ -3259,7 +3259,7 @@ export class City {
     this.networkDirty = true;
   }
 
-  /** How this city looks to its neighbours (population, utilities, treasury). */
+  /** How this city looks to its neighbours (population, employment, utilities, treasury). */
   snapshot(): CitySnapshot {
     // Settle pending days before retaining the census reference: utility() can refresh it.
     this.refreshIfDirty();
@@ -3271,6 +3271,7 @@ export class City {
     return {
       name: this.state.name,
       population: { ...c.population },
+      employment: { jobs: c.jobsByWealth.reduce((a, b) => a + b, 0), workers: c.workers.reduce((a, b) => a + b, 0) },
       capacity: { power: power.capacity, water: water.capacity, garbage: garbage.capacity },
       usage: { power: power.usage, water: water.usage, garbage: garbage.usage },
       // Its standing deals: another neighbour is offered only what is left after them.
