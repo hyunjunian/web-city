@@ -82,6 +82,24 @@ describe('airport service catchments', () => {
     expect(relief(city)).toBe(0);
   });
 
+  it('withdraws closed airport capacity and freight access immediately, then restores the destination when reopened', () => {
+    const city = cityWithAirports(100);
+    city.buildNetwork(2, 8, 28, 8, 'road');
+    city.placeStructure('smallLandingStrip', 26, 7);
+    office(city, 12, 9, 100);
+    expect(relief(city)).toBe(100);
+    expect(city.query(12, 9)!.freight).not.toBeNull();
+    const airport = [...city.state.structures.values()][0]!;
+    city.setFunding(airport.id, 0);
+    city.refreshIfDirty();
+    expect(capRelief(city.state, city.cfg, [0, 0, 0, 0])['Co$$']).toBe(0);
+    expect(airport.capacity).toBe(0);
+    expect(city.query(12, 9)!.freight).toBeNull();
+    city.setFunding(airport.id, 100);
+    city.refreshIfDirty();
+    expect(city.query(12, 9)!.freight).not.toBeNull();
+  });
+
   it('preserves monthly outcomes through sliced execution and save restoration', () => {
     const source = cityWithAirports(10, 90);
     source.buildNetwork(2, 8, 28, 8, 'road');

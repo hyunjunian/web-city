@@ -15,7 +15,7 @@ import { ordinanceEffects } from './mayor';
 import { edgeOf, neighbourCommute, neighbourOpenJobs, neighbourWorkEdges } from './region';
 import type { BusinessType } from '../types';
 import { buildingAccess, footprint, frontage, INF, type Fields } from './fields';
-import { carMove, tilesLinked, ELEVATED, isAsphalt, ONEWAY_DIRS, INTERCHANGE, isLocalNet, overNet, overNetVertical, SPAN, isRail, Net, NETWORK_KINDS, Terrain, trafficKind, type Building, type CityState, type Rect, type Structure } from './state';
+import { cargoCapacity, carMove, tilesLinked, ELEVATED, isAsphalt, ONEWAY_DIRS, INTERCHANGE, isLocalNet, overNet, overNetVertical, SPAN, isRail, Net, NETWORK_KINDS, Terrain, trafficKind, type Building, type CityState, type Rect, type Structure } from './state';
 
 /** Subway mode also covers elevated rail (the same trains, on raised track). */
 /** Ferry carries foot passengers; CarFerry carries Sims who drove aboard (they drive off again). */
@@ -1243,6 +1243,7 @@ export function* computeTravelSteps(s: CityState, f: Fields, cfg: SimConfig): Ge
   }
   for (const c of highEdges) outs.push([Mode.HighCar * N + c, 0]);
   for (const st of s.structures.values()) {
+    if (!(st.funding > 0)) continue;
     if (cfg.structures[st.kind].airport) for (const a of frontage(s, st)) outs.push([Mode.Car * N + a, tc.airportFreightPenalty]);
     if (!cfg.structures[st.kind].seaport) continue;
     for (const a of frontage(s, st)) outs.push([Mode.Car * N + a, 0]);
@@ -1903,7 +1904,7 @@ export function* assignTrafficSteps(s: CityState, f: Fields, cfg: SimConfig, opt
     const def = cfg.structures[st.kind];
     if (alpha < 1 && (def.station || def.parking)) riders.set(st.id, st.load);
     if (def.station || def.seaport || def.parking) st.load = 0;
-    if (!def.seaport) continue;
+    if (!def.seaport || !(st.funding > 0)) continue;
     for (const a of frontage(s, st)) ports.set(Mode.Car * N + a, st.id);
     for (const t of perimeter(s, st)) if (isRail(s.net[t]!)) ports.set(Mode.Train * N + t, st.id);
   }
@@ -2111,9 +2112,9 @@ export function* airportReachSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   let work = 0;
   for (const st of s.structures.values()) {
     if ((++work & 0x1ff) === 0) yield;
-    const def = cfg.structures[st.kind].airport;
-    if (!def) continue;
-    st.capacity = Math.max(0, def.capacity * Math.min(1.2, st.funding / 100));
+    const def = cfg.structures[st.kind];
+    if (!def.airport) continue;
+    st.capacity = cargoCapacity(def, st.funding)!;
     st.load = 0;
     if (!st.capacity) continue;
     const fronts = frontage(s, st);

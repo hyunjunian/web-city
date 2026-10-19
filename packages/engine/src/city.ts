@@ -16,7 +16,7 @@ import {
 import { developOnce, exodus, GROWTH_CODES, growthBlockers, INFO_ONLY, trackDemand, understaffed, updateBuildingsSteps, warmTractsSteps, type DevContext, type GrowthBlocker } from './sim/development';
 import { computeEffectFieldsSteps, computeJobComponentsSteps, computeNetworkFieldsSteps, createFields, footprint, frontage, INF, type Fields } from './sim/fields';
 import {
-  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isAsphalt, isLocalNet, Net, NETWORK_KINDS, ONEWAY_DIRS, fundingDepartment, Terrain, trafficKind, zoneCode, zoneInfo, ZONES,
+  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isAsphalt, isLocalNet, Net, NETWORK_KINDS, ONEWAY_DIRS, fundingDepartment, cargoCapacity, Terrain, trafficKind, zoneCode, zoneInfo, ZONES,
   type BudgetReport, type Building, type CityState, type DealResource, type GarbageStats, type HistoryPoint, type Rect, type MySim, type NeighbourDeal, type NetworkKind,
   type Structure, type ZoneKind,
   type Neighbour,
@@ -1584,7 +1584,11 @@ export class City {
     const max = def.plant || def.police || def.fire || def.incinerator || def.recycling || def.airport || def.seaport ? 120 : def.health || def.school ? 150 : 100;
     const level = Math.max(0, Math.min(max, Math.round(percent)));
     if (st.funding === level) return true;
+    // Opening or closing a cargo destination changes routes, while its road geometry stays valid.
+    if ((def.airport || def.seaport) && (st.funding > 0) !== (level > 0)) this.networkDirtyFlag = true;
     st.funding = level;
+    const capacity = cargoCapacity(def, level);
+    if (capacity !== null) st.capacity = capacity;
     if (this.coverageOnlyFacility(def) && def.com[0] <= 0 && def.res[0] <= 0 && (def.mayor?.[0] ?? 0) <= 0 && (def.pollution?.[0] ?? 0) >= 0) {
       this.coverageDirty = true;
       this.revision++;

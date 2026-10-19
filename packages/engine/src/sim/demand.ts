@@ -9,7 +9,7 @@ import {
   BUSINESS_TYPES, DEV_TYPES, RES_TYPES, WEALTHS,
   perType, type BusinessType, type DevType, type PerType, type PerWealth,
 } from '../types';
-import { structureFunding, type CityState } from './state';
+import { cargoCapacity, structureFunding, type CityState } from './state';
 import type { ConnectionKind } from '../data/demand';
 import type { RegionalDemand } from './region';
 
@@ -203,7 +203,7 @@ export function capRelief(s: CityState, cfg: SimConfig, connectionsPerEdge: Conn
     for (const [t, v] of Object.entries(def.industryRelief ?? {})) relief[t as DevType] += v * share;
     // Airports: offices they can reach, up to their capacity; industry gets 10% of that.
     if (def.airport) {
-      const r = Math.min(st.load, st.capacity);
+      const r = Math.min(st.load, cargoCapacity(def, st.funding)!);
       relief['Co$$'] += r;
       relief['Co$$$'] += r;
       for (const t of ['IA', 'ID', 'IM', 'IHT'] as const) relief[t] += 0.1 * r;

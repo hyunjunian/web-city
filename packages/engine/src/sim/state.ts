@@ -700,3 +700,12 @@ export function structureFunding(s: CityState, def: { station?: unknown; categor
   const department = fundingDepartment(def);
   return department === null ? st.funding : s.departments[department];
 }
+
+/** Office jobs served by an airport, or freight trips at a port; null for other facilities. */
+export function cargoCapacity(def: { airport?: { capacity: number }; seaport?: { relief: number; perTrip: number } }, funding: number): number | null {
+  if (!def.airport && !def.seaport) return null;
+  const share = Math.max(0, Math.min(1.2, funding / 100));
+  if (def.airport) return Math.max(0, def.airport.capacity * share);
+  if (def.seaport) return def.seaport.perTrip > 0 ? Math.max(0, def.seaport.relief * share / def.seaport.perTrip) : 0;
+  return null;
+}

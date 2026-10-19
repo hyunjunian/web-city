@@ -9,7 +9,7 @@ import type { Rng } from '../rng';
 import { WEALTHS, type PerWealth } from '../types';
 import type { Fields } from './fields';
 import { ordinanceEffects } from './mayor';
-import { structureFunding, type Building, type CityState, type Structure } from './state';
+import { cargoCapacity, structureFunding, type Building, type CityState, type Structure } from './state';
 import { activeDeals, edgeTile } from './region';
 import type { UtilityNetwork, UtilitySource } from './resilience';
 import { incineratorCapacity, incineratorPower } from './garbage';
@@ -177,7 +177,7 @@ export function* computePowerSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
     if ((++piece1 & 0x1ff) === 0) yield;
     const def = cfg.structures[st.kind];
     st.capacity = def.plant ? plantCapacity(cfg, def, st, ord.gasPlantOutput)
-      : def.incinerator ? incineratorCapacity(s, cfg, st) : st.capacity;
+      : def.incinerator ? incineratorCapacity(s, cfg, st) : cargoCapacity(def, st.funding) ?? st.capacity;
     const g = gridOf(st);
     if (g < 0) continue;
     if (def.plant) {
