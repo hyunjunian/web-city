@@ -356,7 +356,7 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   const sv = cfg.services;
   const keyOf = (def: StructureDef): ServiceKey | null => healthClassOf(def) ?? def.school?.curve ?? null;
 
-  const count = new Map<ServiceKey, Uint8Array>();
+  const count = new Map<ServiceKey, Uint8Array | Uint32Array>();
   // Capacity reaching each tile, per kind: a home's patients or pupils split by it (a big
   // hospital beside a clinic takes most of them, not half).
   const capSum = new Map<ServiceKey, Float32Array>();
@@ -382,12 +382,18 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
       effSum.set(key, new Float32Array(n * n));
       capSum.set(key, new Float32Array(n * n));
     }
-    const c = count.get(key)!;
+    let c = count.get(key)!;
     const cs = capSum.get(key)!;
     const cap = capOf(def, st);
     forDisk(n, st, radius, (row, x0, x1) => {
       for (let i = row + x0; i <= row + x1; i++) {
-        if (c[i]! < 255) c[i]!++;
+        if (c[i] === 255 && c instanceof Uint8Array) {
+          // Keep ordinary cities compact; dense overlaps must still divide by their true count.
+          const wide = new Uint32Array(n * n);
+          wide.set(c);
+          count.set(key, c = wide);
+        }
+        c[i]!++;
         cs[i]! += cap;
       }
     });

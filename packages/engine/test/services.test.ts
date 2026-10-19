@@ -40,6 +40,28 @@ describe('monthly operating history', () => {
 });
 
 describe('service funding refreshes', () => {
+  it('keeps overlapping clinic coverage at its true average beyond 255 facilities', () => {
+    const city = new City({ size: 64, water: false });
+    city.state.funds = 1_000_000;
+    city.batch(() => {
+      for (let k = 0; k < 255; k++) expect(city.placeStructure('medicalClinic', 24 + k % 16, 16 + 2 * Math.floor(k / 16)).ok).toBe(true);
+    });
+    const i = 32 * city.size + 32;
+    expect(city.fields.healthQuality[i]).toBe(1);
+    expect(city.placeStructure('medicalClinic', 39, 46).ok).toBe(true);
+    city.refreshIfDirty();
+    expect(city.fields.healthQuality[i]).toBe(1);
+    expect(city.fields.hospitalCover[i]).toBe(1);
+    expect(city.fields.hqBoost[i]).toBeCloseTo(city.cfg.structures.medicalClinic.health!.boost, 5);
+    const loaded = loadCity(saveCity(city));
+    expect(loaded.fields.healthQuality[i]).toBe(1);
+    // The average must also remain correct when one of the clinics stops providing care.
+    const clinic = [...city.state.structures.values()][0]!;
+    expect(city.setFunding(clinic.id, 0)).toBe(true);
+    city.refreshIfDirty();
+    expect(city.fields.healthQuality[i]).toBeCloseTo(255 / 256, 6);
+  });
+
   it.each([
     ['busStop', 'transit'], ['smallParkGreen', 'parks'], ['waterTower', 'water'],
     ['wasteToEnergyPlant', 'sanitation'],
