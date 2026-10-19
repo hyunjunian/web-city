@@ -687,10 +687,9 @@ export class City {
       s.zone[i] = 0;
       s.rubble[i] = 0;
       s.trees[i] = 0;
-      // Redrawing a one-way road sets (or reverses) its direction; a level
-      // crossing keeps the direction of the one-way road through it.
+      // A road redraw updates a crossing's direction; adding rail preserves it.
       s.oneway[i] = to === Net.OneWay || (to === Net.RailCrossing && code === Net.OneWay) ? dirs.get(i) ?? 0
-        : to === Net.RailCrossing ? s.oneway[i]! : 0;
+        : to === Net.RailCrossing && code === Net.Rail ? s.oneway[i]! : 0;
       if (s.terrain[i] === Terrain.Water) s.tunnel[i] = opts.lowBridge ? SPAN.lowBridge : SPAN.none;
     }
     if (tiles.length) this.pruneTreeFires();
@@ -781,8 +780,17 @@ export class City {
         continue;
       }
       let to: number = code;
-      if ((old === code && code !== Net.OneWay) || old === Net.RailCrossing && (isLocalNet(code) || code === Net.Rail)) continue;
-      if (old !== Net.None) {
+      if (old === Net.RailCrossing) {
+        if (code === Net.Rail) continue;
+        if (!isLocalNet(code)) return { message: 'path crosses another network' };
+        const road = NETWORK_KINDS.indexOf(trafficKind(s, i)!);
+        if (LOCAL_RANK[code]! < LOCAL_RANK[road]!) continue;
+        const direction = code === Net.OneWay ? dirs.get(i) ?? 0 : 0;
+        if (s.oneway[i] === direction) continue;
+        // Redrawing the road updates its direction without removing the crossing's rail.
+        to = Net.RailCrossing;
+      } else if (old === code && code !== Net.OneWay) continue;
+      if (old !== Net.None && old !== Net.RailCrossing) {
         const local = LOCAL_RANK[code] && LOCAL_RANK[old];
         if (local) {
           if (LOCAL_RANK[code]! < LOCAL_RANK[old]!) continue;

@@ -702,6 +702,38 @@ describe('ferries', () => {
 });
 
 describe('one-way roads', () => {
+  it.each([
+    ['rail first', 'reverse'], ['road first', 'reverse'],
+    ['rail first', 'two-way'], ['road first', 'two-way'],
+  ] as const)('updates crossing direction when changing a road (%s, %s)', (order, change) => {
+    const city = new City({ size: 32, water: false, config: CALM });
+    city.state.funds = 1_000_000;
+    if (order === 'rail first') expect(city.buildNetwork(15, 0, 15, 31, 'rail').ok).toBe(true);
+    expect(city.buildNetwork(0, 10, 31, 10, 'oneway').ok).toBe(true);
+    if (order === 'road first') expect(city.buildNetwork(15, 0, 15, 31, 'rail').ok).toBe(true);
+    const i = 10 * city.size + 15;
+    expect(city.state.oneway[i]).toBe(1); // eastbound
+    const result = change === 'reverse' ? city.buildNetwork(31, 10, 0, 10, 'oneway') : city.buildNetwork(0, 10, 31, 10, 'road');
+    expect(result.ok).toBe(true);
+    expect(city.state.net[i]).toBe(Net.RailCrossing);
+    expect(city.state.oneway[i]).toBe(change === 'reverse' ? 3 : 0);
+    expect(carMove(city.state, i + 1, i)).toBe(true); // westbound after either change
+    expect(carMove(city.state, i - 1, i)).toBe(change === 'two-way');
+    const copy = loadCity(saveCity(city));
+    expect(copy.state.net[i]).toBe(Net.RailCrossing);
+    expect(copy.state.oneway[i]).toBe(city.state.oneway[i]);
+  });
+
+  it('does not turn an avenue crossing into a one-way road through a refused downgrade', () => {
+    const city = new City({ size: 32, water: false, config: CALM });
+    city.buildNetwork(0, 10, 31, 10, 'avenue');
+    city.buildNetwork(15, 0, 15, 31, 'rail');
+    city.refreshIfDirty();
+    const before = saveCity(city);
+    expect(city.buildNetwork(0, 10, 31, 10, 'oneway')).toMatchObject({ ok: false, cost: 0 });
+    expect(saveCity(city)).toEqual(before);
+  });
+
   it('cars only drive the way the road was drawn; walkers go both ways', () => {
     const city = new City({ size: 32, water: false, config: CALM });
     city.state.funds = 100_000;
