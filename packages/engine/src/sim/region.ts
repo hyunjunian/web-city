@@ -454,13 +454,17 @@ export function settleDeals(
   const D = cfg.region.deals;
   let income = 0;
   let expense = 0;
+  const cashRoundoff = 8 * Number.EPSILON * Math.max(1, Math.abs(s.funds));
   const ended: NeighbourDeal[] = [];
   s.neighbourDeals = s.neighbourDeals.filter((d) => {
     const monthly = dealMonthly(s, d);
+    const purchaseCost = expense + monthly;
+    // A few rounding bits in fractional invoices must not trigger a contract breach.
+    const canPay = Number.isFinite(purchaseCost) && (purchaseCost <= s.funds || purchaseCost - s.funds <= cashRoundoff);
     const nb = s.neighbours[d.edge];
     const ok = (connected ? connected(d.edge, d.resource) : hasDealConnection(s, d.edge, d.resource)) && nb?.kind === 'developed' && nb.connected?.[d.resource] !== false
       // Reserve cash in contract order, so purchases cannot all spend the same treasury.
-      && (d.direction === 'buy' ? s.funds - expense >= monthly : deliveredByDeal?.get(d.id) ?? delivered[d.resource]);
+      && (d.direction === 'buy' ? canPay : deliveredByDeal?.get(d.id) ?? delivered[d.resource]);
     if (!ok) {
       if (d.status === 'probation') {
         ended.push(d);
@@ -479,7 +483,7 @@ export function settleDeals(
       d.status = 'probation';
       d.monthsLeft = D.probationMonths;
     } else if (d.status === 'probation' && --d.monthsLeft <= 0) d.status = 'active';
-    if (d.direction === 'buy') expense += monthly;
+    if (d.direction === 'buy') expense = Math.min(Math.max(0, s.funds), purchaseCost);
     else income += monthly;
     return true;
   });

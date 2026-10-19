@@ -1,9 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import { City, saveCity } from '../src';
+import { settleDeals } from '../src/sim/region';
 
 const calm = { safety: { fires: false }, disasters: { simulated: false }, mayor: { riots: false } };
 
 describe('cash flow projections', () => {
+  it('pays exactly funded fractional invoices without treating floating-point roundoff as a breach', () => {
+    for (const [funds, paid, expense] of [[0.3, 3, 0.3], [0.299999, 2, 0.2]] as const) {
+      const city = new City({ size: 16, water: false });
+      for (const edge of [0, 1, 2, 3] as const) {
+        city.setNeighbour(edge, 'developed');
+        city.state.neighbourDeals.push({ id: edge + 1, edge, resource: 'power', direction: 'buy', amount: 1_000, price: 0.0001,
+          startDay: 0, status: 'active', monthsLeft: 0 });
+      }
+      city.state.funds = funds;
+      const report = settleDeals(city.state, city.cfg, { power: true, water: true, garbage: true }, () => true);
+      expect(report.expense).toBe(expense);
+      expect(city.state.neighbourDeals.map((deal) => deal.status)).toEqual(Array.from({ length: 4 }, (_, k) => k < paid ? 'active' : 'grace'));
+      expect(city.state.funds).toBe(funds); // The budget applies the reported payment afterwards.
+    }
+  });
+
   it('reserves the treasury once when several utility purchases settle in the same month', () => {
     const city = new City({ size: 16, water: false, config: calm });
     city.state.funds = 1_000_000;
