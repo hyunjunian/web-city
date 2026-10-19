@@ -638,7 +638,7 @@ export interface GarbageStats {
   /** The month's garbage before recycling and ordinances cut it. */
   produced: number;
   recycled: number;
-  /** What was left to collect after recycling and ordinances (0 in older saves until the month ends). */
+  /** What was left to collect after recycling and ordinances (older saves fall back to production minus recycling). */
   kept?: number;
   incinerated: number;
   landfilled: number;

@@ -370,6 +370,8 @@ const BUILDING_NUMBERS = ['stage', 'capacity', 'occupancy', 'filled', 'distressM
 const BUILDING_OPTIONAL_NUMBERS = ['noPowerMonths', 'noWaterMonths', 'age', 'eq', 'hq', 'commute', 'noJobMonths'];
 const STRUCTURE_NUMBERS = ['funding', 'life', 'load', 'capacity', 'effectiveness', 'strike', 'vehicleFunding'];
 const DEAL_RESOURCES = ['power', 'water', 'garbage'] as const;
+const GARBAGE_NUMBERS = ['produced', 'recycled', 'kept', 'incinerated', 'landfilled', 'uncollected', 'piled', 'capacity',
+  'landfillSpace', 'landfillCutOff', 'exported', 'imported', 'importShort', 'stranded', 'routeCutOff'];
 
 /** Optional fields from older formats may be absent, but supplied numbers must be finite. */
 function numericFields(record: object, keys: readonly string[], optional = false): boolean {
@@ -405,6 +407,9 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
   if (failedImports !== undefined && (!Array.isArray(failedImports) || failedImports.some((id) => !Number.isSafeInteger(id) || id <= 0))) {
     throw new Error('corrupt save: bad garbage import delivery record');
   }
+  if (saved.garbageStats !== undefined && !numericMap(saved.garbageStats, GARBAGE_NUMBERS, true)) throw new Error('corrupt save: bad garbage tally');
+  const keptGarbage = saved.garbageStats?.kept ?? Math.max(0, (saved.garbageStats?.produced ?? 0) - (saved.garbageStats?.recycled ?? 0));
+  if (!Number.isFinite(keptGarbage)) throw new Error('corrupt save: bad garbage tally');
   // (Caught here, not as NaN funds or an unknown kind deep inside the first step.)
   if (!saved.taxRates || !DEV_TYPES.every((t) => typeof saved.taxRates[t] === 'number' && Number.isFinite(saved.taxRates[t]))) {
     throw new Error('corrupt save: bad tax rates');
@@ -597,8 +602,8 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     riots: saved.riots ?? 0,
     ...(whole(saved.zonedSince) ? { zonedSince: saved.zonedSince } : {}),
     garbageStats: {
-      produced: 0, recycled: 0, kept: 0, incinerated: 0, landfilled: 0, uncollected: 0, piled: 0, capacity: 0, landfillSpace: 0,
-      ...(saved.garbageStats ? copyData(saved.garbageStats) : {}),
+      produced: 0, recycled: 0, kept: keptGarbage, incinerated: 0, landfilled: 0, uncollected: 0, piled: 0, capacity: 0, landfillSpace: 0,
+      ...(saved.garbageStats ? Object.fromEntries(Object.entries(copyData(saved.garbageStats)).filter(([, value]) => value !== undefined)) : {}),
     },
     crime: saved.crime ? rleDecode(saved.crime, N, new Float32Array(N)).map((v) => v / 100) : new Float32Array(N),
     fires: (saved.fires ?? []).map((fi) => ({ ...fi })),

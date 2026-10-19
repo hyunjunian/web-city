@@ -343,6 +343,30 @@ describe('save/load', () => {
     expect(saveCity(loadCity(saved)).neighbours).toEqual(saved.neighbours);
   });
 
+  it('rejects garbage tally values that would corrupt disposal offers or budgets', () => {
+    const saved = saveCity(new City({ size: 16, water: false }));
+    for (const key of ['produced', 'recycled', 'kept', 'incinerated', 'landfilled', 'uncollected', 'piled', 'capacity',
+      'landfillSpace', 'landfillCutOff', 'exported', 'imported', 'importShort', 'stranded', 'routeCutOff']) {
+      for (const value of [null, 'broken', NaN, Infinity]) {
+        expect(() => loadCity({ ...saved, garbageStats: { ...saved.garbageStats, [key]: value } } as unknown as typeof saved)).toThrow(/corrupt save/);
+      }
+    }
+    for (const garbageStats of [null, [], 'broken']) expect(() => loadCity({ ...saved, garbageStats } as unknown as typeof saved)).toThrow(/corrupt save/);
+  });
+
+  it('restores legacy garbage usage from production and recycling when the collection tally is absent', () => {
+    const saved = saveCity(new City({ size: 16, water: false }));
+    saved.garbageStats!.produced = 1_200;
+    saved.garbageStats!.recycled = 200;
+    delete saved.garbageStats!.kept;
+    const city = loadCity(saved);
+    expect(city.utility('garbage').usage).toBe(1_000);
+    expect(city.state.garbageStats.kept).toBe(1_000);
+    expect(loadCity(saveCity(city)).utility('garbage').usage).toBe(1_000);
+    const partial = { ...saved, garbageStats: { produced: undefined, recycled: undefined } };
+    expect(loadCity(partial as unknown as typeof saved).utility('garbage').usage).toBe(0);
+  });
+
   it('rejects malformed saves up front, and never reuses an id', () => {
     const city = new City({ size: 32, seed: 5, water: false });
     city.buildNetwork(0, 10, 31, 10, 'road');
