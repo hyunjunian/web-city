@@ -366,6 +366,20 @@ export function* saveCitySteps(city: City): Generator<void, SavedCity> {
 const MAX_FOOTPRINT = 32;
 /** Occupancy stores a building id or the negated facility id in a signed 32-bit cell. */
 const MAX_OBJECT_ID = 0x7fffffff;
+const BUILDING_NUMBERS = ['stage', 'capacity', 'occupancy', 'filled', 'distressMonths', 'noRoadMonths', 'builtDay'];
+const BUILDING_OPTIONAL_NUMBERS = ['noPowerMonths', 'noWaterMonths', 'age', 'eq', 'hq', 'commute', 'noJobMonths'];
+const STRUCTURE_NUMBERS = ['funding', 'life', 'load', 'capacity', 'effectiveness', 'strike', 'vehicleFunding'];
+
+/** Optional fields from older formats may be absent, but supplied numbers must be finite. */
+function numericFields(record: object, keys: readonly string[], optional = false): boolean {
+  const data = record as Record<string, unknown>;
+  for (const key of keys) {
+    const value = data[key];
+    if (optional && value === undefined) continue;
+    if (typeof value !== 'number' || !Number.isFinite(value)) return false;
+  }
+  return true;
+}
 
 export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {}): City {
   if (saved.format !== 'web-city' || ![1, 2, 3, 4, 5, 6, 7, 8].includes(saved.version)) {
@@ -426,16 +440,30 @@ export function loadCity(saved: SavedCity, opts: Pick<CityOptions, 'config'> = {
     const base = 20 + 20 * (b.type === 'R$$' ? 1 : b.type === 'R$$$' ? 2 : 0);
     if (!fits(b, b.w, b.h)) throw new Error(`corrupt save: building ${b.id} is off the map`);
     if (!whole(b.id) || !DEV_TYPES.includes(b.origType) || (b.type !== null && !DEV_TYPES.includes(b.type))) throw new Error(`corrupt save: building ${b.id} has no known type`);
+    if (!numericFields(b, BUILDING_NUMBERS) || !numericFields(b, BUILDING_OPTIONAL_NUMBERS, true)) throw new Error(`corrupt save: building ${b.id} has bad numbers`);
+    // Empty cells in a JSON building table become null, including absent job memories.
+    if (b.jobs != null && (!Array.isArray(b.jobs) || b.jobs.length % 2 !== 0
+      || !b.jobs.every((value, k) => typeof value === 'number' && Number.isFinite(value) && (k % 2 ? value >= 0 : Number.isSafeInteger(value))))) {
+      throw new Error(`corrupt save: building ${b.id} has bad job memory`);
+    }
     claim(b, 1);
-    buildings.set(b.id, { noPowerMonths: 0, powered: true, age: 30, eq: base, hq: base, noWaterMonths: 0, watered: false, commute: -1, noJobMonths: 0, ...copyData(b), historical: b.historical === true });
+    buildings.set(b.id, {
+      ...copyData(b), noPowerMonths: b.noPowerMonths ?? 0, powered: b.powered ?? true, age: b.age ?? 30,
+      eq: b.eq ?? base, hq: b.hq ?? base, noWaterMonths: b.noWaterMonths ?? 0, watered: b.watered ?? false,
+      commute: b.commute ?? -1, noJobMonths: b.noJobMonths ?? 0, historical: b.historical === true,
+    });
   }
   for (const old of saved.structures) {
     // Version 1 parks were square with a `size`.
     // Ignore the retired maintenance marker when loading older saves.
     const { size, offlineUntilDay: _removedDeadline, ...st } = old as typeof old & { offlineUntilDay?: unknown };
+    if (!numericFields(st, STRUCTURE_NUMBERS, true)) {
+      throw new Error(`corrupt save: structure ${st.id} has bad numbers`);
+    }
     const full: Structure = {
-      funding: 100, life: 0, load: 0, capacity: 0, effectiveness: 0, strike: 0, powered: false,
-      ...st, w: st.w ?? size ?? 1, h: st.h ?? size ?? 1,
+      ...st, funding: st.funding ?? 100, life: st.life ?? 0, load: st.load ?? 0, capacity: st.capacity ?? 0,
+      effectiveness: st.effectiveness ?? 0, strike: st.strike ?? 0, powered: st.powered ?? false,
+      w: st.w ?? size ?? 1, h: st.h ?? size ?? 1,
     };
     if (!fits(full, full.w, full.h)) throw new Error(`corrupt save: structure ${full.id} is off the map`);
     if (!whole(full.id) || !Object.hasOwn(STRUCTURES, full.kind)) throw new Error(`corrupt save: structure ${full.id} has no known kind`);

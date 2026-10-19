@@ -215,6 +215,59 @@ describe('save/load', () => {
     expect(good.state.loans[0]!.monthsLeft).toBe(119);
   });
 
+  it('rejects invalid building numbers and job memories before they enter the simulation', () => {
+    const city = new City({ size: 32, seed: 5, water: false });
+    city.state.funds = 1_000_000;
+    city.buildNetwork(0, 10, 31, 10, 'road');
+    city.zone(1, 4, 15, 9, 'R-low');
+    city.placeStructure('gasPlant', 2, 12);
+    city.step(90);
+    const saved = saveCity(city), table = saved.buildingTable!;
+    expect(table.rows.length).toBeGreaterThan(0);
+    const changed = (key: string, value: unknown) => {
+      const columns = [...table.columns], rows = table.rows.map((row) => [...row]);
+      let col = columns.indexOf(key);
+      if (col < 0) { col = columns.length; columns.push(key); }
+      rows[0]![col] = value;
+      return { ...saved, buildingTable: { columns, rows } };
+    };
+    for (const key of ['stage', 'capacity', 'occupancy', 'filled', 'distressMonths', 'noRoadMonths', 'builtDay',
+      'noPowerMonths', 'noWaterMonths', 'age', 'eq', 'hq', 'commute', 'noJobMonths']) {
+      for (const value of [null, '3', NaN, Infinity]) expect(() => loadCity(changed(key, value))).toThrow(/corrupt save/);
+    }
+    for (const value of [{}, [1], [1, -1], [Infinity, 1], [1, NaN], [1, '3']]) {
+      expect(() => loadCity(changed('jobs', value))).toThrow(/corrupt save/);
+    }
+    expect(() => loadCity(changed('jobs', null))).not.toThrow();
+    const old = { ...saved, version: 1 as const, buildingTable: undefined,
+      buildings: table.rows.map((row) => Object.fromEntries(table.columns.map((key, col) => [key, row[col]]))) };
+    for (const b of old.buildings) for (const key of ['noPowerMonths', 'noWaterMonths', 'age', 'eq', 'hq', 'commute', 'noJobMonths']) b[key] = undefined;
+    const legacy = loadCity(old as unknown as typeof saved);
+    for (const b of legacy.state.buildings.values()) expect([b.age, b.eq, b.hq, b.noPowerMonths, b.noWaterMonths, b.noJobMonths, b.commute].every(Number.isFinite)).toBe(true);
+    legacy.step(30);
+    expect(Number.isFinite(legacy.state.funds)).toBe(true);
+  });
+
+  it('rejects invalid facility numbers while retaining defaults from older saves', () => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    city.placeStructure('gasPlant', 3, 3);
+    const saved = saveCity(city);
+    for (const key of ['funding', 'life', 'load', 'capacity', 'effectiveness', 'strike', 'vehicleFunding']) {
+      for (const value of [null, '100', NaN, Infinity]) {
+        const bad = { ...saved, structures: saved.structures.map((st) => ({ ...st, [key]: value })) };
+        expect(() => loadCity(bad as unknown as typeof saved)).toThrow(/corrupt save/);
+      }
+    }
+    const legacy = { ...saved, version: 1 as const, structures: saved.structures.map((st) => ({
+      ...st, funding: undefined, life: undefined, load: undefined, capacity: undefined, effectiveness: undefined, strike: undefined,
+    })) };
+    const copy = loadCity(legacy);
+    expect([...copy.state.structures.values()][0]).toMatchObject({ funding: 100, life: 0, strike: 0 });
+    copy.step(30);
+    expect(Number.isFinite(copy.state.funds)).toBe(true);
+  });
+
   it('rejects malformed saves up front, and never reuses an id', () => {
     const city = new City({ size: 32, seed: 5, water: false });
     city.buildNetwork(0, 10, 31, 10, 'road');
