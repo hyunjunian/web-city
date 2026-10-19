@@ -1,6 +1,7 @@
 // Power grid, health and education.
 
 import { drain } from './steps';
+import { allocateCapacitySteps } from './capacity';
 import { tileWork } from './work';
 import type { SimConfig } from '../config';
 import { interp } from '../data/services';
@@ -341,10 +342,10 @@ type ServiceKey = HealthClass | EduCurve;
 
 /**
  * Coverage for hospitals and schools. Each building's load is the share of
- * residents (students: age-appropriate ones) in its radius, split among
- * overlapping buildings of the same kind; grade = capacity / load.
- * Overlapping buildings of the same kind are averaged, different
- * kinds add up.
+ * residents (students: age-appropriate ones) in its radius. Capacity shares
+ * provide an initial split; spare reachable places relieve overcrowded
+ * facilities of the same kind. Unmet demand still counts toward overload.
+ * Quality is capacity-weighted within a kind; different kinds add up.
  */
 export function computeCoverage(s: CityState, f: Fields, cfg: SimConfig): void {
   drain(computeCoverageSteps(s, f, cfg));
@@ -361,7 +362,8 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   const capSum = new Map<ServiceKey, Float32Array>();
   const capOf = (def: StructureDef, st: Structure) => Math.max(1, (def.health ?? def.school)!.capacity * interp(sv.capacityByFunding, st.funding));
   const effSum = new Map<ServiceKey, Float32Array>();
-  const list: { st: Structure; def: StructureDef; key: ServiceKey; radius: number }[] = [];
+  type Facility = { st: Structure; def: StructureDef; key: ServiceKey; radius: number; cap: number; cx: number; cy: number };
+  const list: Facility[] = [];
   // HQ boost per health class, from its facilities (the same within a class).
   const classBoost = new Map<ServiceKey, number>();
   const varyingBoost = new Set<ServiceKey>();
@@ -374,7 +376,9 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
     const key = keyOf(def);
     if (!key) continue;
     const radius = serviceRadius(cfg, def, st);
-    list.push({ st, def, key, radius });
+    const cap = capOf(def, st);
+    const [cx, cy] = centre(st);
+    list.push({ st, def, key, radius, cap, cx, cy });
     // (The Disease Research Lab's citywide boost counts a fifth: at full, it alone halved the time to HQ
     // 200, against the 65 years it takes with healthcare and 50 with the health rewards.)
     if (def.health) {
@@ -386,23 +390,24 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
       effSum.set(key, new Float32Array(n * n));
       capSum.set(key, new Float32Array(n * n));
     }
-    const cs = capSum.get(key)!;
-    const cap = capOf(def, st);
-    forDisk(n, st, radius, (row, x0, x1) => {
-      for (let i = row + x0; i <= row + x1; i++) {
-        cs[i]! += cap;
-      }
-    });
   }
 
-  // Homes as flat arrays: centre, residents, centre tile and age (every
-  // facility below scans them all, so this avoids per-pair work).
+  if (!list.length) {
+    for (const field of [f.hqBoost, f.healthQuality, f.hospitalCover, f.schoolQuality, ...Object.values(f.eduEff)]) {
+      field.fill(0);
+      yield;
+    }
+    return;
+  }
+
+  // Exact household centres, indexed spatially: a facility examines nearby
+  // homes instead of scanning the whole city. Revisit the small buckets rather
+  // than storing every home/facility pair, even in heavily overlapping cities.
   const homes = [...s.buildings.values()].filter((b) => b.type?.[0] === 'R' && b.occupancy > 0);
   const H = homes.length;
-  const hx = new Float64Array(H);
-  const hy = new Float64Array(H);
-  const people = new Float64Array(H);
-  const tile = new Int32Array(H);
+  const hx = new Float64Array(H), hy = new Float64Array(H), people = new Float64Array(H);
+  const CELL = 16, cells = Math.ceil(n / CELL);
+  const buckets: number[][] = Array.from({ length: cells * cells }, () => []);
   yield;
   for (let k = 0; k < H; k++) {
     if ((k & 0x7fff) === 0x7fff) yield;
@@ -410,51 +415,121 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
     hx[k] = b.x + b.w / 2;
     hy[k] = b.y + b.h / 2;
     people[k] = residentsOf(b);
-    tile[k] = centreTile(n, b);
+    buckets[Math.min(cells - 1, Math.floor(hy[k]! / CELL)) * cells + Math.min(cells - 1, Math.floor(hx[k]! / CELL))]!.push(k);
   }
-  // How much each home counts as pupils for a school curve: its boost at the
-  // household's age against the curve's peak (computed once per curve).
-  const ofAge = new Map<EduCurve, Float32Array>();
-  yield;
-  // (Each facility looks over every home and paints its disk: pause by that work.)
-  let work = 0;
-  for (const { st, def, key, radius } of list) {
-    work += H + 4 * radius * radius;
-    if (work > 0x3ffff) {
-      work = 0;
-      yield;
-    }
-    const svc = (def.health ?? def.school)!;
-    const fraction = def.health ? sv.patientFraction : sv.studentFraction;
-    const cs = capSum.get(key)!;
-    const cap = capOf(def, st);
-    const [cx, cy] = centre(st);
-    let pupils: Float32Array | null = null;
-    if (def.school) {
-      const curve = def.school.curve;
-      pupils = ofAge.get(curve) ?? null;
-      if (!pupils) {
-        const peak = Math.max(...sv.eduCurves[curve].map(([, v]) => v));
-        pupils = new Float32Array(H);
-        for (let k = 0; k < H; k++) pupils[k] = peak > 0 ? interp(sv.eduCurves[curve], homes[k]!.age) / peak : 0;
-        ofAge.set(curve, pupils);
+  function* nearbyHomes({ cx, cy, radius }: Facility): Generator<number> {
+    const x0 = Math.max(0, Math.floor((cx - radius) / CELL));
+    const x1 = Math.min(cells - 1, Math.floor((cx + radius) / CELL));
+    const y0 = Math.max(0, Math.floor((cy - radius) / CELL));
+    const y1 = Math.min(cells - 1, Math.floor((cy + radius) / CELL));
+    const r2 = radius * radius;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      for (const k of buckets[y * cells + x]!) {
+        if ((hx[k]! - cx) ** 2 + (hy[k]! - cy) ** 2 <= r2) yield k;
       }
     }
-    const r2 = radius * radius;
+  }
+  // This denominator uses the very same point test as patient assignment.
+  // Sampling the raster's centre tile loses patients on even-sized lots at a rim.
+  const homeCapacity = new Map<ServiceKey, Float64Array>();
+  let work = 0;
+  for (const facility of list) {
+    let caps = homeCapacity.get(facility.key);
+    if (!caps) homeCapacity.set(facility.key, caps = new Float64Array(H));
+    for (const k of nearbyHomes(facility)) {
+      if ((++work & 0x3fff) === 0) yield;
+      caps[k]! += facility.cap;
+    }
+  }
+  const homeDemand = new Map<ServiceKey, Float64Array>();
+  let patients: Float64Array | undefined;
+  const over = new Set<ServiceKey>(), spare = new Set<ServiceKey>();
+  for (const facility of list) {
+    const { st, def, key, cap } = facility;
+    const svc = (def.health ?? def.school)!;
+    let need = homeDemand.get(key);
+    if (!need) {
+      if (def.school) {
+        const curve = sv.eduCurves[def.school.curve];
+        const peak = Math.max(...curve.map(([, v]) => v));
+        need = new Float64Array(H);
+        for (let k = 0; k < H; k++) {
+          if ((++work & 0x3fff) === 0) yield;
+          need[k] = peak > 0 ? people[k]! * sv.studentFraction * interp(curve, homes[k]!.age) / peak : 0;
+        }
+      } else {
+        if (!patients) {
+          patients = new Float64Array(H);
+          for (let k = 0; k < H; k++) patients[k] = people[k]! * sv.patientFraction;
+        }
+        need = patients;
+      }
+      homeDemand.set(key, need);
+    }
+    const caps = homeCapacity.get(key)!;
     let load = 0;
-    for (let k = 0; k < H; k++) {
-      if ((hx[k]! - cx) ** 2 + (hy[k]! - cy) ** 2 > r2) continue;
-      const share = pupils ? pupils[k]! : 1;
-      if (share <= 0) continue;
-      load += (people[k]! * fraction * share * cap) / Math.max(cap, cs[tile[k]!]!);
+    for (const k of nearbyHomes(facility)) {
+      if ((++work & 0x3fff) === 0) yield;
+      load += need[k]! * cap / caps[k]!;
     }
     st.load = load;
     st.capacity = svc.capacity * interp(sv.capacityByFunding, st.funding);
-    const grade = load > 0 ? Math.min(1, st.capacity / load) : st.capacity > 0 ? 1 : 0;
+    const tolerance = Math.max(1, st.capacity) * 1e-8;
+    if (load > st.capacity + tolerance) over.add(key);
+    if (load + tolerance < st.capacity) spare.add(key);
+  }
+  // Most cities need no redistribution. Only imbalanced kinds build a small
+  // catchment graph; no road searches or tile-size flow graph are involved.
+  for (const key of over) {
+    if (!spare.has(key)) continue;
+    // Stable geometric order keeps allocation independent of placement order.
+    const sites = list.filter(site => site.key === key).sort((a, b) => a.st.y - b.st.y || a.st.x - b.st.x
+      || (a.st.kind < b.st.kind ? -1 : a.st.kind > b.st.kind ? 1 : 0));
+    const need = homeDemand.get(key)!;
+    const reach = new Map<number, number[]>();
+    for (let j = 0; j < sites.length; j++) for (const k of nearbyHomes(sites[j]!)) {
+      if ((++work & 0x3fff) === 0) yield;
+      if (!(need[k]! > 0)) continue;
+      const hits = reach.get(k);
+      if (hits) hits.push(j);
+      else reach.set(k, [j]);
+    }
+    const groups = new Map<string, { id: number; hits: number[]; amount: number }>();
+    for (const [k, hits] of reach) {
+      if ((++work & 0x3fff) === 0) yield;
+      const name = hits.join(',');
+      let group = groups.get(name);
+      if (!group) groups.set(name, group = { id: groups.size, hits, amount: 0 });
+      group.amount += need[k]!;
+    }
+    const demand = new Map<number, number>();
+    const outlets = sites.map(site => ({ capacity: site.st.capacity, components: [] as number[] }));
+    for (const group of groups.values()) {
+      demand.set(group.id, group.amount);
+      for (const j of group.hits) outlets[j]!.components.push(group.id);
+    }
+    const allocation = yield* allocateCapacitySteps(demand, outlets);
+    sites.forEach((site, j) => { site.st.load = allocation.used[j]!; });
+    for (const group of groups.values()) {
+      const unserved = Math.max(0, group.amount - (allocation.served.get(group.id) ?? 0));
+      if (!unserved) continue;
+      // Retain unmet need, including closed catchments, so capacity shortages
+      // still reduce quality and can cause strikes instead of disappearing.
+      let caps = 0;
+      for (const j of group.hits) caps += sites[j]!.cap;
+      for (const j of group.hits) sites[j]!.st.load += unserved * sites[j]!.cap / caps;
+    }
+  }
+  // Paint quality only after final loads have settled.
+  work = 0;
+  for (const { st, def, key, radius, cap } of list) {
+    work += 4 * radius * radius;
+    if (work > 0x3ffff) { work = 0; yield; }
+    const grade = st.load > 0 ? Math.min(1, st.capacity / st.load) : st.capacity > 0 ? 1 : 0;
     st.effectiveness = grade * (st.strike > 0 ? sv.strikeEffectiveness : 1);
+    const cs = capSum.get(key)!;
     const e = effSum.get(key)!;
     const eff = st.effectiveness;
-    // Most classes share one boost. Only mixed custom facilities need another field.
     let boosts: Float32Array | undefined;
     const boost = (def.health?.boost ?? 0) * (key === 'research' ? RESEARCH_HQ_WEIGHT : 1);
     if (varyingBoost.has(key)) {
@@ -464,10 +539,14 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
     forDisk(n, st, radius, (row, x0, x1) => {
       if (boosts) {
         for (let i = row + x0; i <= row + x1; i++) {
+          cs[i]! += cap;
           e[i]! += eff * cap;
           boosts[i]! += eff * cap * boost;
         }
-      } else for (let i = row + x0; i <= row + x1; i++) e[i]! += eff * cap;
+      } else for (let i = row + x0; i <= row + x1; i++) {
+        cs[i]! += cap;
+        e[i]! += eff * cap;
+      }
     });
   }
 
@@ -480,6 +559,8 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   for (const k of EDU_CURVES) f.eduEff[k].fill(0);
   const N = n * n;
   yield;
+  const q = f.schoolQuality;
+  const top = [...capSum.keys()].some(key => HIGHER_EDUCATION.has(key)) ? new Float32Array(N) : null;
   let piece3 = 0;
   for (const [key, cs] of capSum) {
     yield;
@@ -505,28 +586,21 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
       }
     } else {
       const out = f.eduEff[key];
-      for (let i = 0; i < N; i++) if (cs[i]) out[i] = e[i]! / cs[i]!;
+      const higher = HIGHER_EDUCATION.has(key);
+      for (let i = 0; i < N; i++) if (cs[i]) {
+        out[i] = e[i]! / cs[i]!;
+        const eff = out[i]!;
+        if (eff > q[i]!) q[i] = eff;
+        if (higher && eff > top![i]!) top![i] = eff;
+      }
     }
   }
   // School quality for desirability: one fully funded school, library or
   // museum reaching a tile covers it well, but only a fuller school system
   // earns the whole bonus: the best building covering the tile gives most
   // of it, a college, university, main library or art museum the rest.
-  const q = f.schoolQuality;
-  const top = new Float32Array(N);
   yield;
-  // (Only kinds the city has: the others' fields are all 0.)
-  for (const k of EDU_CURVES) {
-    if (!capSum.has(k)) continue;
-    const eff = f.eduEff[k];
-    const higher = HIGHER_EDUCATION.has(k);
-    for (let i = 0; i < N; i++) {
-      if (eff[i]! > q[i]!) q[i] = eff[i]!;
-      if (higher && eff[i]! > top[i]!) top[i] = eff[i]!;
-    }
-    yield;
-  }
-  for (let i = 0; i < N; i++) q[i] = Math.min(1, (1 - HIGHER_SHARE) * q[i]! + HIGHER_SHARE * top[i]!);
+  for (let i = 0; i < N; i++) q[i] = Math.min(1, (1 - HIGHER_SHARE) * q[i]! + HIGHER_SHARE * (top?.[i] ?? 0));
 }
 
 /**
