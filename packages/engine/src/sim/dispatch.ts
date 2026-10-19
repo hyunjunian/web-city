@@ -122,8 +122,8 @@ export function dispatchUnit(
 ): DispatchUnit | string {
   const d = cfg.safety.dispatch;
   // (No unit free: no map-wide road search for nothing, every day for every fire.)
-  if (freeUnits(s, cfg, kind) <= 0) return 'no free units';
-  const road = roadDistances(s, x, y, d[kind].roadReach);
+  if (freeUnits(s, cfg, kind, minCompetence) <= 0) return 'no free units';
+  let road: Int32Array | undefined;
   let best: { st: Structure; air: boolean; days: number; from: number } | null = null;
   let anyGround = false;
   let tooFar = false;
@@ -137,6 +137,7 @@ export function dispatchUnit(
     let tiles = INF;
     let from = -1;
     if (free.ground > 0) {
+      road ??= roadDistances(s, x, y, d[kind].roadReach);
       for (const t of frontage(s, st)) {
         if (road[t]! < tiles) {
           tiles = road[t]!;
@@ -159,7 +160,7 @@ export function dispatchUnit(
   if (!best) return anyGround ? (kind === 'fire' ? (tooFar ? 'too far from any fire station' : 'too far from a road for fire trucks') : 'no road to get there') : 'no free units';
   const n = s.size;
   const [sx, sy] = centre(best.st);
-  const path = best.air ? [Math.floor(sy) * n + Math.floor(sx), y * n + x] : roadPath(s, road, best.from, x, y, d[kind].roadReach);
+  const path = best.air ? [Math.floor(sy) * n + Math.floor(sx), y * n + x] : roadPath(s, road!, best.from, x, y, d[kind].roadReach);
   const unit: DispatchUnit = {
     id: s.nextId++, kind, air: best.air, station: best.st.id, x, y,
     travel: Math.floor(best.days), onSite: d.onSiteDays,
