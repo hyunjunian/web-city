@@ -468,12 +468,15 @@ export class City {
       s.zone[i] = plan.code;
       // Zones carry power themselves, so lines under them disappear.
       if (plan.code !== 0) s.power[i] = 0;
+      if (plan.code === LANDFILL_ZONE) s.trees[i] = 0;
     }
     for (const i of plan.streets) {
       s.net[i] = Net.Street;
       s.potholes[i] = 0;
       s.zone[i] = 0;
+      s.trees[i] = 0;
     }
+    if (plan.streets.size || plan.code === LANDFILL_ZONE) this.pruneTreeFires();
     s.funds -= plan.cost;
     if (plan.code !== 0 && plan.tiles.length && s.zonedSince === undefined) s.zonedSince = s.day;
     this.networkDirty = true;

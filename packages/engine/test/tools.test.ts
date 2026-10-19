@@ -2,6 +2,26 @@ import { describe, expect, it } from 'vitest';
 import { City, loadCity, saveCity } from '../src';
 
 describe('clearing and rebuilding', () => {
+  it.each(['streets', 'landfill'] as const)('clears trees and only their fires when zoning creates %s', (kind) => {
+    const city = new City({ size: 32, water: false });
+    city.plantTrees(0, 0, 31, 31);
+    const zone = kind === 'streets' ? 'R-low' : 'landfill';
+    const plan = city.previewZone(2, 2, 12, 12, zone);
+    const cleared = kind === 'streets' ? plan.streets : plan.cells;
+    expect(cleared.length).toBeGreaterThan(0);
+    const [x, y] = cleared[0]!;
+    city.disaster('lightning', x, y);
+    city.disaster('lightning', 30, 30);
+    expect(city.state.treeFires).toHaveLength(2);
+    expect(city.zone(2, 2, 12, 12, zone).ok).toBe(true);
+    for (const [x, y] of cleared) expect(city.state.trees[y * 32 + x]).toBe(0);
+    expect(city.state.treeFires.map(fire => fire.i)).toEqual([30 * 32 + 30]);
+    if (kind === 'streets') {
+      const [x, y] = plan.cells[0]!;
+      expect(city.state.trees[y * 32 + x]).toBe(1); // vacant residential plots retain their woods
+    }
+  });
+
   it('removes civic jobs from the census as soon as a facility is demolished', () => {
     const city = new City({ size: 32, water: false });
     city.buildNetwork(2, 3, 2, 8, 'road');
