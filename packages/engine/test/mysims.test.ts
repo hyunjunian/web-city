@@ -18,6 +18,24 @@ function town(): City {
 const homes = (c: City) => [...c.state.buildings.values()].filter((b) => b.type === 'R$' && b.occupancy > 0);
 
 describe('My Sims', () => {
+  it('repeated commute queries preserve the monthly route plan, prior results and future simulation', () => {
+    const start = town();
+    homes(start).slice(0, 5).forEach((home, i) => expect(start.addMySim(`Commuter ${i}`, home.x, home.y).ok).toBe(true));
+    const saved = saveCity(start);
+    const a = loadCity(saved), b = loadCity(saved);
+    const plan = structuredClone(a.fields.travel);
+    const first = a.mySimCommute(a.state.mySims[0]!.id);
+    expect(first).not.toBeNull();
+    const original = structuredClone(first);
+    for (let k = 0; k < 3; k++) for (const sim of a.state.mySims) expect(a.mySimCommute(sim.id)).not.toBeNull();
+    expect(first).toEqual(original);
+    expect(a.fields.travel).toEqual(plan);
+    expect(saveCity(a)).toEqual(saveCity(b));
+    a.step(60);
+    b.step(60);
+    expect(saveCity(a)).toEqual(saveCity(b));
+  }, 30_000);
+
   it('move into a home and think about local conditions and the commute', () => {
     const city = town();
     const home = homes(city)[0]!;

@@ -2134,7 +2134,7 @@ export function tripTo(s: CityState, f: Fields, cfg: SimConfig, from: number, de
   const res = search(s, tr.cross, sources, {
     // (The month's merged boardings and ramps: built afresh here, every My Sim query redid the whole map's.)
     modes: all, bias: ONE, transfers: tr.allTransfers, limit: cfg.transport.tripLimit,
-  });
+  }, bufferPool(f, N)(4)); // No search arrays escape this query; the assignment scratch slot is free.
   const o = origin(res, N, from, false);
   if (o < 0) return null;
   const modes: number[] = [];
