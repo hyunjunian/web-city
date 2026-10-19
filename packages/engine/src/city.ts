@@ -1004,6 +1004,7 @@ export class City {
     const elevated: number[] = [];
     const lines: number[] = [];
     const rubble: number[] = [];
+    const trees: number[] = [];
     for (const [x, y] of this.rect(x0, y0, x1, y1)) {
       const i = idx(s, x, y);
       const occ = s.occupant[i]!;
@@ -1025,11 +1026,12 @@ export class City {
         rubble.push(i);
         cost += this.cfg.safety.rubbleBulldoze;
       }
+      if (s.trees[i]) trees.push(i);
     }
     // A burning building can't be bulldozed.
     const burning = new Set(s.fires.map((fi) => fi.target));
-    for (const b of removeB) if (burning.has(b.id)) return { removeB, removeS, roads, elevated, lines, rubble, cost, message: 'building is on fire' };
-    for (const st of removeS) if (burning.has(-st.id)) return { removeB, removeS, roads, elevated, lines, rubble, cost, message: 'building is on fire' };
+    for (const b of removeB) if (burning.has(b.id)) return { removeB, removeS, roads, elevated, lines, rubble, trees, cost, message: 'building is on fire' };
+    for (const st of removeS) if (burning.has(-st.id)) return { removeB, removeS, roads, elevated, lines, rubble, trees, cost, message: 'building is on fire' };
     // RCI buildings at fair market value (more than civic ones, which the city owns): the base fee
     // for each stage and tile of the lot, §5 for a stage-1 house and hundreds for a tower (it was §5 for any).
     for (const b of removeB) {
@@ -1040,7 +1042,7 @@ export class City {
     // A business deal's demolition fee may be paid into the red: offered only to broke cities, it
     // could otherwise never be taken down.
     const dealFee = [...removeS].reduce((a, st) => a + (this.cfg.structures[st.kind].category === 'deal' ? this.cfg.structures[st.kind].bulldoze ?? ec.bulldozeCost.building : 0), 0);
-    return { removeB, removeS, roads, elevated, lines, rubble, cost, ...(cost - dealFee > 0 && cost - dealFee > s.funds ? { message: 'not enough funds' } : {}) };
+    return { removeB, removeS, roads, elevated, lines, rubble, trees, cost, ...(cost - dealFee > 0 && cost - dealFee > s.funds ? { message: 'not enough funds' } : {}) };
   }
 
   /** What bulldozing a rectangle would remove and cost, without doing it (for previews). */
@@ -1050,7 +1052,7 @@ export class City {
     lots: Rect[]; message?: string;
   } {
     const p = this.planBulldoze(x0, y0, x1, y1);
-    const any = p.removeB.size + p.removeS.size + p.roads.length + p.elevated.length + p.lines.length + p.rubble.length > 0;
+    const any = p.removeB.size + p.removeS.size + p.roads.length + p.elevated.length + p.lines.length + p.rubble.length + p.trees.length > 0;
     return {
       ok: any && !p.message, cost: p.cost, buildings: p.removeB.size, structures: p.removeS.size,
       networkTiles: p.roads.length + p.elevated.length, powerLines: p.lines.length, rubble: p.rubble.length,
@@ -1061,7 +1063,7 @@ export class City {
   bulldoze(x0: number, y0: number, x1: number, y1: number): ToolResult {
     this.settle();
     const s = this.state;
-    const { removeB, removeS, roads, elevated, lines, rubble, cost, message } = this.planBulldoze(x0, y0, x1, y1);
+    const { removeB, removeS, roads, elevated, lines, rubble, trees, cost, message } = this.planBulldoze(x0, y0, x1, y1);
     if (message) return { ok: false, cost: 0, message };
     for (const b of removeB) this.removeBuilding(b);
     // My Sims whose home is bulldozed look for another of their wealth nearby: at once, else for two
@@ -1083,22 +1085,27 @@ export class City {
       s.interchange[i] = 0;
       s.tunnel[i] = 0;
       s.potholes[i] = 0;
+      s.railDamage[i] = 0;
     }
     for (const i of elevated) {
       if (s.tolls[i] === 2) s.tolls[i] = 0;
       s.elevated[i] = 0;
     }
-    for (const i of lines) s.power[i] = 0;
+    for (const i of lines) {
+      s.power[i] = 0;
+      s.lineWear[i] = 0;
+    }
     for (const i of rubble) s.rubble[i] = 0;
     // The bulldozer clears trees too (free).
-    for (const [x, y] of this.rect(x0, y0, x1, y1)) s.trees[idx(s, x, y)] = 0;
+    for (const i of trees) s.trees[i] = 0;
+    if (trees.length) s.treeFires = s.treeFires.filter((fire) => s.trees[fire.i]);
     // Clearing a lot hauls away the garbage piled on it.
     for (const b of removeB) for (const i of footprint(s, b)) s.garbage[i] = 0;
     s.funds -= cost;
     this.networkDirty = true;
     // (Homes and jobs gone at once in the figures, not at the next day: as enacting an ordinance does.)
     if (this.censusStale) this.updateDemand();
-    return { ok: removeB.size + removeS.size + roads.length + elevated.length + lines.length + rubble.length > 0, cost };
+    return { ok: removeB.size + removeS.size + roads.length + elevated.length + lines.length + rubble.length + trees.length > 0, cost };
   }
 
   /**
@@ -1225,7 +1232,10 @@ export class City {
     const s = this.state;
     const plan = this.planPowerLine(x0, y0, x1, y1);
     if (plan.message) return { ok: false, cost: 0, message: plan.message };
-    for (const i of plan.tiles) s.power[i] = 1;
+    for (const i of plan.tiles) {
+      s.power[i] = 1;
+      s.lineWear[i] = 0;
+    }
     s.funds -= plan.cost;
     this.networkDirty = true;
     return { ok: plan.tiles.length > 0, cost: plan.cost };
@@ -1252,7 +1262,10 @@ export class City {
     const s = this.state;
     const plan = this.planPipe(x0, y0, x1, y1);
     if (plan.message) return { ok: false, cost: 0, message: plan.message };
-    for (const i of plan.tiles) s.pipe[i] = 1;
+    for (const i of plan.tiles) {
+      s.pipe[i] = 1;
+      s.pipeWear[i] = 0;
+    }
     s.funds -= plan.cost;
     this.networkDirty = true;
     return { ok: plan.tiles.length > 0, cost: plan.cost };
@@ -1285,7 +1298,10 @@ export class City {
     for (const [x, y] of this.rect(x0, y0, x1, y1)) if (s.pipe[idx(s, x, y)]) tiles.push(idx(s, x, y));
     const cost = tiles.length * this.cfg.services.pipeCost.bulldoze;
     if (cost > s.funds) return { ok: false, cost: 0, message: 'not enough funds' };
-    for (const i of tiles) s.pipe[i] = 0;
+    for (const i of tiles) {
+      s.pipe[i] = 0;
+      s.pipeWear[i] = 0;
+    }
     s.funds -= cost;
     this.networkDirty = true;
     return { ok: tiles.length > 0, cost };
