@@ -34,6 +34,29 @@ function serviceCity(kind: 'health' | 'education', { smallBoost = 11.52, smallCa
 }
 
 describe('capacity-weighted public services', () => {
+  it.each(['health', 'education'] as const)('keeps a closed %s facility from taking patients or pupils from an operating one', kind => {
+    const city = serviceCity(kind, { smallCapacity: 1_000 });
+    const [large, small] = [...city.state.structures.values()];
+    city.setFunding(small!.id, 0);
+    city.refreshIfDirty();
+    expect(small!.load).toBe(0);
+    expect(large!.load).toBeCloseTo(2_000, 6);
+    const i = 10 * 32 + 16;
+    expect(kind === 'health' ? city.fields.healthQuality[i] : city.fields.eduEff.elementary[i]).toBeCloseTo(0.5, 6);
+  });
+
+  it.each(['health', 'education'] as const)('records closed-only %s need without diluting quality in an operating catchment', kind => {
+    const city = serviceCity(kind, { smallCapacity: 1_000 });
+    const [large, small] = [...city.state.structures.values()];
+    city.setFunding(large!.id, 0);
+    city.refreshIfDirty();
+    expect(large!.load).toBeCloseTo(1_000, 6);
+    expect(small!.load).toBeCloseTo(1_000, 6);
+    const field = kind === 'health' ? city.fields.healthQuality : city.fields.eduEff.elementary;
+    expect(field[10 * 32 + 6]).toBe(0);
+    expect(field[10 * 32 + 16]).toBe(1);
+  });
+
   it.each(['health', 'education'] as const)('uses spare %s capacity reachable from an overcrowded catchment', kind => {
     const city = serviceCity(kind, { smallCapacity: 1_000 });
     for (const st of city.state.structures.values()) {
@@ -161,5 +184,6 @@ describe('capacity-weighted public services', () => {
     const i = 10 * 32 + 16;
     expect(kind === 'health' ? city.fields.healthQuality[i] : city.fields.eduEff.elementary[i]).toBe(0);
     expect([...city.state.structures.values()].every(st => Number.isFinite(st.load))).toBe(true);
+    expect([...city.state.structures.values()].reduce((total, st) => total + st.load, 0)).toBeCloseTo(2_000, 6);
   });
 });

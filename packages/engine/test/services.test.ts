@@ -55,11 +55,11 @@ describe('service funding refreshes', () => {
     expect(city.fields.hqBoost[i]).toBeCloseTo(city.cfg.structures.medicalClinic.health!.boost, 5);
     const loaded = loadCity(saveCity(city));
     expect(loaded.fields.healthQuality[i]).toBe(1);
-    // Closing one clinic leaves the operating capacity to provide almost all care.
+    // Closing one clinic leaves the others to provide full care.
     const clinic = [...city.state.structures.values()][0]!;
     expect(city.setFunding(clinic.id, 0)).toBe(true);
     city.refreshIfDirty();
-    expect(city.fields.healthQuality[i]).toBeCloseTo(255 * 500 / (255 * 500 + 1), 6);
+    expect(city.fields.healthQuality[i]).toBe(1);
   });
 
   it.each([

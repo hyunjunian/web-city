@@ -345,7 +345,7 @@ function centreTile(n: number, b: Building): number {
 }
 
 type ServiceKey = HealthClass | EduCurve;
-type CoverageFacility = { st: Structure; def: StructureDef; key: ServiceKey; radius: number; cap: number; cx: number; cy: number };
+type CoverageFacility = { st: Structure; def: StructureDef; key: ServiceKey; radius: number; cap: number; potential: number; cx: number; cy: number };
 
 /**
  * Coverage for hospitals and schools. Each building's load is the share of
@@ -367,7 +367,7 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   // Capacity reaching each tile, per kind: a home's patients or pupils split by it (a big
   // hospital beside a clinic takes most of them, not half).
   const capSum = new Map<ServiceKey, Float32Array>();
-  const capOf = (def: StructureDef, st: Structure) => Math.max(1, (def.health ?? def.school)!.capacity * interp(sv.capacityByFunding, st.funding));
+  const capOf = (def: StructureDef, st: Structure) => Math.max(0, (def.health ?? def.school)!.capacity * interp(sv.capacityByFunding, st.funding));
   const effSum = new Map<ServiceKey, Float32Array>();
   const list: CoverageFacility[] = [];
   // HQ boost per health class, from its facilities (the same within a class).
@@ -384,15 +384,16 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
     const radius = serviceRadius(cfg, def, st);
     const cap = capOf(def, st);
     const [cx, cy] = centre(st);
-    list.push({ st, def, key, radius, cap, cx, cy });
+    const potential = Math.max(1, (def.health ?? def.school)!.capacity);
+    list.push({ st, def, key, radius, cap, potential, cx, cy });
     // (The Disease Research Lab's citywide boost counts a fifth: at full, it alone halved the time to HQ
     // 200, against the 65 years it takes with healthcare and 50 with the health rewards.)
-    if (def.health) {
+    if (def.health && cap > 0) {
       const boost = def.health.boost * (key === 'research' ? RESEARCH_HQ_WEIGHT : 1);
       if (classBoost.has(key) && classBoost.get(key) !== boost) varyingBoost.add(key);
       classBoost.set(key, boost);
     }
-    if (!capSum.has(key)) {
+    if (cap > 0 && !capSum.has(key)) {
       effSum.set(key, new Float32Array(n * n));
       capSum.set(key, new Float32Array(n * n));
     }
@@ -443,17 +444,26 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   // This denominator uses the very same point test as patient assignment.
   // Sampling the raster's centre tile loses patients on even-sized lots at a rim.
   const homeCapacity = new Map<ServiceKey, Float64Array>();
+  const closedCapacity = new Map<ServiceKey, Float64Array>();
   let work = 0;
   for (const facility of list) {
     let caps = homeCapacity.get(facility.key);
     if (!caps) homeCapacity.set(facility.key, caps = new Float64Array(H));
+    let closed: Float64Array | undefined;
+    if (!facility.cap) {
+      closed = closedCapacity.get(facility.key);
+      if (!closed) closedCapacity.set(facility.key, closed = new Float64Array(H));
+    }
     // An even lot's sample shifts at most sqrt(0.5) tiles. The extra tile
     // finds homes where either the household or raster sample is in range.
     for (const k of nearbyHomes(facility, hasOffset ? 1 : 0)) {
       if ((++work & 0x3fff) === 0) yield;
       const inside = (hx[k]! - facility.cx) ** 2 + (hy[k]! - facility.cy) ** 2 <= facility.radius ** 2;
-      if (inside) caps[k]! += facility.cap;
-      if (offset[k]) {
+      if (inside) {
+        caps[k]! += facility.cap;
+        if (closed) closed[k]! += facility.potential;
+      }
+      if (offset[k] && facility.cap > 0) {
         const sample = (Math.floor(hx[k]!) + 0.5 - facility.cx) ** 2
           + (Math.floor(hy[k]!) + 0.5 - facility.cy) ** 2 <= facility.radius ** 2;
         if (inside !== sample && !pointHomes.has(k)) pointHomes.set(k, []);
@@ -465,7 +475,6 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   const over = new Set<ServiceKey>(), spare = new Set<ServiceKey>();
   for (const facility of list) {
     const { st, def, key, cap } = facility;
-    const svc = (def.health ?? def.school)!;
     let need = homeDemand.get(key);
     if (!need) {
       if (def.school) {
@@ -486,14 +495,19 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
       homeDemand.set(key, need);
     }
     const caps = homeCapacity.get(key)!;
+    const closed = closedCapacity.get(key);
     let load = 0;
     for (const k of nearbyHomes(facility)) {
       if ((++work & 0x3fff) === 0) yield;
-      load += need[k]! * cap / caps[k]!;
-      pointHomes.get(k)?.push(facility);
+      // Closed facilities retain potential demand only where no operating
+      // facility of this kind reaches the home. They never draw people or
+      // dilute quality in an operating catchment.
+      if (caps[k]! > 0) load += need[k]! * cap / caps[k]!;
+      else load += need[k]! * facility.potential / closed![k]!;
+      if (cap > 0) pointHomes.get(k)?.push(facility);
     }
     st.load = load;
-    st.capacity = svc.capacity * interp(sv.capacityByFunding, st.funding);
+    st.capacity = cap;
     const tolerance = Math.max(1, st.capacity) * 1e-8;
     if (load > st.capacity + tolerance) over.add(key);
     if (load + tolerance < st.capacity) spare.add(key);
@@ -537,16 +551,21 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
       // still reduce quality and can cause strikes instead of disappearing.
       let caps = 0;
       for (const j of group.hits) caps += sites[j]!.cap;
-      for (const j of group.hits) sites[j]!.st.load += unserved * sites[j]!.cap / caps;
+      if (caps > 0) for (const j of group.hits) sites[j]!.st.load += unserved * sites[j]!.cap / caps;
+      else {
+        for (const j of group.hits) caps += sites[j]!.potential;
+        for (const j of group.hits) sites[j]!.st.load += unserved * sites[j]!.potential / caps;
+      }
     }
   }
   // Paint quality only after final loads have settled.
   work = 0;
   for (const { st, def, key, radius, cap } of list) {
-    work += 4 * radius * radius;
-    if (work > 0x7fff) { work = 0; yield; }
     const grade = st.load > 0 ? Math.min(1, st.capacity / st.load) : st.capacity > 0 ? 1 : 0;
     st.effectiveness = grade * (st.strike > 0 ? sv.strikeEffectiveness : 1);
+    if (!cap) continue;
+    work += 4 * radius * radius;
+    if (work > 0x7fff) { work = 0; yield; }
     const cs = capSum.get(key)!;
     const e = effSum.get(key)!;
     const eff = st.effectiveness;
@@ -589,6 +608,7 @@ function* projectCoverageSteps(
     f.eduEff[k].fill(0);
     yield;
   }
+  if (!capSum.size) return;
   yield;
   const q = f.schoolQuality;
   const top = [...capSum.keys()].some(key => HIGHER_EDUCATION.has(key)) ? new Float32Array(N) : null;
