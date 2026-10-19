@@ -502,6 +502,22 @@ function splat(n: number, out: Float32Array, cx: number, cy: number, strength: n
   }
 }
 
+/** A constant radial effect, row by row, for a landfill's tile-centred sources. */
+function landfillRows(strength: number, radius: number): { dy: number; from: number; values: Float64Array }[] | null {
+  if (!Number.isInteger(radius) || radius < 0 || radius > 64 || !Number.isFinite(strength)) return null;
+  const rows: { dy: number; from: number; values: Float64Array }[] = [];
+  if (strength === 0 || radius === 0) return rows;
+  const r2 = radius * radius, fall = strength / radius;
+  for (let dy = -radius + 1; dy < radius; dy++) {
+    const half = Math.sqrt(r2 - dy * dy);
+    const from = -Math.ceil(half) + 1, to = Math.ceil(half) - 1;
+    const values = new Float64Array(to - from + 1);
+    for (let dx = from; dx <= to; dx++) values[dx - from] = strength - fall * Math.sqrt(dx * dx + dy * dy);
+    rows.push({ dy, from, values });
+  }
+  return rows;
+}
+
 /**
  * Pollution from a lot: full strength over its footprint, then
  * fading outward from the lot's edges to nothing at `radius` tiles.
@@ -784,10 +800,20 @@ export function* computeEffectFieldsSteps(s: CityState, f: Fields, cfg: SimConfi
   const key = `${lf.nimby}|${lf.nimbyRadius}|${fillTiles.join(',')}`;
   if (f.landfillNimby?.tiles !== key || f.landfillNimby.field.length !== N) {
     const field = new Float32Array(N);
-    for (const i of fillTiles) {
+    const rows = landfillRows(lf.nimby, lf.nimbyRadius);
+    for (let k = 0; k < fillTiles.length; k++) {
+      if ((k & 15) === 15) yield;
+      const i = fillTiles[k]!;
       const x = i % n;
       const y = (i - x) / n;
-      splat(n, field, x + 0.5, y + 0.5, lf.nimby, lf.nimbyRadius);
+      if (!rows) { splat(n, field, x + 0.5, y + 0.5, lf.nimby, lf.nimbyRadius); continue; }
+      for (const row of rows) {
+        const ty = y + row.dy;
+        if (ty < 0 || ty >= n) continue;
+        const from = Math.max(row.from, -x), to = Math.min(row.from + row.values.length, n - x);
+        const base = ty * n + x;
+        for (let dx = from; dx < to; dx++) field[base + dx]! += row.values[dx - row.from]!;
+      }
     }
     f.landfillNimby = { tiles: key, field };
   }

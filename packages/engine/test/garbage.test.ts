@@ -18,6 +18,26 @@ function town(): City {
 }
 
 describe('garbage', () => {
+  it.each([0, 1, 7, 32, 64, 65, 5.5])('keeps radial landfill effects exact at map edges and after rezoning (radius %s)', (radius) => {
+    const city = new City({ size: 32, water: false, config: { garbage: { landfill: { nimbyRadius: radius } } } });
+    const corners: [number, number][] = [[0, 0], [30, 30]];
+    for (const [x, y] of corners) {
+      city.zone(0, 0, 31, 31, 'none');
+      city.zone(x, y, x + 1, y + 1, 'landfill');
+      city.refreshIfDirty();
+      const expected = new Float32Array(32 * 32);
+      const strength = city.cfg.garbage.landfill.nimby;
+      if (radius > 0) for (let sy = y; sy <= y + 1; sy++) for (let sx = x; sx <= x + 1; sx++) {
+        for (let ty = 0; ty < 32; ty++) for (let tx = 0; tx < 32; tx++) {
+          const distance = Math.sqrt((tx - sx) ** 2 + (ty - sy) ** 2);
+          if (distance < radius) expected[ty * 32 + tx]! += strength - (strength / radius) * distance;
+        }
+      }
+      expect(city.fields.nimbyRes).toEqual(expected);
+      expect(city.fields.nimbyCom).toEqual(expected);
+    }
+  });
+
   const islands = () => {
     const city = new City({ size: 48, water: false });
     city.state.funds = 1_000_000;
