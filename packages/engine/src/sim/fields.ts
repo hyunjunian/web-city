@@ -596,18 +596,19 @@ export function* computeNetworkFieldsSteps(s: CityState, f: Fields, cfg: SimConf
   const n = s.size;
   const reach = cfg.development.industrialReach;
   const depth = new Int32Array(n * n).fill(INF);
-  const queue: number[] = [];
+  const queue = tileWork(f, n * n);
+  let tail = 0;
   yield;
   for (let i = 0; i < n * n; i++) {
     if ((i & 0x7fff) === 0x7fff) yield;
     const cls = zoneInfo(s.zone[i]!).cls;
     if ((cls === 'I' || cls === 'A') && f.access[i]! >= 0 && f.accessDist[i] === 1) {
       depth[i] = 0;
-      queue.push(i);
+      queue[tail++] = i;
     }
   }
   yield;
-  for (let h = 0; h < queue.length; h++) {
+  for (let h = 0; h < tail; h++) {
     if ((h & 0x7fff) === 0x7fff) yield;
     const i = queue[h]!;
     if (depth[i]! >= reach) continue;
@@ -627,7 +628,7 @@ export function* computeNetworkFieldsSteps(s: CityState, f: Fields, cfg: SimConf
           f.access[j] = f.access[i]!;
           f.accessDist[j] = Math.min(255, f.accessDist[i]! + 1);
         }
-        queue.push(j);
+        queue[tail++] = j;
       }
     }
   }
