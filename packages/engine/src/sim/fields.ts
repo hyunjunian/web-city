@@ -97,7 +97,8 @@ export interface Fields {
   /** Physical pipe-network id at each pipe/pump node, before competing coverage areas are assigned to consumers. */
   pipeGrid: Int32Array;
   watered: Uint8Array;
-  /** Healthcare: HQ boost points and best coverage quality (0–1) per tile. */
+  /** Healthcare: HQ boost points and best quality (0–1). At residential centre tiles,
+   * health and education effects use the exact household centre. */
   hqBoost: Float32Array;
   healthQuality: Float32Array;
   /** Effectiveness of clinic/medical-center coverage (Mayor Rating counts only these). */

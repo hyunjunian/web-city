@@ -339,6 +339,7 @@ function centreTile(n: number, b: Building): number {
 }
 
 type ServiceKey = HealthClass | EduCurve;
+type CoverageFacility = { st: Structure; def: StructureDef; key: ServiceKey; radius: number; cap: number; cx: number; cy: number };
 
 /**
  * Coverage for hospitals and schools. Each building's load is the share of
@@ -362,8 +363,7 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   const capSum = new Map<ServiceKey, Float32Array>();
   const capOf = (def: StructureDef, st: Structure) => Math.max(1, (def.health ?? def.school)!.capacity * interp(sv.capacityByFunding, st.funding));
   const effSum = new Map<ServiceKey, Float32Array>();
-  type Facility = { st: Structure; def: StructureDef; key: ServiceKey; radius: number; cap: number; cx: number; cy: number };
-  const list: Facility[] = [];
+  const list: CoverageFacility[] = [];
   // HQ boost per health class, from its facilities (the same within a class).
   const classBoost = new Map<ServiceKey, number>();
   const varyingBoost = new Set<ServiceKey>();
@@ -406,6 +406,9 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   const homes = [...s.buildings.values()].filter((b) => b.type?.[0] === 'R' && b.occupancy > 0);
   const H = homes.length;
   const hx = new Float64Array(H), hy = new Float64Array(H), people = new Float64Array(H);
+  const pointHomes = new Map<number, CoverageFacility[]>();
+  const offset = new Uint8Array(H);
+  let hasOffset = false;
   const CELL = 16, cells = Math.ceil(n / CELL);
   const buckets: number[][] = Array.from({ length: cells * cells }, () => []);
   yield;
@@ -415,9 +418,11 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
     hx[k] = b.x + b.w / 2;
     hy[k] = b.y + b.h / 2;
     people[k] = residentsOf(b);
+    if (b.w % 2 === 0 || b.h % 2 === 0) { offset[k] = 1; hasOffset = true; }
     buckets[Math.min(cells - 1, Math.floor(hy[k]! / CELL)) * cells + Math.min(cells - 1, Math.floor(hx[k]! / CELL))]!.push(k);
   }
-  function* nearbyHomes({ cx, cy, radius }: Facility): Generator<number> {
+  function* nearbyHomes({ cx, cy, radius: baseRadius }: CoverageFacility, padding = 0): Generator<number> {
+    const radius = baseRadius + padding;
     const x0 = Math.max(0, Math.floor((cx - radius) / CELL));
     const x1 = Math.min(cells - 1, Math.floor((cx + radius) / CELL));
     const y0 = Math.max(0, Math.floor((cy - radius) / CELL));
@@ -436,9 +441,17 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   for (const facility of list) {
     let caps = homeCapacity.get(facility.key);
     if (!caps) homeCapacity.set(facility.key, caps = new Float64Array(H));
-    for (const k of nearbyHomes(facility)) {
+    // An even lot's sample shifts at most sqrt(0.5) tiles. The extra tile
+    // finds homes where either the household or raster sample is in range.
+    for (const k of nearbyHomes(facility, hasOffset ? 1 : 0)) {
       if ((++work & 0x3fff) === 0) yield;
-      caps[k]! += facility.cap;
+      const inside = (hx[k]! - facility.cx) ** 2 + (hy[k]! - facility.cy) ** 2 <= facility.radius ** 2;
+      if (inside) caps[k]! += facility.cap;
+      if (offset[k]) {
+        const sample = (Math.floor(hx[k]!) + 0.5 - facility.cx) ** 2
+          + (Math.floor(hy[k]!) + 0.5 - facility.cy) ** 2 <= facility.radius ** 2;
+        if (inside !== sample && !pointHomes.has(k)) pointHomes.set(k, []);
+      }
     }
   }
   const homeDemand = new Map<ServiceKey, Float64Array>();
@@ -471,6 +484,7 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
     for (const k of nearbyHomes(facility)) {
       if ((++work & 0x3fff) === 0) yield;
       load += need[k]! * cap / caps[k]!;
+      pointHomes.get(k)?.push(facility);
     }
     st.load = load;
     st.capacity = svc.capacity * interp(sv.capacityByFunding, st.funding);
@@ -601,6 +615,52 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   // of it, a college, university, main library or art museum the rest.
   yield;
   for (let i = 0; i < N; i++) q[i] = Math.min(1, (1 - HIGHER_SHARE) * q[i]! + HIGHER_SHARE * (top?.[i] ?? 0));
+
+  yield* correctCoveragePoints(s, f, homes, pointHomes, homeCapacity);
+}
+
+/** Keep residential service effects on the same point as their service demand. */
+function* correctCoveragePoints(
+  s: CityState, f: Fields, homes: readonly Building[], pointHomes: ReadonlyMap<number, readonly CoverageFacility[]>,
+  homeCapacity: ReadonlyMap<ServiceKey, Float64Array>,
+): Generator<void, void> {
+  const n = s.size;
+  // Consumers read service effects at a home's centre tile. At even-sized
+  // lots that tile's centre is offset from the actual household: use the
+  // same facilities that counted its patients and pupils, including no care
+  // when only the raster sample lies in a catchment. Other map tiles retain
+  // their ordinary per-tile samples.
+  let work = 0;
+  for (const [k, sites] of pointHomes) {
+    if ((++work & 0x1ff) === 0) yield;
+    const i = centreTile(n, homes[k]!);
+    const effects = new Map<ServiceKey, { total: number; boost: number }>();
+    for (const { st, def, key, cap } of sites) {
+      let effect = effects.get(key);
+      if (!effect) effects.set(key, effect = { total: 0, boost: 0 });
+      const weighted = st.effectiveness * cap;
+      effect.total += weighted;
+      effect.boost += weighted * (def.health?.boost ?? 0) * (key === 'research' ? RESEARCH_HQ_WEIGHT : 1);
+    }
+    f.hqBoost[i] = 0;
+    f.healthQuality[i] = 0;
+    f.hospitalCover[i] = 0;
+    let school = 0, higher = 0;
+    for (const [key, capacities] of homeCapacity) {
+      const cap = capacities[k]!, effect = effects.get(key);
+      const avg = cap > 0 && effect ? effect.total / cap : 0;
+      if (key === 'hospital' || key === 'research' || key === 'market') {
+        if (cap > 0 && effect) f.hqBoost[i]! += effect.boost / cap;
+        if (key !== 'market' && avg > f.healthQuality[i]!) f.healthQuality[i] = f.hospitalCover[i] = avg;
+      } else {
+        f.eduEff[key][i] = avg;
+        const eff = f.eduEff[key][i]!;
+        school = Math.max(school, eff);
+        if (HIGHER_EDUCATION.has(key)) higher = Math.max(higher, eff);
+      }
+    }
+    f.schoolQuality[i] = Math.min(1, (1 - HIGHER_SHARE) * school + HIGHER_SHARE * higher);
+  }
 }
 
 /**

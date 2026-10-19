@@ -44,15 +44,18 @@ describe('capacity-weighted public services', () => {
     expect(kind === 'health' ? city.fields.healthQuality[i] : city.fields.eduEff.elementary[i]).toBe(1);
   });
 
-  it('conserves patients at the edge of coverage for even-sized residential lots', () => {
-    const base = serviceCity('health');
-    base.cfg.structures.medicalClinic.health!.radius = 6;
-    base.cfg.structures.largeMedicalCenter.health!.radius = 6.2;
+  it.each(['health', 'education'] as const)('counts %s demand and effects at the actual centres of even-sized lots', kind => {
+    const base = serviceCity(kind);
+    const smallKind = kind === 'health' ? 'medicalClinic' : 'elementarySchool';
+    const largeKind = kind === 'health' ? 'largeMedicalCenter' : 'largeElementarySchool';
+    (base.cfg.structures[smallKind].health ?? base.cfg.structures[smallKind].school)!.radius = 6;
+    (base.cfg.structures[largeKind].health ?? base.cfg.structures[largeKind].school)!.radius = 6.2;
     const city = new City({ size: 32, water: false, config: base.cfg });
     city.state.funds = 1_000_000;
+    city.state.unlocked.push('largeElementarySchool');
     city.buildNetwork(2, 9, 30, 9, 'road');
-    expect(city.placeStructure('largeMedicalCenter', 21, 10).ok).toBe(true);
-    expect(city.placeStructure('medicalClinic', 9, 10).ok).toBe(true);
+    expect(city.placeStructure(largeKind, 21, 10).ok).toBe(true);
+    expect(city.placeStructure(smallKind, 9, 10).ok).toBe(true);
     const id = city.state.nextId++;
     city.state.buildings.set(id, { ...base.state.buildings.values().next().value!, id, x: 14, w: 2, h: 2 });
     for (const y of [10, 11]) for (const x of [14, 15]) city.state.occupant[y * 32 + x] = id;
@@ -60,6 +63,22 @@ describe('capacity-weighted public services', () => {
     city.refresh();
     expect(small!.load).toBeCloseTo(1_000, 6);
     expect(large!.load).toBe(0);
+    const i = 11 * 32 + 15;
+    if (kind === 'health') {
+      expect(city.fields.healthQuality[i]).toBeCloseTo(0.1, 6);
+      expect(city.fields.hospitalCover[i]).toBeCloseTo(0.1, 6);
+      expect(city.fields.hqBoost[i]).toBeCloseTo(city.cfg.structures.medicalClinic.health!.boost * 0.1, 5);
+    } else {
+      expect(city.fields.eduEff.elementary[i]).toBeCloseTo(0.1, 6);
+      expect(city.fields.schoolQuality[i]).toBeCloseTo(0.07, 6);
+    }
+    expect(city.bulldoze(small!.x, small!.y, small!.x, small!.y).ok).toBe(true);
+    city.refreshIfDirty();
+    // The other facility reaches the tile sample but not the household.
+    expect(city.fields.healthQuality[i]).toBe(0);
+    expect(city.fields.hqBoost[i]).toBe(0);
+    expect(city.fields.schoolQuality[i]).toBe(0);
+    expect(city.fields.eduEff.elementary[i]).toBe(0);
   });
 
   it('redistributes pupils using their age-specific attendance rather than total residents', () => {
