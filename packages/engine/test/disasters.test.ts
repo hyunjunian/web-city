@@ -75,14 +75,39 @@ describe('God Mode disasters', () => {
     expect(city.state.subway[i]).toBe(1);
   });
 
-  it('includes both road and rail construction costs when a level crossing is destroyed', () => {
+  it.each(['street', 'road', 'avenue'] as const)('includes both %s and rail construction costs when a level crossing is destroyed', (kind) => {
     const city = new City({ size: 32, water: false, config: { disasters: { godMode: { meteor: { crater: [2, 2], debris: [0, 0] } } } } });
     city.state.funds = 1_000_000;
-    const road = city.buildNetwork(8, 10, 12, 10, 'road'), rail = city.buildNetwork(10, 8, 10, 12, 'rail');
+    const road = city.buildNetwork(8, 10, 12, 10, kind), rail = city.buildNetwork(10, 8, 10, 12, 'rail');
     expect(road.ok && rail.ok).toBe(true);
     const report = city.disaster('meteor', 10, 10, 0);
     expect(report.networkTiles).toBe(9);
     expect(report.rebuildCost).toBe(road.cost + rail.cost);
+  });
+
+  it.each(['road', 'lowBridge', 'elrail', 'monorail', 'highway'] as const)('includes the bridge multiplier when a waterborne %s is destroyed', (kind) => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    expect(city.terraform(10, 10, 10, 10, 'water').ok).toBe(true);
+    const built = kind === 'road' || kind === 'lowBridge'
+      ? city.buildNetwork(10, 10, 10, 10, 'road', { lowBridge: kind === 'lowBridge' })
+      : city.buildElevated(10, 10, 10, 10, kind);
+    expect(built.ok).toBe(true);
+    const report = city.disaster('earthquake', 10, 10, 0);
+    expect(report.networkTiles).toBe(1);
+    expect(report.rebuildCost).toBe(built.cost);
+  });
+
+  it.each(['tunnel', 'bridge'] as const)('includes the cost of a destroyed road %s across uneven land', (span) => {
+    const city = new City({ size: 32, water: false, config: { disasters: { godMode: { meteor: { crater: [2, 2], debris: [0, 0] } } } } });
+    city.state.funds = 1_000_000;
+    for (let x = 8; x <= 12; x++) city.state.height[10 * city.size + x] = (x === 8 || x === 12) === (span === 'bridge') ? 80 : 20;
+    const built = city.buildNetwork(8, 10, 12, 10, 'road');
+    expect(built.ok).toBe(true);
+    expect(city.state.tunnel[10 * city.size + 10]).toBe(span === 'bridge' ? SPAN.bridge : SPAN.tunnel);
+    const report = city.disaster('meteor', 10, 10, 0);
+    expect(report.networkTiles).toBe(5);
+    expect(report.rebuildCost).toBe(built.cost);
   });
 
   it('refuses unknown disasters without creating panic events or damage reports', () => {

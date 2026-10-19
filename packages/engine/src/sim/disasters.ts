@@ -56,7 +56,8 @@ export function breakOverhead(s: CityState, cfg: SimConfig, report: DamageReport
   const elevated = s.elevated[i]!;
   if (elevated) {
     report.networkTiles++;
-    report.rebuildCost += cfg.economy.networkCost[elevated === ELEVATED.highway ? 'elevatedHighway' : ELEVATED_KINDS[elevated]!].build;
+    const unit = cfg.economy.networkCost[elevated === ELEVATED.highway ? 'elevatedHighway' : ELEVATED_KINDS[elevated]!].build;
+    report.rebuildCost += unit * (s.terrain[i] === Terrain.Water ? cfg.economy.bridgeCostMult : 1);
     s.elevated[i] = 0;
     if (s.tolls[i] === 2) s.tolls[i] = 0;
     if (!isAsphalt(s.net[i]!)) s.potholes[i] = 0;

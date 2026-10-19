@@ -16,7 +16,7 @@ import {
 import { developOnce, exodus, GROWTH_CODES, growthBlockers, INFO_ONLY, trackDemand, understaffed, updateBuildingsSteps, warmTractsSteps, type DevContext, type GrowthBlocker } from './sim/development';
 import { computeEffectFieldsSteps, computeJobComponentsSteps, computeNetworkFieldsSteps, createFields, footprint, frontage, INF, type Fields } from './sim/fields';
 import {
-  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isAsphalt, isLocalNet, Net, NETWORK_KINDS, ONEWAY_DIRS, fundingDepartment, Terrain, zoneCode, zoneInfo, ZONES,
+  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isAsphalt, isLocalNet, Net, NETWORK_KINDS, ONEWAY_DIRS, fundingDepartment, Terrain, trafficKind, zoneCode, zoneInfo, ZONES,
   type BudgetReport, type Building, type CityState, type DealResource, type GarbageStats, type HistoryPoint, type Rect, type MySim, type NeighbourDeal, type NetworkKind,
   type Structure, type ZoneKind,
   type Neighbour,
@@ -3675,9 +3675,13 @@ export class City {
           }
         }
         if (networks && s.net[i] && !(surface && s.tunnel[i] === SPAN.tunnel)) {
-          const kindName = NETWORK_KINDS[s.net[i]!]!;
+          const kindName = trafficKind(s, i)!;
+          const span = s.tunnel[i]!;
+          const multiplier = s.terrain[i] === Terrain.Water
+            ? ec.bridgeCostMult * (span === SPAN.lowBridge ? ec.lowBridgeShare : 1)
+            : span === SPAN.bridge ? ec.bridgeCostMult : span === SPAN.tunnel ? this.cfg.transport.tunnel.costMult : 1;
           report.networkTiles++;
-          report.rebuildCost += ec.networkCost[kindName].build;
+          report.rebuildCost += ec.networkCost[kindName].build * multiplier;
           if (s.net[i] === Net.RailCrossing) report.rebuildCost += ec.networkCost.rail.build;
           s.net[i] = Net.None;
           s.oneway[i] = 0;

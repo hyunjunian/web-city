@@ -9,7 +9,7 @@ import { capacityOf } from './development';
 import { LANDFILL_ZONE } from './garbage';
 import { ordinanceCost as ordinanceCostOf } from './mayor';
 import { settleDeals } from './region';
-import { DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, INTERCHANGE, fundingDepartment, Net, overNet, structureFunding, NETWORK_KINDS, type Building, type BudgetReport, type CityState, type DealResource, type NeighbourDeal, type Structure } from './state';
+import { DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, INTERCHANGE, fundingDepartment, Net, overNet, structureFunding, trafficKind, NETWORK_KINDS, type Building, type BudgetReport, type CityState, type DealResource, type NeighbourDeal, type Structure } from './state';
 import { drain } from './steps';
 import { generationCost } from './energy';
 
@@ -92,7 +92,7 @@ export function departmentUpkeep(s: CityState, cfg: SimConfig, dept: keyof CityS
     for (let i = 0; i < s.net.length; i++) {
       const code = s.net[i]!;
       if (dept === 'roads') {
-        if (code === Net.RailCrossing) base += ec.networkCost.road.upkeep;
+        if (code === Net.RailCrossing) base += ec.networkCost[trafficKind(s, i)!].upkeep;
         else if (code !== Net.None && code !== Net.Rail) base += ec.networkCost[NETWORK_KINDS[code]!].upkeep;
         if (s.elevated[i] === ELEVATED.highway) base += ec.networkCost.elevatedHighway.upkeep;
         if (s.tolls[i]) base += cfg.transport.toll.upkeep;
@@ -143,7 +143,7 @@ export function* collectBudgetSteps(s: CityState, cfg: SimConfig, ctx: BudgetCon
     if ((i & 0x3fff) === 0x3fff) yield;
     const code = s.net[i]!;
     if (code === Net.RailCrossing) {
-      roadUpkeep += ec.networkCost.road.upkeep;
+      roadUpkeep += ec.networkCost[trafficKind(s, i)!].upkeep;
       transitUpkeep += ec.networkCost.rail.upkeep;
     } else if (code === Net.Rail) transitUpkeep += ec.networkCost.rail.upkeep;
     else if (code !== Net.None) roadUpkeep += ec.networkCost[NETWORK_KINDS[code]!].upkeep;

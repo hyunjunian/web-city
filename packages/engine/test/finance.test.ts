@@ -5,6 +5,20 @@ import { settleDeals } from '../src/sim/region';
 const calm = { safety: { fires: false }, disasters: { simulated: false }, mayor: { riots: false } };
 
 describe('cash flow projections', () => {
+  it.each(['street', 'road', 'avenue', 'oneway'] as const)('keeps %s upkeep at its original rate when adding a rail crossing', (kind) => {
+    const city = new City({ size: 32, water: false, config: calm });
+    expect(city.buildNetwork(8, 10, 12, 10, kind).ok).toBe(true);
+    const roads = city.previewBudget().roadUpkeep;
+    expect(city.buildNetwork(10, 8, 10, 12, 'rail').ok).toBe(true);
+    expect(city.previewBudget().roadUpkeep).toBeCloseTo(roads, 10);
+    expect(city.departmentUpkeep('roads')).toBeCloseTo(roads, 10);
+    city.setDepartmentFunding('roads', 60);
+    expect(city.departmentUpkeep('roads')).toBeCloseTo(roads * 0.6, 10);
+    city.step(30);
+    expect(city.state.lastBudget!.roadUpkeep).toBeCloseTo(roads * 0.6, 10);
+    expect(city.state.lastBudget!.transitUpkeep).toBeCloseTo(5 * city.cfg.economy.networkCost.rail.upkeep, 10);
+  });
+
   it('pays exactly funded fractional invoices without treating floating-point roundoff as a breach', () => {
     for (const [funds, paid, expense] of [[0.3, 3, 0.3], [0.299999, 2, 0.2]] as const) {
       const city = new City({ size: 16, water: false });
