@@ -3030,10 +3030,20 @@ export class City {
     const s = this.state;
     const c = this.census;
     const month = Math.floor(s.day / DAYS_PER_MONTH);
-    let jobs = 0;
-    for (const b of s.buildings.values()) if (b.type && b.type[0] !== 'R') jobs += b.capacity * b.occupancy;
+    let jobs = 0, powerDemand = 0, waterDemand = 0;
+    for (const b of s.buildings.values()) {
+      if (b.type && b.type[0] !== 'R') jobs += b.capacity * b.occupancy;
+      powerDemand += powerUse(this.cfg, b);
+      waterDemand += waterUse(this.cfg, b);
+    }
+    for (const st of s.structures.values()) {
+      const def = this.cfg.structures[st.kind];
+      powerDemand += def.powerUse;
+      waterDemand += def.waterUse;
+    }
     // Schools, hospitals and plants employ Sims too (as the census counts them against the workforce).
     jobs += c.civicJobs[0] + c.civicJobs[1] + c.civicJobs[2];
+    const ord = ordinanceEffects(s);
     return {
       day: s.day,
       date: { year: 2000 + Math.floor(month / 12), month: (month % 12) + 1, day: (s.day % DAYS_PER_MONTH) + 1 },
@@ -3046,8 +3056,8 @@ export class City {
       abandoned: c.abandoned,
       impeached: s.impeached,
       // Demand as the grids reckon it: conservation ordinances cut it.
-      power: { supply: this.power.supply, demand: this.powerDemand() * ordinanceEffects(s).power, blackedOut: this.power.blackedOut },
-      water: { supply: this.water.supply, demand: this.waterDemand() * ordinanceEffects(s).water, shortages: this.water.shortages, sourceless: this.water.sourceless ?? 0, pumpsOff: this.water.pumpsOff ?? 0, ...(this.water.pumpsOffAt ? { pumpsOffAt: { ...this.water.pumpsOffAt } } : {}), ...(this.water.sourcelessAt ? { sourcelessAt: { ...this.water.sourcelessAt } } : {}) },
+      power: { supply: this.power.supply, demand: powerDemand * ord.power, blackedOut: this.power.blackedOut },
+      water: { supply: this.water.supply, demand: waterDemand * ord.water, shortages: this.water.shortages, sourceless: this.water.sourceless ?? 0, pumpsOff: this.water.pumpsOff ?? 0, ...(this.water.pumpsOffAt ? { pumpsOffAt: { ...this.water.pumpsOffAt } } : {}), ...(this.water.sourcelessAt ? { sourcelessAt: { ...this.water.sourcelessAt } } : {}) },
       safety: { ...copyData(s.safety), burning: s.fires.length + s.treeFires.length },
       garbage: copyData(s.garbageStats),
       mayorRating: Math.round(s.mayorRating),
