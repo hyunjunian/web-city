@@ -99,6 +99,21 @@ describe('elevation', () => {
     expect(city.terraform(20, 5, 21, 6, 'raise')).toMatchObject({ ok: false, cost: 0 });
   });
 
+  it('counts a subway-only city as founded when pricing terrain edits, including after reload', () => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 100_000;
+    expect(city.buildSubway(1, 20, 30, 20).ok).toBe(true);
+    for (const c of [city, loadCity(saveCity(city))]) {
+      expect(c.established()).toBe(true);
+      const before = c.state.funds;
+      const p = c.previewTerraform(2, 2, 3, 3, 'raise');
+      expect(p.cost).toBe(4 * c.cfg.terrain.terraform.cost);
+      expect(c.terraform(2, 2, 3, 3, 'raise')).toEqual({ ok: true, cost: p.cost });
+      expect(c.state.funds).toBe(before - p.cost);
+      expect(c.previewTerraform(5, 5, 5, 5, 'water').cost).toBe(c.cfg.disasters.terraformCost);
+    }
+  });
+
   it('terraform and tree previews count only the tiles the tools change', () => {
     const city = new City({ size: 32, water: false });
     city.state.funds = 100_000;

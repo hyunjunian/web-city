@@ -3408,7 +3408,7 @@ export class City {
   established(): boolean {
     const s = this.state;
     if (s.structures.size || s.buildings.size) return true;
-    for (let i = 0; i < s.net.length; i++) if (s.net[i] || s.zone[i] || s.power[i] || s.pipe[i] || s.elevated[i] || s.tunnel[i]) return true;
+    for (let i = 0; i < s.net.length; i++) if (s.net[i] || s.zone[i] || s.power[i] || s.pipe[i] || s.subway[i] || s.elevated[i] || s.tunnel[i]) return true;
     return false;
   }
 
