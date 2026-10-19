@@ -5,6 +5,33 @@ import { linkAll } from '../src/sim/state';
 import { Rng } from '../src/rng';
 
 describe('network field preprocessing', () => {
+  it.each(['roads', 'transit'] as const)('reuses layout geometry for %s funding while refreshing routes and retaining edit invalidation', (department) => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    city.buildNetwork(0, 10, 31, 10, 'road');
+    city.refreshIfDirty();
+    const route = city.fields.travel, n = city.size ** 2;
+    let heightReads = 0;
+    city.state.height = new Proxy(city.state.height, {
+      get(array, key) {
+        if (typeof key === 'string' && /^\d+$/.test(key)) heightReads++;
+        return Reflect.get(array, key, array);
+      },
+    });
+    city.setDepartmentFunding(department, 80);
+    city.refreshIfDirty();
+    expect(city.fields.travel).not.toBe(route);
+    expect(heightReads).toBeLessThan(3 * n);
+    const expected = createFields(city.size);
+    computeNetworkFields(city.state, expected, city.cfg);
+    for (const key of ['access', 'accessDist', 'component', 'componentHasJobs', 'componentHasWork', 'landValue', 'slope', 'industrialAccess'] as const) {
+      expect(city.fields[key]).toEqual(expected[key]);
+    }
+    city.buildNetwork(2, 24, 28, 24, 'road');
+    city.refreshIfDirty();
+    expect(city.fields.access[24 * city.size + 12]).toBe(24 * city.size + 12);
+  });
+
   it('splits industrial access output and the final job scan across preprocessing pieces', () => {
     const city = new City({ size: 256, water: false }), n = city.size ** 2;
     const fields = createFields(city.size);

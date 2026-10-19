@@ -301,6 +301,7 @@ export class City {
     if (v) {
       this.revision++;
       this.edgeRuns = null;
+      this.networkFieldsReady = false;
     }
     this.networkDirtyFlag = v;
   }
@@ -1542,8 +1543,11 @@ export class City {
     const level = Math.max(0, Math.min(dept === 'parks' || dept === 'landmarks' ? 100 : 120, Math.round(percent)));
     if (this.state.departments[dept] === level) return;
     this.state.departments[dept] = level;
-    if (dept === 'roads' || dept === 'transit') this.networkDirty = true;
-    else this.effectsDirty = true;
+    if (dept === 'roads' || dept === 'transit') {
+      // Funding changes routes and capacities, while the map layout remains valid.
+      this.networkDirtyFlag = true;
+      this.revision++;
+    } else this.effectsDirty = true;
   }
 
   /** Sets an individually funded civic building's level (plants 0–120%, health/education 0–150%); department-funded facilities return false. */
@@ -2943,7 +2947,7 @@ export class City {
     const s = this.state;
     // Access, road components, land value and slope depend only on networks,
     // zones and terrain: every edit to those marks the network dirty.
-    if (this.networkDirty || !this.networkFieldsReady) {
+    if (!this.networkFieldsReady) {
       yield* computeNetworkFieldsSteps(s, this.fields, this.cfg);
       this.networkFieldsReady = true;
     } else yield* computeJobComponentsSteps(s, this.fields, this.cfg);
