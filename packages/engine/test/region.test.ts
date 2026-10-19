@@ -447,6 +447,19 @@ describe('regional demand', () => {
 });
 
 describe('regional demand pool', () => {
+  it('ignores non-finite or uncountable incoming growth without corrupting demand or saves', () => {
+    const city = new City({ size: 16, water: false });
+    city.receiveGrowth({ 'R$': 250.4 });
+    expect(city.state.growthTarget['R$']).toBe(250);
+    for (const value of [NaN, Infinity, -Infinity, Number.MAX_VALUE]) city.receiveGrowth({ 'R$': value, ID: value });
+    expect(city.state.growthTarget).toEqual({ 'R$': 250 });
+    for (const value of Object.values(city.demand.raw)) expect(Number.isFinite(value)).toBe(true);
+    const saved = JSON.parse(JSON.stringify(saveCity(city)));
+    expect(saved.growthTarget).toEqual({ 'R$': 250 });
+    city.receiveGrowth({ 'R$': 50 });
+    expect(city.state.growthTarget['R$']).toBe(300);
+  });
+
   const linked = () => {
     const city = new City({ size: 32, water: false, config: CALM });
     city.state.funds = 1_000_000;

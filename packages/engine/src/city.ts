@@ -3251,7 +3251,9 @@ export class City {
     this.settle();
     for (const t of DEV_TYPES) {
       const g = growth[t] ?? 0;
-      if (g > 0) this.state.growthTarget[t] = Math.round((this.state.growthTarget[t] ?? this.census.population[t]) + g);
+      if (!Number.isFinite(g) || g <= 0) continue;
+      const target = Math.round((this.state.growthTarget[t] ?? this.census.population[t]) + g);
+      if (Number.isSafeInteger(target)) this.state.growthTarget[t] = target;
     }
     this.updateDemand();
   }
