@@ -114,6 +114,18 @@ describe('crime', () => {
 });
 
 describe('fire', () => {
+  it('refuses off-map ignition coordinates even when their linear index aliases an occupied tile', () => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    city.placeStructure('coalPlant', 0, 3);
+    city.placeStructure('coalPlant', 28, 3);
+    for (const [x, y] of [[32, 2], [-1, 5], [0, 32], [NaN, 3], [3.5, 3]]) {
+      expect(city.igniteAt(x!, y!)).toBe(false);
+      expect(city.state.fires).toEqual([]);
+    }
+    expect(city.igniteAt(0, 3)).toBe(true);
+  });
+
   it('fires catch on trees, spread through woods, and burn them away', () => {
     const city = new City({ size: 32, seed: 2, water: false, config: { safety: { treeFire: { spread: 0.5, burnDays: 3 } } } });
     for (let y = 5; y < 15; y++) for (let x = 5; x < 15; x++) city.state.trees[y * 32 + x] = 40;

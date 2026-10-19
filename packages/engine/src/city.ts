@@ -3713,6 +3713,7 @@ export class City {
   /** Starts a fire on whatever stands at (x, y) (testing / disasters). */
   igniteAt(x: number, y: number): boolean {
     this.settle();
+    if (!inBounds(this.state, x, y)) return false;
     const occ = this.state.occupant[idx(this.state, x, y)]!;
     if (!occ) return false;
     return ignite(this.fireContext(), occ);
