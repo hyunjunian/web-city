@@ -109,7 +109,7 @@ Road maintenance, mass transit, power line, water pipe or sanitation funding in 
 
 ### `setFunding(structureId: number, percent: number): boolean`
 
-Sets an individually funded civic building's level (plants 0–120%, health/education 0–150%); department-funded facilities return false.
+Sets an individually funded civic building's level (plants 0–120%, health/education 0–150%); department-funded facilities return false. Zero-funded health/education and cargo facilities offer no jobs; reopening refreshes their commute routes.
 
 ### `setVehicleFunding(structureId: number, percent: number): boolean`
 

@@ -724,7 +724,8 @@ export function cargoCapacity(def: { airport?: { capacity: number }; seaport?: {
 const NO_FACILITY_JOBS = [0, 0, 0] as const;
 
 /** Offered civic jobs by wealth. Transit stations aren't separate commute
- * destinations; closed cargo facilities offer none either. */
-export function facilityJobs(def: Pick<StructureDef, 'jobs' | 'airport' | 'seaport' | 'station'>, st: { funding: number }): readonly [number, number, number] {
-  return def.station || cargoCapacity(def, st.funding) === 0 ? NO_FACILITY_JOBS : def.jobs;
+ * destinations; closed care and cargo facilities offer none either. */
+export function facilityJobs(def: Pick<StructureDef, 'jobs' | 'airport' | 'seaport' | 'station' | 'health' | 'school'>, st: { funding: number }): readonly [number, number, number] {
+  if (def.station || ((def.health || def.school) && st.funding <= 0)) return NO_FACILITY_JOBS;
+  return cargoCapacity(def, st.funding) === 0 ? NO_FACILITY_JOBS : def.jobs;
 }

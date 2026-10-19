@@ -1574,7 +1574,8 @@ export class City {
     } else this.effectsDirty = true;
   }
 
-  /** Sets an individually funded civic building's level (plants 0–120%, health/education 0–150%); department-funded facilities return false. */
+  /** Sets an individually funded civic building's level (plants 0–120%, health/education 0–150%); department-funded facilities return false.
+   * Zero-funded health/education and cargo facilities offer no jobs; reopening refreshes their commute routes. */
   setFunding(structureId: number, percent: number): boolean {
     this.settle();
     const st = this.state.structures.get(structureId);
@@ -1584,8 +1585,13 @@ export class City {
     const max = def.plant || def.police || def.fire || def.incinerator || def.recycling || def.airport || def.seaport ? 120 : def.health || def.school ? 150 : 100;
     const level = Math.max(0, Math.min(max, Math.round(percent)));
     if (st.funding === level) return true;
-    // Opening or closing a cargo destination changes routes, while its road geometry stays valid.
-    if ((def.airport || def.seaport) && (st.funding > 0) !== (level > 0)) this.networkDirtyFlag = true;
+    // Opening or closing a workplace or freight destination changes routes;
+    // its unchanged road geometry remains reusable.
+    if ((st.funding > 0) !== (level > 0)) {
+      const hadJobs = facilityJobs(def, st).some(amount => amount > 0);
+      const hasJobs = facilityJobs(def, { funding: level }).some(amount => amount > 0);
+      if (def.airport || def.seaport || hadJobs !== hasJobs) this.networkDirtyFlag = true;
+    }
     st.funding = level;
     const capacity = cargoCapacity(def, level);
     if (capacity !== null) st.capacity = capacity;
