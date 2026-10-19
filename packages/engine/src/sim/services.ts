@@ -356,7 +356,6 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   const sv = cfg.services;
   const keyOf = (def: StructureDef): ServiceKey | null => healthClassOf(def) ?? def.school?.curve ?? null;
 
-  const count = new Map<ServiceKey, Uint8Array | Uint32Array>();
   // Capacity reaching each tile, per kind: a home's patients or pupils split by it (a big
   // hospital beside a clinic takes most of them, not half).
   const capSum = new Map<ServiceKey, Float32Array>();
@@ -365,6 +364,8 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   const list: { st: Structure; def: StructureDef; key: ServiceKey; radius: number }[] = [];
   // HQ boost per health class, from its facilities (the same within a class).
   const classBoost = new Map<ServiceKey, number>();
+  const varyingBoost = new Set<ServiceKey>();
+  const boostSum = new Map<ServiceKey, Float32Array>();
   yield;
   let piece1 = 0;
   for (const st of s.structures.values()) {
@@ -376,24 +377,19 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
     list.push({ st, def, key, radius });
     // (The Disease Research Lab's citywide boost counts a fifth: at full, it alone halved the time to HQ
     // 200, against the 65 years it takes with healthcare and 50 with the health rewards.)
-    if (def.health) classBoost.set(key, def.health.boost * (key === 'research' ? RESEARCH_HQ_WEIGHT : 1));
-    if (!count.has(key)) {
-      count.set(key, new Uint8Array(n * n));
+    if (def.health) {
+      const boost = def.health.boost * (key === 'research' ? RESEARCH_HQ_WEIGHT : 1);
+      if (classBoost.has(key) && classBoost.get(key) !== boost) varyingBoost.add(key);
+      classBoost.set(key, boost);
+    }
+    if (!capSum.has(key)) {
       effSum.set(key, new Float32Array(n * n));
       capSum.set(key, new Float32Array(n * n));
     }
-    let c = count.get(key)!;
     const cs = capSum.get(key)!;
     const cap = capOf(def, st);
     forDisk(n, st, radius, (row, x0, x1) => {
       for (let i = row + x0; i <= row + x1; i++) {
-        if (c[i] === 255 && c instanceof Uint8Array) {
-          // Keep ordinary cities compact; dense overlaps must still divide by their true count.
-          const wide = new Uint32Array(n * n);
-          wide.set(c);
-          count.set(key, c = wide);
-        }
-        c[i]!++;
         cs[i]! += cap;
       }
     });
@@ -458,12 +454,24 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
     st.effectiveness = grade * (st.strike > 0 ? sv.strikeEffectiveness : 1);
     const e = effSum.get(key)!;
     const eff = st.effectiveness;
+    // Most classes share one boost. Only mixed custom facilities need another field.
+    let boosts: Float32Array | undefined;
+    const boost = (def.health?.boost ?? 0) * (key === 'research' ? RESEARCH_HQ_WEIGHT : 1);
+    if (varyingBoost.has(key)) {
+      boosts = boostSum.get(key);
+      if (!boosts) boostSum.set(key, boosts = new Float32Array(n * n));
+    }
     forDisk(n, st, radius, (row, x0, x1) => {
-      for (let i = row + x0; i <= row + x1; i++) e[i]! += eff;
+      if (boosts) {
+        for (let i = row + x0; i <= row + x1; i++) {
+          e[i]! += eff * cap;
+          boosts[i]! += eff * cap * boost;
+        }
+      } else for (let i = row + x0; i <= row + x1; i++) e[i]! += eff * cap;
     });
   }
 
-  // Per tile: averaged effectiveness per kind.
+  // Per tile: effectiveness weighted by each facility's share of the local patient or pupil capacity.
   f.hqBoost.fill(0);
   f.healthQuality.fill(0);
   f.hospitalCover.fill(0);
@@ -473,14 +481,15 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   const N = n * n;
   yield;
   let piece3 = 0;
-  for (const [key, c] of count) {
+  for (const [key, cs] of capSum) {
     yield;
     if ((++piece3 & 0x1ff) === 0) yield;
     const e = effSum.get(key)!;
+    const boosts = boostSum.get(key);
     if (key === 'market') {
       // Only the health index moves.
       const boost = classBoost.get(key)!;
-      for (let i = 0; i < N; i++) if (c[i]) f.hqBoost[i]! += boost * (e[i]! / c[i]!);
+      for (let i = 0; i < N; i++) if (cs[i]) f.hqBoost[i]! += boosts ? boosts[i]! / cs[i]! : boost * (e[i]! / cs[i]!);
     } else if (key === 'hospital' || key === 'research') {
       const boost = classBoost.get(key)!;
       const hq = f.hqBoost;
@@ -488,15 +497,15 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
       // Any healthcare building's radius counts as care for the Mayor Rating (the lab's is citywide).
       const cover = f.hospitalCover;
       for (let i = 0; i < N; i++) {
-        if (!c[i]) continue;
-        const avg = e[i]! / c[i]!;
-        hq[i]! += boost * avg;
+        if (!cs[i]) continue;
+        const avg = e[i]! / cs[i]!;
+        hq[i]! += boosts ? boosts[i]! / cs[i]! : boost * avg;
         if (avg > quality[i]!) quality[i] = avg;
         if (avg > cover[i]!) cover[i] = avg;
       }
     } else {
       const out = f.eduEff[key];
-      for (let i = 0; i < N; i++) if (c[i]) out[i] = e[i]! / c[i]!;
+      for (let i = 0; i < N; i++) if (cs[i]) out[i] = e[i]! / cs[i]!;
     }
   }
   // School quality for desirability: one fully funded school, library or
@@ -508,7 +517,7 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   yield;
   // (Only kinds the city has: the others' fields are all 0.)
   for (const k of EDU_CURVES) {
-    if (!count.has(k)) continue;
+    if (!capSum.has(k)) continue;
     const eff = f.eduEff[k];
     const higher = HIGHER_EDUCATION.has(k);
     for (let i = 0; i < N; i++) {
