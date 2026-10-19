@@ -9,7 +9,7 @@ import type { EduCurve } from '../data/structures';
 import { interp } from '../data/services';
 import { ordinanceEffects } from './mayor';
 import { edgeOf, neighbourWorkEdges } from './region';
-import { atGrade, idx, Net, tilesLinked, isAsphalt, isLocalNet, structureFunding, Terrain, zoneInfo, type Building, type CityState, type Rect } from './state';
+import { atGrade, idx, Net, tilesLinked, isAsphalt, isLocalNet, facilityJobs, structureFunding, Terrain, zoneInfo, type Building, type CityState, type Rect } from './state';
 import { connectionTiles, type TravelFields } from './transport';
 import { utilityEmissionShare } from './energy';
 import { cappedChebyshevSteps, DISTANCE_INF } from './spatial';
@@ -349,7 +349,8 @@ export function* computeJobComponentsSteps(s: CityState, f: Fields, cfg: SimConf
   for (const st of s.structures.values()) {
     if ((++piece2 & 0x1ff) === 0) yield;
     const def = cfg.structures[st.kind];
-    const j = def.jobs[0] + def.jobs[1] + def.jobs[2];
+    const profile = facilityJobs(def, st);
+    const j = profile[0] + profile[1] + profile[2];
     // Stations' few jobs aren't commute destinations (as in jobSites).
     if (def.station || j <= 0) continue;
     const front = frontage(s, st);

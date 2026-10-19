@@ -15,7 +15,7 @@ import { ordinanceEffects } from './mayor';
 import { edgeOf, neighbourCommute, neighbourOpenJobs, neighbourWorkEdges } from './region';
 import type { BusinessType } from '../types';
 import { buildingAccess, footprint, frontage, INF, type Fields } from './fields';
-import { cargoCapacity, carMove, tilesLinked, ELEVATED, isAsphalt, ONEWAY_DIRS, INTERCHANGE, isLocalNet, overNet, overNetVertical, SPAN, isRail, Net, NETWORK_KINDS, Terrain, trafficKind, type Building, type CityState, type Rect, type Structure } from './state';
+import { cargoCapacity, facilityJobs, carMove, tilesLinked, ELEVATED, isAsphalt, ONEWAY_DIRS, INTERCHANGE, isLocalNet, overNet, overNetVertical, SPAN, isRail, Net, NETWORK_KINDS, Terrain, trafficKind, type Building, type CityState, type Rect, type Structure } from './state';
 
 /** Subway mode also covers elevated rail (the same trains, on raised track). */
 /** Ferry carries foot passengers; CarFerry carries Sims who drove aboard (they drive off again). */
@@ -1091,8 +1091,9 @@ function jobSites(s: CityState, f: Fields, cfg: SimConfig): JobSite[] {
   }
   for (const st of s.structures.values()) {
     const def = cfg.structures[st.kind];
-    const jobs = def.jobs[0] + def.jobs[1] + def.jobs[2];
-    if (jobs > 0 && !def.station) out.push({ key: -st.id, fronts: frontage(s, st), jobs, byWealth: [def.jobs[0], def.jobs[1], def.jobs[2]] });
+    const profile = facilityJobs(def, st);
+    const jobs = profile[0] + profile[1] + profile[2];
+    if (jobs > 0 && !def.station) out.push({ key: -st.id, fronts: frontage(s, st), jobs, byWealth: [profile[0], profile[1], profile[2]] });
   }
   return out;
 }
@@ -1243,9 +1244,10 @@ export function* computeTravelSteps(s: CityState, f: Fields, cfg: SimConfig): Ge
   }
   for (const c of highEdges) outs.push([Mode.HighCar * N + c, 0]);
   for (const st of s.structures.values()) {
-    if (!(st.funding > 0)) continue;
-    if (cfg.structures[st.kind].airport) for (const a of frontage(s, st)) outs.push([Mode.Car * N + a, tc.airportFreightPenalty]);
-    if (!cfg.structures[st.kind].seaport) continue;
+    const def = cfg.structures[st.kind];
+    if (!(cargoCapacity(def, st.funding)! > 0)) continue;
+    if (def.airport) for (const a of frontage(s, st)) outs.push([Mode.Car * N + a, tc.airportFreightPenalty]);
+    if (!def.seaport) continue;
     for (const a of frontage(s, st)) outs.push([Mode.Car * N + a, 0]);
     for (const t of perimeter(s, st)) if (isRail(s.net[t]!)) outs.push([Mode.Train * N + t, 0]);
   }
@@ -1904,7 +1906,7 @@ export function* assignTrafficSteps(s: CityState, f: Fields, cfg: SimConfig, opt
     const def = cfg.structures[st.kind];
     if (alpha < 1 && (def.station || def.parking)) riders.set(st.id, st.load);
     if (def.station || def.seaport || def.parking) st.load = 0;
-    if (!def.seaport || !(st.funding > 0)) continue;
+    if (!def.seaport || !(cargoCapacity(def, st.funding)! > 0)) continue;
     for (const a of frontage(s, st)) ports.set(Mode.Car * N + a, st.id);
     for (const t of perimeter(s, st)) if (isRail(s.net[t]!)) ports.set(Mode.Train * N + t, st.id);
   }

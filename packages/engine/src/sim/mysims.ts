@@ -7,7 +7,7 @@ import type { SimConfig } from '../config';
 import { buildingAccess, type Fields } from './fields';
 import { LANDFILL_ZONE } from './garbage';
 import { mayorAt, ordinanceEffects, taxMoodFor } from './mayor';
-import type { Building, CityState, MySim, Rect, Structure } from './state';
+import { facilityJobs, type Building, type CityState, type MySim, type Rect, type Structure } from './state';
 import { Mode, tripTo } from './transport';
 
 export type ThoughtSubject =
@@ -90,6 +90,7 @@ export function commute(s: CityState, f: Fields, cfg: SimConfig, sim: MySim): { 
   const home = s.buildings.get(sim.home);
   if (!home) return null;
   const job = jobOf(s, sim);
+  if (job && 'kind' in job && facilityJobs(cfg.structures[job.kind], job)[sim.wealth] <= 0) return { time: -1, transit: false };
   if (!job) return home.commute >= 0 || home.noJobMonths > 0 ? { time: home.commute, transit: false } : null;
   const a = buildingAccess(s, f, home);
   if (a.road < 0) return { time: -1, transit: false };

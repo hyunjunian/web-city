@@ -9,7 +9,7 @@ import {
   BUSINESS_TYPES, DEV_TYPES, RES_TYPES, WEALTHS,
   perType, type BusinessType, type DevType, type PerType, type PerWealth,
 } from '../types';
-import { cargoCapacity, structureFunding, type CityState } from './state';
+import { cargoCapacity, facilityJobs, structureFunding, type CityState } from './state';
 import type { ConnectionKind } from '../data/demand';
 import type { RegionalDemand } from './region';
 
@@ -115,7 +115,7 @@ export function* takeCensusSteps(s: CityState, cfg: SimConfig): Generator<void, 
   let piece3 = 0;
   for (const st of s.structures.values()) {
     if ((++piece3 & 0x1ff) === 0) yield;
-    const jobs = cfg.structures[st.kind].jobs;
+    const jobs = facilityJobs(cfg.structures[st.kind], st);
     if (jobs[0] + jobs[1] + jobs[2] === 0 || !frontage(s, st).length) continue;
     for (const w of WEALTHS) civicJobs[w] += jobs[w];
   }

@@ -16,7 +16,7 @@ import {
 import { developOnce, exodus, GROWTH_CODES, growthBlockers, INFO_ONLY, trackDemand, understaffed, updateBuildingsSteps, warmTractsSteps, type DevContext, type GrowthBlocker } from './sim/development';
 import { computeEffectFieldsSteps, computeJobComponentsSteps, computeNetworkFieldsSteps, createFields, footprint, frontage, INF, type Fields } from './sim/fields';
 import {
-  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isAsphalt, isLocalNet, Net, NETWORK_KINDS, ONEWAY_DIRS, fundingDepartment, cargoCapacity, Terrain, trafficKind, zoneCode, zoneInfo, ZONES,
+  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isAsphalt, isLocalNet, Net, NETWORK_KINDS, ONEWAY_DIRS, fundingDepartment, cargoCapacity, facilityJobs, Terrain, trafficKind, zoneCode, zoneInfo, ZONES,
   type BudgetReport, type Building, type CityState, type DealResource, type GarbageStats, type HistoryPoint, type Rect, type MySim, type NeighbourDeal, type NetworkKind,
   type Structure, type ZoneKind,
   type Neighbour,
@@ -2530,7 +2530,7 @@ export class City {
       // (Hiring: fewer filled than the jobs it offers now.)
       if (b.type && b.type[0] !== 'R' && b.occupancy > 0 && this.hasJobsFor(b, sim.wealth) && b.filled < b.capacity * b.occupancy - 0.5) consider(b.id, b.x, b.y);
     }
-    for (const st of s.structures.values()) if ((this.cfg.structures[st.kind].jobs[sim.wealth] ?? 0) > 0) consider(-st.id, st.x, st.y);
+    for (const st of s.structures.values()) if ((facilityJobs(this.cfg.structures[st.kind], st)[sim.wealth] ?? 0) > 0) consider(-st.id, st.x, st.y);
     if (!found.length) return false;
     found.sort((a, b) => a.d - b.d || a.key - b.key);
     // The closest job they can actually get to within the trip limit (not one across a river); before
@@ -2581,7 +2581,7 @@ export class City {
   private jobStillOpen(sim: MySim): boolean {
     const job = jobOf(this.state, sim);
     if (!job) return false;
-    if ('kind' in job) return this.cfg.structures[job.kind].jobs[sim.wealth]! > 0;
+    if ('kind' in job) return facilityJobs(this.cfg.structures[job.kind], job)[sim.wealth]! > 0;
     return this.hasJobsFor(job, sim.wealth);
   }
 
@@ -2626,7 +2626,7 @@ export class City {
     const b = occ > 0 ? s.buildings.get(occ) : undefined;
     const st = occ < 0 ? s.structures.get(-occ) : undefined;
     const fits = b?.type && b.type[0] !== 'R' && b.occupancy > 0 ? this.hasJobsFor(b, sim.wealth)
-      : st ? this.cfg.structures[st.kind].jobs[sim.wealth] > 0 : false;
+      : st ? facilityJobs(this.cfg.structures[st.kind], st)[sim.wealth] > 0 : false;
     if (!fits) return { ok: false, cost: 0, message: 'no jobs here for this wealth level' };
     sim.job = b ? b.id : -st!.id;
     delete sim.joblessSince;

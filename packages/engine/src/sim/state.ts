@@ -3,7 +3,7 @@
 import type { LiveDisaster } from './disasters';
 import type { Density, DevType, PerType, ZoneClass } from '../types';
 import type { Difficulty } from '../data/difficulty';
-import type { StructureKind } from '../data/structures';
+import type { StructureDef, StructureKind } from '../data/structures';
 import type { OrdinanceId } from '../data/ordinances';
 import type { NeighbourKind } from '../data/region';
 
@@ -719,4 +719,11 @@ export function cargoCapacity(def: { airport?: { capacity: number }; seaport?: {
   if (def.airport) return Math.max(0, def.airport.capacity * share);
   if (def.seaport) return def.seaport.perTrip > 0 ? Math.max(0, def.seaport.relief * share / def.seaport.perTrip) : 0;
   return null;
+}
+
+const NO_FACILITY_JOBS = [0, 0, 0] as const;
+
+/** Operating civic jobs by wealth; a closed cargo facility offers none. */
+export function facilityJobs(def: Pick<StructureDef, 'jobs' | 'airport' | 'seaport'>, st: { funding: number }): readonly [number, number, number] {
+  return cargoCapacity(def, st.funding) === 0 ? NO_FACILITY_JOBS : def.jobs;
 }
