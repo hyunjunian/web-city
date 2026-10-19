@@ -5,6 +5,33 @@ import { linkAll } from '../src/sim/state';
 import { Rng } from '../src/rng';
 
 describe('network field preprocessing', () => {
+  it('splits industrial access output and the final job scan across preprocessing pieces', () => {
+    const city = new City({ size: 256, water: false }), n = city.size ** 2;
+    const fields = createFields(city.size);
+    let reads = 0, writes = 0, totalWrites = 0, maxReads = 0, maxWrites = 0;
+    const indexed = (key: PropertyKey) => typeof key === 'string' && /^\d+$/.test(key);
+    const state = { ...city.state, zone: new Proxy(city.state.zone, {
+      get(array, key) { if (indexed(key)) reads++; return Reflect.get(array, key, array); },
+    }) };
+    fields.industrialAccess = new Proxy(fields.industrialAccess, {
+      set(array, key, value) {
+        if (indexed(key)) { writes++; totalWrites++; }
+        return Reflect.set(array, key, value, array);
+      },
+    });
+    const steps = computeNetworkFieldsSteps(state, fields, city.cfg);
+    let done = false;
+    while (!done) {
+      reads = writes = 0;
+      done = !!steps.next().done;
+      maxReads = Math.max(maxReads, reads);
+      maxWrites = Math.max(maxWrites, writes);
+    }
+    expect(totalWrites).toBe(n);
+    expect(maxReads).toBeLessThan(n);
+    expect(maxWrites).toBeLessThan(n);
+  });
+
   it('rebuilds geometry when explicitly refreshed after direct state-array edits', () => {
     const city = new City({ size: 32, water: false });
     for (const y of [10, 20]) {

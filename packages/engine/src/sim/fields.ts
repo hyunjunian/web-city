@@ -632,10 +632,13 @@ export function* computeNetworkFieldsSteps(s: CityState, f: Fields, cfg: SimConf
     }
   }
   yield;
-  for (let i = 0; i < n * n; i++) f.industrialAccess[i] = depth[i]! < INF ? 1 : 0;
+  for (let i = 0; i < n * n; i++) {
+    if ((i & 0x7fff) === 0x7fff) yield;
+    f.industrialAccess[i] = depth[i]! < INF ? 1 : 0;
+  }
   // (After the industrial reach: lots deep in an I or A zone reach their road only through it, and their
   // jobs count on that road's network.)
-  computeJobComponents(s, f, cfg);
+  yield* computeJobComponentsSteps(s, f, cfg);
 }
 
 /** Recomputes pollution, proximity and NIMBY fields from buildings. */
