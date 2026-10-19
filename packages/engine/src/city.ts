@@ -506,6 +506,8 @@ export class City {
     const code = zoneCode(kind);
     const none = { code, tiles: [], streets: new Set<number>(), cost: 0 };
     if (code < 0) return { ...none, message: `unknown zone ${kind}` };
+    if (![x0, y0, x1, y1].every(Number.isFinite)) return none;
+    [x0, y0, x1, y1] = [x0, y0, x1, y1].map(Math.round) as [number, number, number, number];
     const landfill = code === LANDFILL_ZONE;
     // Landfills come in blocks of at least 2×2 and get no auto-streets.
     if (landfill && (Math.abs(x1 - x0) < 1 || Math.abs(y1 - y0) < 1)) {
@@ -3381,7 +3383,7 @@ export class City {
     // Filled-in land comes up level with its surroundings.
     let avg = 0;
     let k = 0;
-    for (const [x, y] of this.rect(x0 - 1, y0 - 1, x1 + 1, y1 + 1)) {
+    for (const [x, y] of this.rect(Math.min(x0, x1) - 1, Math.min(y0, y1) - 1, Math.max(x0, x1) + 1, Math.max(y0, y1) + 1)) {
       const i = idx(s, x, y);
       if (s.terrain[i] !== Terrain.Water) {
         avg += s.height[i]!;
@@ -3474,9 +3476,9 @@ export class City {
     for (const i of tiles) s.trees[i] = 1;
     s.funds -= cost;
     if (tiles.length) {
-      const ax = Math.round((Math.min(x0, x1) + Math.max(x0, x1)) / 2);
-      const ay = Math.round((Math.min(y0, y1) + Math.max(y0, y1)) / 2);
-      s.events.push({ x: ax, y: ay, radius: fl.event.radius + Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) / 2, amount: fl.event.amount, months: fl.event.months, age: 0 });
+      const ax = Math.max(0, Math.round(Math.min(x0, x1))), bx = Math.min(s.size - 1, Math.round(Math.max(x0, x1)));
+      const ay = Math.max(0, Math.round(Math.min(y0, y1))), by = Math.min(s.size - 1, Math.round(Math.max(y0, y1)));
+      s.events.push({ x: Math.round((ax + bx) / 2), y: Math.round((ay + by) / 2), radius: fl.event.radius + Math.max(bx - ax, by - ay) / 2, amount: fl.event.amount, months: fl.event.months, age: 0 });
     }
     this.effectsDirty = true;
     return { ok: tiles.length > 0, cost };
@@ -3779,6 +3781,7 @@ export class City {
   }
 
   private *rect(x0: number, y0: number, x1: number, y1: number): Generator<[number, number]> {
+    if (![x0, y0, x1, y1].every(Number.isFinite)) return;
     const n = this.state.size;
     [x0, y0, x1, y1] = [x0, y0, x1, y1].map(Math.round) as [number, number, number, number];
     const ax = Math.max(0, Math.min(x0, x1));

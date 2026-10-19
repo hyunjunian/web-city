@@ -2,6 +2,53 @@ import { describe, expect, it } from 'vitest';
 import { City, loadCity, saveCity } from '../src';
 
 describe('elevation', () => {
+  it('fills excavated land to the same surrounding height in either drag direction', () => {
+    const forward = new City({ size: 8, water: false });
+    const backward = new City({ size: 8, water: false });
+    for (const city of [forward, backward]) {
+      for (let i = 0; i < city.state.height.length; i++) city.state.height[i] = 30 + i % 8 * 10;
+      city.terraform(2, 2, 4, 4, 'water');
+    }
+    forward.terraform(2, 2, 4, 4, 'land');
+    backward.terraform(4, 4, 2, 2, 'land');
+    expect(forward.state.height[3 * 8 + 3]).toBe(60);
+    expect(backward.state.height).toEqual(forward.state.height);
+  });
+
+  it('rounds zoning endpoints before planning the zones and their automatic streets', () => {
+    const exact = new City({ size: 32, water: false });
+    const fractional = new City({ size: 32, water: false });
+    const plan = exact.previewZone(1, 1, 15, 15, 'R-low');
+    expect(plan.streets.length).toBeGreaterThan(0);
+    expect(fractional.previewZone(1.25, 1.25, 15.25, 15.25, 'R-low')).toEqual(plan);
+    expect(fractional.zone(1.25, 1.25, 15.25, 15.25, 'R-low')).toEqual(exact.zone(1, 1, 15, 15, 'R-low'));
+    expect(saveCity(fractional)).toEqual(saveCity(exact));
+    // Minimum areas use the tile-rounded rectangle too.
+    expect(fractional.previewZone(20.49, 20.49, 23.1, 23.1, 'A').ok).toBe(true);
+  });
+
+  it('refuses non-finite rectangular drags without planting trees or creating invalid events', () => {
+    const city = new City({ size: 16, water: false });
+    const before = saveCity(city);
+    const rectangles: [number, number, number, number][] = [[0, 0, Infinity, Infinity], [-Infinity, -Infinity, 5, 5], [0, NaN, 5, 5]];
+    for (const coordinates of rectangles) {
+      expect(city.previewZone(...coordinates, 'R-low').ok).toBe(false);
+      expect(city.zone(...coordinates, 'R-low').ok).toBe(false);
+      expect(city.previewTrees(...coordinates).ok).toBe(false);
+      expect(city.plantTrees(...coordinates).ok).toBe(false);
+      expect(city.terraform(...coordinates, 'water').ok).toBe(false);
+      expect(city.bulldoze(...coordinates).ok).toBe(false);
+    }
+    expect(saveCity(city)).toEqual(before);
+  });
+
+  it('centres planting effects on the clipped tile rectangle', () => {
+    const clipped = new City({ size: 16, water: false });
+    const exact = new City({ size: 16, water: false });
+    expect(clipped.plantTrees(-10, -10, 2.25, 2.25)).toEqual(exact.plantTrees(0, 0, 2, 2));
+    expect(saveCity(clipped)).toEqual(saveCity(exact));
+  });
+
   it('keeps flat-ground air pollution independent of altitude and restores ridge screening after terrain changes', () => {
     const city = new City({ size: 32, water: false, config: { structures: { coalPlant: { powerUse: 1_000 } } } });
     city.state.funds = 1_000_000;
