@@ -879,8 +879,10 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
       }
     }
     const src = sources[g]!;
+    const incoming = importSources.get(g);
+    const sourceCount = src.length + (incoming?.length ?? 0);
     let excess = demand[g]! - supply[g]!;
-    if (excess > 0 && src.length) {
+    if (excess > 0 && sourceCount) {
       // Farthest from a source first (ties by id): each consumer's distance to
       // its nearest source, then by distance in buckets (a comparison sort of
       // a city-wide network is a frame's work).
@@ -888,13 +890,14 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
       let measured = 0;
       for (const c of list) {
         // (Work grows with the sources as well as the consumers.)
-        measured += src.length;
+        measured += sourceCount;
         if (measured > 0x3fff) {
           measured = 0;
           yield;
         }
         let d = Infinity;
         for (const p of src) d = Math.min(d, Math.max(Math.abs(p.x + p.w / 2 - c.x), Math.abs(p.y + p.h / 2 - c.y)));
+        if (incoming) for (const p of incoming) d = Math.min(d, Math.max(Math.abs(p.x + 0.5 - c.x), Math.abs(p.y + 0.5 - c.y)));
         const same = byFar.get(d);
         if (same) same.push(c);
         else byFar.set(d, [c]);

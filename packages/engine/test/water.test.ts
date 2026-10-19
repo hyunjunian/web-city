@@ -30,6 +30,39 @@ const all = (c: City) => [...c.state.buildings.values()];
 const pumps = (c: City) => [...c.state.structures.values()].filter((s) => s.kind === 'waterPump');
 
 describe('water', () => {
+  it.each([false, true])('rations water by distance to imported sources as well as local pumps (local pump: %s)', (localPump) => {
+    const city = new City({ size: 32, water: false, config: {
+      services: { waterPerCapita: { 'R$': 1 } },
+      structures: { waterTower: { pump: { output: 500 } } },
+    } });
+    city.state.funds = 1_000_000;
+    city.buildPipe(0, 10, 31, 10);
+    city.setNeighbour(1, 'developed', 100);
+    if (localPump) {
+      city.placeStructure('windPlant', 0, 6);
+      city.placeStructure('waterTower', 0, 10);
+    }
+    // Insertion order deliberately starts at the eastern import, not the far end.
+    const homes = [26, 16, 6].map((x) => {
+      const id = city.state.nextId++;
+      const home = {
+        id, x, y: 11, w: 1, h: 1, stage: 1, origType: 'R$' as const, type: 'R$' as const,
+        capacity: 1_000, occupancy: 1, filled: 0, distressMonths: 0, noRoadMonths: 0, noPowerMonths: 0,
+        powered: false, noWaterMonths: 0, watered: false, age: 30, eq: 20, hq: 20, abandonReason: null,
+        builtDay: 0, commute: -1, noJobMonths: 0, historical: false,
+      };
+      city.state.buildings.set(id, home);
+      city.state.occupant[11 * city.size + x] = id;
+      return home;
+    });
+    city.refresh();
+    expect(city.makeDeal(1, 'water', 'buy', 2_000).ok).toBe(true);
+    city.refreshIfDirty();
+    expect(city.water.supply).toBe(localPump ? 2_500 : 2_000);
+    expect(city.water.shortages).toBe(1);
+    expect(homes.map((home) => home.watered)).toEqual(localPump ? [true, false, true] : [true, true, false]);
+  });
+
   it('reuses tile work across changed pipe layouts and supplied coverage without retaining old queue entries', () => {
     const city = new City({ size: 64, water: false });
     city.state.funds = 1_000_000;
