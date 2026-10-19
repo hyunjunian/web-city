@@ -311,7 +311,18 @@ export function* computeJobComponentsSteps(s: CityState, f: Fields, cfg: SimConf
   has.fill(0);
   const jobs = new Float64Array(count);
   const workers = new Float64Array(count);
+  const touched = new Int32Array(count);
+  let workplace = 0;
   const at = (t: number) => f.component[t]!;
+  // Count a workplace once per reachable road component, even when several
+  // front tiles touch the same one. Actual hiring still shares one capacity.
+  const addJobs = (road: number, amount: number) => {
+    const c = at(road);
+    if (c >= 0 && touched[c] !== workplace) {
+      touched[c] = workplace;
+      jobs[c]! += amount;
+    }
+  };
   yield;
   for (let i = 0; i < n * n; i++) {
     if ((i & 0x7fff) === 0x7fff) yield;
@@ -322,15 +333,12 @@ export function* computeJobComponentsSteps(s: CityState, f: Fields, cfg: SimConf
     // Empty or abandoned business land: jobs to come, on the roads beside it.
     const x = i % n;
     const y = (i - x) / n;
+    workplace++;
     for (let k = 0; k < 4; k++) {
       const nx = x + DX[k]!;
       const ny = y + DY[k]!;
       if (nx < 0 || ny < 0 || nx >= n || ny >= n) continue;
-      const c = at(ny * n + nx);
-      if (c >= 0) {
-        jobs[c]! += JOBS_PER_EMPTY_TILE;
-        break;
-      }
+      addJobs(ny * n + nx, JOBS_PER_EMPTY_TILE);
     }
   }
   yield;
@@ -338,12 +346,20 @@ export function* computeJobComponentsSteps(s: CityState, f: Fields, cfg: SimConf
   for (const b of s.buildings.values()) {
     if ((++piece1 & 0x1ff) === 0) yield;
     if (!b.type) continue;
-    const road = buildingAccess(s, f, b).road;
-    const c = road >= 0 ? at(road) : -1;
-    if (c < 0) continue;
     const people = b.capacity * b.occupancy;
-    if (b.type[0] === 'R') workers[c]! += people * interp(cfg.services.workforceByHq, b.hq);
-    else jobs[c]! += people;
+    if (b.type[0] === 'R') {
+      const road = buildingAccess(s, f, b).road;
+      const c = road >= 0 ? at(road) : -1;
+      if (c >= 0) workers[c]! += people * interp(cfg.services.workforceByHq, b.hq);
+    } else {
+      workplace++;
+      const front = frontage(s, b);
+      if (front.length) for (const road of front) addJobs(road, people);
+      else {
+        const road = buildingAccess(s, f, b).road;
+        if (road >= 0) addJobs(road, people);
+      }
+    }
   }
   yield;
   let piece2 = 0;
@@ -353,8 +369,8 @@ export function* computeJobComponentsSteps(s: CityState, f: Fields, cfg: SimConf
     const profile = facilityJobs(def, st);
     const j = profile[0] + profile[1] + profile[2];
     if (j <= 0) continue;
-    const front = frontage(s, st);
-    if (front.length && at(front[0]!) >= 0) jobs[at(front[0]!)]! += j;
+    workplace++;
+    for (const road of frontage(s, st)) addJobs(road, j);
   }
   yield;
   const work = f.componentHasWork;

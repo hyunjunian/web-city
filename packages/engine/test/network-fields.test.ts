@@ -1,10 +1,60 @@
 import { describe, expect, it } from 'vitest';
-import { City, Net, Terrain } from '../src';
+import { City, Net, Terrain, type Building } from '../src';
 import { computeNetworkFields, computeNetworkFieldsSteps, createFields } from '../src/sim/fields';
 import { linkAll } from '../src/sim/state';
 import { Rng } from '../src/rng';
+import { assignTraffic } from '../src/sim/transport';
 
 describe('network field preprocessing', () => {
+  it.each(['civic', 'business'] as const)('reaches a shared %s workplace through every frontage without multiplying its actual jobs', kind => {
+    const city = new City({ size: 32, water: false, config: { structures: { smallPoliceStation: { w: 4, h: 2, jobs: [100, 0, 0] } } } });
+    city.state.funds = 1_000_000;
+    for (const y of [4, 7]) city.buildNetwork(2, y, 26, y, 'road');
+    const add = (x: number, y: number, capacity: number, type: 'R$' | 'ID', w = 1, h = 1) => {
+      const id = city.state.nextId++;
+      const b: Building = { id, x, y, w, h, stage: 1, origType: type, type, capacity, occupancy: 1, filled: 0,
+        distressMonths: 0, noRoadMonths: 0, noPowerMonths: 0, powered: true, noWaterMonths: 0, watered: true,
+        age: 30, eq: 50, hq: 50, abandonReason: null, builtDay: 0, commute: -1, noJobMonths: 0, historical: false };
+      city.state.buildings.set(id, b);
+      for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) city.state.occupant[yy * 32 + xx] = id;
+    };
+    if (kind === 'civic') expect(city.placeStructure('smallPoliceStation', 10, 5).ok).toBe(true);
+    else {
+      add(10, 5, 100, 'ID', 4, 2);
+      city.cfg.demand.workforceProfile.ID = [1, 0, 0];
+    }
+    add(3, 3, 200, 'R$');
+    add(3, 8, 200, 'R$');
+    city.refresh();
+    const upper = city.fields.component[4 * 32 + 3]!, lower = city.fields.component[7 * 32 + 3]!;
+    expect(upper).not.toBe(lower);
+    for (const component of [upper, lower]) {
+      expect(city.fields.componentHasWork[component]).toBe(1);
+      expect(city.fields.componentHasJobs[component]).toBe(1);
+    }
+    const traffic = assignTraffic(city.state, city.fields, city.cfg);
+    expect(Object.entries(traffic.volume).filter(([k]) => !k.startsWith('freight')).reduce((sum, [, v]) => sum + v, 0)).toBeCloseTo(100, 5);
+    // Joining the streets gives one workforce of 188 competing for the same
+    // 100 jobs: several front tiles must not count the workplace repeatedly.
+    expect(city.buildNetwork(2, 4, 2, 7, 'road').ok).toBe(true);
+    city.refreshIfDirty();
+    const joined = city.fields.component[4 * 32 + 3]!;
+    expect(city.fields.componentHasWork[joined]).toBe(1);
+    expect(city.fields.componentHasJobs[joined]).toBe(0);
+  });
+
+  it('makes potential business jobs reachable from both sides of a zoned tile', () => {
+    const city = new City({ size: 32, water: false });
+    city.state.funds = 1_000_000;
+    for (const y of [4, 6]) city.buildNetwork(2, y, 26, y, 'road');
+    city.zone(10, 5, 10, 5, 'C-low', { autoStreets: false });
+    city.refresh();
+    for (const y of [4, 6]) {
+      const component = city.fields.component[y * 32 + 10]!;
+      expect(city.fields.componentHasJobs[component]).toBe(1);
+    }
+  });
+
   it.each(['roads', 'transit'] as const)('reuses layout geometry for %s funding while refreshing routes and retaining edit invalidation', (department) => {
     const city = new City({ size: 32, water: false });
     city.state.funds = 1_000_000;
