@@ -473,6 +473,7 @@ export class City {
     for (const i of plan.streets) {
       s.net[i] = Net.Street;
       s.potholes[i] = 0;
+      s.rubble[i] = 0;
       s.zone[i] = 0;
       s.trees[i] = 0;
     }

@@ -2,6 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { City, loadCity, saveCity } from '../src';
 
 describe('clearing and rebuilding', () => {
+  it('clears rubble under automatic streets while leaving vacant plots to be cleared separately', () => {
+    const city = new City({ size: 16, water: false });
+    city.state.rubble.fill(1);
+    const plan = city.previewZone(2, 2, 12, 12, 'R-low');
+    expect(plan.streets.length).toBeGreaterThan(0);
+    expect(city.zone(2, 2, 12, 12, 'R-low').ok).toBe(true);
+    for (const [x, y] of plan.streets) expect(city.state.rubble[y * 16 + x]).toBe(0);
+    for (const [x, y] of plan.cells) expect(city.state.rubble[y * 16 + x]).toBe(1);
+  });
+
   it.each(['streets', 'landfill'] as const)('clears trees and only their fires when zoning creates %s', (kind) => {
     const city = new City({ size: 32, water: false });
     city.plantTrees(0, 0, 31, 31);
