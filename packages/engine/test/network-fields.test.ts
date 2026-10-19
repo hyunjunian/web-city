@@ -5,6 +5,24 @@ import { linkAll } from '../src/sim/state';
 import { Rng } from '../src/rng';
 
 describe('network field preprocessing', () => {
+  it('rebuilds geometry when explicitly refreshed after direct state-array edits', () => {
+    const city = new City({ size: 32, water: false });
+    for (const y of [10, 20]) {
+      city.state.net.fill(Net.None);
+      for (let x = 0; x < city.size; x++) city.state.net[y * city.size + x] = Net.Road;
+      city.state.height[(y - 1) * city.size + 5] = 80;
+      city.state.terrain[(y + 1) * city.size + 5] = Terrain.Water;
+      linkAll(city.state);
+      city.refresh();
+      const expected = createFields(city.size);
+      computeNetworkFields(city.state, expected, city.cfg);
+      for (const key of ['access', 'accessDist', 'component', 'landValue', 'slope', 'industrialAccess', 'connections'] as const) {
+        expect(city.fields[key]).toEqual(expected[key]);
+      }
+      expect(city.fields.access[y * city.size + 5]).toBe(y * city.size + 5);
+    }
+  });
+
   it('assigns the nearest road within driveway reach, with stable ties, on varied map sizes', () => {
     const random = new Rng(310);
     for (const n of [16, 31, 64]) {

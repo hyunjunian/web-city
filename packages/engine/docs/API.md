@@ -349,7 +349,7 @@ My Sims who moved out or lost their job since the last call.
 
 ### `refresh(opts: { travel?: boolean } = {}): void`
 
-Recomputes fields, desirability, census and demand. `travel: false` keeps the last route plan (no network change; new workplaces join at the next plan).
+Rebuilds all fields, desirability, census and demand, including network geometry after direct state-array edits. Normal tools need only `refreshIfDirty()`. `travel: false` keeps the last route plan (no network change; new workplaces join at the next plan).
 
 ### `connectionsPerEdge(): Record<ConnectionKind, [number, number, number, number]>`
 

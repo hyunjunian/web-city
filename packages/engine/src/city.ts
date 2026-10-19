@@ -1948,7 +1948,7 @@ export class City {
   refreshIfDirty(): void {
     this.settle();
     if (this.coverageDirty && !this.networkDirty && !this.effectsDirty && this.sourceFieldsDay === this.state.day) drain(this.refreshCoverageSteps());
-    else if (this.networkDirty || this.effectsDirty || this.coverageDirty) this.refresh({ travel: this.networkDirty });
+    else if (this.networkDirty || this.effectsDirty || this.coverageDirty) drain(this.refreshSteps({ travel: this.networkDirty }));
   }
 
   /** Everything about one tile: terrain, zone, networks, the building or structure on it, fields (pollution, crime, coverage, land value …), trip times and desirability by developer type with each factor. */
@@ -2916,11 +2916,13 @@ export class City {
 
 
   /**
-   * Recomputes fields, desirability, census and demand. `travel: false` keeps the
-   * last route plan (no network change; new workplaces join at the next plan).
+   * Rebuilds all fields, desirability, census and demand, including network geometry
+   * after direct state-array edits. Normal tools need only `refreshIfDirty()`.
+   * `travel: false` keeps the last route plan (no network change; new workplaces join at the next plan).
    */
   refresh(opts: { travel?: boolean } = {}): void {
     this.settle(); // a day part-way through finishes first (inside one, a no-op)
+    this.networkDirty = true;
     drain(this.refreshSteps(opts));
   }
 
