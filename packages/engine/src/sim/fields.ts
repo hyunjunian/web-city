@@ -525,10 +525,10 @@ function landfillRows(strength: number, radius: number): { dy: number; from: num
 function lotSplat(n: number, out: Float32Array, lot: Rect, strength: number, radius: number, height?: Uint8Array): void {
   if (strength === 0) return;
   const reach = radius + 1;
-  const y0 = Math.max(0, lot.y - radius);
-  const y1 = Math.min(n - 1, lot.y + lot.h - 1 + radius);
-  const x0 = Math.max(0, lot.x - radius);
-  const x1 = Math.min(n - 1, lot.x + lot.w - 1 + radius);
+  const y0 = Math.max(0, Math.floor(lot.y - radius));
+  const y1 = Math.min(n - 1, Math.ceil(lot.y + lot.h - 1 + radius));
+  const x0 = Math.max(0, Math.floor(lot.x - radius));
+  const x1 = Math.min(n - 1, Math.ceil(lot.x + lot.w - 1 + radius));
   const cx = lot.x + (lot.w - 1) / 2;
   const cy = lot.y + (lot.h - 1) / 2;
   const hs = height ? height[Math.round(cy) * n + Math.round(cx)]! : 0;

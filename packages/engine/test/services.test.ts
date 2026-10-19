@@ -506,6 +506,22 @@ describe('rewards and budget', () => {
 });
 
 describe('civic pollution (base game and Rush Hour tables)', () => {
+  it.each([[31, 0, 0], [31, 7, 9], [32, 0, 0], [32, 7, 9]] as const)(
+    'keeps fractional pollution radii on the tile grid (size %i, source %i,%i)', (size, x, y) => {
+      const city = new City({ size, water: false, config: {
+        structures: { medicalClinic: { pollution: [10, 2.5, 5, 1.5] } },
+      } });
+      expect(city.placeStructure('medicalClinic', x, y).ok).toBe(true);
+      const at = y * size + x;
+      expect(city.fields.air[at]).toBe(10);
+      expect(city.fields.air[at + 3]).toBeCloseTo(10 * (1 - 3 / 3.5), 5);
+      expect(city.fields.air[at + 4]).toBe(0);
+      expect(city.fields.waterPollution[at]).toBe(5);
+      expect(city.fields.waterPollution[at + 2]).toBeCloseTo(1, 5);
+      expect(city.fields.waterPollution[at + 3]).toBe(0);
+    },
+  );
+
   it('civic, utility and transit buildings carry their listed figures', () => {
     expect(STRUCTURES.cityJail.pollution).toEqual([7, 2, 5, 3]);
     expect(STRUCTURES.largeWaterPump.pollution).toEqual([12, 2, 0, 0]);
