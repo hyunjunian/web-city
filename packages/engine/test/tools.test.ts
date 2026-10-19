@@ -115,6 +115,20 @@ describe('clearing and rebuilding', () => {
     expect(city.query(11, 8)!.pipeWear).toBe(200);
   });
 
+  it.each(['R-low', 'landfill', 'facility'] as const)('clears only replaced power-line wear when building %s', (kind) => {
+    const city = new City({ size: 32, water: false });
+    expect(city.buildPowerLine(2, 4, 20, 4).ok).toBe(true);
+    const tile = 4 * 32 + 10;
+    city.state.lineWear[tile] = city.state.lineWear[tile + 10] = 200;
+    const result = kind === 'facility' ? city.placeStructure('smallParkGreen', 10, 4)
+      : city.zone(10, 4, 11, 5, kind, { autoStreets: false });
+    expect(result.ok).toBe(true);
+    expect(city.query(10, 4)!.powerLine).toBe(false);
+    expect(city.query(10, 4)!.lineWear).toBe(0);
+    expect(city.query(20, 4)!.lineWear).toBe(200);
+    expect(loadCity(saveCity(city)).query(10, 4)!.lineWear).toBe(0);
+  });
+
   it('new rail starts intact while adding a road crossing preserves existing rail damage', () => {
     const city = new City({ size: 32, water: false });
     city.buildNetwork(2, 10, 20, 10, 'rail');

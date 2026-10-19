@@ -468,7 +468,10 @@ export class City {
     for (const i of plan.tiles) {
       s.zone[i] = plan.code;
       // Zones carry power themselves, so lines under them disappear.
-      if (plan.code !== 0) s.power[i] = 0;
+      if (plan.code !== 0) {
+        s.power[i] = 0;
+        s.lineWear[i] = 0;
+      }
       if (plan.code === LANDFILL_ZONE) s.trees[i] = 0;
     }
     for (const i of plan.streets) {
@@ -1231,6 +1234,7 @@ export class City {
       s.occupant[i] = -st.id;
       s.zone[i] = 0;
       s.power[i] = 0;
+      s.lineWear[i] = 0;
       s.trees[i] = 0;
     }
     this.pruneTreeFires();
