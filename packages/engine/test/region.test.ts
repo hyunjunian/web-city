@@ -6,6 +6,51 @@ import { perType } from '../src/types';
 
 const CALM = { safety: { fires: false }, mayor: { riots: false } } as const;
 
+describe('shared transport borders', () => {
+  const neighbour = new City({ size: 16, water: false }).snapshot();
+  const port = (city: City, edge: 0 | 1 | 2 | 3, along: number) => edge === 0 ? city.buildNetwork(0, along, 2, along, 'road')
+    : edge === 1 ? city.buildNetwork(13, along, 15, along, 'road')
+    : edge === 2 ? city.buildNetwork(along, 0, along, 2, 'road') : city.buildNetwork(along, 13, along, 15, 'road');
+
+  it.each([0, 1, 2, 3] as const)('uses actual border tiles inside a fractional shared interval on edge %s', (edge) => {
+    const city = new City({ size: 16, water: false });
+    city.setNeighbourCity(edge, neighbour, [[0.5, 2.5]]);
+    expect(port(city, edge, 8).ok).toBe(true); // this connection lies outside the shared interval
+    if (edge < 2) {
+      // Fractional row indexing used to alias these unrelated road tiles.
+      const i = 0.5 * city.size + (edge === 1 ? city.size - 1 : 0);
+      const x = i % city.size, y = Math.floor(i / city.size);
+      expect(city.buildNetwork(x, y, x, y, 'road').ok).toBe(true);
+    }
+    expect(linkedNeighbours(city.state)).toEqual([]);
+    expect(port(city, edge, 1).ok).toBe(true);
+    expect(linkedNeighbours(city.state).map(nb => nb.edge)).toEqual([edge]);
+    expect(linkedNeighbours(loadCity(saveCity(city)).state).map(nb => nb.edge)).toEqual([edge]);
+  });
+
+  it.each([[2, 0], [2, 15], [3, 0], [3, 15]] as const)('does not use a west/east corner as the shared transport port on edge %s at %s', (edge, corner) => {
+    const city = new City({ size: 16, water: false });
+    city.setNeighbourCity(edge, neighbour, [[corner, corner + 1]]);
+    expect(port(city, edge, 8).ok).toBe(true);
+    expect(port(city, edge, corner).ok).toBe(true);
+    expect(linkedNeighbours(city.state)).toEqual([]);
+  });
+
+  it.each([[0, 0], [0, 15], [1, 0], [1, 15]] as const)('keeps corner %s:%s available to its west/east border', (edge, corner) => {
+    const city = new City({ size: 16, water: false });
+    city.setNeighbourCity(edge, neighbour, [[corner, corner + 1]]);
+    expect(city.buildNetwork(edge === 0 ? 0 : 15, corner === 0 ? 0 : 13, edge === 0 ? 0 : 15, corner === 0 ? 2 : 15, 'road').ok).toBe(true);
+    expect(linkedNeighbours(city.state).map(nb => nb.edge)).toEqual([edge]);
+  });
+
+  it.each([false, true])('distinguishes an unknown border from an explicitly empty border (empty: %s)', (empty) => {
+    const city = new City({ size: 16, water: false });
+    expect(port(city, 0, 8).ok).toBe(true);
+    city.setNeighbourCity(0, neighbour, empty ? [] : undefined);
+    expect(linkedNeighbours(city.state).map(nb => nb.edge)).toEqual(empty ? [] : [0]);
+  });
+});
+
 describe('connected-network sale delivery', () => {
   const sale = (id: number, edge: 0 | 1 | 2 | 3, resource: 'power' | 'water', amount: number) => ({
     id, edge, resource, direction: 'sell' as const, amount, price: 1, startDay: 0, status: 'active' as const, monthsLeft: 0,

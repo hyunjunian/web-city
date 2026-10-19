@@ -529,11 +529,13 @@ export function linkedNeighbours(s: CityState, runs = edgeConnections(s)): Neigh
  * reaches SimNation, not the city beside it.) True when unknown.
  */
 export function facesShared(s: CityState, nb: Neighbour): boolean {
-  if (!nb.shared?.length) return true;
+  if (nb.shared === undefined) return true;
   const n = s.size;
   const e = nb.edge;
+  // Corners belong to W/E, as in edgeConnections and edgeReach. Only integer tile indices qualify.
+  const from = e < 2 ? 0 : 1, to = e < 2 ? n : n - 1;
   for (const [a, b] of nb.shared) {
-    for (let p = Math.max(0, a); p < Math.min(n, b); p++) {
+    for (let p = Math.max(from, Math.ceil(a)); p < Math.min(to, b); p++) {
       const i = e === 0 ? p * n : e === 1 ? p * n + n - 1 : e === 2 ? p : (n - 1) * n + p;
       if (tileKinds(s, i).some((k) => k === 'road' || k === 'highway' || k === 'rail' || k === 'subway')) return true;
     }
