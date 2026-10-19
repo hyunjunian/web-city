@@ -1,7 +1,31 @@
 import { describe, expect, it } from 'vitest';
-import { City } from '../src';
+import { City, loadCity, saveCity } from '../src';
 
 describe('clearing and rebuilding', () => {
+  it('removes civic jobs from the census as soon as a facility is demolished', () => {
+    const city = new City({ size: 32, water: false });
+    city.buildNetwork(2, 3, 2, 8, 'road');
+    city.placeStructure('smallPoliceStation', 3, 3);
+    expect(city.stats().jobs).toBe(22);
+    expect(city.bulldoze(3, 3, 3, 3).ok).toBe(true);
+    expect(city.stats().jobs).toBe(0);
+    expect(city.census.civicJobs).toEqual([0, 0, 0]);
+    expect(loadCity(saveCity(city)).stats()).toEqual(city.stats());
+  });
+
+  it.each(['coalPlant', 'smallPoliceStation'] as const)('finishes a day without the jobs of a burned-down %s', (kind) => {
+    const config = { safety: { fires: false, maxBurnDays: 1 }, disasters: { simulated: false }, mayor: { riots: false } };
+    const city = new City({ size: 32, water: false, config });
+    city.buildNetwork(2, 3, 2, 8, 'road');
+    city.placeStructure(kind, 3, 3);
+    expect(city.stats().jobs).toBeGreaterThan(0);
+    expect(city.igniteAt(3, 3)).toBe(true);
+    city.step(1);
+    expect(city.state.structures.size).toBe(0);
+    expect(city.stats().jobs).toBe(0);
+    expect(loadCity(saveCity(city), { config }).stats().jobs).toBe(city.stats().jobs);
+  });
+
   it.each(['road', 'facility', 'water'] as const)('clears only the tree-fire markers replaced by %s', (kind) => {
     const city = new City({ size: 32, water: false });
     city.plantTrees(2, 2, 12, 12);

@@ -1080,6 +1080,7 @@ export class City {
       for (const i of footprint(s, st)) s.occupant[i] = 0;
       s.structures.delete(st.id);
     }
+    if (removeS.size) this.censusStale = true;
     for (const i of roads) {
       s.net[i] = Net.None;
       s.oneway[i] = 0;
@@ -3067,6 +3068,7 @@ export class City {
     const ctx = this.damageContext(nuclear ? 'meltdown' : 'explosion', Math.floor(cx), Math.floor(cy));
     for (const i of footprint(s, plant)) s.occupant[i] = 0;
     s.structures.delete(plant.id);
+    this.censusStale = true;
     s.fires = s.fires.filter((fi) => fi.target !== -plant.id); // nothing left to burn
     ctx.report.structures++;
     ctx.report.rebuildCost += this.cfg.structures[plant.kind].cost + plant.w * plant.h * this.cfg.safety.rubbleBulldoze;
@@ -3610,6 +3612,7 @@ export class City {
             {
               for (const j of footprint(s, st)) s.occupant[j] = 0;
               s.structures.delete(st.id);
+              this.censusStale = true;
               report.structures++;
               report.rebuildCost += def.cost + st.w * st.h * this.cfg.safety.rubbleBulldoze;
             }
@@ -3783,6 +3786,7 @@ export class City {
       s.structures.delete(st.id);
     }
     for (const i of footprint(s, st)) s.rubble[i] = 1;
+    this.censusStale = true;
     this.networkDirty = true;
   }
 
