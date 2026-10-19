@@ -3,6 +3,7 @@
 // desirability and development. Recomputed periodically, never serialised.
 
 import { drain } from './steps';
+import { tileWork } from './work';
 import type { SimConfig } from '../config';
 import type { EduCurve } from '../data/structures';
 import { interp } from '../data/services';
@@ -219,18 +220,11 @@ export function buildingAccess(s: CityState, f: Fields, b: Building): { road: nu
   return { road: best, dist: best < 0 ? INF : bestD };
 }
 
-const NETWORK_WORK = new WeakMap<Fields, Int32Array>();
-function networkWork(f: Fields, length: number): Int32Array {
-  let work = NETWORK_WORK.get(f);
-  if (work?.length !== length) { work = new Int32Array(length); NETWORK_WORK.set(f, work); }
-  return work;
-}
-
 function* computeAccessSteps(s: CityState, f: Fields): Generator<void, void> {
   const n = s.size;
   f.access.fill(-1);
   f.accessDist.fill(255);
-  const queue = networkWork(f, n * n);
+  const queue = tileWork(f, n * n);
   let tail = 0;
   for (let i = 0; i < n * n; i++) {
     if ((i & 0x1fff) === 0x1fff) yield;
@@ -264,7 +258,7 @@ function* computeComponentsSteps(s: CityState, f: Fields): Generator<void, void>
   const n = s.size;
   f.component.fill(-1);
   let count = 0;
-  const stack = networkWork(f, n * n);
+  const stack = tileWork(f, n * n);
   let length = 0, visited = 0;
   for (let i = 0; i < n * n; i++) {
     if ((i & 0x1fff) === 0x1fff) yield;
@@ -381,7 +375,7 @@ function* computeLandValueSteps(s: CityState, f: Fields, cfg: SimConfig): Genera
   const n = s.size;
   const { max, range } = cfg.desirability.waterLandValue;
   const dist = new Int32Array(n * n).fill(INF);
-  const queue = networkWork(f, n * n);
+  const queue = tileWork(f, n * n);
   let tail = 0;
   for (let i = 0; i < n * n; i++) {
     if ((i & 0x1fff) === 0x1fff) yield;

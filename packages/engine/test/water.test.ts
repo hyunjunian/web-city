@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { City, loadCity, saveCity, type CityOptions } from '../src';
+import { createFields } from '../src/sim/fields';
+import { computeWater, computeWaterSteps } from '../src/sim/services';
 
 /**
  * A small town rarely outgrows the well-water caps (stage 3), so
@@ -28,6 +30,29 @@ const all = (c: City) => [...c.state.buildings.values()];
 const pumps = (c: City) => [...c.state.structures.values()].filter((s) => s.kind === 'waterPump');
 
 describe('water', () => {
+  it('reuses tile work across changed pipe layouts and supplied coverage without retaining old queue entries', () => {
+    const city = new City({ size: 64, water: false });
+    city.state.funds = 1_000_000;
+    city.placeStructure('gasPlant', 2, 2);
+    city.placeStructure('waterPump', 8, 2);
+    const reused = createFields(city.size);
+    for (let turn = 0; turn < 4; turn++) {
+      city.state.pipe.fill(0);
+      const y = 2 + turn;
+      for (let x = 8; x < 40 - turn * 4; x++) city.state.pipe[y * city.size + x] = 1;
+      for (let x = 4; x < 16; x++) city.state.pipe[(y + 3) * city.size + x] = 1;
+      city.state.departments.water = turn % 2 ? 0 : 100;
+      const steps = computeWaterSteps(city.state, reused, city.cfg);
+      let result = steps.next();
+      while (!result.done) result = steps.next();
+      const fresh = createFields(city.size);
+      expect(result.value).toEqual(computeWater(city.state, fresh, city.cfg));
+      expect(reused.pipeGrid).toEqual(fresh.pipeGrid);
+      expect(reused.waterNet).toEqual(fresh.waterNet);
+      expect(reused.watered).toEqual(fresh.watered);
+    }
+  });
+
   it('honours a configured service radius larger than a byte', () => {
     const city = new City({ size: 264, water: false, config: { services: { waterRadius: 260 } } });
     city.placeStructure('windPlant', 0, 0);

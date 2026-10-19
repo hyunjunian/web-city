@@ -1,6 +1,7 @@
 // Power grid, health and education.
 
 import { drain } from './steps';
+import { tileWork } from './work';
 import type { SimConfig } from '../config';
 import { interp } from '../data/services';
 import type { EduCurve, StructureDef } from '../data/structures';
@@ -671,7 +672,10 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   const node = new Uint8Array(N);
   const pumps: Structure[] = [];
   yield;
-  for (let i = 0; i < N; i++) if (s.pipe[i]) node[i] = 1;
+  for (let i = 0; i < N; i++) {
+    if ((i & 0x1fff) === 0x1fff) yield;
+    if (s.pipe[i]) node[i] = 1;
+  }
   yield;
   let piece1 = 0;
   for (const st of s.structures.values()) {
@@ -685,21 +689,23 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   const net = f.pipeGrid;
   net.fill(-1);
   let count = 0;
-  const stack: number[] = [];
+  const stack = tileWork(f, N);
+  let stackLength = 0, visited = 0;
   yield;
   for (let start = 0; start < N; start++) {
     if ((start & 0x7fff) === 0x7fff) yield;
     if (!node[start] || net[start]! >= 0) continue;
     net[start] = count;
-    stack.push(start);
-    while (stack.length) {
-      const i = stack.pop()!;
+    stack[stackLength++] = start;
+    while (stackLength) {
+      if ((++visited & 0xfff) === 0) yield;
+      const i = stack[--stackLength]!;
       const x = i % n;
       const y = (i - x) / n;
       for (const j of [x > 0 ? i - 1 : -1, x < n - 1 ? i + 1 : -1, y > 0 ? i - n : -1, y < n - 1 ? i + n : -1]) {
         if (j >= 0 && node[j] && net[j]! < 0) {
           net[j] = count;
-          stack.push(j);
+          stack[stackLength++] = j;
         }
       }
     }
@@ -710,18 +716,19 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   const cover = f.waterNet;
   cover.fill(-1);
   const dist = new Uint16Array(N).fill(0xffff);
-  const queue: number[] = [];
+  const queue = stack;
+  let tail = 0;
   yield;
   for (let i = 0; i < N; i++) {
     if ((i & 0x7fff) === 0x7fff) yield;
     if (net[i]! >= 0) {
       cover[i] = net[i]!;
       dist[i] = 0;
-      queue.push(i);
+      queue[tail++] = i;
     }
   }
   yield;
-  for (let h = 0; h < queue.length; h++) {
+  for (let h = 0; h < tail; h++) {
     if ((h & 0x1fff) === 0x1fff) yield;
     const i = queue[h]!;
     const d = dist[i]!;
@@ -736,7 +743,7 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
       if (dist[j]! > d + 1) {
         dist[j] = d + 1;
         cover[j] = cover[i]!;
-        queue.push(j);
+        queue[tail++] = j;
       }
     }
   }
@@ -777,17 +784,17 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
   if (supply.some((v) => v > 0) && supply.some((v) => v <= 0)) {
     suppliedCover = new Int32Array(N).fill(-1);
     dist.fill(0xffff);
-    queue.length = 0;
+    tail = 0;
     for (let i = 0; i < N; i++) {
       if ((i & 0x7fff) === 0x7fff) yield;
       if (net[i]! >= 0 && supply[net[i]!]! > 0) {
         suppliedCover[i] = net[i]!;
         dist[i] = 0;
-        queue.push(i);
+        queue[tail++] = i;
       }
     }
     yield;
-    for (let h = 0; h < queue.length; h++) {
+    for (let h = 0; h < tail; h++) {
       if ((h & 0x1fff) === 0x1fff) yield;
       const i = queue[h]!;
       const d = dist[i]!;
@@ -802,7 +809,7 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
         if (dist[j]! > d + 1) {
           dist[j] = d + 1;
           suppliedCover[j] = suppliedCover[i]!;
-          queue.push(j);
+          queue[tail++] = j;
         }
       }
     }
