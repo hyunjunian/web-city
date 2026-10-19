@@ -67,13 +67,28 @@ const clinicFundingAndRadius = measure(() => {
 }, 3);
 // Each month starts from the same save; loading is outside the timed interval.
 const monthSamples: number[] = [];
+let expectedMonth: ReturnType<typeof saveCity> | undefined;
 for (let trial = 0; trial < trials; trial++) {
   const copy = loadCity(saved, { config: calm });
   const start = performance.now();
   copy.step(30);
   monthSamples.push(performance.now() - start);
+  if (trial === 0) expectedMonth = saveCity(copy);
 }
 monthSamples.sort((a, b) => a - b);
+const sliced = loadCity(saved, { config: calm });
+const pieceSamples: number[] = [];
+sliced.beginSteps(30);
+const slicedStart = performance.now();
+let more = true;
+while (more) {
+  const start = performance.now();
+  more = sliced.resume();
+  pieceSamples.push(performance.now() - start);
+}
+const slicedMs = performance.now() - slicedStart;
+assert.deepEqual(saveCity(sliced), expectedMonth, 'sliced month changed simulation outcomes');
+pieceSamples.sort((a, b) => a - b);
 // Count each underlying allocation once: unbiased time and cost alias.
 const searchArrays = new Set<ArrayBufferLike>();
 let searchSlots = 0;
@@ -86,6 +101,8 @@ console.log(JSON.stringify({ size, trials, seed: 3, population: city.stats().pop
   buildings: city.state.buildings.size, structures: city.state.structures.size,
   ...reports, refreshWithoutTravel, clinicFundingAndRadius,
   month: { medianMs: monthSamples[Math.floor(trials / 2)], p90Ms: monthSamples[Math.ceil(trials * 0.9) - 1] },
+  slicedMonth: { totalMs: slicedMs, pieces: pieceSamples.length,
+    p95PieceMs: pieceSamples[Math.ceil(pieceSamples.length * 0.95) - 1], maximumPieceMs: pieceSamples.at(-1) },
   searchBuffers: { slots: searchSlots, arrays: searchArrays.size, bytes: [...searchArrays].reduce((sum, array) => sum + array.byteLength, 0) },
   rssMiB: process.memoryUsage().rss / 1048576,
 }, null, 2));

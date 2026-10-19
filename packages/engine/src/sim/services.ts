@@ -310,12 +310,14 @@ export function serviceRadius(cfg: SimConfig, def: StructureDef, st: Structure):
  * Calls `fn(row, x0, x1)` for each row's run of tiles whose centre lies within
  * `radius` of a footprint's centre (x0..x1 inclusive; the same tiles a
  * per-tile distance test picks, found with one square root per row).
+ * Large citywide disks pause between bounded groups of rows.
  */
-function forDisk(n: number, r: { x: number; y: number; w: number; h: number }, radius: number, fn: (row: number, x0: number, x1: number) => void): void {
+function* forDiskSteps(n: number, r: { x: number; y: number; w: number; h: number }, radius: number, fn: (row: number, x0: number, x1: number) => void): Generator<void, void> {
   const [cx, cy] = centre(r);
   const r2 = radius * radius;
   const lo = Math.max(0, Math.floor(cx - radius));
   const hi = Math.min(n - 1, Math.ceil(cx + radius));
+  let work = 0;
   for (let y = Math.max(0, Math.floor(cy - radius)); y <= Math.min(n - 1, Math.ceil(cy + radius)); y++) {
     const dy = y + 0.5 - cy;
     const left = r2 - dy * dy;
@@ -329,7 +331,11 @@ function forDisk(n: number, r: { x: number; y: number; w: number; h: number }, r
     while (x0 <= x1 && !inside(x0)) x0++;
     while (x1 < hi && inside(x1 + 1)) x1++;
     while (x1 >= x0 && !inside(x1)) x1--;
-    if (x0 <= x1) fn(y * n, x0, x1);
+    if (x0 <= x1) {
+      fn(y * n, x0, x1);
+      work += x1 - x0 + 1;
+      if (work >= 0x2000) { work = 0; yield; }
+    }
   }
 }
 
@@ -538,7 +544,7 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   work = 0;
   for (const { st, def, key, radius, cap } of list) {
     work += 4 * radius * radius;
-    if (work > 0x3ffff) { work = 0; yield; }
+    if (work > 0x7fff) { work = 0; yield; }
     const grade = st.load > 0 ? Math.min(1, st.capacity / st.load) : st.capacity > 0 ? 1 : 0;
     st.effectiveness = grade * (st.strike > 0 ? sv.strikeEffectiveness : 1);
     const cs = capSum.get(key)!;
@@ -550,7 +556,7 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
       boosts = boostSum.get(key);
       if (!boosts) boostSum.set(key, boosts = new Float32Array(n * n));
     }
-    forDisk(n, st, radius, (row, x0, x1) => {
+    yield* forDiskSteps(n, st, radius, (row, x0, x1) => {
       if (boosts) {
         for (let i = row + x0; i <= row + x1; i++) {
           cs[i]! += cap;
@@ -564,48 +570,72 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
     });
   }
 
+  yield* projectCoverageSteps(f, n * n, capSum, effSum, classBoost, boostSum);
+  yield* correctCoveragePoints(s, f, homes, pointHomes, homeCapacity);
+}
+
+/** Project settled facility loads onto the service maps, one bounded raster block at a time. */
+function* projectCoverageSteps(
+  f: Fields, N: number, capSum: ReadonlyMap<ServiceKey, Float32Array>, effSum: ReadonlyMap<ServiceKey, Float32Array>,
+  classBoost: ReadonlyMap<ServiceKey, number>, boostSum: ReadonlyMap<ServiceKey, Float32Array>,
+): Generator<void, void> {
   // Per tile: effectiveness weighted by each facility's share of the local patient or pupil capacity.
   f.hqBoost.fill(0);
   f.healthQuality.fill(0);
   f.hospitalCover.fill(0);
   f.schoolQuality.fill(0);
   yield;
-  for (const k of EDU_CURVES) f.eduEff[k].fill(0);
-  const N = n * n;
+  for (const k of EDU_CURVES) {
+    f.eduEff[k].fill(0);
+    yield;
+  }
   yield;
   const q = f.schoolQuality;
   const top = [...capSum.keys()].some(key => HIGHER_EDUCATION.has(key)) ? new Float32Array(N) : null;
-  let piece3 = 0;
   for (const [key, cs] of capSum) {
     yield;
-    if ((++piece3 & 0x1ff) === 0) yield;
     const e = effSum.get(key)!;
     const boosts = boostSum.get(key);
     if (key === 'market') {
       // Only the health index moves.
       const boost = classBoost.get(key)!;
-      for (let i = 0; i < N; i++) if (cs[i]) f.hqBoost[i]! += boosts ? boosts[i]! / cs[i]! : boost * (e[i]! / cs[i]!);
+      for (let lo = 0; lo < N; lo += 0x40000) {
+        const hi = Math.min(N, lo + 0x40000);
+        for (let i = lo; i < hi; i++) {
+          if (cs[i]) f.hqBoost[i]! += boosts ? boosts[i]! / cs[i]! : boost * (e[i]! / cs[i]!);
+        }
+        yield;
+      }
     } else if (key === 'hospital' || key === 'research') {
       const boost = classBoost.get(key)!;
       const hq = f.hqBoost;
       const quality = f.healthQuality;
       // Any healthcare building's radius counts as care for the Mayor Rating (the lab's is citywide).
       const cover = f.hospitalCover;
-      for (let i = 0; i < N; i++) {
-        if (!cs[i]) continue;
-        const avg = e[i]! / cs[i]!;
-        hq[i]! += boosts ? boosts[i]! / cs[i]! : boost * avg;
-        if (avg > quality[i]!) quality[i] = avg;
-        if (avg > cover[i]!) cover[i] = avg;
+      for (let lo = 0; lo < N; lo += 0x40000) {
+        const hi = Math.min(N, lo + 0x40000);
+        for (let i = lo; i < hi; i++) {
+          if (!cs[i]) continue;
+          const avg = e[i]! / cs[i]!;
+          hq[i]! += boosts ? boosts[i]! / cs[i]! : boost * avg;
+          if (avg > quality[i]!) quality[i] = avg;
+          if (avg > cover[i]!) cover[i] = avg;
+        }
+        yield;
       }
     } else {
       const out = f.eduEff[key];
       const higher = HIGHER_EDUCATION.has(key);
-      for (let i = 0; i < N; i++) if (cs[i]) {
-        out[i] = e[i]! / cs[i]!;
-        const eff = out[i]!;
-        if (eff > q[i]!) q[i] = eff;
-        if (higher && eff > top![i]!) top![i] = eff;
+      for (let lo = 0; lo < N; lo += 0x40000) {
+        const hi = Math.min(N, lo + 0x40000);
+        for (let i = lo; i < hi; i++) {
+          if (!cs[i]) continue;
+          out[i] = e[i]! / cs[i]!;
+          const eff = out[i]!;
+          if (eff > q[i]!) q[i] = eff;
+          if (higher && eff > top![i]!) top![i] = eff;
+        }
+        yield;
       }
     }
   }
@@ -614,9 +644,11 @@ export function* computeCoverageSteps(s: CityState, f: Fields, cfg: SimConfig): 
   // earns the whole bonus: the best building covering the tile gives most
   // of it, a college, university, main library or art museum the rest.
   yield;
-  for (let i = 0; i < N; i++) q[i] = Math.min(1, (1 - HIGHER_SHARE) * q[i]! + HIGHER_SHARE * (top?.[i] ?? 0));
-
-  yield* correctCoveragePoints(s, f, homes, pointHomes, homeCapacity);
+  for (let lo = 0; lo < N; lo += 0x40000) {
+    const hi = Math.min(N, lo + 0x40000);
+    for (let i = lo; i < hi; i++) q[i] = Math.min(1, (1 - HIGHER_SHARE) * q[i]! + HIGHER_SHARE * (top?.[i] ?? 0));
+    yield;
+  }
 }
 
 /** Keep residential service effects on the same point as their service demand. */

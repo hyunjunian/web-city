@@ -257,23 +257,29 @@ export function* computeDesirabilitySteps(s: CityState, f: Fields, cfg: SimConfi
   // The zoned tiles of each class, gathered in one pass: each type then scores only its own class's
   // tiles (twelve passes over the whole map, mostly unzoned, were most of the time on a big map).
   const tiles = new Map<string, number[]>();
-  for (let i = 0; i < N; i++) {
-    const cls = codeCls[s.zone[i]!];
-    if (!cls) continue;
-    let list = tiles.get(cls);
-    if (!list) tiles.set(cls, (list = []));
-    list.push(i);
+  for (let lo = 0; lo < N; lo += 0x4000) {
+    const hi = Math.min(N, lo + 0x4000);
+    for (let i = lo; i < hi; i++) {
+      const cls = codeCls[s.zone[i]!];
+      if (!cls) continue;
+      let list = tiles.get(cls);
+      if (!list) tiles.set(cls, (list = []));
+      list.push(i);
+    }
+    yield;
   }
-  yield;
   for (const t of DEV_TYPES) {
     const arr = out[t];
     const k = typeConsts(cfg, t);
     arr.fill(0);
     const list = tiles.get(zoneClassFor(t)) ?? [];
-    for (let j = 0; j < list.length; j++) {
-      if ((j & 0x3fff) === 0x3fff) yield;
-      const i = list[j]!;
-      arr[i] = score(s, f, k, i, null);
+    for (let lo = 0; lo < list.length; lo += 0x1000) {
+      const hi = Math.min(list.length, lo + 0x1000);
+      for (let j = lo; j < hi; j++) {
+        const i = list[j]!;
+        arr[i] = score(s, f, k, i, null);
+      }
+      yield;
     }
     yield;
   }
