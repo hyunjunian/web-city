@@ -6,7 +6,7 @@ import { frontage } from '../src/sim/fields';
 import { interp } from '../src/data/services';
 import { carMove, Net, SPAN } from '../src/sim/state';
 import type { Building } from '../src/sim/state';
-import { assignTraffic, congestionSlowdown, connectionTiles, Mode, transfers, TripLog } from '../src/sim/transport';
+import { assignTraffic, computeTravelSteps, congestionSlowdown, connectionTiles, Mode, transfers, TripLog } from '../src/sim/transport';
 
 const CALM = {
   safety: { fires: false },
@@ -147,6 +147,33 @@ describe('neighbour jobs by transit', () => {
 });
 
 describe('travel times', () => {
+  it('yields during junction and toll preparation before scanning the whole map', () => {
+    const city = new City({ size: 256, water: false });
+    const s = city.state, N = city.size * city.size;
+    s.net.fill(Net.Road);
+    s.links.fill(15);
+    let roads = 0, tolls = 0;
+    const observe = (array: Uint8Array, read: () => void) => new Proxy(array, {
+      get(target, key) {
+        if (typeof key === 'string' && /^\d+$/.test(key)) read();
+        return Reflect.get(target, key, target);
+      },
+    });
+    s.net = observe(s.net, () => roads++);
+    s.tolls = observe(s.tolls, () => tolls++);
+    const g = computeTravelSteps(s, city.fields, city.cfg);
+    try {
+      expect(g.next().done).toBe(false);
+      expect(roads).toBeGreaterThan(0);
+      expect(roads).toBeLessThan(N * 4);
+      for (let pieces = 0; tolls === 0 && pieces < 100; pieces++) expect(g.next().done).toBe(false);
+      expect(tolls).toBeGreaterThan(0);
+      expect(tolls).toBeLessThan(N);
+    } finally {
+      g.return(undefined as never);
+    }
+  });
+
   it('follows the crossing times: roads beat streets, highways beat roads', () => {
     const city = new City({ size: 64, water: false, config: CALM });
     city.state.funds = 1_000_000;

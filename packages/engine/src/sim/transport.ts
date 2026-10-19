@@ -7,6 +7,7 @@
 
 import { drain } from './steps';
 import { MinHeap as Heap } from './heap';
+import { tileWork } from './work';
 import type { SimConfig } from '../config';
 import { interp } from '../data/services';
 import { ordinanceEffects } from './mayor';
@@ -117,13 +118,15 @@ export function perimeter(s: CityState, r: Rect): number[] {
 }
 
 /** Intersection slowdown per tile: 30% on the junction, 20% and 10% one and two tiles out. */
-function intersectionSlowdown(s: CityState, cfg: SimConfig): Float32Array {
+function* intersectionSlowdownSteps(s: CityState, f: Fields, cfg: SimConfig): Generator<void, Float32Array> {
   const n = s.size;
   const N = n * n;
   const out = new Float32Array(N);
   const dist = new Int32Array(N).fill(INF);
-  const queue: number[] = [];
+  const queue = tileWork(f, N);
+  let tail = 0;
   for (let i = 0; i < N; i++) {
+    if ((i & 0x1fff) === 0x1fff) yield;
     const a = s.net[i]!;
     if (!isLocalNet(a)) continue;
     const x = i % n;
@@ -136,11 +139,12 @@ function intersectionSlowdown(s: CityState, cfg: SimConfig): Float32Array {
     }
     if (degree >= 3) {
       dist[i] = 0;
-      queue.push(i);
+      queue[tail++] = i;
     }
   }
   const slow = cfg.transport.intersection;
-  for (let h = 0; h < queue.length; h++) {
+  for (let h = 0; h < tail; h++) {
+    if ((h & 0xfff) === 0xfff) yield;
     const i = queue[h]!;
     const d = dist[i]!;
     out[i] = slow[d]!;
@@ -154,7 +158,7 @@ function intersectionSlowdown(s: CityState, cfg: SimConfig): Float32Array {
       const j = ny * n + nx;
       if (dist[j]! <= d + 1 || !tilesLinked(s, i, j) || s.net[j] === Net.Highway) continue;
       dist[j] = d + 1;
-      queue.push(j);
+      queue[tail++] = j;
     }
   }
   return out;
@@ -164,12 +168,13 @@ function intersectionSlowdown(s: CityState, cfg: SimConfig): Float32Array {
  * Toll booths slow traffic like an intersection on the booth and the two tiles
  * before and after it, on the level the booth is on.
  */
-function tollSlowdown(s: CityState, cfg: SimConfig): { ground: Float32Array; high: Float32Array } {
+function* tollSlowdownSteps(s: CityState, cfg: SimConfig): Generator<void, { ground: Float32Array; high: Float32Array }> {
   const n = s.size;
   const ground = new Float32Array(n * n);
   const high = new Float32Array(n * n);
   const slow = cfg.transport.intersection;
   for (let i = 0; i < n * n; i++) {
+    if ((i & 0x1fff) === 0x1fff) yield;
     const level = s.tolls[i]!;
     if (!level) continue;
     const out = level === 2 ? high : ground;
@@ -196,9 +201,9 @@ function* crossTimes(s: CityState, f: Fields, cfg: SimConfig): Generator<void, F
   const N = s.size * s.size;
   const tc = cfg.transport;
   const cross = Array.from({ length: MODES }, () => new Float32Array(N));
-  const isect = intersectionSlowdown(s, cfg);
+  const isect = yield* intersectionSlowdownSteps(s, f, cfg);
   yield;
-  const tollSlow = tollSlowdown(s, cfg);
+  const tollSlow = yield* tollSlowdownSteps(s, cfg);
   yield;
   for (let i = 0; i < N; i++) {
     if ((i & 0x1fff) === 0x1fff) yield;
