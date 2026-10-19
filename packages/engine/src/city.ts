@@ -2140,6 +2140,9 @@ export class City {
       // refresh: catch the fields up, so the figures a save made now reports
       // (power and water capacity, loads) are those a city loaded from it has.
       yield* this.refreshSteps({ travel: false });
+      yield;
+      // Graphs describe the settled boundary, including ageing, damage and refreshed utility output.
+      yield* this.recordHistorySteps();
     }
     s.rngState = this.rng.state;
   }
@@ -2236,8 +2239,6 @@ export class City {
     yield* this.collectBudgetSteps();
     yield;
     this.checkUnlocks();
-    yield;
-    yield* this.recordHistorySteps();
     yield;
     const since = s.day - this.cfg.demand.taxMemoryDays;
     s.taxLog = s.taxLog.filter(([day]) => day >= since);

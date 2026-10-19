@@ -21,6 +21,24 @@ function town(opts: { size?: number; config?: CityOptions['config'] } = {}): Cit
 
 const structures = (c: City, kind: string) => [...c.state.structures.values()].filter((s) => s.kind === kind);
 
+describe('monthly operating history', () => {
+  it('records settled supply after equipment ages at the month boundary', () => {
+    const city = new City({ size: 32, water: false, config: {
+      safety: { fires: false }, disasters: { simulated: false }, mayor: { riots: false },
+      structures: { coalPlant: { powerUse: 1_000 } },
+    } });
+    city.state.funds = 1_000_000;
+    city.placeStructure('coalPlant', 3, 3);
+    [...city.state.structures.values()][0]!.life = 90;
+    city.refresh();
+    city.step(30);
+    const now = city.stats(), last = city.state.history.at(-1)!;
+    expect(last.powerSupply).toBe(Math.round(now.power.supply));
+    expect(last.powerDemand).toBe(Math.round(now.power.demand));
+    expect(last.population).toBe(now.population);
+  });
+});
+
 describe('service funding refreshes', () => {
   it.each(['power', 'water', 'parks', 'sanitation', 'landmarks', 'corrections'] as const)('%s funding retains the route plan while updating the full utility and effect model', (dept) => {
     const config = { safety: { fires: false }, disasters: { simulated: false } };
