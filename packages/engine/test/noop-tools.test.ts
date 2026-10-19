@@ -13,6 +13,7 @@ const operations: [string, (city: City) => ToolResult | boolean][] = [
   ['zone outside the map', city => city.zone(...outside, 'R-low')],
   ['redraw an existing zone', city => city.zone(29, 29, 29, 29, 'R-low', { autoStreets: false })],
   ['build a road outside the map', city => city.buildNetwork(...outside, 'road')],
+  ['redraw an already connected avenue', city => city.buildNetwork(0, 64, 127, 64, 'avenue')],
   ['demolish outside the map', city => city.bulldoze(...outside)],
   ['demolish an empty tile', city => city.bulldoze(0, 0, 0, 0)],
   ['build a power line outside the map', city => city.buildPowerLine(...outside)],
@@ -45,5 +46,19 @@ describe('ineffective tools', () => {
     observed.step(5);
     control.step(5);
     expect(saveCity(observed)).toEqual(saveCity(control));
+  });
+
+  it('still refreshes a free retrace that joins two adjacent roads', () => {
+    const city = new City({ size: 16, water: false });
+    city.buildNetwork(2, 8, 12, 8, 'road');
+    city.buildNetwork(2, 9, 12, 9, 'road');
+    city.refreshIfDirty();
+    const top = 8 * 16 + 6, bottom = 9 * 16 + 6;
+    expect(city.fields.component[top]).not.toBe(city.fields.component[bottom]);
+    const funds = city.state.funds;
+    expect(city.buildNetwork(6, 8, 6, 8, 'road').cost).toBe(0);
+    city.refreshIfDirty();
+    expect(city.fields.component[top]).toBe(city.fields.component[bottom]);
+    expect(city.state.funds).toBe(funds);
   });
 });
