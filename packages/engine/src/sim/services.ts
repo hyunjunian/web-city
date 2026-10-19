@@ -709,7 +709,9 @@ export function* computeWaterSteps(s: CityState, f: Fields, cfg: SimConfig): Gen
       const i = stack[--stackLength]!;
       const x = i % n;
       const y = (i - x) / n;
-      for (const j of [x > 0 ? i - 1 : -1, x < n - 1 ? i + 1 : -1, y > 0 ? i - n : -1, y < n - 1 ? i + n : -1]) {
+      for (let k = 0; k < 4; k++) {
+        const j = k === 0 ? (x > 0 ? i - 1 : -1) : k === 1 ? (x < n - 1 ? i + 1 : -1)
+          : k === 2 ? (y > 0 ? i - n : -1) : (y < n - 1 ? i + n : -1);
         if (j >= 0 && node[j] && net[j]! < 0) {
           net[j] = count;
           stack[stackLength++] = j;
