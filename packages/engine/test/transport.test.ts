@@ -6,13 +6,41 @@ import { frontage } from '../src/sim/fields';
 import { interp } from '../src/data/services';
 import { carMove, Net, SPAN } from '../src/sim/state';
 import type { Building } from '../src/sim/state';
-import { assignTraffic, congestionSlowdown, connectionTiles, Mode, transfers } from '../src/sim/transport';
+import { assignTraffic, congestionSlowdown, connectionTiles, Mode, transfers, TripLog } from '../src/sim/transport';
 
 const CALM = {
   safety: { fires: false },
   mayor: { riots: false },
   development: { requirePower: false, requireWater: false },
 } as const;
+
+describe('compact trip-log transfers', () => {
+  it('matches mode changes beside a hub and keeps separate, empty and single-tile trips apart', () => {
+    const log = new TripLog();
+    log.begin(1, 5, false);
+    log.step(1, Mode.Car);
+    log.step(2, Mode.Car);
+    log.step(2, Mode.Bus);
+    log.step(3, Mode.Bus);
+    log.step(4, Mode.Walk);
+    log.end();
+    for (const tile of [1, 2, 3, 4]) expect(log.changesAt(0, new Set([tile]))).toBe(true);
+    expect(log.changesAt(0, new Set([8]))).toBe(false);
+    log.begin(2, 4, false);
+    log.step(8, Mode.Car);
+    log.step(9, Mode.Car);
+    log.end();
+    expect(log.changesAt(1, new Set([4, 8, 9]))).toBe(false);
+    log.begin(3, 1, false);
+    log.end();
+    expect(log.changesAt(2, new Set([9]))).toBe(false);
+    log.begin(4, 1, false);
+    log.step(11, Mode.Walk);
+    log.step(11, Mode.Bus);
+    log.end();
+    expect(log.changesAt(3, new Set([11]))).toBe(false);
+  });
+});
 
 describe('border connection enumeration', () => {
   it('returns eligible border tiles in row order without duplicating corners or including interior roads', () => {

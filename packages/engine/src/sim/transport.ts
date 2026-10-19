@@ -597,12 +597,14 @@ function* nearestOpenJobs(
   for (const m of o.modes) allowed[m] = 1;
   const minOpen = OPEN_MIN;
   const closed = new Uint8Array(targets.length);
+  const WAITING = 1, START = 2, BOARDING = 4;
   // Commuters still looking: the search ends once they all have work.
   let looking = 0;
   const seen = new Set<Waiting>();
-  const waits = new Uint8Array(MODES * N);
+  // Waiting commuters, starting targets and boarding edges share one byte per mode state.
+  const flags = new Uint8Array(MODES * N);
   for (const [v, list] of waiting) {
-    waits[v] = 1;
+    flags[v]! |= WAITING;
     for (const w of list) if (!seen.has(w)) {
       seen.add(w);
       looking += w.need;
@@ -622,12 +624,9 @@ function* nearestOpenJobs(
     held[k]!.push(v);
     heap.push(d, v);
   };
-  // Flags for the per-state lookups a release makes (maps are slow to ask at every state).
-  const isStart = new Uint8Array(MODES * N);
-  const isBoarding = new Uint8Array(MODES * N);
   /** Seeds a state from the best open target starting there (if any). */
   const seed = (v: number): void => {
-    if (!isStart[v]) return;
+    if (!(flags[v]! & START)) return;
     let best = -1;
     let cost = INF;
     for (const [k, c] of startsAt.get(v) ?? []) if (!closed[k] && c < cost) [best, cost] = [k, c];
@@ -643,7 +642,7 @@ function* nearestOpenJobs(
     }
   });
   yield;
-  for (const st of startsAt.keys()) isStart[st] = 1;
+  for (const st of startsAt.keys()) flags[st]! |= START;
   let seeded = 0;
   for (const st of startsAt.keys()) {
     if ((++seeded & 0xfff) === 0) yield;
@@ -657,7 +656,7 @@ function* nearestOpenJobs(
       const l = boardFrom.get(from);
       if (l) l.push(to);
       else boardFrom.set(from, [to]);
-      isBoarding[from] = 1;
+      flags[from]! |= BOARDING;
     }
   }
   const joins = new Set(s.transitions);
@@ -680,7 +679,7 @@ function* nearestOpenJobs(
       if (m === Mode.Subway && !trackJoins(s, u, t, joins)) continue;
       f(m * N + u);
     }
-    if (isBoarding[v]) for (const u of boardFrom.get(v)!) f(u);
+    if (flags[v]! & BOARDING) for (const u of boardFrom.get(v)!) f(u);
   };
   /** A target filled: release its states, and let the searches around grow into them. */
   const close = function* (k: number): Generator<void, void> {
@@ -718,7 +717,7 @@ function* nearestOpenJobs(
     const tv = time[v]!;
     if (tv > o.limit) continue;
     // Commuters starting here claim jobs at the target they reached.
-    const here = waits[v] ? waiting.get(v) : undefined;
+    const here = flags[v]! & WAITING ? waiting.get(v) : undefined;
     if (here) {
       for (const w of here) {
         if (w.need <= 1e-6 || tv + w.extra > o.limit) continue;
@@ -1342,6 +1341,15 @@ export class TripLog {
     const a = this.start[k]!;
     const b = a + this.length[k]!;
     return { tiles: Array.from(this.tiles.subarray(a, b)), modes: Array.from(this.modes.subarray(a, b)) };
+  }
+
+  /** Does trip k change mode on or beside one of these tiles, without copying its route? */
+  changesAt(k: number, tiles: ReadonlySet<number>): boolean {
+    const a = this.start[k]!, end = a + this.length[k]!;
+    for (let i = a + 1; i < end; i++) {
+      if (this.modes[i] !== this.modes[i - 1] && (tiles.has(this.tiles[i]!) || tiles.has(this.tiles[i - 1]!))) return true;
+    }
+    return false;
   }
 
   /** Does trip k cross tile t? */

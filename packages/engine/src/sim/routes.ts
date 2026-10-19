@@ -56,20 +56,15 @@ export function routeQuery(s: CityState, f: Fields, cfg: SimConfig, x: number, y
   const st = occ < 0 ? s.structures.get(-occ) : undefined;
   const def = st ? cfg.structures[st.kind] : undefined;
   const hub = st && (def?.station || def?.parking) ? new Set([...footprint(s, st), ...perimeter(s, st), ...frontage(s, st)]) : null;
-  const changesAt = (r: { tiles: number[]; modes: number[] }) => {
-    for (let j = 1; j < r.tiles.length; j++) if (r.modes[j] !== r.modes[j - 1] && (hub!.has(r.tiles[j]!) || hub!.has(r.tiles[j - 1]!))) return true;
-    return false;
-  };
   const picked: RouteTrip[] = [];
   for (let k = 0; log && k < log.count; k++) {
-    let r: { tiles: number[]; modes: number[] } | null = null;
     // A workplace's arrivals are the trips to its jobs (its key: building id, structure id negated).
-    const hit = hub ? changesAt((r = log.route(k)))
+    const hit = hub ? log.changesAt(k, hub)
       : onLot
       ? (occ > 0 && log.from[k] === occ) || (!log.freight[k] && log.job[k] === occ)
       : log.crosses(k, i);
     if (!hit) continue;
-    r ??= log.route(k);
+    const r = log.route(k);
     picked.push({ means: log.freight[k] ? 'freight' : means(r.modes), amount: log.amount[k]!, ...r, from: log.from[k]! });
   }
   const byMeans: Partial<Record<TripMeans, number>> = {};
