@@ -16,7 +16,7 @@ import {
 import { developOnce, exodus, GROWTH_CODES, growthBlockers, INFO_ONLY, trackDemand, understaffed, updateBuildingsSteps, warmTractsSteps, type DevContext, type GrowthBlocker } from './sim/development';
 import { computeEffectFieldsSteps, computeJobComponentsSteps, computeNetworkFieldsSteps, createFields, footprint, frontage, INF, type Fields } from './sim/fields';
 import {
-  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isLocalNet, Net, NETWORK_KINDS, ONEWAY_DIRS, isJail, Terrain, zoneCode, zoneInfo, ZONES,
+  DAYS_PER_MONTH, ELEVATED, ELEVATED_KINDS, idx, INTERCHANGE, linkBit, manualNet, tilesLinked, OVER_NETS, overNet, SPAN, inBounds, isAsphalt, isLocalNet, Net, NETWORK_KINDS, ONEWAY_DIRS, isJail, Terrain, zoneCode, zoneInfo, ZONES,
   type BudgetReport, type Building, type CityState, type DealResource, type GarbageStats, type HistoryPoint, type Rect, type MySim, type NeighbourDeal, type NetworkKind,
   type Structure, type ZoneKind,
   type Neighbour,
@@ -471,6 +471,7 @@ export class City {
     }
     for (const i of plan.streets) {
       s.net[i] = Net.Street;
+      s.potholes[i] = 0;
       s.zone[i] = 0;
     }
     s.funds -= plan.cost;
@@ -667,6 +668,7 @@ export class City {
     let cost = plan.cost;
     for (const [i, to] of tiles) {
       if (tunnels.has(i)) s.tunnel[i] = tunnels.get(i)!;
+      if (!isAsphalt(s.net[i]!) && isAsphalt(to)) s.potholes[i] = 0;
       s.net[i] = to;
       s.zone[i] = 0;
       s.rubble[i] = 0;
@@ -677,6 +679,7 @@ export class City {
         : to === Net.RailCrossing ? s.oneway[i]! : 0;
       if (s.terrain[i] === Terrain.Water) s.tunnel[i] = opts.lowBridge ? SPAN.lowBridge : SPAN.none;
     }
+    this.pruneTreeFires();
     for (const i of overpasses) s.interchange[i] = INTERCHANGE.overpass;
     if (manualNet(code)) this.linkPath(path);
     for (const [i, v] of over) {
@@ -1090,6 +1093,7 @@ export class City {
     for (const i of elevated) {
       if (s.tolls[i] === 2) s.tolls[i] = 0;
       s.elevated[i] = 0;
+      s.potholes[i] = 0;
     }
     for (const i of lines) {
       s.power[i] = 0;
@@ -1098,7 +1102,7 @@ export class City {
     for (const i of rubble) s.rubble[i] = 0;
     // The bulldozer clears trees too (free).
     for (const i of trees) s.trees[i] = 0;
-    if (trees.length) s.treeFires = s.treeFires.filter((fire) => s.trees[fire.i]);
+    if (trees.length) this.pruneTreeFires();
     // Clearing a lot hauls away the garbage piled on it.
     for (const b of removeB) for (const i of footprint(s, b)) s.garbage[i] = 0;
     s.funds -= cost;
@@ -1216,6 +1220,7 @@ export class City {
       s.power[i] = 0;
       s.trees[i] = 0;
     }
+    this.pruneTreeFires();
     s.funds -= def.cost;
     // A new civic building cheers the neighbourhood (+25 within 8 tiles).
     if (def.category === 'health' || def.category === 'education' || def.category === 'safety') {
@@ -1342,7 +1347,10 @@ export class City {
     if (plan.message) return { ok: false, cost: 0, message: plan.message };
     const code = kind === 'elrail' ? ELEVATED.rail : kind === 'monorail' ? ELEVATED.monorail : ELEVATED.highway;
     let cost = plan.cost;
-    for (const i of plan.tiles) s.elevated[i] = code;
+    for (const i of plan.tiles) {
+      s.elevated[i] = code;
+      if (code === ELEVATED.highway && !isAsphalt(s.net[i]!)) s.potholes[i] = 0;
+    }
     if (code === ELEVATED.highway) cost += this.inlineRamps(linePath(x0, y0, x1, y1), new Set(plan.tiles), s.funds - cost);
     s.funds -= cost;
     this.networkDirty = true;
@@ -3415,6 +3423,7 @@ export class City {
       if (want === Terrain.Water) s.trees[i] = 0; // no trees on water
       s.height[i] = want === Terrain.Water ? 0 : fill;
     }
+    if (want === Terrain.Water && tiles.length) this.pruneTreeFires();
     s.funds -= cost;
     this.networkDirty = true;
     return { ok: tiles.length > 0, cost };
@@ -3744,6 +3753,12 @@ export class City {
       s: this.state, f: this.fields, cfg: this.cfg, rng: this.rng,
       destroy: (target) => this.burnDown(target),
     };
+  }
+
+  /** Cleared woods cannot keep a fire marker until the next simulated day. */
+  private pruneTreeFires(): void {
+    const s = this.state;
+    if (s.treeFires.length) s.treeFires = s.treeFires.filter((fire) => s.trees[fire.i] && !s.occupant[fire.i]);
   }
 
   /** A building or structure that burned down leaves rubble; plants explode. */

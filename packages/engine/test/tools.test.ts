@@ -2,6 +2,32 @@ import { describe, expect, it } from 'vitest';
 import { City } from '../src';
 
 describe('clearing and rebuilding', () => {
+  it.each(['road', 'facility', 'water'] as const)('clears only the tree-fire markers replaced by %s', (kind) => {
+    const city = new City({ size: 32, water: false });
+    city.plantTrees(2, 2, 12, 12);
+    city.disaster('lightning', 4, 4);
+    city.disaster('lightning', 10, 10);
+    expect(city.stats().safety.burning).toBe(2);
+    const result = kind === 'road' ? city.buildNetwork(3, 4, 5, 4, 'road')
+      : kind === 'facility' ? city.placeStructure('smallParkGreen', 4, 4)
+      : city.terraform(4, 4, 4, 4, 'water');
+    expect(result.ok).toBe(true);
+    expect(city.state.treeFires.map((fire) => fire.i)).toEqual([10 * 32 + 10]);
+    expect(city.stats().safety.burning).toBe(1);
+  });
+
+  it('does not carry potholes from a demolished elevated highway onto a new segment', () => {
+    const city = new City({ size: 32, water: false });
+    city.buildElevated(2, 8, 20, 8, 'highway');
+    const tile = 8 * 32 + 10;
+    city.state.potholes[tile] = city.state.potholes[tile + 1] = 1;
+    expect(city.bulldoze(10, 8, 10, 8).ok).toBe(true);
+    expect(city.state.potholes[tile]).toBe(0);
+    expect(city.buildElevated(10, 8, 10, 8, 'highway').ok).toBe(true);
+    expect(city.state.potholes[tile]).toBe(0);
+    expect(city.state.potholes[tile + 1]).toBe(1);
+  });
+
   it('acknowledges a free tree-only demolition and removes its burning-tree markers at once', () => {
     const city = new City({ size: 16, water: false });
     city.plantTrees(2, 2, 4, 4);
