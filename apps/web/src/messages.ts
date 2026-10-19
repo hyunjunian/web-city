@@ -39,6 +39,7 @@ const EXACT: Record<string, string> = {
   "needs the Mayor's House": '시장 관저가 있어야 합니다',
   'no mission with this vehicle': '이 탈것으로 하는 임무 중이 아닙니다',
   'no such deal': '그런 거래는 할 수 없습니다',
+  'deal ids exhausted': '이 도시에서는 새 거래를 더 만들 수 없습니다',
   "our connection does not meet the neighbour's": '이 도시의 연결이 이웃 도시의 연결과 맞닿지 않습니다 (두 도시가 맞닿은 구간에서 마주 보게 이으세요)',
   'this vehicle has no water': '물을 뿌릴 수 없는 탈것입니다',
   'nothing to put out here': '여기에는 끌 불이나 유독물이 없습니다',
