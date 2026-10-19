@@ -1687,6 +1687,7 @@ export class City {
         if (st.kind !== 'nuclearPlant') continue;
         for (const i of footprint(s, st)) s.occupant[i] = 0;
         s.structures.delete(st.id);
+        s.fires = s.fires.filter((fire) => fire.target !== -st.id);
       }
     }
     this.networkDirty = true;
@@ -1705,6 +1706,7 @@ export class City {
       if (this.cfg.structures[st.kind].offer?.ordinance !== id) continue;
       for (const i of footprint(s, st)) s.occupant[i] = 0;
       s.structures.delete(st.id);
+      s.fires = s.fires.filter((fire) => fire.target !== -st.id);
     }
     this.networkDirty = true;
     this.updateDemand();
@@ -3181,6 +3183,8 @@ export class City {
 
   /** How this city looks to its neighbours (population, utilities, treasury). */
   snapshot(): CitySnapshot {
+    // Settle pending days before retaining the census reference: utility() can refresh it.
+    this.refreshIfDirty();
     const c = this.census;
     const use = (r: DealResource) => this.utility(r);
     const power = use('power');

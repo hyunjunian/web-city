@@ -184,6 +184,24 @@ describe('ordinances', () => {
     expect(city.placeStructure('nuclearPlant', 40, 33).ok).toBe(false);
   });
 
+  it.each(['nuclearPlant', 'casino'] as const)('closes a burning %s without leaving a fire on an empty lot', (kind) => {
+    const city = new City({ size: 32, water: false, config: { safety: { fires: false }, disasters: { simulated: false } } });
+    city.state.funds = 1_000_000;
+    city.state.unlocked.push(kind);
+    if (kind === 'casino') city.enactOrdinance('legalizeGambling');
+    expect(city.placeStructure(kind, 3, 3).ok).toBe(true);
+    expect(city.placeStructure('smallPoliceStation', 20, 3).ok).toBe(true);
+    expect(city.igniteAt(3, 3)).toBe(true);
+    expect(city.igniteAt(20, 3)).toBe(true);
+    const unrelated = city.state.fires.find((fire) => fire.target !== -1)!;
+    const result = kind === 'casino' ? city.repealOrdinance('legalizeGambling') : city.enactOrdinance('nuclearFreeZone');
+    expect(result.ok).toBe(true);
+    expect(city.state.fires).toEqual([unrelated]);
+    expect(city.stats().safety.burning).toBe(1);
+    expect(city.state.occupant[3 * 32 + 3]).toBe(0);
+    expect(loadCity(saveCity(city)).state.fires).toEqual([unrelated]);
+  });
+
   it('water conservation cuts water use 10%', () => {
     const city = town();
     city.placeStructure('waterPump', 20, 6);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { City, loadCity, saveCity, saveCitySteps } from '../src';
+import { City, loadCity, saveCity, saveCitySteps, sampleCity } from '../src';
 describe('stepping in pieces', () => {
   it('operational landfill checks have the same result during sliced and synchronous months', () => {
     const config = { safety: { fires: false }, disasters: { simulated: false } };
@@ -88,6 +88,17 @@ describe('stepping in pieces', () => {
     a.step(30);
     expect(JSON.stringify(saveCity(b))).toBe(JSON.stringify(saveCity(a)));
     expect(b.stepping).toBe(false);
+  }, 60_000);
+
+  it('takes a current city snapshot after settling pending growth and month-end work', () => {
+    const saved = saveCity(sampleCity());
+    const full = loadCity(saved), sliced = loadCity(saved);
+    full.step(60);
+    sliced.beginSteps(60);
+    expect(sliced.resume()).toBe(true);
+    expect(sliced.snapshot()).toEqual(full.snapshot());
+    expect(sliced.stepping).toBe(false);
+    expect(saveCity(sliced)).toEqual(saveCity(full));
   }, 60_000);
 
   it('the growth map and the advisors in pieces match the one-call versions', () => {
