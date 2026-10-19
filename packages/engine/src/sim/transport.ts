@@ -1047,7 +1047,7 @@ function edgeTilesWhere(s: CityState, test: (i: number) => boolean): number[] {
 export function connectionTiles(s: CityState): number[] {
   return edgeTilesWhere(s, (i) => {
     const code = s.net[i]!;
-    return code === Net.Road || code === Net.Avenue || code === Net.Highway || code === Net.Rail;
+    return code === Net.Road || code === Net.Avenue || code === Net.Highway || isRail(code);
   });
 }
 
@@ -1112,7 +1112,10 @@ function remoteJobs(s: CityState, cfg: SimConfig): [number, number][] {
   // Roads and rail leaving the map: drive, or ride the train, to the neighbour.
   for (const c of connectionTiles(s)) {
     const t = tripFrom(c);
-    if (t !== null && t !== undefined) out.push([(s.net[c] === Net.Rail ? Mode.Train : Mode.Car) * N + c, t]);
+    if (t === null || t === undefined) continue;
+    // A level crossing carries two independent exits, one for each network.
+    if (s.net[c] !== Net.Rail) out.push([Mode.Car * N + c, t]);
+    if (isRail(s.net[c]!)) out.push([Mode.Train * N + c, t]);
   }
   // Elevated highways, subways, elevated rail and monorails leaving the map are
   // connections too: commuters can ride them into a neighbouring city.
@@ -1228,7 +1231,11 @@ export function* computeTravelSteps(s: CityState, f: Fields, cfg: SimConfig): Ge
   // freight rail out of town or to a seaport. Airports count for industry's
   // freight time, but less than the others, so they start with a penalty;
   // no actual trips go there (trucks follow a search without them).
-  const outs: [number, number][] = edges.map((c) => [(s.net[c] === Net.Rail ? Mode.Train : Mode.Car) * N + c, 0]);
+  const outs: [number, number][] = [];
+  for (const c of edges) {
+    if (s.net[c] !== Net.Rail) outs.push([Mode.Car * N + c, 0]);
+    if (isRail(s.net[c]!)) outs.push([Mode.Train * N + c, 0]);
+  }
   for (const c of highEdges) outs.push([Mode.HighCar * N + c, 0]);
   for (const st of s.structures.values()) {
     if (cfg.structures[st.kind].airport) for (const a of frontage(s, st)) outs.push([Mode.Car * N + a, tc.airportFreightPenalty]);

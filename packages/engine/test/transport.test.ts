@@ -44,6 +44,26 @@ function corridor(n = 64, before?: (city: City) => void): City {
 const homes = (c: City) => [...c.state.buildings.values()].filter((b) => b.type?.startsWith('R'));
 const tile = (c: City, x: number, y: number) => y * c.size + x;
 
+describe('border level crossings', () => {
+  it.each(['road', 'rail'] as const)('keeps a %s exit usable where it crosses the other network on the border', (kind) => {
+    const city = new City({ size: 32, water: false, config: CALM });
+    city.state.funds = 1_000_000;
+    expect(city.buildNetwork(0, 10, 12, 10, kind).ok).toBe(true);
+    expect(city.buildNetwork(0, 5, 0, 15, kind === 'road' ? 'rail' : 'road').ok).toBe(true);
+    city.refreshIfDirty();
+    const N = city.size * city.size, mode = kind === 'road' ? Mode.Car : Mode.Train;
+    const start = mode * N + 10 * city.size + 5;
+    expect(city.state.net[10 * city.size]).toBe(Net.RailCrossing);
+    expect(city.connectionsPerEdge().road[0]).toBe(1);
+    expect(city.connectionsPerEdge().rail[0]).toBe(1);
+    expect(city.fields.connections).toContain(10 * city.size);
+    expect(city.fields.travel!.fastest.time[start]).toBeLessThan(city.cfg.transport.tripLimit);
+    expect(city.fields.travel!.freight.time[start]).toBeLessThan(city.cfg.transport.tripLimit);
+    const loaded = loadCity(saveCity(city));
+    expect(loaded.fields.travel!.freight.time[start]).toBe(city.fields.travel!.freight.time[start]);
+  });
+});
+
 describe('neighbour jobs by transit', () => {
   it('a developed neighbour gives only the jobs its own Sims leave open', () => {
     const run = (poor: boolean) => {
