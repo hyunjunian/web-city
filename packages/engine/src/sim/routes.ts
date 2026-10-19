@@ -97,18 +97,18 @@ export function alightings(s: CityState, f: Fields, cfg: SimConfig): Map<number,
   const out = new Map<number, number>();
   if (!at.size) return out;
   const log = f.tripLog ?? replayTrips(s, f, cfg);
+  let amount = 0;
+  const visit = (fromTile: number, toTile: number, fromMode: number, toMode: number) => {
+    const kinds = toMode === Mode.Walk ? LINES.get(fromMode) : undefined;
+    if (!kinds) return;
+    const here = at.get(toTile)?.filter((x) => kinds.includes(x.mode)) ?? [];
+    const list = here.length ? here : at.get(fromTile)?.filter((x) => kinds.includes(x.mode)) ?? [];
+    for (const x of list) out.set(x.id, (out.get(x.id) ?? 0) + amount / list.length);
+  };
   for (let k = 0; log && k < log.count; k++) {
     if (log.freight[k]) continue;
-    const r = log.route(k);
-    for (let j = 1; j < r.tiles.length; j++) {
-      const kinds = r.modes[j] === Mode.Walk ? LINES.get(r.modes[j - 1]!) : undefined;
-      if (!kinds) continue;
-      // (Only a station of the line's kind: a bus getting off by a subway station's door is the bus stop's.)
-      const of = (t: number) => at.get(t)?.filter((x) => kinds.includes(x.mode)) ?? [];
-      const here = of(r.tiles[j]!);
-      const list = here.length ? here : of(r.tiles[j - 1]!);
-      for (const x of list) out.set(x.id, (out.get(x.id) ?? 0) + log.amount[k]! / list.length);
-    }
+    amount = log.amount[k]!;
+    log.visitChanges(k, visit);
   }
   return out;
 }

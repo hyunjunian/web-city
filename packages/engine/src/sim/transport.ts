@@ -1352,6 +1352,14 @@ export class TripLog {
     return false;
   }
 
+  /** Visits adjacent tiles where trip k changes mode, without copying its route. */
+  visitChanges(k: number, visit: (fromTile: number, toTile: number, fromMode: number, toMode: number) => void): void {
+    const a = this.start[k]!, end = a + this.length[k]!;
+    for (let i = a + 1; i < end; i++) {
+      if (this.modes[i] !== this.modes[i - 1]) visit(this.tiles[i - 1]!, this.tiles[i]!, this.modes[i - 1]!, this.modes[i]!);
+    }
+  }
+
   /** Does trip k cross tile t? */
   crosses(k: number, t: number): boolean {
     const a = this.start[k]!;

@@ -24,6 +24,10 @@ describe('compact trip-log transfers', () => {
     log.step(3, Mode.Bus);
     log.step(4, Mode.Walk);
     log.end();
+    const changes: number[][] = [];
+    const visit = (...change: number[]) => changes.push(change);
+    log.visitChanges(0, visit);
+    expect(changes).toEqual([[1, 2, Mode.Car, Mode.Bus], [3, 4, Mode.Bus, Mode.Walk]]);
     for (const tile of [1, 2, 3, 4]) expect(log.changesAt(0, new Set([tile]))).toBe(true);
     expect(log.changesAt(0, new Set([8]))).toBe(false);
     log.begin(2, 4, false);
@@ -31,14 +35,21 @@ describe('compact trip-log transfers', () => {
     log.step(9, Mode.Car);
     log.end();
     expect(log.changesAt(1, new Set([4, 8, 9]))).toBe(false);
+    changes.length = 0;
+    log.visitChanges(1, visit);
+    expect(changes).toEqual([]);
     log.begin(3, 1, false);
     log.end();
     expect(log.changesAt(2, new Set([9]))).toBe(false);
+    log.visitChanges(2, visit);
+    expect(changes).toEqual([]);
     log.begin(4, 1, false);
     log.step(11, Mode.Walk);
     log.step(11, Mode.Bus);
     log.end();
     expect(log.changesAt(3, new Set([11]))).toBe(false);
+    log.visitChanges(3, visit);
+    expect(changes).toEqual([]);
   });
 });
 
